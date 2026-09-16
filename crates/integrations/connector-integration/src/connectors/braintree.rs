@@ -529,7 +529,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: SetupMandate,
-            request_body: BraintreeSetupMandateRequest<T>,
+            request_body: BraintreeSetupMandateRequest,
             response_body: BraintreeSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
@@ -914,13 +914,16 @@ macros::macro_connector_implementation!(
     }
 );
 
-// SetupMandate (SetupRecurring) - tokenize the card and surface the resulting
-// Braintree paymentMethod.id as connector_mandate_id. RepeatPayment then
-// consumes that id via its existing MandatePayment request path.
+// SetupMandate (SetupRecurring) - a real zero-amount card verification.
+// `vaultCreditCard` verifies the card against the network and vaults it in one
+// mutation; the attempt status is mapped from `verification.status`, the AVS/CVV
+// verdicts land on `connector_response`, and the vaulted `paymentMethod.id` is
+// returned as `connector_mandate_id`, which RepeatPayment consumes via its
+// existing MandatePayment request path.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Braintree,
-    curl_request: Json(BraintreeSetupMandateRequest<T>),
+    curl_request: Json(BraintreeSetupMandateRequest),
     curl_response: BraintreeSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,

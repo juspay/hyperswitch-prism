@@ -315,6 +315,20 @@
     "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/required-fields",
     "https://developer.paypal.com/braintree/docs/reference/general/testing",
     "https://developer.paypal.com/braintree/docs/reference/general/webhooks/overview",
-    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale"
+    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale",
+    "https://developer.paypal.com/braintree/graphql/reference/#Mutation--verifyCreditCard",
+    "https://developer.paypal.com/braintree/graphql/reference/#Mutation--vaultPaymentMethod",
+    "https://developer.paypal.com/braintree/graphql/reference/#Mutation--vaultCreditCard",
+    "https://developer.paypal.com/braintree/graphql/reference/#Input--CreditCardVerificationOptionsInput",
+    "https://developer.paypal.com/braintree/graphql/reference/#Object--VerifyPaymentMethodPayload",
+    "https://developer.paypal.com/braintree/graphql/reference/#Union--VerificationDetails",
+    "https://developer.paypal.com/braintree/graphql/reference/#Object--VerificationProcessorResponse",
+    "https://developer.paypal.com/braintree/graphql/reference/#Enum--GatewayRejectionReason",
+    "https://developer.paypal.com/braintree/articles/control-panel/vault/card-verification",
+    "https://developer.paypal.com/braintree/articles/control-panel/transactions/gateway-rejections",
+    "https://developer.paypal.com/braintree/docs/reference/request/credit-card-verification/create/node/",
+    "https://developer.paypal.com/braintree/docs/reference/response/credit-card-verification/php",
+    "https://developer.paypal.com/braintree/docs/reference/response/credit-card-verification/java",
+    "https://developer.paypal.com/braintree/docs/reference/request/payment-method/create/node/"
   ]
 }

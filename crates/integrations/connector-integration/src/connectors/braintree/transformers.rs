@@ -92,14 +92,31 @@ pub const BRAINTREE_CONNECTOR_NAME: &str = "braintree";
 /// added here (the spec had left `mastercardTransactionLinkId`'s presence at the pin open):
 /// transaction `bpr4zzv7` returned `paymentMethodSnapshot.networkTransactionId = 020260915233603`
 /// with `mastercardTransactionLinkId: null` on a Visa.
+/// The `paymentMethodSnapshot` inline-fragment traversal, on its own so that every mutation
+/// that needs a network transaction id splices the SAME selection instead of restating it.
+///
+/// `paymentMethodSnapshot` is declared on BOTH `Transaction` (spent by
+/// `card_transaction_fields!` below, for Authorize / RepeatPayment) and `Verification` (spent by
+/// `VAULT_CREDIT_CARD_MUTATION`, for SetupMandate). In both places it is the union
+/// `PaymentMethodSnapshot`, and in both places `CreditCardTransactionDetails` is the only member
+/// carrying `networkTransactionId` — so one definition serves both and they cannot drift.
+/// `CreditCardDetails` is a sibling member that legitimately resolves for a card and carries no
+/// NTID, which is why `CreditCardTransactionSnapshot` keeps every level optional (RULE M-2).
+macro_rules! payment_method_snapshot_fields {
+    () => {
+        "paymentMethodSnapshot { ... on CreditCardTransactionDetails { networkTransactionId } }"
+    };
+}
+
 macro_rules! card_transaction_fields {
     () => {
+        concat!(
         "id legacyId createdAt status orderId amount { value currencyCode } \
          processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse \
          avsStreetAddressResponse authorizationId additionalInformation retrievalReferenceNumber \
-         mastercardTransactionLinkId } \
-         paymentMethodSnapshot { ... on CreditCardTransactionDetails { networkTransactionId } } \
-         statusHistory { status terminal \
+         mastercardTransactionLinkId } ",
+        payment_method_snapshot_fields!(),
+        " statusHistory { status terminal \
          ... on AuthorizedEvent { processorResponse { legacyCode message cvvResponse \
          avsPostalCodeResponse avsStreetAddressResponse authorizationId retrievalReferenceNumber } \
          networkResponse { code message } } \
@@ -112,6 +129,7 @@ macro_rules! card_transaction_fields {
          networkResponse { code message } merchantAdviceCodeResponse { code message } } \
          ... on FailedEvent { processorResponse { legacyCode message additionalInformation } \
          networkResponse { code message } merchantAdviceCodeResponse { code message } } }"
+        )
     };
 }
 
@@ -146,6 +164,57 @@ pub mod constants {
         "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { ",
         card_transaction_fields!(),
         " paymentMethod { id } } } }"
+    );
+    /// SetupMandate — a REAL zero-amount card verification that also vaults the card.
+    ///
+    /// `vaultCreditCard` is the canonical SetupMandate mutation, and the only one of the four
+    /// candidates that fits (tech spec §SM.2, live-SDL verified):
+    ///
+    /// * `verifyCreditCard` / `verifyPaymentMethod` require a payment method that is ALREADY
+    ///   `MULTI_USE`. Handed the single-use token a freshly tokenized card produces, the former
+    ///   answers `errorClass: AUTHORIZATION` / "You are unauthorized to perform this action." —
+    ///   which reads like a credentials failure and is not one. They re-verify an existing
+    ///   mandate; they cannot create one.
+    /// * `vaultPaymentMethod` accepts a single-use token but its
+    ///   `PaymentMethodVerificationOptionsInput` carries only `merchantAccountId` and `skip`,
+    ///   with no amount override at all.
+    /// * `vaultCreditCard` accepts the single-use token, verifies against the card network and
+    ///   vaults in ONE call. Verification is ON BY DEFAULT — confirmed live: sending no
+    ///   `verification` key still produced `status: VERIFIED`, while `verification: { skip: true }`
+    ///   produced `verification: null` and vaulted an UNVERIFIED card. This connector therefore
+    ///   never sends `skip`.
+    ///
+    /// Selection-set rules encoded here, each one a live-verified trap:
+    ///
+    /// * `Verification.amount` is `@deprecated` in favour of
+    ///   `paymentMethodVerificationDetails.amount` and is deliberately NOT selected. The
+    ///   deprecated field is also invisible to an introspection that omits
+    ///   `includeDeprecated: true`, which is how it keeps being re-added.
+    /// * `riskData.liabilityShift` is an OBJECT. A bare selection on it is a document-level
+    ///   `SubselectionRequired` validation error, which rejects the whole document before
+    ///   execution and would break 100% of SetupMandate calls — so `riskData` is omitted entirely
+    ///   rather than selected shallowly.
+    /// * `verification.networkTransactionId` does not exist. The NTID is reachable only through
+    ///   the `paymentMethodSnapshot` union, spliced from the shared
+    ///   `payment_method_snapshot_fields!` so it cannot drift from the Authorize selection set.
+    /// * `paymentMethodVerificationDetails` is the union `VerificationDetails`, so its amount
+    ///   needs an inline fragment; `CreditCardVerificationDetails` has exactly one field.
+    /// * `paymentMethod.id` is the OPAQUE GLOBAL id and is the mandate reference. `legacyId` is
+    ///   selected for logs only — passing it to `chargePaymentMethod` fails with `legacyCode
+    ///   91565` "Unknown or expired single-use payment method", proven live in both directions.
+    ///
+    /// Gated live under both `Braintree-Version: 2019-01-01` (this connector's pin) and
+    /// `2024-05-01` with byte-identical results, so no version bump is required.
+    pub const VAULT_CREDIT_CARD_MUTATION: &str = concat!(
+        "mutation vaultCreditCard($input: VaultCreditCardInput!) { vaultCreditCard(input: $input) { ",
+        "paymentMethod { id legacyId usage createdAt } ",
+        "verification { id legacyId status createdAt merchantAccountId gatewayRejectionReason ",
+        "processorResponse { legacyCode message cvvResponse avsPostalCodeResponse ",
+        "avsStreetAddressResponse additionalInformation mastercardTransactionLinkId } ",
+        "networkResponse { code message } ",
+        payment_method_snapshot_fields!(),
+        " paymentMethodVerificationDetails { ",
+        "... on CreditCardVerificationDetails { amount { value currencyIsoCode } } } } } }"
     );
     pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
     pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
@@ -1641,6 +1710,45 @@ pub struct TransactionAuthChargeResponseBody {
     payment_method_snapshot: Option<CreditCardTransactionSnapshot>,
 }
 
+/// Shapes the AVS / CVV / processor verdicts into the `payment_checks` blob UCS hands back on
+/// `PaymentFlowData.connector_response`.
+///
+/// Shared deliberately by every Braintree card flow that receives a processor verdict:
+/// Authorize and RepeatPayment read it off `Transaction.processorAuthorizationResponse`, and
+/// SetupMandate reads it off `Verification.processorResponse`. The two SDL types declare the
+/// same AVS/CVV triple (`cvvResponse`, `avsPostalCodeResponse`, `avsStreetAddressResponse`, all
+/// typed `AvsCvvResponseCode`) plus `legacyCode`/`message`, so one `BraintreeProcessorResponse`
+/// models both and one builder serves both. Forking this for SetupMandate would let a merchant's
+/// AVS handling silently diverge between "verify the card" and "charge the card".
+///
+/// `authorization_id` and `retrieval_reference_number` exist only on the transaction shape and
+/// arrive as `None` on a verification; they are emitted either way so the JSON key set a caller
+/// parses does not change between flows.
+fn build_card_payment_checks_response(
+    processor_response: &BraintreeProcessorResponse,
+) -> ConnectorResponseData {
+    let payment_checks = serde_json::json!({
+        "avs_postal_code_response": processor_response.avs_postal_code_response.map(|code| code.to_string()),
+        "avs_street_address_response": processor_response.avs_street_address_response.map(|code| code.to_string()),
+        "cvv_response": processor_response.cvv_response.map(|code| code.to_string()),
+        "processor_response_code": processor_response.legacy_code,
+        "processor_response_text": processor_response.message,
+        "authorization_id": processor_response.authorization_id,
+        "retrieval_reference_number": processor_response.retrieval_reference_number,
+        "additional_information": processor_response.additional_information,
+    });
+
+    ConnectorResponseData::with_additional_payment_method_data(
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: Some(payment_checks),
+            card_network: None,
+            domestic_network: None,
+            auth_code: processor_response.authorization_id.clone(),
+        },
+    )
+}
+
 impl TransactionAuthChargeResponseBody {
     /// The first `statusHistory` entry that carries issuer diagnostics. `statusHistory` is
     /// reverse-chronological, so this is the most recent decline/reject/fail event.
@@ -1684,27 +1792,13 @@ impl TransactionAuthChargeResponseBody {
 
     /// Surfaces the AVS and CVV verdicts on `PaymentFlowData.connector_response` so callers
     /// can reason about address/CVV mismatches without re-fetching the transaction.
+    ///
+    /// Delegates to [`build_card_payment_checks_response`], which SetupMandate's zero-amount
+    /// verification also calls — the two flows read the same AVS/CVV codes off the same SDL
+    /// shape, so they share one builder rather than each shaping its own `payment_checks` blob.
     fn build_connector_response_data(&self) -> Option<ConnectorResponseData> {
-        let processor_response = self.processor_response()?;
-        let payment_checks = serde_json::json!({
-            "avs_postal_code_response": processor_response.avs_postal_code_response.map(|code| code.to_string()),
-            "avs_street_address_response": processor_response.avs_street_address_response.map(|code| code.to_string()),
-            "cvv_response": processor_response.cvv_response.map(|code| code.to_string()),
-            "processor_response_code": processor_response.legacy_code,
-            "processor_response_text": processor_response.message,
-            "authorization_id": processor_response.authorization_id,
-            "retrieval_reference_number": processor_response.retrieval_reference_number,
-            "additional_information": processor_response.additional_information,
-        });
-
-        Some(ConnectorResponseData::with_additional_payment_method_data(
-            AdditionalPaymentMethodConnectorResponse::Card {
-                authentication_data: None,
-                payment_checks: Some(payment_checks),
-                card_network: None,
-                domestic_network: None,
-                auth_code: processor_response.authorization_id.clone(),
-            },
+        Some(build_card_payment_checks_response(
+            self.processor_response()?,
         ))
     }
 
@@ -2037,6 +2131,60 @@ pub struct ErrorDetails {
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalErrorDetails {
     pub legacy_code: Option<String>,
+    /// `errors[].extensions.errorClass`. Braintree's own classification of WHY the document was
+    /// rejected, and the only signal in the GraphQL error envelope that distinguishes "this
+    /// request will never succeed as sent" from "something broke on the way". SetupMandate
+    /// branches its `attempt_status` on it; the other flows deserialize it and ignore it.
+    pub error_class: Option<BraintreeErrorClass>,
+}
+
+/// Braintree GraphQL `errors[].extensions.errorClass`.
+///
+/// Not an SDL enum — it is a free-form string in the error envelope — so `Unknown` is a real,
+/// reachable arm rather than a formality, and an unrecognised class must never fail the parse.
+/// The split below is the whole point of modelling it: only a class that means "Braintree
+/// definitively refused this document, nothing was verified and nothing was vaulted" may produce
+/// a terminal attempt status.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeErrorClass {
+    /// Input the gateway rejected outright (bad merchant account, spent or expired token, …).
+    Validation,
+    /// Credentials are valid but may not perform this operation.
+    Authorization,
+    /// Credentials were not accepted.
+    Authentication,
+    /// The addressed resource does not exist.
+    NotFound,
+    /// The client is not permitted to call this API at all.
+    UnsupportedClient,
+    /// Rate/quota limit — retryable, so NOT terminal.
+    ResourceLimit,
+    /// Braintree-side fault — ambiguous, so NOT terminal.
+    Internal,
+    /// Braintree or a downstream dependency is unavailable — ambiguous, so NOT terminal.
+    ServiceAvailability,
+    #[serde(other)]
+    Unknown,
+}
+
+impl BraintreeErrorClass {
+    /// `true` when the class means the request was refused before anything happened, so the
+    /// attempt can be closed as failed without risking a false FAILURE on work that may have
+    /// been performed (review Theme 1). Everything else — including `Unknown` — is ambiguous
+    /// and must leave the attempt non-terminal.
+    fn is_terminal_rejection(self) -> bool {
+        match self {
+            Self::Validation
+            | Self::Authorization
+            | Self::Authentication
+            | Self::NotFound
+            | Self::UnsupportedClient => true,
+            Self::ResourceLimit | Self::Internal | Self::ServiceAvailability | Self::Unknown => {
+                false
+            }
+        }
+    }
 }
 
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
@@ -4260,6 +4408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 BraintreeMandateCredential::ExternallyVaulted {
                     payment_method_id: braintree_single_use_token(
                         &item.router_data.request.payment_method_data,
+                        BraintreeTokenConsumer::RepeatPayment,
                     )?,
                     network_transaction_id: Secret::new(
                         network_mandate.network_transaction_id.clone(),
@@ -4270,6 +4419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 BraintreeMandateCredential::ExternallyVaulted {
                     payment_method_id: braintree_single_use_token(
                         &item.router_data.request.payment_method_data,
+                        BraintreeTokenConsumer::RepeatPayment,
                     )?,
                     network_transaction_id: Secret::new(
                         network_token.network_transaction_id.clone(),
@@ -4300,6 +4450,7 @@ fn braintree_single_use_token<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     payment_method_data: &PaymentMethodData<T>,
+    consumer: BraintreeTokenConsumer,
 ) -> Result<Secret<String>, Report<IntegrationError>> {
     match payment_method_data {
         PaymentMethodData::PaymentMethodToken(token_data)
@@ -4311,25 +4462,68 @@ fn braintree_single_use_token<
             IntegrationError::MissingRequiredField {
                 field_name: "payment_method.token",
                 context: domain_types::errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Exchange the stored credential for a Braintree single-use token with \
-                         PaymentMethodService/Tokenize and send it as payment_method.token on \
-                         the repeat payment. Braintree requires a non-null paymentMethodId on \
-                         chargeCreditCard / authorizeCreditCard and accepts no raw card data on \
-                         any transaction mutation."
-                            .to_string(),
-                    ),
-                    doc_url: Some(
-                        "https://graphql.braintreepayments.com/reference/#Input--ChargeCreditCardInput"
-                            .to_string(),
-                    ),
-                    additional_context: Some(
-                        "network-transaction-id mandate replayed without a Braintree card token"
-                            .to_string(),
-                    ),
+                    suggested_action: Some(consumer.suggested_action().to_string()),
+                    doc_url: Some(consumer.doc_url().to_string()),
+                    additional_context: Some(consumer.additional_context().to_string()),
                 },
             }
         )),
+    }
+}
+
+/// Which flow is asking for the single-use token.
+///
+/// The extraction is identical for both, but the remediation a caller needs is not — a repeat
+/// payment must re-tokenize a stored credential, while a mandate setup must tokenize the card
+/// the cardholder just entered — so the shared helper is parameterised rather than copied.
+#[derive(Debug, Clone, Copy)]
+enum BraintreeTokenConsumer {
+    /// `RecurringPaymentService/Charge` replaying an externally vaulted credential.
+    RepeatPayment,
+    /// `PaymentService/SetupRecurring` — the zero-amount verification that creates the mandate.
+    SetupMandate,
+}
+
+impl BraintreeTokenConsumer {
+    fn suggested_action(self) -> &'static str {
+        match self {
+            Self::RepeatPayment => {
+                "Exchange the stored credential for a Braintree single-use token with \
+                 PaymentMethodService/Tokenize and send it as payment_method.token on the \
+                 repeat payment. Braintree requires a non-null paymentMethodId on \
+                 chargeCreditCard / authorizeCreditCard and accepts no raw card data on any \
+                 transaction mutation."
+            }
+            Self::SetupMandate => {
+                "Tokenize the card with PaymentMethodService/Tokenize first, then call \
+                 PaymentService/TokenSetupRecurring with the token as connector_token. \
+                 Braintree's vaultCreditCard takes a paymentMethodId and accepts no raw card \
+                 data, and the two mutations cannot be combined into one request because \
+                 GraphQL root fields cannot consume each other's output."
+            }
+        }
+    }
+
+    fn doc_url(self) -> &'static str {
+        match self {
+            Self::RepeatPayment => {
+                "https://graphql.braintreepayments.com/reference/#Input--ChargeCreditCardInput"
+            }
+            Self::SetupMandate => {
+                "https://graphql.braintreepayments.com/reference/#Input--VaultCreditCardInput"
+            }
+        }
+    }
+
+    fn additional_context(self) -> &'static str {
+        match self {
+            Self::RepeatPayment => {
+                "network-transaction-id mandate replayed without a Braintree card token"
+            }
+            Self::SetupMandate => {
+                "zero-amount card verification requested without a Braintree card token"
+            }
+        }
     }
 }
 
@@ -4664,17 +4858,82 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
 // =============================================================================
 // SETUP MANDATE (Pay.SetupRecurring) FLOW - REQUEST / RESPONSE TRANSFORMERS
 // =============================================================================
-// Braintree does not expose a pure "store-only" mutation that accepts raw card
-// data and produces a multi-use payment method token in a single shot. The
-// closest stable path that returns a `paymentMethod.id` we can hand back as a
-// `connector_mandate_id` is `tokenizeCreditCard` — the same mutation the
-// PaymentMethodToken flow already uses. SetupMandate therefore tokenizes the
-// card and surfaces the resulting Braintree payment method id as the
-// `connector_mandate_id` on a `MandateReference`, which RepeatPayment then
-// consumes via the existing `MandatePayment` request path.
+// A REAL zero-amount card verification, not a tokenization relabelled.
+//
+// What this used to be, and why it was a bug: SetupMandate called
+// `tokenizeCreditCard` and reported `AttemptStatus::Charged`. `tokenizeCreditCard`
+// stores card data in Braintree's vault and never contacts the card network, so
+// nothing was verified, there was no AVS or CVV verdict to report, and a dead card
+// came back indistinguishable from a live one. A merchant relying on a $0 auth to
+// validate a card before vaulting got a false positive every time.
+//
+// What it is now: `vaultCreditCard`, which verifies against the network AND vaults
+// in a single mutation (tech spec §SM.2/§SM.4, live-SDL verified). The attempt
+// status is mapped from `verification.status` — never hardcoded — the AVS/CVV
+// verdicts land on `PaymentFlowData.connector_response` through the same builder
+// Authorize uses, and the network transaction id is captured off the same
+// `paymentMethodSnapshot` selection Authorize splices.
+//
+// Braintree accepts no raw PAN on `vaultCreditCard`; it takes a `paymentMethodId`.
+// The card must therefore be tokenized first, and the two mutations CANNOT be
+// spliced into one document the way `PRE_AUTHENTICATE_MUTATION` splices its pair —
+// GraphQL executes root mutation fields serially but gives no way for one to consume
+// another's output, and `vaultCreditCard` needs the token `tokenizeCreditCard`
+// returns. So SetupMandate takes the token as input, exactly as Authorize does, and
+// fails closed when it is absent.
 
-pub type BraintreeSetupMandateRequest<T> = GenericBraintreeRequest<VariableInput<T>>;
-pub type BraintreeSetupMandateResponse = BraintreeTokenResponse;
+/// `VaultCreditCardVerificationOptionsInput` — the verification half of `VaultCreditCardInput`.
+///
+/// Carries ONLY the merchant account. Two omissions are deliberate and load-bearing:
+///
+/// * **`skip` is never sent.** Verification is on by default (confirmed live: a `vaultCreditCard`
+///   with no `verification` key at all still returned `status: VERIFIED`), and `skip: true`
+///   returns `verification: null` while still vaulting — i.e. exactly the unverified vault this
+///   change exists to remove. The field is not modelled, so it cannot be set by accident.
+/// * **`amount` is never sent.** Braintree then chooses the verification amount itself, which is
+///   what tech spec §SM.7 resolves the connector's long-standing UNDECIDED #4 in favour of.
+///   Forcing `"0.00"` risks processor code `2031` ("Bank doesn't support $0.00 verifications")
+///   on issuers that reject zero-amount authorizations — the very escalation Braintree's own
+///   logic exists to perform — and forcing `"1.00"` puts a real (auto-voided) hold on the
+///   cardholder. Every live call on this sandbox returned `0.00`, but the documented escalation
+///   to $1 was NOT reproducible here and is marked UNVERIFIED in §SM.15, so the amount is read
+///   back off the response instead of being assumed.
+/// * `fraudTools` is not modelled: the SDL exposes it here, yet its own field descriptions say
+///   `skipCvv`/`skipAvs` apply only to `chargeCreditCard`/`authorizeCreditCard`. That
+///   contradiction is unresolved upstream (§SM.15 item 7), and skipping AVS/CVV would defeat the
+///   point of this flow.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardVerificationOptionsInput {
+    /// The merchant account the verification is performed against. On `vaultCreditCard` this
+    /// lives NESTED under `verification` — `verifyPaymentMethod` takes it at the top level and
+    /// `verifyCreditCard` cannot target one at all, so the placement is not interchangeable.
+    merchant_account_id: Secret<String>,
+}
+
+/// Braintree GraphQL `VaultCreditCardInput`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardInput {
+    /// The single-use token from `tokenizeCreditCard`. Consumed by this call: replaying it
+    /// returns `legacyCode 93107`, "Cannot use a single-use payment method more than once".
+    payment_method_id: Secret<String>,
+    /// Echoed back verbatim by Braintree; carries the UCS request reference so a merchant can
+    /// line the verification up with the attempt that produced it. Capped at 255 characters by
+    /// the SDL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    client_mutation_id: Option<String>,
+    verification: VaultCreditCardVerificationOptionsInput,
+    /// `VaultCreditCardInput.billingAddress` is a TOP-LEVEL sibling of `verification` here —
+    /// unlike Authorize, where the billing address hangs off `options.billingAddress`. Sent
+    /// whenever UCS holds one, because without it the processor answers `NOT_PROVIDED` for both
+    /// AVS checks and the verification tells the merchant nothing about the address.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_address: Option<BraintreeAddressInput>,
+}
+
+pub type BraintreeSetupMandateRequest =
+    GenericBraintreeRequest<GenericVariableInput<VaultCreditCardInput>>;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -4687,7 +4946,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for BraintreeSetupMandateRequest<T>
+    > for BraintreeSetupMandateRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
@@ -4701,59 +4960,449 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(card_data) => Ok(Self {
-                query: constants::TOKENIZE_CREDIT_CARD.to_string(),
-                variables: VariableInput {
-                    input: InputData {
-                        credit_card: BraintreeTokenizeCard::Raw(CreditCardData {
-                            number: card_data.card_number,
-                            expiration_year: card_data.card_exp_year,
-                            expiration_month: card_data.card_exp_month,
-                            cvv: Some(card_data.card_cvc),
-                            cardholder_name: item
-                                .router_data
-                                .resource_common_data
-                                .get_optional_billing_full_name()
-                                .unwrap_or(Secret::new("".to_string())),
-                        }),
-                    },
+        // Fails closed rather than falling back to a default merchant account. The verification
+        // must run on the SAME merchant account the later merchant-initiated charge will run on,
+        // or the stored-credential chain it bootstraps is attached to the wrong account; and a
+        // bad value here is answered by Braintree with `legacyCode 91728`, "Verification merchant
+        // account ID is invalid", which is far harder to diagnose after the fact than a local
+        // configuration error. `SetupMandateRequestData` carries no per-request merchant account
+        // override, so unlike Authorize and Refund there is only the connector config to read.
+        let merchant_account_id = BraintreeAuthType::try_from(&item.router_data.connector_config)?
+            .merchant_account_id
+            .ok_or_else(|| IntegrationError::InvalidConnectorConfig {
+                config: "merchant_account_id",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Set merchant_account_id in the Braintree connector configuration. \
+                         Braintree performs the zero-amount verification against a specific \
+                         merchant account and the mandate it creates is only usable from that \
+                         same account."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--VaultCreditCardVerificationOptionsInput"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "zero-amount card verification requested with no Braintree merchant \
+                         account configured"
+                            .to_string(),
+                    ),
                 },
-            }),
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::CardWithNoCvc(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
-                    connector: "Braintree",
-                    context: Default::default(),
-                }))
+            })?;
+
+        Ok(Self {
+            query: constants::VAULT_CREDIT_CARD_MUTATION.to_string(),
+            variables: GenericVariableInput {
+                input: VaultCreditCardInput {
+                    // Shared with RepeatPayment: the same extraction, the same fail-closed
+                    // `MissingRequiredField`, flow-specific remediation text.
+                    payment_method_id: braintree_single_use_token(
+                        &item.router_data.request.payment_method_data,
+                        BraintreeTokenConsumer::SetupMandate,
+                    )?,
+                    client_mutation_id: Some(
+                        item.router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
+                    verification: VaultCreditCardVerificationOptionsInput {
+                        merchant_account_id,
+                    },
+                    billing_address: build_billing_address(&item.router_data.resource_common_data),
+                },
+            },
+        })
+    }
+}
+
+/// Braintree GraphQL `VerificationStatus` — SIX values, not four.
+///
+/// `PENDING` and `VERIFYING` are non-terminal and are routinely missed: a four-value enum built
+/// from the older documentation fails to deserialize them outright, and any "every verification
+/// is terminal" assumption built on top is wrong. `Unknown` catches a seventh value Braintree may
+/// add, so a new upstream status degrades to "not yet resolved" instead of failing the response.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeVerificationStatus {
+    /// "Indicates that the verification was successful."
+    Verified,
+    /// "Indicates that the verification was unsuccessful based on the response from the
+    /// processor." An explicit decline.
+    ProcessorDeclined,
+    /// "Indicates that the verification was unsuccessful because the payment method failed one or
+    /// more fraud checks." An explicit gateway decline; `gatewayRejectionReason` says which rule.
+    GatewayRejected,
+    /// "Indicates the verification was unsuccessful because of an issue communicating with the
+    /// processor." NOT a decline — a transport failure between Braintree and the processor.
+    Failed,
+    /// "Indicates that the verification is pending."
+    Pending,
+    /// "Indicates that the verification is in the process of verifying."
+    Verifying,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<BraintreeVerificationStatus> for enums::AttemptStatus {
+    /// The whole point of this change: the attempt status comes from the verification result and
+    /// from nothing else. A failed verification can never report success, and only an EXPLICIT
+    /// decline is terminal.
+    fn from(status: BraintreeVerificationStatus) -> Self {
+        match status {
+            // The card was verified against the network and vaulted. `Charged` is UCS's terminal
+            // success status for a completed mandate setup; no money moved and none was captured
+            // — a Verification is not a Transaction and can never be captured, voided or
+            // refunded.
+            BraintreeVerificationStatus::Verified => Self::Charged,
+            // The issuer or the gateway said no. These are the only two arms that may be
+            // terminal failures: the answer came back, and it was a refusal.
+            BraintreeVerificationStatus::ProcessorDeclined
+            | BraintreeVerificationStatus::GatewayRejected => Self::Failure,
+            // Braintree could not reach the processor. Per the SDL this is a COMMUNICATION
+            // failure, not a decision — exactly the ambiguous outcome that must not be stamped
+            // `Failure`, because "we could not ask" is not "the issuer refused". `Unresolved`
+            // leaves it open for a human or a retry instead of closing it against the merchant.
+            BraintreeVerificationStatus::Failed => Self::Unresolved,
+            // Still in flight. Braintree's own live behaviour for these two is UNVERIFIED
+            // (§SM.15 item 3) — neither was ever observed on the sandbox and no sync query for a
+            // verification has been exercised — so they are handled defensively as non-terminal
+            // rather than assumed away.
+            BraintreeVerificationStatus::Pending | BraintreeVerificationStatus::Verifying => {
+                Self::Pending
             }
+            // A value Braintree added after this enum was written. Unknown is not failure.
+            BraintreeVerificationStatus::Unknown => Self::Pending,
         }
     }
 }
 
-// Response transformer: a successful `tokenizeCreditCard` response carries a
-// `paymentMethod.id` which we mirror on both `resource_id` (so PSync /
-// downstream lookups have something to anchor on) and `mandate_reference`
-// (so the orchestrator can persist it and replay it on RepeatPayment).
+/// Braintree GraphQL `PaymentMethodUsage`.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreePaymentMethodUsage {
+    /// The vaulted, reusable payment method a successful vault produces. Multi-use methods do
+    /// not expire.
+    MultiUse,
+    /// The nonce `tokenizeCreditCard` mints: one use, three-hour lifetime.
+    SingleUse,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `VaultPaymentMethodPayload.paymentMethod` — the vaulted card.
+///
+/// Present ONLY when the card was actually vaulted; a declined verification returns
+/// `paymentMethod: null` alongside a fully populated `verification`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultedPaymentMethod {
+    /// The OPAQUE GLOBAL id, and the only value that works as a mandate reference. Proven live
+    /// in both directions: `chargePaymentMethod` with this id succeeds, and with `legacyId`
+    /// fails with `legacyCode 91565`, "Unknown or expired single-use payment method" — a
+    /// message that sends the reader hunting for an expiry problem that does not exist.
+    pub id: Secret<String>,
+    /// The classic (non-GraphQL) API's *token*. Useful for control-panel cross-reference and
+    /// logging, and never usable as a GraphQL id.
+    pub legacy_id: Option<Secret<String>>,
+    pub usage: Option<BraintreePaymentMethodUsage>,
+}
+
+/// `MonetaryAmount` as selected under `paymentMethodVerificationDetails`.
+///
+/// Note the field name: `currencyIsoCode`, not the `currencyCode` the transaction amount uses.
+/// Both exist on the SDL type; the selection set asks for the former.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeVerificationAmount {
+    /// Major-unit decimal string, e.g. `"0.00"`.
+    pub value: Option<String>,
+    pub currency_iso_code: Option<String>,
+}
+
+/// `Verification.paymentMethodVerificationDetails` narrowed to its
+/// `CreditCardVerificationDetails` member.
+///
+/// `VerificationDetails` is a union (`UsBankAccountVerificationDetails |
+/// CreditCardVerificationDetails`), so a non-card member arrives as `{}` and must parse to
+/// "amount absent". `CreditCardVerificationDetails` has exactly ONE field — no status, no
+/// AVS/CVV, no NTID live here.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeVerificationDetails {
+    #[serde(default)]
+    pub amount: Option<BraintreeVerificationAmount>,
+}
+
+/// Braintree GraphQL `Verification` — the result of the zero-amount check.
+///
+/// A `Verification` is not a `Transaction`: different type, different id space, different status
+/// enum, and it can never be captured, voided or refunded.
+///
+/// Every field is optional on purpose. `Verification` itself is nullable on the payload, the SDL
+/// declares all of these nullable, and on a decline Braintree populates this object while leaving
+/// `paymentMethod` null — so partial data is the normal case, not an error case.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeVerification {
+    /// Opaque global id of the verification event.
+    pub id: Option<String>,
+    pub legacy_id: Option<String>,
+    /// The single source of the attempt status. `None` (the field absent or null) is treated
+    /// exactly like `Unknown`: non-terminal.
+    pub status: Option<BraintreeVerificationStatus>,
+    /// `GatewayRejectionReason` — non-null only when `status == GATEWAY_REJECTED`. Modelled as a
+    /// string rather than an enum because it is surfaced verbatim as the error `reason` and is
+    /// never branched on; a live sample was NOT reproducible on this sandbox merchant (§SM.15
+    /// item 2), which is another reason not to pin a shape to it.
+    pub gateway_rejection_reason: Option<String>,
+    /// `VerificationProcessorResponse`. Declares the same AVS/CVV triple and legacyCode/message
+    /// as the transaction shape, so it deserializes into the shared
+    /// [`BraintreeProcessorResponse`]; `authorizationId` and `retrievalReferenceNumber` simply do
+    /// not exist here and arrive as `None`.
+    pub processor_response: Option<BraintreeProcessorResponse>,
+    /// Sandbox returns the stub `{"code":"XX","message":"sample network response text"}` on every
+    /// call; production values are UNVERIFIED (§SM.15 item 4). Read only as an error fallback.
+    pub network_response: Option<BraintreeCodeMessage>,
+    /// The only path to the NTID on a verification — see [`CreditCardTransactionSnapshot`] and
+    /// the shared `payment_method_snapshot_fields!` selection.
+    #[serde(default)]
+    pub payment_method_snapshot: Option<CreditCardTransactionSnapshot>,
+    /// Carries the amount Braintree actually authorized. Read back rather than assumed.
+    #[serde(default)]
+    pub payment_method_verification_details: Option<BraintreeVerificationDetails>,
+}
+
+impl BraintreeVerification {
+    /// The attempt status this verification implies. A missing or null `status` is ambiguous,
+    /// never a failure and never a success.
+    fn attempt_status(&self) -> enums::AttemptStatus {
+        self.status
+            .unwrap_or(BraintreeVerificationStatus::Unknown)
+            .into()
+    }
+
+    /// The scheme network transaction id, for `PaymentsResponseData::network_txn_id`.
+    ///
+    /// Gated on `VERIFIED` deliberately. Braintree assigns and returns an NTID on DECLINED
+    /// verifications too — a `PROCESSOR_DECLINED` sandbox call returned
+    /// `networkTransactionId: "020260916004852"` — and an NTID from a declined verification is
+    /// not a usable stored-credential bootstrap: replaying it on a later merchant-initiated
+    /// charge asserts a prior approval that never happened.
+    fn network_transaction_id(&self) -> Option<String> {
+        if self.status != Some(BraintreeVerificationStatus::Verified) {
+            return None;
+        }
+        self.payment_method_snapshot
+            .as_ref()?
+            .network_transaction_id
+            .clone()
+    }
+
+    /// The Mastercard TLID, for `PaymentsResponseData::network_txn_link_id`. Read only from
+    /// `processorResponse` — never from the snapshot, which carries the NTID and not this
+    /// (RULE M-1). `None` on every non-Mastercard scheme, which is the normal case.
+    fn network_transaction_link_id(&self) -> Option<String> {
+        self.processor_response
+            .as_ref()?
+            .mastercard_transaction_link_id
+            .clone()
+    }
+
+    /// AVS and CVV verdicts on `PaymentFlowData.connector_response`, through the SAME builder
+    /// Authorize uses. This is the one place a merchant can see that a card verified while its
+    /// postal code did not match — which on a merchant with no gateway AVS/CVV rules configured
+    /// still yields `status: VERIFIED` and still vaults the card, so the status alone is not a
+    /// sufficient signal for a mandate.
+    fn build_connector_response_data(&self) -> Option<ConnectorResponseData> {
+        Some(build_card_payment_checks_response(
+            self.processor_response.as_ref()?,
+        ))
+    }
+
+    /// What Braintree actually verified, and what it vaulted — surfaced as `connector_metadata`
+    /// so the amount is observable rather than assumed. The documented escalation from $0.00 to
+    /// $1.00 on issuers that reject zero-amount authorizations was never reproduced on this
+    /// sandbox (§SM.15 item 1), so the amount is reported, never hard-coded.
+    fn build_connector_metadata(
+        &self,
+        payment_method: Option<&VaultedPaymentMethod>,
+    ) -> Option<serde_json::Value> {
+        let amount = self
+            .payment_method_verification_details
+            .as_ref()
+            .and_then(|details| details.amount.as_ref());
+        Some(serde_json::json!({
+            "verification_id": self.id,
+            "verification_legacy_id": self.legacy_id,
+            "verification_status": self.status.map(|status| status.to_string()),
+            "verification_amount": amount.and_then(|amount| amount.value.clone()),
+            "verification_currency": amount.and_then(|amount| amount.currency_iso_code.clone()),
+            "vaulted_payment_method_legacy_id": payment_method
+                .and_then(|method| method.legacy_id.as_ref())
+                .map(|legacy_id| legacy_id.peek().clone()),
+            "vaulted_payment_method_usage": payment_method
+                .and_then(|method| method.usage)
+                .map(|usage| usage.to_string()),
+        }))
+    }
+
+    /// Builds the error for a verification that did not succeed.
+    ///
+    /// `attempt_status` is passed in rather than recomputed, so the error can never disagree with
+    /// the status the caller just recorded, and it is ALWAYS set (review Theme 9) — a `None` here
+    /// would let a hard decline be re-read as "still pending" and retried forever.
+    fn build_verification_error_response(
+        &self,
+        attempt_status: enums::AttemptStatus,
+        envelope_errors: &[ErrorDetails],
+        http_code: u16,
+    ) -> domain_types::router_data::ErrorResponse {
+        // Seeds code/message/reason from the verification status, then refines them below with
+        // the processor's own values — the same shape Authorize's decline path produces.
+        let mut error_response = create_failure_error_response(
+            self.status.unwrap_or(BraintreeVerificationStatus::Unknown),
+            self.id.clone(),
+            http_code,
+        );
+        let processor_response = self.processor_response.as_ref();
+
+        // The processor's authorization response code, e.g. `2000` "Do Not Honor", falling back
+        // to the card network's own code. This is what Hyperswitch's GSM keys smart retry off.
+        error_response.network_decline_code = processor_response
+            .and_then(|response| response.legacy_code.clone())
+            .or_else(|| {
+                self.network_response
+                    .as_ref()
+                    .and_then(|network| network.code.clone())
+            });
+        error_response.network_error_message = processor_response
+            .and_then(|response| response.message.clone())
+            .or_else(|| {
+                self.network_response
+                    .as_ref()
+                    .and_then(|network| network.message.clone())
+            });
+        // `network_advice_code` stays None on purpose: the Mastercard merchant advice code lives
+        // on `ProcessorDeclinedEvent` / `GatewayRejectedEvent` / `FailedEvent`, which are
+        // `Transaction.statusHistory` types. A Verification has no status history at all, so
+        // there is nowhere to read one from — inventing a fallback would misreport the scheme's
+        // retry guidance.
+
+        // Prefer the processor's own code and text over the bare status string, so the merchant
+        // sees "2000 / Do Not Honor" rather than just "PROCESSOR_DECLINED".
+        if let Some(code) = processor_response.and_then(|response| response.legacy_code.clone()) {
+            error_response.code = code;
+        }
+        if let Some(message) = processor_response.and_then(|response| response.message.clone()) {
+            error_response.message = message;
+        }
+        // Reason, most specific first: the fraud rule that rejected it, then the processor's
+        // expanded text, then whatever the GraphQL error envelope said. A declined verification
+        // arrives as HTTP 200 with BOTH `data` and `errors` populated, so the envelope is a real
+        // fallback here and not a theoretical one.
+        if let Some(reason) = self
+            .gateway_rejection_reason
+            .clone()
+            .or_else(|| {
+                processor_response.and_then(|response| response.additional_information.clone())
+            })
+            .or_else(|| join_error_messages(envelope_errors))
+        {
+            error_response.reason = Some(reason);
+        }
+
+        error_response.attempt_status = Some(FlowStatus::Payment(attempt_status));
+        error_response
+    }
+}
+
+/// `VaultPaymentMethodPayload`, returned by `vaultCreditCard`.
+///
+/// Both members are nullable and their combination is the whole decision:
+/// `paymentMethod` present means the card was vaulted, `verification` carries the outcome.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardPayload {
+    #[serde(default)]
+    pub payment_method: Option<VaultedPaymentMethod>,
+    /// `null` only when verification was skipped. This connector never sends `skip`, so a null
+    /// here is an unmodelled response and is treated as non-terminal rather than as success.
+    #[serde(default)]
+    pub verification: Option<BraintreeVerification>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardResponseData {
+    #[serde(default)]
+    pub vault_credit_card: Option<VaultCreditCardPayload>,
+}
+
+/// The `vaultCreditCard` response envelope.
+///
+/// Modelled as ONE struct with two optional halves rather than as an untagged
+/// `Success | Error` enum, because on this flow a single HTTP 200 routinely carries BOTH. A
+/// declined verification returns `errors: [{ "message": "Payment method failed verification." }]`
+/// AND `data.vaultCreditCard.verification` fully populated with `legacyCode 2000` / "Do Not
+/// Honor". An untagged enum picks one arm and discards the other: short-circuiting on `errors`
+/// throws away the decline reason and reports a useless generic error, while reading only `data`
+/// dereferences a null `paymentMethod`. Both halves must be readable at once.
+///
+/// `data` is optional because a document-level validation error (a bad selection set) returns no
+/// `data` key whatsoever.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeSetupMandateResponse {
+    #[serde(default)]
+    pub data: Option<VaultCreditCardResponseData>,
+    #[serde(default)]
+    pub errors: Option<Vec<ErrorDetails>>,
+}
+
+impl BraintreeSetupMandateResponse {
+    fn payload(&self) -> Option<&VaultCreditCardPayload> {
+        self.data.as_ref()?.vault_credit_card.as_ref()
+    }
+
+    fn envelope_errors(&self) -> &[ErrorDetails] {
+        self.errors.as_deref().unwrap_or_default()
+    }
+}
+
+/// Joins every message in a GraphQL error envelope, or `None` when the envelope is empty.
+fn join_error_messages(errors: &[ErrorDetails]) -> Option<String> {
+    (!errors.is_empty()).then(|| {
+        errors
+            .iter()
+            .map(|error| error.message.clone())
+            .collect::<Vec<String>>()
+            .join(" ")
+    })
+}
+
+/// The attempt status for a HARD error — `data.vaultCreditCard` is null, or there is no `data`
+/// key at all, so no verification was performed and nothing was vaulted.
+///
+/// Branches on Braintree's own `errorClass` rather than stamping one status on every failure. A
+/// `VALIDATION` rejection (a spent token, a bad merchant account id) will never succeed as sent
+/// and is safely terminal; an `INTERNAL` or `SERVICE_AVAILABILITY` fault, or a class this enum
+/// does not recognise, is ambiguous and must stay non-terminal so a retry is still possible
+/// (review Theme 1). An empty envelope is likewise ambiguous.
+fn hard_error_attempt_status(errors: &[ErrorDetails]) -> enums::AttemptStatus {
+    let terminal = errors
+        .iter()
+        .filter_map(|error| error.extensions.as_ref())
+        .filter_map(|extensions| extensions.error_class)
+        .any(BraintreeErrorClass::is_terminal_rejection);
+    if terminal {
+        enums::AttemptStatus::Failure
+    } else {
+        enums::AttemptStatus::Pending
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<BraintreeSetupMandateResponse, Self>>
     for RouterDataV2<
@@ -4764,61 +5413,175 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     >
 {
     type Error = Report<ConnectorError>;
+    /// Implements the four-step decision order the live response shapes force (tech spec §SM.9.1).
+    /// The order matters: `errors` being present does NOT mean there is no usable data, and
+    /// `data` being present does NOT mean the card was verified.
     fn try_from(
         item: ResponseRouterData<BraintreeSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BraintreeSetupMandateResponse::ErrorResponse(error_response) => Ok(Self {
+        let envelope_errors = item.response.envelope_errors();
+
+        // STEP 1 — `data.vaultCreditCard` is null, or the whole `data` key is missing. The
+        // mutation never ran: no verification, no vault. Everything knowable is in `errors[0]`.
+        let Some(payload) = item.response.payload() else {
+            let status = hard_error_attempt_status(envelope_errors);
+            let response = build_error_response(envelope_errors, item.http_code).map_err(
+                |mut error_response| {
+                    error_response.attempt_status = Some(FlowStatus::Payment(status));
+                    *error_response
+                },
+            );
+            return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: enums::AttemptStatus::Failure,
+                    status,
                     ..item.router_data.resource_common_data
                 },
-                response: build_error_response(error_response.errors.as_ref(), item.http_code)
-                    .map_err(|err| *err),
+                response,
                 ..item.router_data
-            }),
-            BraintreeSetupMandateResponse::TokenResponse(token_response) => {
-                let payment_method_id = token_response
-                    .data
-                    .tokenize_credit_card
-                    .payment_method
-                    .id
-                    .expose();
-                let mandate_reference = Some(Box::new(MandateReference {
-                    connector_mandate_id: Some(payment_method_id.clone()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                    mandate_metadata: None,
-                }));
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: enums::AttemptStatus::Charged,
-                        ..item.router_data.resource_common_data
-                    },
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(payment_method_id),
-                        redirection_data: None,
-                        mandate_reference,
-                        connector_metadata: None,
-                        // No NTID is obtainable here. Braintree's SetupMandate is
-                        // `tokenizeCreditCard`, which creates a payment method and no
-                        // transaction at all — the NTID is assigned by the scheme at
-                        // authorization time and lives on `Transaction.paymentMethodSnapshot`.
-                        // A zero-amount `verifyCreditCard` / `vaultPaymentMethod` would carry one
-                        // (`Verification.paymentMethodSnapshot`, tech spec §M.6.2), but this
-                        // connector does not issue either.
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    }),
-                    ..item.router_data
-                })
+            });
+        };
+
+        let verification = payload.verification.as_ref();
+        let vaulted_payment_method = payload.payment_method.as_ref();
+        // Mapped from the verification result and from nothing else. A null `verification` can
+        // only happen if `skip` were sent, which this connector never does, so it is treated as
+        // an unmodelled response: non-terminal, never success.
+        let status = verification.map_or(enums::AttemptStatus::Pending, |verification| {
+            verification.attempt_status()
+        });
+        // AVS/CVV are reported on approvals and declines alike, so this is computed once, before
+        // the branch, and attached to every outcome.
+        let connector_response =
+            verification.and_then(|verification| verification.build_connector_response_data());
+        let connector_metadata = verification
+            .and_then(|verification| verification.build_connector_metadata(vaulted_payment_method));
+
+        let (status, response) = match (status, vaulted_payment_method) {
+            // STEP 4 — verified AND vaulted. The only path that reports success.
+            (enums::AttemptStatus::Charged, Some(payment_method)) => (
+                status,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    // The vaulted global id. Kept as the resource id (rather than the
+                    // verification id) because it is what every later call anchors on; the
+                    // verification's own id is reported as the response reference below.
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        payment_method.id.peek().clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: Some(Box::new(MandateReference {
+                        // `paymentMethod.id`, NEVER `legacyId` — see `VaultedPaymentMethod::id`.
+                        connector_mandate_id: Some(payment_method.id.peek().clone()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })),
+                    connector_metadata,
+                    // Captured off the verification's own `paymentMethodSnapshot` so a later
+                    // merchant-initiated charge can replay the stored-credential chain without
+                    // first having to make a chargeable customer-initiated payment. Gated on
+                    // VERIFIED inside the accessor.
+                    network_txn_id: verification
+                        .and_then(|verification| verification.network_transaction_id()),
+                    network_txn_link_id: verification
+                        .and_then(|verification| verification.network_transaction_link_id()),
+                    connector_response_reference_id: verification
+                        .and_then(|verification| verification.id.clone()),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                    payment_account_reference: None,
+                }),
+            ),
+            // STEP 3 — Braintree says VERIFIED but returned no vaulted payment method. This
+            // should not happen. It is NOT reported as success: there is no mandate reference to
+            // hand back, so a caller told "Charged" would later replay a mandate that does not
+            // exist. It is not reported as a decline either — nothing was declined — so it lands
+            // on `Unresolved` for a human to look at.
+            (enums::AttemptStatus::Charged, None) => {
+                let status = enums::AttemptStatus::Unresolved;
+                let mut error_response = create_failure_error_response(
+                    BraintreeVerificationStatus::Verified,
+                    verification.and_then(|verification| verification.id.clone()),
+                    item.http_code,
+                );
+                if let Some(first_error) = envelope_errors.first() {
+                    error_response.code = first_error
+                        .extensions
+                        .as_ref()
+                        .and_then(|extensions| extensions.legacy_code.clone())
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string());
+                    error_response.message = first_error.message.clone();
+                }
+                error_response.reason = join_error_messages(envelope_errors).or(Some(
+                    "Braintree reported the card as VERIFIED but returned no vaulted payment \
+                     method, so no mandate reference exists"
+                        .to_string(),
+                ));
+                error_response.attempt_status = Some(FlowStatus::Payment(status));
+                (status, Err(error_response))
             }
-        }
+            // STEP 2 — an explicit decline. `is_payment_failure` is the shared predicate, so this
+            // arm is reached only for PROCESSOR_DECLINED and GATEWAY_REJECTED; FAILED, PENDING,
+            // VERIFYING and an unrecognised status are non-terminal and fall through below.
+            (status, _) if domain_types::utils::is_payment_failure(status) => (
+                status,
+                Err(verification.map_or_else(
+                    // Unreachable in practice — a non-Charged, failing status can only come from
+                    // a verification that exists — but written out rather than unwrapped so the
+                    // decline still carries the envelope's own message if it ever is.
+                    || {
+                        let mut error_response = create_failure_error_response(
+                            BraintreeVerificationStatus::Unknown,
+                            None,
+                            item.http_code,
+                        );
+                        error_response.reason = join_error_messages(envelope_errors);
+                        error_response.attempt_status = Some(FlowStatus::Payment(status));
+                        error_response
+                    },
+                    |verification| {
+                        verification.build_verification_error_response(
+                            status,
+                            envelope_errors,
+                            item.http_code,
+                        )
+                    },
+                )),
+            ),
+            // Non-terminal: PENDING, VERIFYING, an unrecognised status, a missing verification,
+            // or FAILED (Braintree could not reach the processor). The attempt stays open. No
+            // mandate reference and no NTID are reported, because neither is established yet —
+            // reporting either would let a caller act on a verification that has not happened.
+            (status, payment_method) => (
+                status,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: payment_method.map_or(ResponseId::NoResponseId, |method| {
+                        ResponseId::ConnectorTransactionId(method.id.peek().clone())
+                    }),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: verification
+                        .and_then(|verification| verification.id.clone()),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                    payment_account_reference: None,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
