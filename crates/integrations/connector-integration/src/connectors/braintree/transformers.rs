@@ -29,7 +29,9 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::{AddressDetails, OrderDetailsWithAmount, PhoneDetails},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    payment_method_data::{
+        DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
         FlowStatus,
@@ -67,11 +69,36 @@ pub const BRAINTREE_CONNECTOR_NAME: &str = "braintree";
 /// `... on SettledEvent` is deliberately omitted: its `processorResponse` resolves to a
 /// different SDL type (`TransactionSettlementProcessorResponse`), and an Authorize
 /// response can never contain a settled event.
+///
+/// Two more placement rules govern the two scheme-level identifiers selected here. They are
+/// **different identifiers on different branches of the response** and must never be
+/// cross-assigned (tech spec §M.5, RULE M-1):
+///
+/// 3. `networkTransactionId` (the NTID, all schemes) is NOT a flat field on `Transaction` —
+///    selecting `transaction { networkTransactionId }` is a GraphQL *validation* error, which
+///    rejects the document before execution and would therefore break EVERY Authorize, not just
+///    a mandate one. Its sole carrier in the whole schema is
+///    `CreditCardTransactionDetails.networkTransactionId`, reached through
+///    `Transaction.paymentMethodSnapshot` — a UNION (`PaymentMethodSnapshot`, 9 members), so the
+///    traversal must be an inline fragment. The sibling member `CreditCardDetails` is also a
+///    legitimate resolution for a card and carries no NTID, so a snapshot that resolves to any
+///    other member arrives as `{}` and must deserialize to "NTID absent", never to a parse error.
+/// 4. `mastercardTransactionLinkId` (the Mastercard TLID) hangs off
+///    `processorAuthorizationResponse`, is Mastercard-only (null for Visa, Amex, Discover, JCB,
+///    Diners, UnionPay) and is read-only telemetry — Braintree has no input field that accepts a
+///    TLID. It feeds `network_txn_link_id` and nothing else.
+///
+/// Both were introspection- and live-verified at `Braintree-Version: 2019-01-01` before being
+/// added here (the spec had left `mastercardTransactionLinkId`'s presence at the pin open):
+/// transaction `bpr4zzv7` returned `paymentMethodSnapshot.networkTransactionId = 020260915233603`
+/// with `mastercardTransactionLinkId: null` on a Visa.
 macro_rules! card_transaction_fields {
     () => {
         "id legacyId createdAt status orderId amount { value currencyCode } \
          processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse \
-         avsStreetAddressResponse authorizationId additionalInformation retrievalReferenceNumber } \
+         avsStreetAddressResponse authorizationId additionalInformation retrievalReferenceNumber \
+         mastercardTransactionLinkId } \
+         paymentMethodSnapshot { ... on CreditCardTransactionDetails { networkTransactionId } } \
          statusHistory { status terminal \
          ... on AuthorizedEvent { processorResponse { legacyCode message cvvResponse \
          avsPostalCodeResponse avsStreetAddressResponse authorizationId retrievalReferenceNumber } \
@@ -477,12 +504,114 @@ pub struct MandateTransactionBody {
     channel: String,
     order_id: String,
     payment_initiator: PaymentInitiatorType,
+    /// Level 2/Level 3, shipping and descriptor fields, flattened onto `TransactionInput`.
+    /// A merchant-initiated charge goes through the same `TransactionInput` as Authorize, so
+    /// it must not silently lose the merchant's descriptor and order data.
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
-#[derive(Debug, Serialize)]
+/// Braintree GraphQL `PaymentInitiator` (`TransactionInput.paymentInitiator`).
+///
+/// The SDL declares eight members, split by who initiates the charge. Only the three
+/// **merchant**-initiated ones are modelled here, because this enum is only ever written onto a
+/// `RepeatPayment`, which is merchant-initiated by definition:
+///
+/// * `RECURRING` — fixed amount on a predefined schedule (subscriptions).
+/// * `UNSCHEDULED` — stored credential, no fixed schedule or amount (balance top-up).
+/// * `INSTALLMENT` — subsequent payment of an installment plan.
+///
+/// The five omitted members are customer-initiated or orthogonal and are deliberately absent
+/// rather than dead arms: `RECURRING_FIRST` / `INSTALLMENT_FIRST` / `MOTO` / `ESTIMATED_MOTO`
+/// are CIT values, and `ESTIMATED` encodes amount-uncertainty rather than an initiator (its own
+/// SDL comment admits both initiators, so it cannot carry the MIT signal). There is no "CIT"
+/// value to reach for on the Authorize side either — per the enum's SDL doc comment, a plain
+/// customer-initiated ecommerce transaction omits the field entirely, which is what Authorize
+/// already does.
+///
+/// `INSTALLMENT` is region-gated and fails SILENTLY: where installments are unsupported
+/// Braintree re-categorizes the transaction as recurring with no error and no response field
+/// announcing the downgrade. Never report upstream that a transaction was processed as an
+/// installment on the strength of having sent this value.
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentInitiatorType {
     Unscheduled,
+    Recurring,
+    Installment,
+}
+
+impl From<Option<common_enums::MitCategory>> for PaymentInitiatorType {
+    /// The MIT category the caller declared drives the initiator, rather than a hardcoded
+    /// value (checklist Theme 19).
+    ///
+    /// `Resubmission` — a retry of a previously declined MIT — has no Braintree counterpart;
+    /// it maps to `UNSCHEDULED`, the member whose SDL definition ("not recurring on a
+    /// predefined schedule or amount") a dunning retry satisfies. `None` also maps to
+    /// `UNSCHEDULED`, preserving the value this connector sent before the category existed.
+    fn from(category: Option<common_enums::MitCategory>) -> Self {
+        match category {
+            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(common_enums::MitCategory::Installment) => Self::Installment,
+            Some(common_enums::MitCategory::Unscheduled)
+            | Some(common_enums::MitCategory::Resubmission)
+            | None => Self::Unscheduled,
+        }
+    }
+}
+
+/// Braintree GraphQL `ExternalVaultStatus`, narrowed to the one member this connector emits.
+///
+/// The SDL declares two: `VAULTED` (the credential is already held in the external vault) and
+/// `WILL_VAULT` (this transaction is the one establishing it). `WILL_VAULT` is legal only on
+/// the vault-establishing *customer*-initiated charge — which this connector does not issue,
+/// because Braintree is the vault on every CIT it performs — so it is deliberately absent
+/// rather than modelled and unreachable.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ExternalVaultStatus {
+    Vaulted,
+}
+
+/// Braintree GraphQL `TransactionExternalVaultOptionsInput`
+/// (`input.options.externalVault` — a sibling of `input.transaction`, NOT a member of it;
+/// `TransactionInput` has no `externalVault` field at all).
+///
+/// `status` is NON-NULL in the SDL: omitting it is a hard coercion error, so it is never
+/// optional and never skipped. The two gateway-enforced pairing rules are both made
+/// unrepresentable by construction rather than checked at runtime — `WILL_VAULT` alongside an
+/// NTID is rejected outright by Braintree, and this type cannot express it because
+/// `ExternalVaultStatus` has no such member.
+///
+/// **This object must never be emitted for a Braintree-vaulted credential.** Its own SDL doc
+/// comment says so — *"Do not use for transactions created from Braintree multi-use payment
+/// methods"* — and the gateway does NOT enforce it: a stale, cross-card or entirely fabricated
+/// NTID still settles, with no error and no observable signal, so no acceptance test can catch
+/// a violation. That is why the regime is decided exactly once, in `BraintreeMandateCredential`,
+/// and this struct is reachable only from the externally-vaulted arm.
+///
+/// The NTID is also withheld on a *customer*-initiated charge against an external vault — the
+/// SDL's third, easily-missed clause: *"If the status is VAULTED, but the customer is directly
+/// initiating the charge, do not pass this value."* `RepeatPayment` is merchant-initiated by
+/// definition, so that case does not arise on this flow.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionExternalVaultOptions {
+    status: ExternalVaultStatus,
+    /// Wrapped for symmetry with `payment_method_id` and with the reference connectors, which
+    /// carry the NTID as `Secret<String>` on the request side (cybersource
+    /// `previous_transaction_id`, stripe `mit_exemption.network_transaction_id`).
+    verifying_network_transaction_id: Secret<String>,
+}
+
+impl TransactionExternalVaultOptions {
+    /// The only constructor: a merchant-initiated charge on an externally vaulted credential.
+    fn vaulted_mit(network_transaction_id: Secret<String>) -> Self {
+        Self {
+            status: ExternalVaultStatus::Vaulted,
+            verifying_network_transaction_id: network_transaction_id,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -775,25 +904,59 @@ fn build_line_item(
     })
 }
 
-/// Builds the Level 2 / Level 3, shipping and dynamic-descriptor block for an Authorize.
+/// The three request-side inputs `build_transaction_enrichment` needs beyond `PaymentFlowData`.
+///
+/// Exists so Authorize and RepeatPayment share one enrichment builder instead of each growing
+/// its own copy: a merchant-initiated charge uses the same `TransactionInput` as the
+/// customer-initiated one, so the Level 2/Level 3, shipping and descriptor mapping must not be
+/// allowed to drift between them.
+trait BraintreeEnrichmentSource {
+    fn currency(&self) -> enums::Currency;
+    /// Flow-level order tax, used as the fallback when `l2_l3_data` carries none. Only
+    /// `PaymentsAuthorizeData` has such a field; `RepeatPaymentData` has no equivalent, so its
+    /// impl returns `None` and the `l2_l3_data` value is the only source.
+    fn order_tax_amount(&self) -> Option<MinorUnit>;
+    fn billing_descriptor(&self) -> Option<&connector_types::BillingDescriptor>;
+}
+
+impl<T: PaymentMethodDataTypes> BraintreeEnrichmentSource for PaymentsAuthorizeData<T> {
+    fn currency(&self) -> enums::Currency {
+        self.currency
+    }
+    fn order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+    fn billing_descriptor(&self) -> Option<&connector_types::BillingDescriptor> {
+        self.billing_descriptor.as_ref()
+    }
+}
+
+impl<T: PaymentMethodDataTypes> BraintreeEnrichmentSource for RepeatPaymentData<T> {
+    fn currency(&self) -> enums::Currency {
+        self.currency
+    }
+    fn order_tax_amount(&self) -> Option<MinorUnit> {
+        None
+    }
+    fn billing_descriptor(&self) -> Option<&connector_types::BillingDescriptor> {
+        self.billing_descriptor.as_ref()
+    }
+}
+
+/// Builds the Level 2 / Level 3, shipping and dynamic-descriptor block shared by the
+/// customer-initiated (Authorize) and merchant-initiated (RepeatPayment) card charges.
 ///
 /// Every money field goes through the connector's `StringMajorUnit` amount converter —
 /// including `tax.taxAmount`, which the SDL types as the `Amount` scalar while the rest of
 /// this area is plain `String`. Both land on the wire as the same major-unit decimal
 /// string, so one converter covers both.
-fn build_transaction_enrichment<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+fn build_transaction_enrichment<Req: BraintreeEnrichmentSource>(
+    request: &Req,
+    flow_data: &PaymentFlowData,
     amount_converter: &'static (dyn common_utils::types::AmountConvertor<Output = StringMajorUnit>
                   + Sync),
 ) -> Result<TransactionEnrichment, Report<IntegrationError>> {
-    let currency = router_data.request.currency;
+    let currency = request.currency();
     let convert = |amount: MinorUnit| -> Result<StringMajorUnit, Report<IntegrationError>> {
         amount_converter.convert(amount, currency).change_context(
             IntegrationError::AmountConversionFailed {
@@ -812,7 +975,6 @@ fn build_transaction_enrichment<
         )
     };
 
-    let flow_data = &router_data.resource_common_data;
     let l2_l3 = flow_data.l2_l3_data.as_deref();
 
     // --- FLAT on TransactionInput ------------------------------------------------
@@ -828,7 +990,7 @@ fn build_transaction_enrichment<
     // --- NESTED under `tax` ------------------------------------------------------
     let tax_amount = l2_l3
         .and_then(|data| data.get_order_tax_amount())
-        .or(router_data.request.order_tax_amount)
+        .or(request.order_tax_amount())
         .map(convert)
         .transpose()?;
     let tax_exempt = l2_l3
@@ -889,18 +1051,13 @@ fn build_transaction_enrichment<
         .filter(|items| !items.is_empty());
 
     // --- FLAT: dynamic descriptor ------------------------------------------------
-    let descriptor =
-        router_data
-            .request
-            .billing_descriptor
-            .as_ref()
-            .and_then(|billing_descriptor| {
-                let descriptor = TransactionDescriptorInput {
-                    name: billing_descriptor.name.clone(),
-                    phone: billing_descriptor.phone.clone(),
-                };
-                (descriptor.name.is_some() || descriptor.phone.is_some()).then_some(descriptor)
-            });
+    let descriptor = request.billing_descriptor().and_then(|billing_descriptor| {
+        let descriptor = TransactionDescriptorInput {
+            name: billing_descriptor.name.clone(),
+            phone: billing_descriptor.phone.clone(),
+        };
+        (descriptor.name.is_some() || descriptor.phone.is_some()).then_some(descriptor)
+    });
 
     Ok(TransactionEnrichment {
         purchase_order_number,
@@ -924,6 +1081,35 @@ pub struct TransactionTiming {
     when: VaultTiming,
 }
 
+/// Which vault holds the credential a merchant-initiated charge is about to spend.
+///
+/// This is the whole regime decision, taken exactly once, in one place, from the shape of
+/// `MandateReferenceId`. It exists as a type rather than as a pair of booleans because the rule
+/// it encodes is not enforced by the gateway: sending `options.externalVault` on a
+/// Braintree-vaulted token is accepted and settles normally, and sending a wrong NTID is
+/// accepted and settles normally, so a mistake here surfaces only as degraded interchange
+/// qualification and elevated issuer declines — never as a test failure.
+#[derive(Debug)]
+pub enum BraintreeMandateCredential {
+    /// **Braintree-vaulted.** `paymentMethodId` is a Braintree *multi-use* token minted by the
+    /// vaulting CIT and handed back as `connector_mandate_id`. Braintree holds the credential
+    /// and replays the stored-credential chain itself, so the merchant-initiated signal is
+    /// `transaction.paymentInitiator` and nothing else: `options.externalVault` MUST be
+    /// omitted, per the input type's own SDL prohibition on Braintree multi-use payment
+    /// methods. Supplying an NTID here would be redundant at best and would assert something
+    /// false at worst.
+    BraintreeVaulted { payment_method_id: Secret<String> },
+    /// **Externally vaulted.** UCS (or an upstream vault) holds the credential; all we hold is
+    /// the NTID captured from the CIT. `paymentMethodId` is a *single-use* token minted for
+    /// this transaction alone via `PaymentMethodService/Tokenize`, and the stored-credential
+    /// chain is asserted explicitly through
+    /// `options.externalVault.verifyingNetworkTransactionId`.
+    ExternallyVaulted {
+        payment_method_id: Secret<String>,
+        network_transaction_id: Secret<String>,
+    },
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         BraintreeRouterData<
@@ -935,13 +1121,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-        String,
+        BraintreeMandateCredential,
         BraintreeMeta,
     )> for MandatePaymentRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        (item, connector_mandate_id, metadata): (
+        (item, credential, metadata): (
             BraintreeRouterData<
                 RouterDataV2<
                     RepeatPayment,
@@ -951,7 +1137,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 >,
                 T,
             >,
-            String,
+            BraintreeMandateCredential,
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
@@ -965,6 +1151,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+
+        // The regime split, and the ONLY place `options.externalVault` can be produced.
+        let (payment_method_id, external_vault) = match credential {
+            BraintreeMandateCredential::BraintreeVaulted { payment_method_id } => {
+                (payment_method_id, None)
+            }
+            BraintreeMandateCredential::ExternallyVaulted {
+                payment_method_id,
+                network_transaction_id,
+            } => (
+                payment_method_id,
+                Some(TransactionExternalVaultOptions::vaulted_mit(
+                    network_transaction_id,
+                )),
+            ),
+        };
+
+        // Same `options` object Authorize builds — `billingAddress` is a sibling of
+        // `input.transaction`, not a member of it — so an MIT keeps the AVS data the CIT sent
+        // instead of silently dropping it. `options` is omitted entirely when both halves are
+        // absent, which is the pre-existing behaviour for a Braintree-vaulted MIT with no
+        // billing address on the request.
+        let billing_address = build_billing_address(&item.router_data.resource_common_data);
+        let options = (billing_address.is_some() || external_vault.is_some()).then_some(
+            CreditCardTransactionOptions {
+                billing_address,
+                // Braintree-hosted and external-MPI 3DS both belong to the customer-initiated
+                // leg: a merchant-initiated charge is unattended, so there is no cardholder to
+                // authenticate and nothing to declare here.
+                three_d_secure_authentication: None,
+                external_vault,
+            },
+        );
+
+        let enrichment = build_transaction_enrichment(
+            &item.router_data.request,
+            &item.router_data.resource_common_data,
+            item.connector.amount_converter,
+        )?;
+
         let (query, transaction_body) = (
             match item.router_data.request.is_auto_capture() {
                 true => constants::CHARGE_CREDIT_CARD_MUTATION.to_string(),
@@ -979,16 +1205,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
-                payment_initiator: PaymentInitiatorType::Unscheduled,
+                payment_initiator: PaymentInitiatorType::from(
+                    item.router_data.request.mit_category,
+                ),
+                enrichment,
             }),
         );
         Ok(Self {
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
-                    payment_method_id: connector_mandate_id.into(),
+                    payment_method_id,
                     transaction: transaction_body,
-                    options: None,
+                    options,
                 },
             },
         })
@@ -1331,6 +1560,28 @@ pub struct BraintreeProcessorResponse {
     pub authorization_id: Option<String>,
     pub additional_information: Option<String>,
     pub retrieval_reference_number: Option<String>,
+    /// Mastercard Transaction Link Identifier (TLID). Present only on Mastercard
+    /// authorizations — `null` on every other scheme — and read-only: Braintree exposes no
+    /// input field that accepts a TLID. Surfaced as `network_txn_link_id` and never as
+    /// `network_txn_id`, which is a different identifier on a different branch of the
+    /// response (RULE M-1; see the `card_transaction_fields!` doc comment).
+    pub mastercard_transaction_link_id: Option<String>,
+}
+
+/// `Transaction.paymentMethodSnapshot` narrowed to its `CreditCardTransactionDetails` member.
+///
+/// `paymentMethodSnapshot` is a GraphQL UNION with nine members and the selection set asks for
+/// exactly one inline fragment, so a snapshot that resolves to any other member — including
+/// `CreditCardDetails`, which is a legitimate resolution for a card and carries no NTID — comes
+/// back as the empty object `{}`. Both levels are therefore optional and no field is required:
+/// an unmatched union member must mean "NTID absent", never a failed response parse (RULE M-2).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreditCardTransactionSnapshot {
+    /// Opaque scheme identifier, observed as a 15-digit numeric string. Never parsed, padded
+    /// or validated. Nullable even on `CreditCardTransactionDetails`.
+    #[serde(default)]
+    pub network_transaction_id: Option<String>,
 }
 
 /// Braintree GraphQL `PaymentNetworkResponse` and `MerchantAdviceCodeResponse` — both are
@@ -1383,6 +1634,11 @@ pub struct TransactionAuthChargeResponseBody {
     /// Reverse-chronological (most recent first). Walked only to reach
     /// `merchantAdviceCodeResponse`, which has no flat path on `Transaction`.
     status_history: Option<Vec<BraintreePaymentStatusEvent>>,
+    /// `Transaction.paymentMethodSnapshot`, the only carrier of the scheme NTID. Optional at
+    /// both levels because the union fragment need not match — see
+    /// `CreditCardTransactionSnapshot`.
+    #[serde(default)]
+    payment_method_snapshot: Option<CreditCardTransactionSnapshot>,
 }
 
 impl TransactionAuthChargeResponseBody {
@@ -1402,6 +1658,28 @@ impl TransactionAuthChargeResponseBody {
         self.processor_authorization_response
             .as_ref()
             .or_else(|| self.diagnostic_event()?.processor_response.as_ref())
+    }
+
+    /// The scheme network transaction id, for `PaymentsResponseData::network_txn_id`.
+    ///
+    /// Braintree assigns the NTID at authorization time, so it is present on declines as well
+    /// as approvals; the caller must not gate reading it on a success status. Absence is never
+    /// an error — the snapshot may resolve to a non-card union member, and the field is
+    /// nullable even when it does not.
+    fn network_transaction_id(&self) -> Option<String> {
+        self.payment_method_snapshot
+            .as_ref()?
+            .network_transaction_id
+            .clone()
+    }
+
+    /// The Mastercard TLID, for `PaymentsResponseData::network_txn_link_id`. Read only from
+    /// `processorAuthorizationResponse` — never from the snapshot, which carries the NTID and
+    /// not this (RULE M-1). `None` on every non-Mastercard scheme, which is the normal case.
+    fn network_transaction_link_id(&self) -> Option<String> {
+        self.processor_response()?
+            .mastercard_transaction_link_id
+            .clone()
     }
 
     /// Surfaces the AVS and CVV verdicts on `PaymentFlowData.connector_response` so callers
@@ -1547,8 +1825,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             })
                         }),
                         connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
+                        // Captured from `paymentMethodSnapshot` so a later merchant-initiated
+                        // RepeatPayment can replay the stored-credential chain. Absent NTID is
+                        // `None`, never an error.
+                        network_txn_id: transaction_data.network_transaction_id(),
+                        network_txn_link_id: transaction_data.network_transaction_link_id(),
                         connector_response_reference_id: transaction_data.order_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -1814,8 +2095,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             })
                         }),
                         connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
+                        // Captured from `paymentMethodSnapshot` so a later merchant-initiated
+                        // RepeatPayment can replay the stored-credential chain. Absent NTID is
+                        // `None`, never an error.
+                        network_txn_id: transaction_data.network_transaction_id(),
+                        network_txn_link_id: transaction_data.network_transaction_link_id(),
                         connector_response_reference_id: transaction_data.order_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -2382,6 +2666,9 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRSyncResponse, Self>>
     }
 }
 
+/// Braintree GraphQL `CreditCardInput`. Every member is nullable in the SDL, `cvv` included —
+/// introspected at `Braintree-Version: 2019-01-01` and confirmed live: a `tokenizeCreditCard`
+/// with no `cvv` returns a token.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardData<
@@ -2390,8 +2677,33 @@ pub struct CreditCardData<
     number: RawCardNumber<T>,
     expiration_year: Secret<String>,
     expiration_month: Secret<String>,
-    cvv: Secret<String>,
+    /// Absent on a stored credential replayed unattended: no cardholder is present to enter a
+    /// CVV and scheme rules forbid retaining one. Omitted rather than sent empty — an empty
+    /// string is a *failed* CVV check, not an absent one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cvv: Option<Secret<String>>,
     cardholder_name: Secret<String>,
+}
+
+/// `TokenizeCreditCardInput.creditCard`, in the two carriers a PAN reaches this connector in.
+///
+/// The split exists because the two UCS variants type the card number differently, not because
+/// Braintree wants two shapes — both serialize to the same `CreditCardInput` object:
+///
+/// * `PaymentMethodData::Card` carries `RawCardNumber<T>`, generic so that a vault-token
+///   holder's templated PAN (`{{$card_number}}`) passes through untouched.
+/// * `PaymentMethodData::CardDetailsForNetworkTransactionId` types its number as a concrete
+///   `cards::CardNumber` — always a real PAN, never a vault template — so that arm is pinned to
+///   `DefaultPCIHolder`. This mirrors the established precedent in `worldpay/requests.rs`,
+///   whose `PaymentInstrument::RawCardForNTI` is likewise `RawCardDetails<DefaultPCIHolder>`
+///   inside an otherwise generic enum.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeTokenizeCard<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Raw(CreditCardData<T>),
+    NetworkTransactionId(CreditCardData<DefaultPCIHolder>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2405,7 +2717,7 @@ pub struct ClientTokenInput {
 pub struct InputData<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    credit_card: CreditCardData<T>,
+    credit_card: BraintreeTokenizeCard<T>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2444,17 +2756,58 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 query: constants::TOKENIZE_CREDIT_CARD.to_string(),
                 variables: VariableInput {
                     input: InputData {
-                        credit_card: CreditCardData {
+                        credit_card: BraintreeTokenizeCard::Raw(CreditCardData {
                             number: card_data.card_number,
                             expiration_year: card_data.card_exp_year,
                             expiration_month: card_data.card_exp_month,
-                            cvv: card_data.card_cvc,
+                            cvv: Some(card_data.card_cvc),
                             cardholder_name: item
                                 .router_data
                                 .resource_common_data
                                 .get_optional_billing_full_name()
                                 .unwrap_or(Secret::new("".to_string())),
-                        },
+                        }),
+                    },
+                },
+            }),
+            // The card behind a network-transaction-id mandate. Braintree accepts no raw PAN on
+            // any transaction mutation, so a merchant-initiated charge on an externally vaulted
+            // credential must first exchange that PAN for a single-use token — which is exactly
+            // what this flow does. Hyperswitch reaches here because Braintree declares a
+            // `[tokenization]` entry in `config/*.toml`: on a network-transaction-id MIT it runs
+            // `PaymentMethodService/Tokenize` first, then forwards the token it gets back to
+            // `RecurringPaymentService/Charge`, where `braintree_single_use_token` spends it as
+            // `paymentMethodId` alongside `options.externalVault`. Without this arm the whole
+            // externally-vaulted regime is unreachable from Hyperswitch.
+            //
+            // Tokenizing it is the SAME operation as tokenizing a card — `tokenizeCreditCard`
+            // stores card data, it does not authorize — with one difference: there is no CVV.
+            // A stored credential replayed unattended has no cardholder present to supply one
+            // and scheme rules forbid retaining it, so the variant carries no CVV field at all.
+            // `CreditCardInput.cvv` is nullable at the pin and a tokenization without it
+            // succeeds, so the field is omitted rather than faked with an empty string.
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => Ok(Self {
+                query: constants::TOKENIZE_CREDIT_CARD.to_string(),
+                variables: VariableInput {
+                    input: InputData {
+                        credit_card: BraintreeTokenizeCard::NetworkTransactionId(CreditCardData {
+                            number: RawCardNumber(card_data.card_number.clone()),
+                            // Braintree accepts either width; the 4-digit form is sent so a
+                            // two-digit year stored on the mandate is never re-interpreted.
+                            expiration_year: card_data.get_expiry_year_4_digit(),
+                            expiration_month: card_data.card_exp_month.clone(),
+                            cvv: None,
+                            // The mandate carries its own cardholder name; fall back to the
+                            // billing name the Card arm uses when it does not.
+                            cardholder_name: card_data.card_holder_name.clone().unwrap_or_else(
+                                || {
+                                    item.router_data
+                                        .resource_common_data
+                                        .get_optional_billing_full_name()
+                                        .unwrap_or(Secret::new("".to_string()))
+                                },
+                            ),
+                        }),
                     },
                 },
             }),
@@ -2476,8 +2829,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("braintree"),
                     connector: "Braintree",
@@ -3410,11 +3762,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CreditCardTransactionOptions {
                 billing_address,
                 three_d_secure_authentication: three_ds_data,
+                // Never on Authorize. This flow is customer-initiated, and the SDL forbids the
+                // NTID on a customer-initiated charge even against an external vault; the
+                // `WILL_VAULT` bootstrap is likewise not this connector's model, because every
+                // CIT it performs vaults into Braintree's own vault.
+                external_vault: None,
             },
         );
 
-        let enrichment =
-            build_transaction_enrichment(&item.router_data, item.connector.amount_converter)?;
+        let enrichment = build_transaction_enrichment(
+            &item.router_data.request,
+            &item.router_data.resource_common_data,
+            item.connector.amount_converter,
+        )?;
 
         let reference_id = Some(
             item.router_data
@@ -3853,47 +4213,123 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::MandatePayment => {
+        // WHICH VAULT HOLDS THE CREDENTIAL is what selects the request shape, and the answer is
+        // the *variant* of `MandateReferenceId`, not the payment method:
+        //
+        //   ConnectorMandateId  -> Braintree holds it. Charge its multi-use token; send no
+        //                          external-vault object (the SDL forbids it for Braintree
+        //                          multi-use payment methods).
+        //   NetworkMandateId    -> we hold only a scheme NTID.
+        //   NetworkTokenWithNTI -> we hold a network token plus a scheme NTID.
+        //
+        // The latter two are the same regime as far as Braintree is concerned — an externally
+        // vaulted credential, replayed with `options.externalVault.verifyingNetworkTransactionId`
+        // — and differ only in where the credential itself came from. Both still need a
+        // Braintree `paymentMethodId`: it is NON-NULL on `ChargeCreditCardInput` /
+        // `AuthorizeCreditCardInput`, and Braintree accepts no raw PAN on any transaction
+        // mutation, so the credential must already have been exchanged for a *single-use* token
+        // by `PaymentMethodService/Tokenize` — the same ingress Authorize uses. That is why
+        // `CardDetailsForNetworkTransactionId` (a raw PAN) stays unsupported: there is no
+        // mutation that would take it.
+        let credential = match item.router_data.request.get_mandate_reference() {
+            connector_types::MandateReferenceId::ConnectorMandateId(_) => {
+                // Preserve the existing contract for this regime: the Braintree vault token is
+                // the entire credential, so the request must not also carry a payment method
+                // that would be silently ignored.
+                if !matches!(
+                    item.router_data.request.payment_method_data,
+                    PaymentMethodData::MandatePayment
+                ) {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                        connector: "Braintree",
+                        context: Default::default(),
+                    }));
+                }
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
                         context: Default::default(),
                     },
                 )?;
-                Ok(Self::Mandate(MandatePaymentRequest::try_from((
-                    item,
-                    connector_mandate_id,
-                    metadata,
-                ))?))
+                BraintreeMandateCredential::BraintreeVaulted {
+                    payment_method_id: Secret::new(connector_mandate_id),
+                }
             }
-            PaymentMethodData::Card(_)
-            | PaymentMethodData::Wallet(_)
-            | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::CardWithNoCvc(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
-                    connector: "Braintree",
-                    context: Default::default(),
-                }))
+            connector_types::MandateReferenceId::NetworkMandateId(network_mandate) => {
+                BraintreeMandateCredential::ExternallyVaulted {
+                    payment_method_id: braintree_single_use_token(
+                        &item.router_data.request.payment_method_data,
+                    )?,
+                    network_transaction_id: Secret::new(
+                        network_mandate.network_transaction_id.clone(),
+                    ),
+                }
             }
+            connector_types::MandateReferenceId::NetworkTokenWithNTI(network_token) => {
+                BraintreeMandateCredential::ExternallyVaulted {
+                    payment_method_id: braintree_single_use_token(
+                        &item.router_data.request.payment_method_data,
+                    )?,
+                    network_transaction_id: Secret::new(
+                        network_token.network_transaction_id.clone(),
+                    ),
+                }
+            }
+        };
+        Ok(Self::Mandate(MandatePaymentRequest::try_from((
+            item, credential, metadata,
+        ))?))
+    }
+}
+
+/// The Braintree single-use token an externally-vaulted merchant-initiated charge must spend as
+/// `paymentMethodId`.
+///
+/// Fails closed. Braintree's card mutations declare `paymentMethodId` non-null and accept no raw
+/// card data, so there is no fallback to degrade to: without a token the charge cannot be built
+/// at all, and quietly dropping the external-vault assertion instead would produce a transaction
+/// that settles but breaks the stored-credential chain — the one failure mode the gateway gives
+/// no signal for.
+///
+/// A token tagged Apple Pay or Google Pay is NOT a card token: those wallets are served by
+/// `chargePaymentMethod` / `authorizePaymentMethod`, which have no `options` field and therefore
+/// cannot carry `externalVault` at all, so they are rejected here rather than silently charged
+/// as a credit card.
+fn braintree_single_use_token<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    match payment_method_data {
+        PaymentMethodData::PaymentMethodToken(token_data)
+            if token_data.token_payment_method_type.is_none() =>
+        {
+            Ok(token_data.token.clone())
         }
+        _ => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "payment_method.token",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Exchange the stored credential for a Braintree single-use token with \
+                         PaymentMethodService/Tokenize and send it as payment_method.token on \
+                         the repeat payment. Braintree requires a non-null paymentMethodId on \
+                         chargeCreditCard / authorizeCreditCard and accepts no raw card data on \
+                         any transaction mutation."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--ChargeCreditCardInput"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "network-transaction-id mandate replayed without a Braintree card token"
+                            .to_string(),
+                    ),
+                },
+            }
+        )),
     }
 }
 
@@ -3908,6 +4344,15 @@ pub struct CreditCardTransactionOptions {
     pub billing_address: Option<BraintreeAddressInput>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_d_secure_authentication: Option<ThreeDSecureAuthenticationInput>,
+    /// `CreditCardTransactionOptionsInput.externalVault`. Populated ONLY on an
+    /// externally-vaulted merchant-initiated charge — see `TransactionExternalVaultOptions`.
+    ///
+    /// This is also why the merchant-initiated path must stay on
+    /// `chargeCreditCard` / `authorizeCreditCard`: `ChargePaymentMethodInput` and
+    /// `AuthorizePaymentMethodInput` have four fields each and no `options` at all, so
+    /// `externalVault` is structurally unreachable through them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_vault: Option<TransactionExternalVaultOptions>,
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -4022,15 +4467,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BraintreeRepeatPaymentResponse::PaymentsResponse(payment_response) => {
                 let transaction_data = payment_response.data.charge_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                // Read before the terminal branch moves `transaction_data`: the MIT mints its
+                // own NTID, and a caller chaining MIT-on-MIT needs the latest one.
+                let network_txn_id = transaction_data.network_transaction_id();
+                let network_txn_link_id = transaction_data.network_transaction_link_id();
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                        transaction_data.status.clone(),
+                        Some(transaction_data.id.clone()),
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             Box::new(MandateReference {
@@ -4041,9 +4492,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             })
                         }),
                         connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: None,
+                        network_txn_id,
+                        network_txn_link_id,
+                        // The MIT echoes the same `transaction.orderId` Authorize sends, so both
+                        // flows report one reference id for the same series (checklist Theme 11).
+                        connector_response_reference_id: transaction_data.order_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
@@ -4253,17 +4706,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 query: constants::TOKENIZE_CREDIT_CARD.to_string(),
                 variables: VariableInput {
                     input: InputData {
-                        credit_card: CreditCardData {
+                        credit_card: BraintreeTokenizeCard::Raw(CreditCardData {
                             number: card_data.card_number,
                             expiration_year: card_data.card_exp_year,
                             expiration_month: card_data.card_exp_month,
-                            cvv: card_data.card_cvc,
+                            cvv: Some(card_data.card_cvc),
                             cardholder_name: item
                                 .router_data
                                 .resource_common_data
                                 .get_optional_billing_full_name()
                                 .unwrap_or(Secret::new("".to_string())),
-                        },
+                        }),
                     },
                 },
             }),
@@ -4347,6 +4800,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         redirection_data: None,
                         mandate_reference,
                         connector_metadata: None,
+                        // No NTID is obtainable here. Braintree's SetupMandate is
+                        // `tokenizeCreditCard`, which creates a payment method and no
+                        // transaction at all — the NTID is assigned by the scheme at
+                        // authorization time and lives on `Transaction.paymentMethodSnapshot`.
+                        // A zero-amount `verifyCreditCard` / `vaultPaymentMethod` would carry one
+                        // (`Verification.paymentMethodSnapshot`, tech spec §M.6.2), but this
+                        // connector does not issue either.
                         network_txn_id: None,
                         network_txn_link_id: None,
                         connector_response_reference_id: None,
@@ -5000,17 +5460,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     query: constants::PRE_AUTHENTICATE_MUTATION.to_string(),
                     variables: BraintreePreAuthenticateVariables {
                         card: InputData {
-                            credit_card: CreditCardData {
+                            credit_card: BraintreeTokenizeCard::Raw(CreditCardData {
                                 number: card_data.card_number.clone(),
                                 expiration_year: card_data.card_exp_year.clone(),
                                 expiration_month: card_data.card_exp_month.clone(),
-                                cvv: card_data.card_cvc.clone(),
+                                cvv: Some(card_data.card_cvc.clone()),
                                 cardholder_name: item
                                     .router_data
                                     .resource_common_data
                                     .get_optional_billing_full_name()
                                     .unwrap_or_else(|| Secret::new(String::new())),
-                            },
+                            }),
                         },
                         client_token,
                     },
