@@ -56,7 +56,6 @@
 //! `ThreeDs` authorize is rejected with `NotSupported` rather than silently
 //! downgraded to a non-3DS charge.
 
-pub mod test;
 pub mod transformers;
 
 use std::{fmt::Debug, sync::LazyLock};
