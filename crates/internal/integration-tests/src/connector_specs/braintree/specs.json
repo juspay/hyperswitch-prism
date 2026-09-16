@@ -9,6 +9,7 @@
     "RefundService/Get",
     "PaymentMethodService/Tokenize",
     "PaymentService/SetupRecurring",
+    "PaymentService/TokenSetupRecurring",
     "PaymentService/Void",
     "PaymentService/Authorize",
     "PaymentMethodAuthenticationService/PreAuthenticate",
@@ -19,6 +20,17 @@
   "unsupported_scenarios": {
     "EventService/HandleEvent": {
       "refund_succeeded": "Braintree has no refund-success webhook kind. `refund_failed` is the only refund notification the gateway emits (braintree_ruby WebhookNotification::Kind); a successful refund is observable only through RefundService/Get. There is no payload that could make this scenario pass, so no fixture is supplied."
+    },
+    "PaymentService/SetupRecurring": {
+      "setup_recurring": "Braintree's `vaultCreditCard` takes a `paymentMethodId` and accepts no raw PAN, so the raw-card shape this scenario sends cannot reach the mandate mutation. The card must be tokenized first through PaymentMethodService/Tokenize and the mandate then set up through PaymentService/TokenSetupRecurring, which this connector declares and which passes. The capability did not go away, it moved: the SetupMandate flow marker still maps to this suite, so the suite stays declared, but this particular scenario has no shape that could satisfy it. An override cannot rescue it either — a Braintree single-use token is one-use with a 3-hour TTL and the override harness has no response chaining, so a hardcoded token is dead on arrival."
+    },
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "threeds_card_authenticate": "The Braintree 3D Secure lookup is keyed on the payment-method nonce that PreAuthenticate mints (`connector_feature_data.braintree_three_ds.payment_method_id`), and the global suite's context_map propagates merchant_order_id, state, authentication_data and redirection_response.params from leg 1 but NOT connector_feature_data — so the nonce provably never reaches leg 2. The connector deliberately refuses to re-tokenize the raw card the base scenario sends, because that would mint a second nonce no 3DS lookup was ever run against. Closing this is a change to the shared, connector-agnostic `PaymentMethodAuthenticationService_Authenticate/suite_spec.json` that affects every connector, not a Braintree change; declaring the scenario passing before that lands would be claiming a capability nobody can verify. The `threeds_card_authenticate` override block is kept in override.json because its merchant_account_id metadata is correct and will be needed the moment the suite gap closes."
+    }
+  },
+  "assertion_deviations": {
+    "EventService/HandleEvent": {
+      "event_status": "Deleted rather than satisfied, because there is no value that could satisfy it: `EventServiceHandleResponse` (crates/types-traits/grpc-api-types/proto/events.proto) declares no `event_status` field at all, and crates/internal/integration-tests/src/harness/scenario_assert.rs fails a `one_of` rule on a missing field. The global base scenario's `event_status: {one_of: [\"EVENT_STATUS_COMPLETE\"]}` is therefore unsatisfiable for every connector, not just Braintree, which is why override.json removes it on all three webhook scenarios. This key is documentation only — nothing reads it."
     }
   }
 }

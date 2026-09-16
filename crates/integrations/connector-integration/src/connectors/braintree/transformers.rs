@@ -223,8 +223,19 @@ pub mod constants {
     /// Carries the same amount pair as `CAPTURE_TRANSACTION_MUTATION` so a PSync issued after a
     /// partial capture keeps reporting `PartialCharged` instead of walking the payment back to
     /// `Charged`. Live-verified accepted at `Braintree-Version: 2019-01-01`.
-    pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }";
-    pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
+    /// `orderId` is selected so PSync reports the SAME `connector_response_reference_id` the
+    /// Authorize leg did — the merchant's own order reference — instead of leaving it null and
+    /// giving the same payment two different reference-id answers depending on the flow that
+    /// asked. It is a nullable `String` on the `Transaction` SDL type at this pin — verified
+    /// against the introspected schema in the tech spec, which selects `orderId` both on
+    /// `refundedTransaction` (itself a `Transaction`) and on the PSync search node.
+    pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status orderId amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }";
+    /// Selects exactly what `RSyncNodeData` models and nothing else. It previously also asked for
+    /// `createdAt`, `amount { value currencyCode }` and `orderId`, none of which were modelled or
+    /// read: `RefundsResponseData` carries only a refund id, a status, an HTTP code and an
+    /// acquirer reference, so there is no field on the RSync response for an order reference or an
+    /// amount to land in. They were fetched and thrown away, so they are no longer fetched.
+    pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status } } } } }";
     pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
     pub const AUTHORIZE_GOOGLE_PAY_MUTATION: &str = "mutation authorizeGPay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
     pub const CHARGE_APPLE_PAY_MUTATION: &str = "mutation ChargeApplepay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
@@ -563,6 +574,10 @@ pub struct VaultTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     vault_payment_method_after_transacting: TransactionTiming,
+    /// Always `RECURRING_FIRST`. This body is only ever built for the vaulting leg — the
+    /// cardholder-present charge that ESTABLISHES a stored credential — which is precisely what
+    /// the value denotes. See `PaymentInitiatorType` for why nothing fails without it.
+    payment_initiator: PaymentInitiatorType,
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
@@ -588,21 +603,36 @@ pub struct MandateTransactionBody {
 
 /// Braintree GraphQL `PaymentInitiator` (`TransactionInput.paymentInitiator`).
 ///
-/// The SDL declares eight members, split by who initiates the charge. Only the three
-/// **merchant**-initiated ones are modelled here, because this enum is only ever written onto a
-/// `RepeatPayment`, which is merchant-initiated by definition:
+/// The SDL declares eight members, split by who initiates the charge. Four are modelled: the
+/// three **merchant**-initiated ones that `MandateTransactionBody` writes onto a `RepeatPayment`,
+/// plus the one **customer**-initiated one that `VaultTransactionBody` writes onto the leg that
+/// creates the series.
 ///
-/// * `RECURRING` — fixed amount on a predefined schedule (subscriptions).
-/// * `UNSCHEDULED` — stored credential, no fixed schedule or amount (balance top-up).
-/// * `INSTALLMENT` — subsequent payment of an installment plan.
+/// * `RECURRING` — fixed amount on a predefined schedule (subscriptions). MIT.
+/// * `UNSCHEDULED` — stored credential, no fixed schedule or amount (balance top-up). MIT.
+/// * `INSTALLMENT` — subsequent payment of an installment plan. MIT.
+/// * `RECURRING_FIRST` — the cardholder-present charge that ESTABLISHES a recurring series. CIT,
+///   and correct on exactly one body: `VaultTransactionBody`, the Authorize that charges and
+///   vaults in one mutation. That transaction *is* the first leg of the series, which is what the
+///   value means, so sending it there is not a category error — sending it on a `RepeatPayment`
+///   would be.
 ///
-/// The five omitted members are customer-initiated or orthogonal and are deliberately absent
-/// rather than dead arms: `RECURRING_FIRST` / `INSTALLMENT_FIRST` / `MOTO` / `ESTIMATED_MOTO`
-/// are CIT values, and `ESTIMATED` encodes amount-uncertainty rather than an initiator (its own
-/// SDL comment admits both initiators, so it cannot carry the MIT signal). There is no "CIT"
-/// value to reach for on the Authorize side either — per the enum's SDL doc comment, a plain
-/// customer-initiated ecommerce transaction omits the field entirely, which is what Authorize
-/// already does.
+/// **Why it matters, given that nothing fails without it.** Braintree accepts the vaulting CIT
+/// either way and returns the same status, so omitting `RECURRING_FIRST` produces no error, no
+/// warning and no response field announcing the difference. The cost lands weeks later and on a
+/// different transaction: without the first-leg marker the scheme has no record tying the stored
+/// credential to a cardholder-authorised setup, so the subsequent `RECURRING` legs qualify at
+/// degraded interchange and draw elevated issuer declines. Hyperswitch sets it on its own
+/// equivalent body for this reason; UCS previously did not, and the divergence was invisible at
+/// the time of the call.
+///
+/// The four still-omitted members are deliberately absent rather than dead arms:
+/// `INSTALLMENT_FIRST` / `MOTO` / `ESTIMATED_MOTO` describe first legs and channels this
+/// connector does not build, and `ESTIMATED` encodes amount-uncertainty rather than an initiator
+/// (its own SDL comment admits both initiators, so it cannot carry the MIT signal). A plain
+/// non-vaulting Authorize still omits the field entirely — per the enum's SDL doc comment that is
+/// how a one-off customer-initiated ecommerce transaction is expressed, and there is no "CIT"
+/// member to reach for.
 ///
 /// `INSTALLMENT` is region-gated and fails SILENTLY: where installments are unsupported
 /// Braintree re-categorizes the transaction as recurring with no error and no response field
@@ -614,6 +644,7 @@ pub enum PaymentInitiatorType {
     Unscheduled,
     Recurring,
     Installment,
+    RecurringFirst,
 }
 
 impl From<Option<common_enums::MitCategory>> for PaymentInitiatorType {
@@ -951,9 +982,35 @@ fn build_line_item(
         )
     };
 
-    let total_amount = item.total_amount.unwrap_or_else(|| {
-        MinorUnit::new(item.amount.get_amount_as_i64() * i64::from(item.quantity))
-    });
+    let total_amount = match item.total_amount {
+        Some(total) => total,
+        // `quantity` is caller-supplied, so the derivation is done with `checked_mul`: an
+        // overflow here would panic in a debug build (overflow-checks are on) and wrap
+        // silently in release, turning a bad Level 3 line into a wrong amount on the wire.
+        None => item
+            .amount
+            .get_amount_as_i64()
+            .checked_mul(i64::from(item.quantity))
+            .map(MinorUnit::new)
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::AmountConversionFailed {
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send an explicit total_amount on this order line, or reduce its \
+                             quantity: quantity * unit amount does not fit in a 64-bit \
+                             minor-unit value."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Level 3 line-item total overflowed while deriving it as quantity * \
+                             unit amount"
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?,
+    };
 
     Ok(TransactionLineItemInput {
         // Braintree caps the name at 35 characters and rejects the whole transaction
@@ -2911,7 +2968,11 @@ pub struct CreditCardData<
     /// string is a *failed* CVV check, not an absent one.
     #[serde(skip_serializing_if = "Option::is_none")]
     cvv: Option<Secret<String>>,
-    cardholder_name: Secret<String>,
+    /// Absent whenever neither the card nor the billing address carries a name. Omitted rather
+    /// than sent empty, for the same reason as `cvv`: an empty string is a *failed* AVS name
+    /// check, not an absent one, and Braintree forwards it to the issuer as one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cardholder_name: Option<Secret<String>>,
 }
 
 /// `TokenizeCreditCardInput.creditCard`, in the two carriers a PAN reaches this connector in.
@@ -2993,8 +3054,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cardholder_name: item
                                 .router_data
                                 .resource_common_data
-                                .get_optional_billing_full_name()
-                                .unwrap_or(Secret::new("".to_string())),
+                                .get_optional_billing_full_name(),
                         }),
                     },
                 },
@@ -3027,15 +3087,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             expiration_month: card_data.card_exp_month.clone(),
                             cvv: None,
                             // The mandate carries its own cardholder name; fall back to the
-                            // billing name the Card arm uses when it does not.
-                            cardholder_name: card_data.card_holder_name.clone().unwrap_or_else(
-                                || {
-                                    item.router_data
-                                        .resource_common_data
-                                        .get_optional_billing_full_name()
-                                        .unwrap_or(Secret::new("".to_string()))
-                                },
-                            ),
+                            // billing name the Card arm uses when it does not, and omit the
+                            // field entirely when neither is present.
+                            cardholder_name: card_data.card_holder_name.clone().or_else(|| {
+                                item.router_data
+                                    .resource_common_data
+                                    .get_optional_billing_full_name()
+                            }),
                         }),
                     },
                 },
@@ -3325,6 +3383,20 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
                         .initial_requested_authorization_amount
                         .as_ref(),
                 );
+                // Flow-specific narrowing (review Theme 9). `From<BraintreePaymentStatus>` is
+                // shared with Authorize and PSync and so has no flow context; left alone, a
+                // gateway-declined CAPTURE reports `Failure`, which tells the merchant the
+                // PAYMENT failed while the authorization hold is in fact still intact and still
+                // capturable. Applied after `refine_capture_status` and only in this arm:
+                // refinement only ever narrows `Charged` to `PartialCharged` and returns early
+                // otherwise, so the two cannot interact, and `BraintreeCaptureResponse` is read
+                // by the Capture flow and nothing else. PSync deliberately does NOT get this
+                // treatment — a sync reports the payment's own status, not a capture verdict.
+                let status = if status == enums::AttemptStatus::Failure {
+                    enums::AttemptStatus::CaptureFailed
+                } else {
+                    status
+                };
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         transaction_data.status,
@@ -3855,6 +3927,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct NodeData {
     id: String,
     status: BraintreePaymentStatus,
+    /// The merchant-assigned reference Authorize sent as `orderId`. Nullable in the SDL, so a
+    /// transaction created outside UCS still parses.
+    order_id: Option<String>,
     amount: Option<BraintreeMonetaryAmount>,
     initial_requested_authorization_amount: Option<BraintreeMonetaryAmount>,
 }
@@ -3923,7 +3998,10 @@ impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         edge_data.node.status.clone(),
-                        None,
+                        // The id of the very attempt being synced. Dropping it here left the
+                        // caller with no `connector_transaction_id` on exactly the response it
+                        // issued the sync to identify.
+                        Some(edge_data.node.id.clone()),
                         item.http_code,
                     ))
                 } else {
@@ -3934,7 +4012,10 @@ impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
                         connector_metadata: None,
                         network_txn_id: None,
                         network_txn_link_id: None,
-                        connector_response_reference_id: None,
+                        // Same reference Authorize reports (`transaction_data.order_id`), so a
+                        // sync cannot disagree with the authorization about what this payment
+                        // is called.
+                        connector_response_reference_id: edge_data.node.order_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
@@ -3993,7 +4074,17 @@ where
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "given payment method".to_owned(),
             connector: "Braintree",
-            context: Default::default(),
+            context: domain_types::errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send raw card data. The card BIN is read off the PAN, so it cannot be \
+                     derived from a token, a wallet payload or a bank instrument."
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(utils::get_unimplemented_payment_method_error_message(
+                    "braintree",
+                )),
+            },
         })),
     }
 }
@@ -4128,6 +4219,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: VaultTiming::Always,
                     },
+                    // The cardholder is present and this charge is what creates the stored
+                    // credential the later RECURRING legs will replay, so the scheme's first-leg
+                    // marker belongs here. Hardcoded rather than derived: this branch is reached
+                    // only when `is_mandate_payment()` holds, which is the definition of the
+                    // value.
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                     customer_details: item
                         .router_data
                         .resource_common_data
@@ -4315,6 +4412,23 @@ where
             .map(Some)
             .map_err(serde::de::Error::custom),
     }
+}
+
+/// Deserializes an optional value, mapping one this build cannot represent as `T` to `None`
+/// instead of failing the whole response.
+///
+/// The sibling of `deserialize_nil_aware` for JSON (not webhook XML) payloads, and the reason a
+/// closed enum like `enums::Currency` can be used for a purely informational field: an ISO code
+/// UCS has not mapped must not be able to take down the parse of a response describing work the
+/// gateway already performed. Only use it where dropping the value loses nothing a decision is
+/// made on.
+fn deserialize_lenient_optional<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
+{
+    let raw = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(raw.and_then(|value| serde_json::from_value::<T>(value).ok()))
 }
 
 /// Braintree's Relay **global** id for a legacy entity id: unpadded standard-alphabet base64
@@ -4609,11 +4723,10 @@ pub struct BraintreeWebhookTransaction {
     pub order_id: Option<String>,
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub merchant_account_id: Option<String>,
-    /// `credit_card`, `us_bank_account`, `paypal_account`, `apple_pay_card`, … . The
-    /// discriminator that proves a `transaction_settled` payload is an ACH/SEPA event
+    /// The discriminator that proves a `transaction_settled` payload is an ACH/SEPA event
     /// and not a card one.
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
-    pub payment_instrument_type: Option<String>,
+    pub payment_instrument_type: Option<BraintreePaymentInstrumentType>,
     /// `refund_failed` only: the id of the SALE this refund was taken against.
     ///
     /// `refunded-transaction-fk` is a stale spelling emitted by the Python/Node/PHP/Java
@@ -4636,6 +4749,36 @@ pub struct BraintreeWebhookTransaction {
     pub created_at: Option<String>,
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub updated_at: Option<String>,
+}
+
+/// Braintree's `<payment-instrument-type>` webhook discriminator — which instrument family the
+/// notified transaction or dispute was taken on.
+///
+/// Modelled as an enum rather than compared as a string literal so the one place that branches on
+/// it (`build_webhook_payment_response`) cannot drift from a typo, and so the closed set is
+/// stated once instead of living in a doc comment. The members are the families Braintree emits
+/// on this element; `#[serde(other)] Unknown` means an instrument family Braintree adds later
+/// degrades to "not one we recognise" rather than failing the webhook parse — the same treatment
+/// `BraintreeWebhookKind` and `BraintreeWebhookTransactionStatus` give their own open value sets.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BraintreePaymentInstrumentType {
+    CreditCard,
+    UsBankAccount,
+    PaypalAccount,
+    ApplePayCard,
+    AndroidPayCard,
+    VenmoAccount,
+    LocalPayment,
+    SepaDebitAccount,
+    VisaCheckoutCard,
+    SamsungPayCard,
+    /// Any instrument family not listed above, including ones Braintree introduces after this
+    /// build. Never given a meaning — it only ever fails the `us_bank_account` test below, which
+    /// logs, and never rejects the webhook.
+    #[serde(other)]
+    Unknown,
 }
 
 /// Braintree transaction status as it appears in webhook XML — the REST spelling,
@@ -4846,7 +4989,7 @@ pub struct DisputeTransaction {
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub purchase_order_number: Option<String>,
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
-    pub payment_instrument_type: Option<String>,
+    pub payment_instrument_type: Option<BraintreePaymentInstrumentType>,
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub payment_instrument_subtype: Option<String>,
     #[serde(default, deserialize_with = "deserialize_nil_aware")]
@@ -5307,11 +5450,11 @@ pub(super) fn build_webhook_payment_response(
         // both SDK samples hard-code `us_bank_account`. Do not reject a card one — a
         // webhook must not be dropped on a shape assumption — but make the anomaly
         // visible if the family is ever extended to cards.
-        if let Some(instrument) = transaction.and_then(|t| t.payment_instrument_type.as_deref()) {
-            if instrument != "us_bank_account" {
+        if let Some(instrument) = transaction.and_then(|t| t.payment_instrument_type) {
+            if instrument != BraintreePaymentInstrumentType::UsBankAccount {
                 tracing::warn!(
                     target: "braintree_webhook",
-                    payment_instrument_type = instrument,
+                    payment_instrument_type = %instrument,
                     kind = %notification.kind,
                     "Braintree transaction webhook on a non-bank instrument"
                 );
@@ -6006,6 +6149,39 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
 // another's output, and `vaultCreditCard` needs the token `tokenizeCreditCard`
 // returns. So SetupMandate takes the token as input, exactly as Authorize does, and
 // fails closed when it is absent.
+//
+// BREAKING CHANGE — READ THIS BEFORE ASSUMING A RAW CARD STILL WORKS HERE.
+//
+// Two entry points used to reach this flow with a PAN in the request body and no
+// longer can. Both now fail closed with `MissingRequiredField: payment_method.token`:
+//
+//   * `PaymentService/SetupRecurring` — a raw `PaymentMethodData::Card`.
+//   * `PaymentService/ProxySetupRecurring` — a vault-token holder's templated PAN
+//     (`{{$card_number}}`), which travelled through the `<T>` generic on the request
+//     type. That generic is gone, because the request no longer carries a card number
+//     at all: `vaultCreditCard` takes a `paymentMethodId` and accepts no raw PAN.
+//
+// This is a real capability loss at those two RPCs and it is stated here rather than
+// left to be discovered. It is not a loss of the capability itself: the mandate setup
+// MOVED to `PaymentService/TokenSetupRecurring`, which this connector declares and
+// which passes. A caller that previously sent a card to `SetupRecurring`, and a proxy
+// or vault caller that previously templated a PAN into `ProxySetupRecurring`, both now
+// reach Braintree the same way:
+//
+//   1. `PaymentMethodService/Tokenize` — still generic over `T` and still accepting
+//      `RawCardNumber<T>`, so a templated `{{$card_number}}` passes through it
+//      untouched exactly as it used to pass through this flow. It returns a Braintree
+//      single-use token.
+//   2. `PaymentService/TokenSetupRecurring` with that token, which lands here and runs
+//      the real zero-amount verification described above.
+//
+// What was traded: one RPC became two, and the single-use token has a 3-hour TTL and is
+// spent by the first mutation that consumes it, so the two calls must be made in
+// sequence rather than the token being stored. What was bought: a mandate that has
+// actually been verified against the card network. The old one-call shape could not be
+// preserved — `vaultCreditCard` consumes `tokenizeCreditCard`'s OUTPUT, and GraphQL
+// root mutation fields cannot consume each other's output, which is exactly why
+// `PRE_AUTHENTICATE_MUTATION` can splice ITS pair (disjoint inputs) and this one cannot.
 
 /// `VaultCreditCardVerificationOptionsInput` — the verification half of `VaultCreditCardInput`.
 ///
@@ -6243,9 +6419,19 @@ pub struct VaultedPaymentMethod {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeVerificationAmount {
-    /// Major-unit decimal string, e.g. `"0.00"`.
-    pub value: Option<String>,
-    pub currency_iso_code: Option<String>,
+    /// Major-unit decimal string, e.g. `"0.00"` — typed, like every other amount in this file,
+    /// rather than left a bare `String`.
+    pub value: Option<StringMajorUnit>,
+    /// Typed as the enum, matching `BraintreeWebhookTransaction` and `BraintreeDisputeData`.
+    ///
+    /// Read leniently, which is what makes the enum safe here where it is not on
+    /// `BraintreeMonetaryAmount`: an ISO code this build has not mapped yields `None` in a
+    /// metadata blob instead of failing the deserialization of a `vaultCreditCard` response for
+    /// a card Braintree has already verified and vaulted. The field is purely informational —
+    /// it is reported as connector metadata and never compared against anything — so `None` is
+    /// a complete answer.
+    #[serde(default, deserialize_with = "deserialize_lenient_optional")]
+    pub currency_iso_code: Option<enums::Currency>,
 }
 
 /// `Verification.paymentMethodVerificationDetails` narrowed to its
@@ -6364,7 +6550,7 @@ impl BraintreeVerification {
             "verification_legacy_id": self.legacy_id,
             "verification_status": self.status.map(|status| status.to_string()),
             "verification_amount": amount.and_then(|amount| amount.value.clone()),
-            "verification_currency": amount.and_then(|amount| amount.currency_iso_code.clone()),
+            "verification_currency": amount.and_then(|amount| amount.currency_iso_code),
             "vaulted_payment_method_legacy_id": payment_method
                 .and_then(|method| method.legacy_id.as_ref())
                 .map(|legacy_id| legacy_id.peek().clone()),
@@ -7356,8 +7542,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 cardholder_name: item
                                     .router_data
                                     .resource_common_data
-                                    .get_optional_billing_full_name()
-                                    .unwrap_or_else(|| Secret::new(String::new())),
+                                    .get_optional_billing_full_name(),
                             }),
                         },
                         client_token,
@@ -7377,7 +7562,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(_) => Err(error_stack::report!(IntegrationError::NotSupported {
                 message: utils::get_unimplemented_payment_method_error_message("braintree"),
                 connector: "Braintree",
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send a card, or a Braintree payment-method token minted from one. \
+                         Braintree's 3D Secure lookup is keyed on a single-use card payment \
+                         method, so no other instrument can start this leg."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Mutation--tokenizeCreditCard"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        utils::get_unimplemented_payment_method_error_message("braintree"),
+                    ),
+                },
             })),
             // Fail closed: there is nothing to authenticate, and an empty client token would hand
             // the caller a bootstrap it can never complete.
@@ -7771,7 +7970,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(request.amount, currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Check that the authentication amount is a valid minor-unit value for \
+                         the payment currency."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "failed to convert the 3D Secure lookup amount to major units".to_string(),
+                    ),
+                },
             })?;
 
         let merchant_account_id = resolve_merchant_account_id(
