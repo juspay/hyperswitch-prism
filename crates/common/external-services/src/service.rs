@@ -815,6 +815,7 @@ where
                 }
                 _ => updated_router_data,
             };
+            tracing::debug!(flow = %event_params.flow_name, "art-test TN-03: about to stamp shadow-mode headers");
             connector_request = connector_request.map(|mut req| {
                 if event_params.shadow_mode {
                     req.add_header(
