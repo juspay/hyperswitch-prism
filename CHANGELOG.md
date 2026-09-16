@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.16.0
+
+### Miscellaneous Tasks
+
+- **grace:** Flow groups, staging allowlist, and built-in HS→UCS end-to-end ([#2306](https://github.com/juspay/connector-service/pull/2306)) ([`aa556c3`](https://github.com/juspay/connector-service/commit/aa556c3c26e80b0cc7067d80e61edea660c7f3d2))
+
+**Full Changelog:** [`2026.09.15.4...2026.09.16.0`](https://github.com/juspay/connector-service/compare/2026.09.15.4...2026.09.16.0)
+
+- - -
+
 ## 2026.09.15.4
 
 ### Bug Fixes
