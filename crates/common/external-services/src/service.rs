@@ -823,7 +823,7 @@ where
                     );
                     req.add_header(
                         consts::X_SOURCE_NAME,
-                        Maskable::Masked(Secret::new(consts::X_CONNECTOR_SERVICE.to_string())),
+                        Maskable::Masked(Secret::new(format!("{}-canary", consts::X_CONNECTOR_SERVICE))),
                     );
                     req.add_header(
                         consts::X_FLOW_NAME,
