@@ -14,13 +14,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
-        VoidPC,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, MandateRevoke, PSync,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
-        DisputeWebhookDetailsResponse, EventType, PaymentFlowData, PaymentMethodTokenResponse,
+        DisputeWebhookDetailsResponse, EventType, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
@@ -50,9 +51,10 @@ use transformers::{
     BraintreePaymentsResponse, BraintreePostAuthenticateRequest, BraintreePostAuthenticateResponse,
     BraintreePreAuthenticateRequest, BraintreePreAuthenticateResponse, BraintreeRSyncRequest,
     BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
-    BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeSessionResponse,
-    BraintreeSetupMandateRequest, BraintreeSetupMandateResponse, BraintreeTokenRequest,
-    BraintreeTokenResponse, BraintreeVoidPCRequest, BraintreeVoidPCResponse,
+    BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeRevokeMandateRequest,
+    BraintreeRevokeMandateResponse, BraintreeSessionResponse, BraintreeSetupMandateRequest,
+    BraintreeSetupMandateResponse, BraintreeTokenRequest, BraintreeTokenResponse,
+    BraintreeVoidPCRequest, BraintreeVoidPCResponse,
 };
 
 use super::macros;
@@ -238,16 +240,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPostAuthenticateV2<T> for Braintree<T>
 {
 }
+/// Braintree revokes a stored credential by deleting the vaulted payment method
+/// (`deletePaymentMethodFromVault`). Without this impl the flow stays in the `not_implemented`
+/// bucket and a merchant migrating from Hyperswitch loses the ability to revoke a mandate it can
+/// still charge.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::MandateRevokeV2 for Braintree<T>
+{
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Braintree<T>
 {
+    /// Braintree charges a `paymentMethodId`; none of its transaction mutations accepts card
+    /// credentials inline. So every instrument whose credentials prism can actually see has to be
+    /// exchanged for one first.
+    ///
+    /// * **Card** — `tokenizeCreditCard`.
+    /// * **Wallet carrying a DECRYPTED network token** (Apple Pay with cleartext DPAN +
+    ///   cryptogram) — `tokenizeNetworkToken`. Gated on `is_wallet_decrypted_network_token` and
+    ///   not on the wallet alone: an `ApplePayThirdPartySdk` / `GooglePayThirdPartySdk` payload is
+    ///   already a Braintree-minted nonce charged through `chargePaymentMethod`, and tokenizing it
+    ///   would be a round trip that can only fail. An ENCRYPTED Apple Pay blob is excluded by the
+    ///   same flag — prism holds no decryption certificate for it.
     fn should_do_payment_method_token(
         &self,
         payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
-        _is_wallet_decrypted_network_token: bool,
+        is_wallet_decrypted_network_token: bool,
     ) -> bool {
-        matches!(payment_method, PaymentMethod::Card)
+        match payment_method {
+            PaymentMethod::Card => true,
+            PaymentMethod::Wallet => is_wallet_decrypted_network_token,
+            _ => false,
+        }
     }
 
     /// Drives the composite authorize loop through Braintree-HOSTED 3D Secure for card + ThreeDs:
@@ -591,6 +616,12 @@ macros::create_all_prerequisites!(
             request_body: BraintreeSetupMandateRequest,
             response_body: BraintreeSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: MandateRevoke,
+            request_body: BraintreeRevokeMandateRequest,
+            response_body: BraintreeRevokeMandateResponse,
+            router_data: RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
         ),
         (
             flow: PreAuthenticate,
@@ -1007,6 +1038,36 @@ macros::macro_connector_implementation!(
     }
 );
 
+// `deletePaymentMethodFromVault` — the revoke. `http_method: Post` like every other leg: Braintree
+// is a single GraphQL endpoint and every operation, mutation or query, is POSTed to it.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreeRevokeMandateRequest),
+    curl_response: BraintreeRevokeMandateResponse,
+    flow_name: MandateRevoke,
+    resource_common_data: PaymentFlowData,
+    flow_request: MandateRevokeRequestData,
+    flow_response: MandateRevokeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Braintree,
@@ -1173,7 +1234,6 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         DefendDispute,
         Accept,
-        MandateRevoke,
     ],
     not_supported: [
         VoidPostRefund,

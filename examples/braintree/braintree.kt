@@ -14,6 +14,7 @@ import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.PaymentMethodAuthenticationClient
+import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
 import payments.CaptureMethod
@@ -27,7 +28,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "recurring_revoke", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -224,6 +225,18 @@ fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: RecurringPaymentService.Revoke
+fun recurringRevoke(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RecurringPaymentClient(config)
+    val request = RecurringPaymentServiceRevokeRequest.newBuilder().apply {
+        merchantRevokeId = "probe_revoke_001"  // Identification.
+        mandateId = "probe_mandate_001"  // Mandate Details.
+        connectorMandateId = "probe_connector_mandate_001"
+    }.build()
+    val response = client.recurring_revoke(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -337,12 +350,13 @@ fun main(args: Array<String>) {
         "parseEvent" -> parseEvent(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
+        "recurringRevoke" -> recurringRevoke(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "reverse" -> reverse(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, preAuthenticate, refund, refundGet, reverse, tokenAuthorize, tokenSetupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, preAuthenticate, recurringRevoke, refund, refundGet, reverse, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

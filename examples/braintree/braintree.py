@@ -11,10 +11,11 @@ from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import PaymentMethodAuthenticationClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "recurring_revoke", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -123,6 +124,13 @@ def _build_pre_authenticate_request():
         ),
         enrolled_for_3ds=False,  # Authentication Details.
         return_url="https://example.com/3ds-return",  # URLs for Redirection.
+    )
+
+def _build_recurring_revoke_request():
+    return payment_pb2.RecurringPaymentServiceRevokeRequest(
+        merchant_revoke_id="probe_revoke_001",  # Identification.
+        mandate_id="probe_mandate_001",  # Mandate Details.
+        connector_mandate_id="probe_connector_mandate_001",
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -256,6 +264,15 @@ async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_con
     pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
 
     return {"status": pre_response.status}
+
+
+async def process_recurring_revoke(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Revoke"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.recurring_revoke(_build_recurring_revoke_request())
+
+    return {"status": recurring_response.status}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

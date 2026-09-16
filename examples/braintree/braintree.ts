@@ -5,9 +5,9 @@
 // Braintree — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx braintree.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, EventClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "recurring_revoke", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -137,6 +137,14 @@ function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServi
         },
         "enrolledFor_3ds": false,  // Authentication Details.
         "returnUrl": "https://example.com/3ds-return"  // URLs for Redirection.
+    };
+}
+
+function _buildRecurringRevokeRequest(): types.IRecurringPaymentServiceRevokeRequest {
+    return {
+        "merchantRevokeId": "probe_revoke_001",  // Identification.
+        "mandateId": "probe_mandate_001",  // Mandate Details.
+        "connectorMandateId": "probe_connector_mandate_001"
     };
 }
 
@@ -293,6 +301,15 @@ async function preAuthenticate(merchantTransactionId: string, config: types.ICon
     return preResponse;
 }
 
+// Flow: RecurringPaymentService.Revoke
+async function recurringRevoke(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.recurringRevoke(_buildRecurringRevokeRequest());
+
+    return recurringResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -350,7 +367,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, preAuthenticate, refund, refundGet, reverse, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, preAuthenticate, recurringRevoke, refund, refundGet, reverse, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

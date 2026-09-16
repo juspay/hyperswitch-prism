@@ -126,7 +126,7 @@
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "error": "Stuck on field: payment_method_token. Braintree charges a paymentMethodId, never a raw PAN: chargeCreditCard and authorizeCreditCard have no card field to put one in. — Missing required field: payment_method_token. Braintree charges a paymentMethodId, never a raw PAN: chargeCreditCard and authorizeCreditCard have no card field to put one in."
       },
       "CashappQr": {
         "status": "not_supported",
@@ -795,7 +795,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "error": "Stuck on field: payment_method_token. Braintree charges a paymentMethodId, never a raw PAN: chargeCreditCard and authorizeCreditCard have no card field to put one in. — Missing required field: payment_method_token. Braintree charges a paymentMethodId, never a raw PAN: chargeCreditCard and authorizeCreditCard have no card field to put one in."
       }
     },
     "proxy_setup_recurring": {
@@ -812,8 +812,23 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: mandate_revoke flow for braintree"
+        "status": "supported",
+        "proto_request": {
+          "merchant_revoke_id": "probe_revoke_001",
+          "mandate_id": "probe_mandate_001",
+          "connector_mandate_id": "probe_connector_mandate_001"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_connector_mandate_001\"}}}"
+        }
       }
     },
     "refresh": {

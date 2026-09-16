@@ -15,7 +15,8 @@
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentMethodAuthenticationService/Authenticate",
     "PaymentMethodAuthenticationService/PostAuthenticate",
-    "EventService/HandleEvent"
+    "EventService/HandleEvent",
+    "RecurringPaymentService/Revoke"
   ],
   "unsupported_scenarios": {
     "EventService/HandleEvent": {
@@ -26,6 +27,10 @@
     },
     "PaymentMethodAuthenticationService/Authenticate": {
       "threeds_card_authenticate": "The Braintree 3D Secure lookup is keyed on the payment-method nonce that PreAuthenticate mints (`connector_feature_data.braintree_three_ds.payment_method_id`), and the global suite's context_map propagates merchant_order_id, state, authentication_data and redirection_response.params from leg 1 but NOT connector_feature_data — so the nonce provably never reaches leg 2. The connector deliberately refuses to re-tokenize the raw card the base scenario sends, because that would mint a second nonce no 3DS lookup was ever run against. Closing this is a change to the shared, connector-agnostic `PaymentMethodAuthenticationService_Authenticate/suite_spec.json` that affects every connector, not a Braintree change; declaring the scenario passing before that lands would be claiming a capability nobody can verify. The `threeds_card_authenticate` override block is kept in override.json because its merchant_account_id metadata is correct and will be needed the moment the suite gap closes."
+    },
+    "RecurringPaymentService/Revoke": {
+      "revoke_active_mandate": "Not the revoke's own limitation — its dependency's. The suite is declared `suite_type: dependent` with `strict_dependencies: true` on PaymentService/SetupRecurring, and that suite's only scenario is itself unsupported here (see the PaymentService/SetupRecurring entry above: `vaultCreditCard` takes a paymentMethodId and the base scenario sends a raw PAN). So no mandate is ever created for this scenario to revoke, and a declared-passing run would be asserting on a revoke of nothing. The flow itself is wired and proven against the Braintree sandbox: tokenizeCreditCard -> PaymentService/TokenSetupRecurring -> RecurringPaymentService/Revoke returns REVOKED; the evidence is in the PR description. This scenario becomes testable the moment the shared SetupRecurring suite can chain a token, which is the same upstream gap already recorded above.",
+      "revoke_with_reason": "Same dependency gap as revoke_active_mandate, and additionally Braintree's `deletePaymentMethodFromVault` input carries no reason field — `DeletePaymentMethodFromVaultInput` is `{ paymentMethodId, clientMutationId }` and nothing else. A revocation reason has nowhere to go on the wire, so even with a live mandate this scenario could only prove the same thing revoke_active_mandate proves."
     }
   },
   "assertion_deviations": {
