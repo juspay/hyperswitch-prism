@@ -2053,7 +2053,7 @@ pub(crate) fn get_order_status(
     match item {
         PaypalOrderStatus::Completed => {
             if intent == PaypalPaymentIntent::Authorize {
-                common_enums::AttemptStatus::Authorized
+                common_enums::AttemptStatus::Pending
             } else {
                 common_enums::AttemptStatus::Charged
             }
