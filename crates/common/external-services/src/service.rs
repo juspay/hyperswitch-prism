@@ -827,7 +827,7 @@ where
                     );
                     req.add_header(
                         consts::X_FLOW_NAME,
-                        Maskable::Masked(Secret::new(event_params.flow_name.to_string())),
+                        Maskable::Masked(Secret::new(format!("{}", event_params.flow_name))),
                     );
 
                     req.add_header(
