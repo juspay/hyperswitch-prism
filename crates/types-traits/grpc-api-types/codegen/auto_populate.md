@@ -54,10 +54,10 @@ const SUPPORTED_PACKAGE_MODULE: &str = "crate::payments";
 
 If another generated module/package needs this mechanism later, the generator should be extended deliberately instead of assuming all descriptor packages map to `crate::payments`.
 
-## Developer-Written Contract: `AutoPopulateSpec`
+## Developer-Written Contract: `AutoPopulateField`
 
 `AutoPopulateField` is the only hand-written field registry. Each enum variant
-delegates to a small spec type that implements `AutoPopulateSpec`.
+implements its codegen behavior through regular enum methods.
 
 For each field, the developer writes:
 
@@ -78,49 +78,56 @@ enum AutoPopulateField {
 
 const AUTO_POPULATE_FIELDS: &[AutoPopulateField] = &[AutoPopulateField::OsBasedReturnUrl];
 
-#[derive(Clone, Copy)]
-struct OsBasedReturnUrlSpec;
-
-impl AutoPopulateSpec for OsBasedReturnUrlSpec {
+impl AutoPopulateField {
     fn field_name(self) -> &'static str {
-        "os_based_return_url"
+        match self {
+            Self::OsBasedReturnUrl => "os_based_return_url",
+        }
     }
 
     fn trait_name(self) -> &'static str {
-        "PopulateOsBasedReturnUrl"
+        match self {
+            Self::OsBasedReturnUrl => "PopulateOsBasedReturnUrl",
+        }
     }
 
     fn method_name(self) -> &'static str {
-        "populate_os_based_return_url"
+        match self {
+            Self::OsBasedReturnUrl => "populate_os_based_return_url",
+        }
     }
 
     fn value_type(self) -> TokenStream {
-        quote! { crate::payments::OsBasedReturnUrl }
+        match self {
+            Self::OsBasedReturnUrl => quote! { crate::payments::OsBasedReturnUrl },
+        }
     }
 
     fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
-        match shape {
-            FieldShape::Optional => quote! {
-                if let Some(existing) = self.os_based_return_url.as_mut() {
-                    if !existing.os_type.is_empty() {
-                        existing.return_url_map = value.return_url_map;
+        match self {
+            Self::OsBasedReturnUrl => match shape {
+                FieldShape::Optional => quote! {
+                    if let Some(existing) = self.os_based_return_url.as_mut() {
+                        if existing.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                            existing.return_url_map = value.return_url_map;
+                        }
                     }
-                }
+                },
+                FieldShape::Required => quote! {
+                    if self.os_based_return_url.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                        self.os_based_return_url.return_url_map = value.return_url_map;
+                    }
+                },
+                FieldShape::Repeated => {
+                    let error = format!(
+                        "populate_os_based_return_url: `{message_name}.os_based_return_url` is repeated"
+                    );
+                    quote! {
+                        let _ = value;
+                        compile_error!(#error);
+                    }
+                },
             },
-            FieldShape::Required => quote! {
-                if !self.os_based_return_url.os_type.is_empty() {
-                    self.os_based_return_url.return_url_map = value.return_url_map;
-                }
-            },
-            FieldShape::Repeated => {
-                let error = format!(
-                    "populate_os_based_return_url: `{message_name}.os_based_return_url` is repeated"
-                );
-                quote! {
-                    let _ = value;
-                    compile_error!(#error);
-                }
-            }
         }
     }
 }
@@ -152,13 +159,13 @@ The current contract supports these `FieldShape` variants in `setter_body`:
 
 ## Current `os_based_return_url` Semantics
 
-`os_based_return_url` is optional on the request context, but if it is present, `os_type` must already be present in practice.
+`os_based_return_url` is optional on the request context, but if it is present, `os_type` must be a concrete `ClientPlatform` in practice.
 
 The generated setter follows that rule:
 
 - It does not create `os_based_return_url` if the request did not send it.
 - It preserves the request-provided `os_type`.
-- It only fills `return_url_map` when `os_type` is non-empty.
+- It only fills `return_url_map` when `os_type` is not `CLIENT_PLATFORM_UNSPECIFIED`.
 
 This keeps responsibility split cleanly:
 
@@ -351,24 +358,42 @@ This keeps integration code stable while avoiding runtime overhead for builds th
 
 The generated code does not know Plaid, Euler, or merchant-specific config structure.
 
-Runtime connector-specific code lives in `grpc-server/src/sanity_layer.rs`.
+Runtime connector-specific code lives with the connector. The top-level
+`grpc-server/src/sanity_layer.rs` owns wrapping, connector resolution, raw
+metadata extraction, and dispatch. Plaid-specific behavior lives in
+`connector-integration/src/authenticator_connectors/plaid/sanity.rs`.
 
-That runtime layer is trait-shaped per connector. Each connector sanity implementation owns:
+Connector-specific behavior is exposed through the object-safe
+`ConnectorSanity` trait. `ConnectorSanityExt::sanity()` converts the resolved
+`ConnectorVariant` into `&'static dyn ConnectorSanity`. The generic layer
+extracts raw config using `ConnectorVariant::get_connector_name()` and calls
+`apply`. Each connector sanity implementation owns:
 
-- how to extract its raw connector config
 - how to apply its sanity behavior to a typed request
 
-For Plaid, that runtime layer:
+Connector handlers receive `&mut dyn ConnectorSanityRequest`, an object-safe
+request interface that exposes the generated populate operations needed by
+sanity code. The generated trait names stay behind this boundary; connector
+logic calls methods such as `req.populate_os_based_return_url(value)`.
+
+For Plaid, the generic layer:
 
 - resolves a connector name from metadata or raw config
-- matches the connector against registered sanity handlers
-- reads Euler-only keys from raw `x-connector-config`
+- calls `connector.sanity()` to get the registered sanitizer
+- extracts that connector's raw config object from `x-connector-config`
+
+Then Plaid's connector-owned sanity handler:
+
+- reads Euler-only keys from the raw Plaid config
 - builds an `OsBasedReturnUrl` value containing `return_url_map`
 - calls `populate_os_based_return_url`
 
 This keeps generated infrastructure generic and connector-specific policy outside `grpc-api-types`.
 
-Unsupported connectors explicitly go through the default match arm and log that no connector sanity is registered. That makes the runtime structure a connector sanity registry instead of a Plaid-specific predicate.
+Unsupported connectors resolve to `NOOP_SANITY`, whose default `apply` logs
+that no connector sanity is registered and performs no mutation. That makes the
+runtime structure a connector sanity registry instead of a Plaid-specific
+predicate.
 
 ## Adding A New Auto-Populated Field
 
@@ -377,58 +402,68 @@ To add another field to the generated sanity infrastructure:
 1. Add the destination field to the relevant `.proto` message or messages.
 2. Add a new variant to `AutoPopulateField`.
 3. Add that variant to `AUTO_POPULATE_FIELDS`.
-4. Create a small spec type, for example `NativeAppIdentifierSpec`.
-5. Implement `AutoPopulateSpec` for that spec type:
+4. Add match arms for that variant in `impl AutoPopulateField`:
    - `field_name`: exact proto field name
    - `trait_name`: generated Rust trait name
    - `method_name`: generated Rust method name
    - `value_type`: Rust type accepted by the generated setter
    - `setter_body`: shape-based setter logic using `quote!`
-6. Add delegation for the new variant in `impl AutoPopulateSpec for AutoPopulateField`.
-7. Add or update focused tests in `grpc-api-types/tests/auto_populate_test.rs`.
-8. Build or test `grpc-api-types`; the generated file in `OUT_DIR` will include
+5. Add or update focused tests in `grpc-api-types/tests/auto_populate_test.rs`.
+6. Build or test `grpc-api-types`; the generated file in `OUT_DIR` will include
    trait impls for every descriptor-discovered matching message.
 
 Example shape:
 
 ```rust
-#[derive(Clone, Copy)]
-struct NativeAppIdentifierSpec;
-
-impl AutoPopulateSpec for NativeAppIdentifierSpec {
+impl AutoPopulateField {
     fn field_name(self) -> &'static str {
-        "native_app_identifier"
+        match self {
+            Self::NativeAppIdentifier => "native_app_identifier",
+            // existing variants...
+        }
     }
 
     fn trait_name(self) -> &'static str {
-        "PopulateNativeAppIdentifier"
+        match self {
+            Self::NativeAppIdentifier => "PopulateNativeAppIdentifier",
+            // existing variants...
+        }
     }
 
     fn method_name(self) -> &'static str {
-        "populate_native_app_identifier"
+        match self {
+            Self::NativeAppIdentifier => "populate_native_app_identifier",
+            // existing variants...
+        }
     }
 
     fn value_type(self) -> TokenStream {
-        quote! { String }
+        match self {
+            Self::NativeAppIdentifier => quote! { String },
+            // existing variants...
+        }
     }
 
     fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
-        match shape {
-            FieldShape::Optional => quote! {
-                self.native_app_identifier = Some(value);
+        match self {
+            Self::NativeAppIdentifier => match shape {
+                FieldShape::Optional => quote! {
+                    self.native_app_identifier = Some(value);
+                },
+                FieldShape::Required => quote! {
+                    self.native_app_identifier = value;
+                },
+                FieldShape::Repeated => {
+                    let error = format!(
+                        "populate_native_app_identifier: `{message_name}.native_app_identifier` is repeated"
+                    );
+                    quote! {
+                        let _ = value;
+                        compile_error!(#error);
+                    }
+                },
             },
-            FieldShape::Required => quote! {
-                self.native_app_identifier = value;
-            },
-            FieldShape::Repeated => {
-                let error = format!(
-                    "populate_native_app_identifier: `{message_name}.native_app_identifier` is repeated"
-                );
-                quote! {
-                    let _ = value;
-                    compile_error!(#error);
-                }
-            }
+            // existing variants...
         }
     }
 }
@@ -450,29 +485,30 @@ fn sanitize<T: PopulateOsBasedReturnUrl + PopulateNativeAppIdentifier>(
 
 The generated `RequestSanitizer` trait already includes every auto-populate
 field from `AUTO_POPULATE_FIELDS`, so connector runtime code must use matching
-bounds when it calls those generated methods.
+bounds when it exposes those methods through `ConnectorSanityRequest`.
 
 ## Adding A New Connector Sanity Handler
 
 Connector-specific sanity logic lives in
-`crates/grpc-server/grpc-server/src/sanity_layer.rs`, not in generated code.
+the connector's own module, not in generated code. For Plaid this is
+`crates/integrations/connector-integration/src/authenticator_connectors/plaid/sanity.rs`.
 
 To add a new connector:
 
 1. Make sure the connector can be resolved to a `ConnectorVariant` by the
    existing metadata/config parsing path.
-2. Add a connector-specific sanity struct, for example `FooPaySanity`.
-3. Implement `ConnectorSanity` for that struct:
-   - `raw_config` should extract only that connector's raw config from
-     `x-connector-config`.
-   - `apply` should convert connector-specific config keys into the generic
-     request value and call the generated populate method.
-4. Add one match arm in `sanity_connector` for the connector enum variant.
-5. Add one match arm in `ConnectorSanitizer::sanitize` to call the connector's
-   sanity implementation.
-6. Leave all unsupported connectors on the `Other(connector)` path; they should
-   log `no connector sanity registered` and perform no mutation.
-7. Add a focused test or smoke command that sends raw `x-connector-config` for
+2. Add a connector-specific sanity module/struct, for example `foo_pay/sanity.rs`
+   with `FooPaySanity`.
+3. Implement `ConnectorSanity` for the connector sanitizer. Its `apply` method
+   should accept `Option<SecretSerdeValue>` plus `&mut dyn ConnectorSanityRequest`
+   and call field-specific helper methods internally.
+4. Add one match arm in `ConnectorSanityExt::sanity` in
+   `connector-integration/src/sanity.rs` for the connector enum variant. The
+   server should keep calling `connector.sanity()`; raw config extraction and
+   `apply` invocation remain generic.
+5. Leave all unsupported connectors on the `NOOP_SANITY` path; it should log
+   `no connector sanity registered` and perform no mutation.
+6. Add a focused test or smoke command that sends raw `x-connector-config` for
    the connector and confirms the typed request is populated before the handler
    runs.
 
@@ -482,12 +518,8 @@ Example shape:
 struct FooPaySanity;
 
 impl ConnectorSanity for FooPaySanity {
-    fn raw_config(&self, metadata: &MetadataMap) -> Option<serde_json::Value> {
-        raw_connector_config(metadata, &["FooPay", "foo_pay"])
-    }
-
-    fn apply<T: PopulateOsBasedReturnUrl>(&self, metadata: &MetadataMap, req: &mut T) {
-        let Some(config) = self.raw_config(metadata) else {
+    fn apply(&self, raw_config: Option<SecretSerdeValue>, req: &mut dyn ConnectorSanityRequest) {
+        let Some(config) = raw_config else {
             return;
         };
         let Some(value) = build_value_from_foo_pay_config(config) else {
@@ -497,6 +529,13 @@ impl ConnectorSanity for FooPaySanity {
         req.populate_os_based_return_url(value);
     }
 }
+```
+
+Then register it by adding an arm inside the existing
+`impl ConnectorSanityExt for ConnectorVariant`:
+
+```rust
+ConnectorVariant::Payment(ConnectorEnum::FooPay) => &FOO_PAY_SANITY,
 ```
 
 The connector handler owns the translation from merchant/Euler-specific config

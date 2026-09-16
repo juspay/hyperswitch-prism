@@ -4,8 +4,8 @@
 //! Discovery of *which* request messages contain a given field is entirely
 //! derived from the compiled `FileDescriptorSet` (via each service's RPC
 //! input types) — never hand-maintained. The only thing a developer writes
-//! per field is a spec implementation below: field name, generated trait API,
-//! value type, and typed setter tokens per field *shape* (optional vs. plain
+//! per field is one enum variant below: field name, generated trait API, value
+//! type, and typed setter tokens per field *shape* (optional vs. plain
 //! singular) — not a list of message types. Adding a new flow whose request
 //! contains the field therefore requires zero changes here; the next build
 //! picks it up automatically.
@@ -42,20 +42,7 @@ enum AutoPopulateField {
 
 const AUTO_POPULATE_FIELDS: &[AutoPopulateField] = &[AutoPopulateField::OsBasedReturnUrl];
 
-/// Per-field codegen contract. Implementations describe what field should be
-/// discovered and how to emit the setter for that field; descriptor walking
-/// still decides which request/message structs receive the generated impl.
-trait AutoPopulateSpec: Copy {
-    fn field_name(self) -> &'static str;
-
-    fn trait_name(self) -> &'static str;
-
-    fn method_name(self) -> &'static str;
-
-    fn value_type(self) -> TokenStream;
-
-    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream;
-
+impl AutoPopulateField {
     fn trait_ident(self) -> Ident {
         format_ident!("{}", self.trait_name())
     }
@@ -63,85 +50,58 @@ trait AutoPopulateSpec: Copy {
     fn method_ident(self) -> Ident {
         format_ident!("{}", self.method_name())
     }
-}
 
-#[derive(Clone, Copy)]
-struct OsBasedReturnUrlSpec;
-
-impl AutoPopulateSpec for OsBasedReturnUrlSpec {
     fn field_name(self) -> &'static str {
-        "os_based_return_url"
+        match self {
+            Self::OsBasedReturnUrl => "os_based_return_url",
+        }
     }
 
     fn trait_name(self) -> &'static str {
-        "PopulateOsBasedReturnUrl"
+        match self {
+            Self::OsBasedReturnUrl => "PopulateOsBasedReturnUrl",
+        }
     }
 
     fn method_name(self) -> &'static str {
-        "populate_os_based_return_url"
+        match self {
+            Self::OsBasedReturnUrl => "populate_os_based_return_url",
+        }
     }
 
     fn value_type(self) -> TokenStream {
-        quote! { crate::payments::OsBasedReturnUrl }
+        match self {
+            Self::OsBasedReturnUrl => quote! { crate::payments::OsBasedReturnUrl },
+        }
     }
 
     fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
-        match shape {
-            FieldShape::Optional => quote! {
-                if let Some(existing) = self.os_based_return_url.as_mut() {
-                    if !existing.os_type.is_empty() {
-                        existing.return_url_map = value.return_url_map;
+        match self {
+            Self::OsBasedReturnUrl => match shape {
+                FieldShape::Optional => quote! {
+                    if let Some(existing) = self.os_based_return_url.as_mut() {
+                        if existing.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                            existing.return_url_map = value.return_url_map;
+                        }
+                    }
+                },
+                FieldShape::Required => quote! {
+                    if self.os_based_return_url.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                        self.os_based_return_url.return_url_map = value.return_url_map;
+                    }
+                },
+                FieldShape::Repeated => {
+                    let method = self.method_name();
+                    let field_name = self.field_name();
+                    let error = format!(
+                        "{method}: `{message_name}.{field_name}` exists but is `repeated`, which this generator does not support — add explicit handling in codegen/auto_populate.rs",
+                    );
+                    quote! {
+                        let _ = value;
+                        compile_error!(#error);
                     }
                 }
             },
-            FieldShape::Required => quote! {
-                if !self.os_based_return_url.os_type.is_empty() {
-                    self.os_based_return_url.return_url_map = value.return_url_map;
-                }
-            },
-            FieldShape::Repeated => {
-                let method = self.method_name();
-                let field_name = self.field_name();
-                let error = format!(
-                    "{method}: `{message_name}.{field_name}` exists but is `repeated`, which this generator does not support — add explicit handling in codegen/auto_populate.rs",
-                );
-                quote! {
-                    let _ = value;
-                    compile_error!(#error);
-                }
-            }
-        }
-    }
-}
-
-impl AutoPopulateSpec for AutoPopulateField {
-    fn field_name(self) -> &'static str {
-        match self {
-            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.field_name(),
-        }
-    }
-
-    fn trait_name(self) -> &'static str {
-        match self {
-            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.trait_name(),
-        }
-    }
-
-    fn method_name(self) -> &'static str {
-        match self {
-            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.method_name(),
-        }
-    }
-
-    fn value_type(self) -> TokenStream {
-        match self {
-            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.value_type(),
-        }
-    }
-
-    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
-        match self {
-            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.setter_body(shape, message_name),
         }
     }
 }

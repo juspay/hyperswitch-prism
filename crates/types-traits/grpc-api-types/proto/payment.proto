@@ -3193,8 +3193,15 @@ message PaymentClientAuthenticationContext {
   optional string return_url = 8;
 }
 
+enum ClientPlatform {
+  CLIENT_PLATFORM_UNSPECIFIED = 0;
+  CLIENT_PLATFORM_IOS = 1;
+  CLIENT_PLATFORM_WEB = 2;
+  CLIENT_PLATFORM_ANDROID = 3;
+}
+
 message OsBasedReturnUrl {
-  string os_type = 1;
+  ClientPlatform os_type = 1;
   map<string, string> return_url_map = 2;
 }
 
