@@ -22,6 +22,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "post_authenticate",
     "pre_authenticate",
     "refund",
+    "refund_get",
     "reverse",
     "token_authorize",
     "token_setup_recurring",
@@ -207,6 +208,15 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
     }
 }
 
+pub fn build_refund_get_request() -> RefundServiceGetRequest {
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(), // Deprecated.
+        ..Default::default()
+    }
+}
+
 pub fn build_reverse_request(connector_transaction_id: &str) -> PaymentServiceReverseRequest {
     PaymentServiceReverseRequest {
         merchant_reverse_id: Some("probe_reverse_001".to_string()), // Identification.
@@ -384,6 +394,18 @@ pub async fn process_refund(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: RefundService.Get
+#[allow(dead_code)]
+pub async fn process_refund_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund_get(build_refund_get_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Reverse
 #[allow(dead_code)]
 pub async fn process_reverse(
@@ -457,12 +479,13 @@ async fn main() {
         "process_post_authenticate" => process_post_authenticate(&client, "txn_001").await,
         "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
+        "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_post_authenticate, process_pre_authenticate, process_refund, process_reverse, process_token_authorize, process_token_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_post_authenticate, process_pre_authenticate, process_refund, process_refund_get, process_reverse, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };

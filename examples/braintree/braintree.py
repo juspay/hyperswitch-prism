@@ -11,9 +11,10 @@ from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import PaymentMethodAuthenticationClient
+from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "reverse", "token_authorize", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "refund_get", "reverse", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -136,6 +137,13 @@ def _build_refund_request(connector_transaction_id: str):
         reason="customer_request",  # Reason for the refund.
     )
 
+def _build_refund_get_request():
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",  # Deprecated.
+    )
+
 def _build_reverse_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceReverseRequest(
         merchant_reverse_id="probe_reverse_001",  # Identification.
@@ -255,6 +263,15 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
     payment_client = PaymentClient(config)
 
     refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
+
+    return {"status": refund_response.status}
+
+
+async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RefundService.Get"""
+    refund_client = RefundClient(config)
+
+    refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
 

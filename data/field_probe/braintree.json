@@ -557,7 +557,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
+          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
         }
       }
     },
@@ -667,7 +667,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_connector_txn_001\"}}}}"
+          "body": "{\"query\":\"query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_connector_txn_001\"}}}}"
         }
       }
     },
@@ -849,8 +849,23 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: currency — Missing required field: currency"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_refund_id_001\"}}}}"
+        }
       }
     },
     "reverse": {
