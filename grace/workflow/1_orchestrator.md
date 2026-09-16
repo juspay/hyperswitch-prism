@@ -40,7 +40,7 @@ Those are named as a group, and the group name is a valid `{FLOW}`:
 |---|---|---|
 | `ThreeDS` | `3DS`, `ThreeDs`, `three_ds` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
 
-**A flow group is ONE Connector Agent invocation, ONE commit, ONE ledger row. Do NOT decompose it
+**A flow group is ONE Connector Agent invocation, ONE commit. Do NOT decompose it
 into one invocation per marker.** The markers in a group share request and response types, share
 connector state across legs (the `connector_feature_data` round-trip), and are governed by a single
 `next_authentication_step` override that decides which leg runs next. Splitting them forces each leg
@@ -74,7 +74,7 @@ No URLs, no integration details — just names. The **Links Agent** (`2.1_links.
 1. **Working directory**: ALL commands (build, git, grpcurl, etc.) use the `hyperswitch-prism` repo root. Never `cd`. The **only exception** is `grace` CLI commands — those MUST run from the `grace/` subdirectory with the virtualenv activated (`source .venv/bin/activate`).
 2. **HARD GUARDRAIL — STRICTLY SEQUENTIAL, NEVER PARALLEL**: You MUST process ONE connector at a time. Spawn ONE Task tool call per message. Wait for it to return. ONLY THEN spawn the next. NEVER send a single message with multiple Task tool calls for different connectors. NEVER say "let me process several in parallel to speed up." Parallel execution will corrupt the shared git branch — multiple agents staging, committing, and pushing `{BRANCH}` simultaneously causes merge conflicts, lost commits, and broken state. There is NO safe way to parallelize this. Sequential is not a suggestion — it is a hard architectural constraint.
 3. **No cargo test, and no Rust test code in the diff**: Testing is done exclusively via `grpcurl` and the Hyperswitch -> UCS -> connector run in `2.5_e2e.md`. Never run `cargo test`. Never write or edit Rust test code — no `#[cfg(test)]` modules, no `#[test]` / `#[tokio::test]` functions, no `test.rs` / `tests.rs` files, and no extension of an existing test module. The PR Agent enforces this at staging on **content**, not just on path, because a `#[cfg(test)]` block lives inside `transformers.rs`, which is a file that legitimately gets staged (`2.4_pr.md` Phase 1c Step 3). Correctness is proven against the real connector, not by assertions a run authors against its own code in the same pass. The one carve-out is the certification manifests — `crates/internal/integration-tests/src/connector_specs/{connector}/specs.json` and `alpha_connectors.json` — which registration legitimately requires (`2.3_codegen.md` Output, `2.4_pr.md` Phase 1c staging manifest) and which `cargo run --bin check_connector_specs` gates in CI. They are data, not tests. The other carve-out belongs to the hardening agent (`3_test.md`): after editing a connector's `override.json` it runs the two scenario/proto schema validators `cargo test -p integration-tests all_supported_scenarios_match_proto_schema_for_all_connectors` and `... all_override_entries_match_existing_scenarios_and_proto_schema` (`crates/internal/integration-tests/src/harness/scenario_api.rs`). Those validate manifest data against the proto schema; they are not connector tests, and this rule does not forbid them.
-4. **Build -> gRPC Test -> E2E -> Validate -> Commit**: `cargo build`, a passing `grpcurl` test **for the flow actually implemented**, and a passing Hyperswitch -> UCS -> connector end-to-end run (`2.5_e2e.md`) are a hard gate on reporting a connector as **SUCCESS** — never label a connector SUCCESS without all three. An `E2E_BLOCKED` or `E2E_SKIPPED` result is recorded verbatim in the run ledger and in the final summary; it is never silently dropped, because a flow that UCS implements but Hyperswitch can never call is not done. It is not a gate on committing: per `2.4_pr.md` ("Always create a PR"), a FAILED connector is still committed and pushed, as a PR labelled `do not merge`, so the broken state is visible rather than lost. The Connector Agent decides this; you only record the outcome.
+4. **Build -> gRPC Test -> E2E -> Validate -> Commit**: `cargo build`, a passing `grpcurl` test **for the flow actually implemented**, and a passing Hyperswitch -> UCS -> connector end-to-end run (`2.5_e2e.md`) are a hard gate on reporting a connector as **SUCCESS** — never label a connector SUCCESS without all three. An `E2E_BLOCKED` or `E2E_SKIPPED` result is recorded verbatim in the final summary; it is never silently dropped, because a flow that UCS implements but Hyperswitch can never call is not done. It is not a gate on committing: per `2.4_pr.md` ("Always create a PR"), a FAILED connector is still committed and pushed, as a PR labelled `do not merge`, so the broken state is visible rather than lost. The Connector Agent decides this; you only record the outcome.
 5. **MANDATORY: Do NOT move to the next connector until testing is fully complete for the current connector.** The grpcurl call for `{FLOW}` — every marker in it, if `{FLOW}` is a flow group — must either pass (SUCCESS) or exhaust all retry attempts (FAILED) before you proceed, and the E2E phase must have reported. No connector may be left in an untested state.
 6. **CRITICAL — No looping without fixing**: NEVER retry a grpcurl test or cargo build without making an actual code change first. If you get an error, you MUST: (a) read the server logs to diagnose the root cause, (b) identify the specific file and line to change, (c) make the fix, (d) rebuild, and ONLY THEN retest. Retesting the exact same code is forbidden — it will produce the exact same error. If you cannot diagnose the error after reading logs, report FAILED immediately. Do NOT loop.
 7. **Scoped git**: You do no staging yourself (see Rule 12) — the PR Agent stages from the explicit manifest in `2.4_pr.md` Phase 1c, which spans the connector files *plus* the Rust registry, `payment.proto`, the `config/*.toml` files, `connector_specs/` and `data/integration-source-links.json`. Do NOT tell a subagent to stage only `crates/integrations/connector-integration/src/connectors/{connector}*`; `2.4_pr.md` documents that this stages 2 of the ~16 hand-authored paths and produces a PR that registers nothing. Never `git add -A`. Never force push.
@@ -131,45 +131,6 @@ jq -r 'keys[]' "$CREDS"
 
 For each connector in `CONNECTOR_LIST`, check if its **lowercased** name has an entry in `$CREDS` (the keys in that file are lowercase; `{CONNECTORS_FILE}` uses display casing). If a connector is missing, **automatically mark it as SKIPPED (reason: "no credentials")** and remove it from `CONNECTOR_LIST`. Do NOT ask the user — proceed silently.
 
-### 1b: Seed the run ledger
-
-The run ledger is `task.json` at the repo root, updated atomically by `grace/scripts/task_update.py`. STEP 2 reads it to skip connectors that already finished, so every connector must have a row **before** the loop starts. `task_update.py` only *updates* existing rows (an unknown id exits 1), so seed them here — seed the **full STEP 0 `CONNECTOR_LIST`**, including the connectors the credentials check above just dropped, otherwise the `status=skipped` call below has no row to write to.
-
-**The ledger is not automatically scoped to this run.** `task.json` is gitignored and survives between runs: it carries a top-level `run_id`/`connector` from whichever run last used it, and its `invocations[]` keeps that run's rows — including rows already marked `success`. Before seeding, read `jq -r '.run_id, .connector' task.json`. If it names a previous run, do NOT reuse those rows: move the file aside (this repo already keeps such files as `grace/task_<connector>_archive.json`) and let the snippet below create a fresh ledger. Reusing a stale ledger makes STEP 2 skip a connector that was never implemented in this run.
-
-Seeding is idempotent — re-running it on a resumed job adds nothing and overwrites nothing:
-
-```bash
-python3 - "{FLOW}" <space-separated CONNECTOR_LIST> <<'SEED'
-import json, os, sys
-flow, names = sys.argv[1], sys.argv[2:]
-# The ledger may not exist yet (task.json is gitignored) — create it rather than crash.
-d = json.load(open("task.json")) if os.path.exists("task.json") else {}
-d.setdefault("invocations", [])
-have = {i["id"] for i in d["invocations"]}
-for c in names:
-    inv_id = "connector-agent-" + c.lower()
-    if inv_id in have:
-        continue
-    d["invocations"].append({
-        "id": inv_id,
-        "agent": "Connector Agent (grace/workflow/2_connector.md)",
-        "purpose": f"Implement {flow} for {c}",
-        "status": "queued", "started_at": None, "finished_at": None,
-        "error": None, "retries": 0, "pr": None, "notes": ""})
-json.dump(d, open("task.json", "w"), indent=2)
-SEED
-```
-
-Record the connectors dropped for missing credentials too, so they are not retried on a resume:
-
-```bash
-# ids are lowercase — the seed above wrote connector-agent-<name lowercased>
-python3 grace/scripts/task_update.py connector-agent-{connector_lowercase} status=skipped error="no credentials"
-```
-
-Do NOT invent a new ledger file or a new schema. `task.json` + `task_update.py` are the existing ledger; use them as-is.
-
 **After pre-flight, you are on `{BRANCH}`. Stay on this branch for the entire workflow. Do NOT switch branches or return to main until all connectors are done.**
 
 ---
@@ -178,30 +139,7 @@ Do NOT invent a new ledger file or a new schema. `task.json` + `task_update.py` 
 
 **HARD GUARDRAIL — ONE TASK CALL PER MESSAGE**: You MUST send exactly ONE Task tool call per message. After sending it, WAIT for the result. Only after receiving the result may you send the next Task tool call in a NEW message. If you ever find yourself about to include multiple Task tool calls in a single message for different connectors — STOP. That is parallel execution and it WILL corrupt the git branch. It does not matter if you have processed 5, 10, or 20 connectors already — the rule is the same for connector #1 and connector #25.
 
-**HARD GUARDRAIL — RESUMABLE LOOP, NEVER REDO COMPLETED WORK**: Before spawning the Connector Agent for a connector, check the run ledger and **skip any connector already recorded as `success` for this run**. A run that dies at connector 14 of 20 must resume at 14, not restart at 1.
-
-```bash
-# Connectors already done — do NOT spawn an agent for these:
-jq -r '.invocations[] | select(.id | startswith("connector-agent-")) | select(.status == "success") | .id' task.json
-```
-
-If `connector-agent-{connector_lowercase}` appears in that list, skip the connector entirely (no Task call) and carry its recorded `pr` / `notes` straight into the final summary. Every other status is re-runnable: `queued` was never started, `failed` and `skipped` may be retried, and `running` means a previous run was killed mid-connector — spawn it again.
-
-Record the outcome as each connector completes, so the ledger stays accurate even if the run is killed at any point:
-
-```bash
-# ids are lowercase — an id that does not match a seeded row exits 1 ("no invocation with id ...")
-# immediately BEFORE the Task call:
-python3 grace/scripts/task_update.py connector-agent-{connector_lowercase} status=running
-# immediately AFTER the Task returns, exactly one of:
-python3 grace/scripts/task_update.py connector-agent-{connector_lowercase} status=success pr="<PR_URL>"
-python3 grace/scripts/task_update.py connector-agent-{connector_lowercase} status=failed  error="<reason>"
-python3 grace/scripts/task_update.py connector-agent-{connector_lowercase} status=skipped error="<reason>"
-```
-
-`task_update.py` stamps `started_at`/`finished_at`, recomputes the top-level `summary` counts, and writes via a temp file + `os.replace`, so the ledger is never left half-written and is safe to read at any moment.
-
-For every connector in `CONNECTOR_LIST` **that is not already `success` in the ledger**, invoke the **Connector Agent** defined in `2_connector.md`. The Connector Agent is the ONLY place where work happens — it handles **everything** for that connector: links discovery, tech spec generation, codegen, build, grpcurl testing, and committing. The orchestrator does NOTHING for a connector except invoke the subagent and wait.
+For every connector in `CONNECTOR_LIST`, invoke the **Connector Agent** defined in `2_connector.md`. The Connector Agent is the ONLY place where work happens — it handles **everything** for that connector: links discovery, tech spec generation, codegen, build, grpcurl testing, and committing. The orchestrator does NOTHING for a connector except invoke the subagent and wait.
 
 Do NOT run any links discovery, tech spec, codegen, build, or test commands in the orchestrator. ALL of that happens inside the Connector Agent.
 
@@ -243,12 +181,7 @@ Collect the result — the Connector Agent will return one of:
 
 ## AFTER ALL CONNECTORS
 
-Report summary. The per-connector rows come from the run ledger (`task.json`), which already holds every connector's final status, PR URL and reason — including the ones this run skipped because a previous run had already completed them:
-
-```bash
-jq -r '.invocations[] | select(.id | startswith("connector-agent-")) | "\(.id): \(.status) | \(.pr // "no PR") | \(.error // "")"' task.json
-jq -c '.summary' task.json
-```
+Report summary:
 
 ```
 === IMPLEMENTATION SUMMARY ===
