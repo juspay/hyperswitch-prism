@@ -7,10 +7,10 @@ use crate::{
     },
     connector_types::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PayoutConnectorEnum, RechargeRequestData,
-        RechargeResponseData, SurchargeConnectorEnum,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, EligibilityErrorInfo,
+        FrmConnectorEnum, GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PayoutConnectorEnum,
+        RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
     router_request_types::AuthoriseIntegrityObject,
@@ -2882,6 +2882,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => {
+                Ok(PaymentMethodType::Tamara)
+            }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             grpc_api_types::payments::PaymentMethodType::Ach => Ok(PaymentMethodType::Ach),
             grpc_api_types::payments::PaymentMethodType::OnlineBankingFpx => {
@@ -6746,6 +6749,41 @@ impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilitySta
 
 /// Generates a PaymentMethodServiceEligibilityResponse from the router data.
 /// Used by PaymentMethodService.Eligibility (new route).
+/// Builds a proto per-PM eligibility result; the payment method type is echoed verbatim.
+impl ForeignFrom<EligibilityErrorInfo> for grpc_api_types::payments::ErrorInfo {
+    fn foreign_from(value: EligibilityErrorInfo) -> Self {
+        Self {
+            unified_details: None,
+            connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                code: Some(value.code),
+                reason: value.reason,
+                connector_transaction_id: None,
+                message: Some(value.message),
+                status: None,
+            }),
+            issuer_details: None,
+        }
+    }
+}
+
+impl ForeignFrom<PMEligibility> for grpc_api_types::payments::PaymentMethodEligibilityResult {
+    fn foreign_from(result: PMEligibility) -> Self {
+        Self {
+            payment_method_type: i32::from(result.payment_method_type),
+            eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+                result.eligibility,
+            )),
+            error_info: result
+                .error_info
+                .map(grpc_api_types::payments::ErrorInfo::foreign_from),
+            payment_method_details: result
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
+        }
+    }
+}
+
+#[allow(deprecated)] // mirrors results[0] into the deprecated top-level response fields
 pub fn generate_payment_method_eligibility_response(
     router_data_v2: RouterDataV2<
         PaymentMethodEligibility,
@@ -6771,30 +6809,43 @@ pub fn generate_payment_method_eligibility_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
+    let unknown_eligibility = i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+        EligibilityStatus::Unknown,
+    ));
+    // Captured before `response` is moved; used to fan an error across requested PMs.
+    let requested_payment_method_types = router_data_v2.request.payment_method_types.clone();
     match router_data_v2.response {
-        Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
-                response.eligibility,
-            )
-            .into(),
-            status_code: response.status_code,
-            error_info: None,
-            payment_method_details: response
-                .payment_method_details
-                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            raw_connector_request,
-            typed_connector_request,
-            raw_connector_response,
-            typed_connector_response,
-            response_headers,
-        }),
-        Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
-                EligibilityStatus::Unknown,
-            )
-            .into(),
-            status_code: err.status_code as u32,
-            error_info: Some(grpc_api_types::payments::ErrorInfo {
+        Ok(response) => {
+            let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> = response
+                .results
+                .into_iter()
+                .map(grpc_api_types::payments::PaymentMethodEligibilityResult::foreign_from)
+                .collect();
+            // Mirror results[0] into the deprecated top-level fields.
+            let (legacy_eligibility, legacy_error_info, legacy_payment_method_details) =
+                match results.first() {
+                    Some(first) => (
+                        first.eligibility,
+                        first.error_info.clone(),
+                        first.payment_method_details.clone(),
+                    ),
+                    None => (unknown_eligibility, None, None),
+                };
+            Ok(PaymentMethodServiceEligibilityResponse {
+                eligibility: legacy_eligibility,
+                status_code: response.status_code,
+                error_info: legacy_error_info,
+                payment_method_details: legacy_payment_method_details,
+                results,
+                raw_connector_request,
+                typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
+                response_headers,
+            })
+        }
+        Err(err) => {
+            let error_info = grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
@@ -6804,14 +6855,33 @@ pub fn generate_payment_method_eligibility_response(
                     status: None,
                 }),
                 issuer_details: None,
-            }),
-            payment_method_details: None,
-            raw_connector_request,
-            typed_connector_request,
-            raw_connector_response,
-            typed_connector_response,
-            response_headers,
-        }),
+            };
+            // One Unknown result per requested PM carrying the connector error.
+            let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> =
+                requested_payment_method_types
+                    .into_iter()
+                    .map(
+                        |pm| grpc_api_types::payments::PaymentMethodEligibilityResult {
+                            payment_method_type: i32::from(pm),
+                            eligibility: unknown_eligibility,
+                            error_info: Some(error_info.clone()),
+                            payment_method_details: None,
+                        },
+                    )
+                    .collect();
+            Ok(PaymentMethodServiceEligibilityResponse {
+                eligibility: unknown_eligibility,
+                status_code: err.status_code as u32,
+                error_info: Some(error_info),
+                payment_method_details: None,
+                results,
+                raw_connector_request,
+                typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
+                response_headers,
+            })
+        }
     }
 }
 
@@ -9204,6 +9274,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
@@ -9952,6 +10023,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
 impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEligibilityData {
     type Error = IntegrationError;
 
+    #[allow(deprecated)] // reads the deprecated scalar payment_method_type as a fallback
     fn foreign_try_from(
         value: PaymentMethodServiceEligibilityRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -9975,8 +10047,14 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         // before moving any owned fields out of `value`.
         let country = convert_optional_country_alpha2(value.country())?;
 
-        let payment_method_type =
-            <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
+        // Prefer the repeated field; else the deprecated scalar as one entry
+        // (`Unspecified` when unset), so omitting the PM still yields a verdict.
+        let payment_method_types: Vec<grpc_api_types::payments::PaymentMethodType> =
+            if value.payment_method_types.is_empty() {
+                vec![value.payment_method_type()]
+            } else {
+                value.payment_method_types().collect()
+            };
 
         let customer = value
             .customer
@@ -9999,7 +10077,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             customer,
             connector_payment_method_id: value.connector_payment_method_id,
             country_code: country,
-            payment_method_type,
+            payment_method_types,
             description: value.description,
             metadata,
             connector_feature_data,
