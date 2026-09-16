@@ -24,8 +24,9 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -378,28 +379,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     error_stack::report!(WebhookError::WebhookSignatureNotFound)
                 })?;
 
-        let message = notif.bt_payload.as_bytes();
-
-        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over the payload.
+        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over
+        // the payload. Braintree's scheme is HMAC-SHA1 keyed by the *SHA-1 digest of the
+        // private key*, not by the private key itself; collapsing the two steps into a plain
+        // HMAC silently fails every verification.
         let sha1_hash_key = ring::digest::digest(
             &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
             &connector_webhook_secrets.secret,
         );
 
-        let signed_message = crypto::HmacSha1
-            .sign_message(sha1_hash_key.as_ref(), message)
-            .inspect_err(|error| {
-                tracing::warn!(
-                    target: "braintree_webhook",
-                    ?error,
-                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
-                );
-            })
-            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        // The message is the RAW, newline-inclusive `bt_payload` — not the newline-stripped
+        // form `decode_from_request` builds for base64 decoding. Keep the two asymmetric.
+        //
+        // Braintree's own SDK accepts a match against either the payload as received or the
+        // payload with one trailing "\n" appended: Ruby's `Base64.encode64` always terminates
+        // its output with a newline and signs that, but form parsers, proxies and replay
+        // harnesses routinely trim it before the body reaches the merchant. Normalising to
+        // either one alone rejects half of real traffic, so try both.
+        let candidates = [notif.bt_payload.clone(), format!("{}\n", notif.bt_payload)];
 
-        let payload_sign = hex::encode(signed_message);
+        for candidate in candidates {
+            let signed_message = crypto::HmacSha1
+                .sign_message(sha1_hash_key.as_ref(), candidate.as_bytes())
+                .inspect_err(|error| {
+                    tracing::warn!(
+                        target: "braintree_webhook",
+                        ?error,
+                        "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                    );
+                })
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
-        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+            // Constant-time comparison: a byte-by-byte early return leaks the position of the
+            // first mismatch to anyone who can time the endpoint.
+            #[allow(deprecated)] // ring 0.17 renamed the module; the function is still sound
+            if ring::constant_time::verify_slices_are_equal(
+                hex::encode(signed_message).as_bytes(),
+                extracted_signature.as_bytes(),
+            )
+            .is_ok()
+            {
+                return Ok(true);
+            }
+        }
+
+        tracing::warn!(
+            target: "braintree_webhook",
+            "Braintree webhook signature did not match the computed HMAC-SHA1 digest"
+        );
+        Ok(false)
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
@@ -413,6 +441,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
         let notif = braintree::decode_from_request(&request)?;
         braintree::get_webhook_reference(&notif)
+    }
+
+    /// Reached for the two settlement kinds and — via the misc-event fall-through in
+    /// `webhook_utils::process_webhook_event`, which routes anything that is not a payment,
+    /// refund, dispute or payout event to this handler — for `check` and for every kind UCS
+    /// does not model. It must therefore tolerate a subject it cannot read and report no
+    /// status change rather than erroring or inventing one.
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_payment_response(&notif)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_refund_response(&notif)
     }
 
     fn process_dispute_webhook(
@@ -448,8 +502,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn sample_webhook_body(&self) -> &'static [u8] {
         // form-urlencoded `bt_signature=<pubkey>|<sig>&bt_payload=<base64 dispute_opened XML>`.
-        // Dummy values only; `bt_payload` base64 decodes to a minimal `dispute_opened` notification.
-        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"#
+        //
+        // This is a PARSE probe, not a verification probe, so `bt_signature` is a dummy pair.
+        // The XML is shaped from Braintree's own SDK sample generator, not from these structs:
+        // it carries the `<subject>` wrapper, kebab-case element names, a `type=` attribute, a
+        // `nil="true"` element, a lowercase `chargeback` stage and a decimal major-unit amount.
+        // A fixture derived from the parser under test cannot falsify the parser.
+        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjxraW5kPmRpc3B1dGVfb3BlbmVkPC9raW5kPjxzdWJqZWN0PjxkaXNwdXRlPjxpZD5kdW1teV9kaXNwdXRlX2lkXzAwMTwvaWQ%2BPGFtb3VudD4xMC4wMDwvYW1vdW50PjxhbW91bnQtZGlzcHV0ZWQ%2BMTAuMDA8L2Ftb3VudC1kaXNwdXRlZD48YW1vdW50LXdvbiBuaWw9InRydWUiLz48Y2FzZS1udW1iZXI%2BQ0FTRS0wMDE8L2Nhc2UtbnVtYmVyPjxjcmVhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvY3JlYXRlZC1hdD48Y3VycmVuY3ktaXNvLWNvZGU%2BVVNEPC9jdXJyZW5jeS1pc28tY29kZT48Zm9yd2FyZGVkLWNvbW1lbnRzIG5pbD0idHJ1ZSIvPjxraW5kPmNoYXJnZWJhY2s8L2tpbmQ%2BPG1lcmNoYW50LWFjY291bnQtaWQ%2BZHVtbXlfbWVyY2hhbnRfYWNjb3VudDwvbWVyY2hhbnQtYWNjb3VudC1pZD48cmVhc29uPmZyYXVkPC9yZWFzb24%2BPHJlYXNvbi1jb2RlIG5pbD0idHJ1ZSIvPjxyZWNlaXZlZC1kYXRlIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L3JlY2VpdmVkLWRhdGU%2BPHJlZmVyZW5jZS1udW1iZXI%2BUkVGLTAwMTwvcmVmZXJlbmNlLW51bWJlcj48cmVwbHktYnktZGF0ZSB0eXBlPSJkYXRlIj4yMDI2LTA5LTMwPC9yZXBseS1ieS1kYXRlPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjx1cGRhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdXBkYXRlZC1hdD48c3RhdHVzLWhpc3RvcnkgdHlwZT0iYXJyYXkiPjxzdGF0dXMtaGlzdG9yeT48c3RhdHVzPm9wZW48L3N0YXR1cz48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjwvc3RhdHVzLWhpc3Rvcnk%2BPC9zdGF0dXMtaGlzdG9yeT48ZXZpZGVuY2UgdHlwZT0iYXJyYXkiLz48dHJhbnNhY3Rpb24%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjxhbW91bnQ%2BMTAuMDA8L2Ftb3VudD48b3JkZXItaWQ%2BZHVtbXlfb3JkZXJfMDAxPC9vcmRlci1pZD48cGF5bWVudC1pbnN0cnVtZW50LXR5cGU%2BY3JlZGl0X2NhcmQ8L3BheW1lbnQtaW5zdHJ1bWVudC10eXBlPjwvdHJhbnNhY3Rpb24%2BPGRhdGUtb3BlbmVkIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L2RhdGUtb3BlbmVkPjwvZGlzcHV0ZT48L3N1YmplY3Q%2BPC9ub3RpZmljYXRpb24%2B"#
     }
 }
 

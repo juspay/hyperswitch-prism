@@ -329,6 +329,20 @@
     "https://developer.paypal.com/braintree/docs/reference/request/credit-card-verification/create/node/",
     "https://developer.paypal.com/braintree/docs/reference/response/credit-card-verification/php",
     "https://developer.paypal.com/braintree/docs/reference/response/credit-card-verification/java",
-    "https://developer.paypal.com/braintree/docs/reference/request/payment-method/create/node/"
+    "https://developer.paypal.com/braintree/docs/reference/request/payment-method/create/node/",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/testing-go-live/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/transaction",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/dispute",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/disbursement",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/local-payment-methods",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/test",
+    "https://developer.paypal.com/braintree/articles/control-panel/webhooks",
+    "https://developer.paypal.com/braintree/docs/reference/response/dispute",
+    "https://developer.paypal.com/braintree/docs/reference/response/transaction",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/lib/braintree/webhook_notification.rb",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/lib/braintree/webhook_notification_gateway.rb",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/lib/braintree/webhook_testing_gateway.rb",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/lib/braintree/digest.rb",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/spec/unit/braintree/webhook_notification_spec.rb"
   ]
 }
