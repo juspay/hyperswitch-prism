@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.17.0
+
+### Features
+
+- **Connector:** Kount khash payment token ([#2293](https://github.com/juspay/connector-service/pull/2293)) ([`3d39ab4`](https://github.com/juspay/connector-service/commit/3d39ab4cc60527a93317d2cfc79c8c34d061b607))
+
+### Miscellaneous Tasks
+
+- **grace:** Remove task_update ledger, grace/scripts/scripts, and test.rs.template ([#2312](https://github.com/juspay/connector-service/pull/2312)) ([`7cdeb77`](https://github.com/juspay/connector-service/commit/7cdeb7796a6216510423d5866a9693b2d6da2219))
+
+### Build System / Dependencies
+
+- **docker:** CARGO_BUILD_PROFILE build arg, defaulting to release ([#2310](https://github.com/juspay/connector-service/pull/2310)) ([`e5764f2`](https://github.com/juspay/connector-service/commit/e5764f24ea4a5bcefec424413e348f204c2a5f1a))
+
+**Full Changelog:** [`2026.09.16.1...2026.09.17.0`](https://github.com/juspay/connector-service/compare/2026.09.16.1...2026.09.17.0)
+
+- - -
+
 ## 2026.09.16.1
 
 ### Features
