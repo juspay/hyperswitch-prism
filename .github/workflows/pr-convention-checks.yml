@@ -1,5 +1,11 @@
 name: Pull Request Convention Checks
 
+# Neither job needs the token for anything: both read the event payload and
+# check nothing out. `pull_request_target` would otherwise hand them a
+# write-capable token, which is the whole hazard of that trigger.
+permissions:
+  contents: read
+
 on:
   # This is a dangerous event trigger as it causes the workflow to run in the
   # context of the target repository.
