@@ -78,7 +78,7 @@ Real-world descriptions:
 
 ### Response Type
 
-`PaymentsResponseData`. For voucher flows the usable response is almost always `PaymentsResponseData::TransactionResponse { connector_metadata: Some(<VoucherNextStepData JSON>), redirection_data: None, .. }`. See Adyen's constructor at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:4503`.
+`PaymentsResponseData`. For voucher flows the usable response is `PaymentsResponseData::TransactionResponse` with `connector_metadata: Some(<VoucherNextStepData JSON>)` and `redirection_data: None`. It is an enum struct-variant, so `..` functional-update syntax is not available -- all 11 fields must be written out (`crates/types-traits/domain_types/src/connector_types.rs:2009`). See Adyen's constructor at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:4503`.
 
 ### Resource Common Data
 
@@ -139,7 +139,7 @@ No other connector in `crates/integrations/connector-integration/src/connectors/
 ### Efecty
 
 - **Real impl:** (none at pinned SHA.)
-- **Adyen status:** Explicitly rejected — `adyen/transformers.rs:1553` returns `IntegrationError::not_implemented("Adyen")`.
+- **Adyen status:** Explicitly rejected — `adyen/transformers.rs:1553` returns `IntegrationError::not_implemented("Adyen", Default::default())`.
 - **Stubs:** stripe `stripe/transformers.rs:1495`, paypal `paypal/transformers.rs:1249`.
 - **Notes:** The variant is defined in UCS but no connector in the tree produces an outbound request body for it. Any PR adding support must introduce a new Adyen branch or implement a dlocal / d-local-style connector.
 
@@ -250,7 +250,7 @@ Any new voucher-capable connector should follow the same three-step skeleton: (a
 
 ### Pattern 2 — Explicit enum exhaustiveness & polite rejection
 
-Even connectors that do not implement Voucher must compile, which requires exhaustive matching. Stripe and PayPal do so by returning `IntegrationError::not_implemented(get_unimplemented_payment_method_error_message("<connector>"))` — see `stripe/transformers.rs:1485`, `paypal/transformers.rs:1261`. New connectors MUST either provide a real arm or follow this rejection shape; silently dropping the `VoucherData` arm is a compile error.
+Even connectors that do not implement Voucher must compile, which requires exhaustive matching. Stripe and PayPal do so by returning `IntegrationError::not_implemented(get_unimplemented_payment_method_error_message("<connector>"), Default::default())` — see `stripe/transformers.rs:1485`, `paypal/transformers.rs:1261`. New connectors MUST either provide a real arm or follow this rejection shape; silently dropping the `VoucherData` arm is a compile error.
 
 ### Pattern 3 — Billing-field lift for Japanese (JCS) vouchers
 
@@ -298,6 +298,7 @@ match voucher_data {
     | VoucherData::RedCompra
     | VoucherData::RedPagos => Err(IntegrationError::not_implemented(
         utils::get_unimplemented_payment_method_error_message("Adyen"),
+        Default::default(),
     )
     .into()),
 }
@@ -388,13 +389,16 @@ let payments_response_data = PaymentsResponseData::TransactionResponse {
     redirection_data: None,
     connector_metadata,            // serialized VoucherNextStepData for supported variants
     network_txn_id: None,
+    network_txn_link_id: None,
     connector_response_reference_id: response
         .merchant_reference
         .clone()
         .or(response.psp_reference),
     incremental_authorization_allowed: None,
     mandate_reference: None,
+    splits: None,
     status_code,
+    payment_account_reference: None,
 };
 ```
 
@@ -424,7 +428,7 @@ PaymentType::Alfamart
     Some(voucher_data.encode_to_value())
         .transpose()
         .change_context(
-            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+            ConnectorError::response_handling_failed_http_status_unknown(),
         )
 }
 ```
@@ -436,6 +440,7 @@ PaymentType::Alfamart
 PaymentMethodData::Voucher(voucher_data) => match voucher_data {
     VoucherData::Boleto(_) | VoucherData::Oxxo => Err(IntegrationError::not_implemented(
         get_unimplemented_payment_method_error_message("stripe"),
+        Default::default(),
     )
     .into()),
     VoucherData::Alfamart(_)
@@ -451,6 +456,7 @@ PaymentMethodData::Voucher(voucher_data) => match voucher_data {
     | VoucherData::Seicomart(_)
     | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
         get_unimplemented_payment_method_error_message("stripe"),
+        Default::default(),
     )
     .into()),
 },

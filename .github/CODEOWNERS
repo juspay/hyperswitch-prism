@@ -11,7 +11,7 @@ docker-compose.yml @juspay/connector-service-maintainers
 .dockerignore @juspay/connector-service-maintainers
 docs/ @juspay/connector-service-maintainers
 
-crates/integrations/connector-integration/ @juspay/connector-service-connectors
+crates/integrations/connector-integration/ @juspay/connector-service-connectors @juspay/prism-euler-maintainers
 
 crates/grpc-server/grpc-server/src/server/ @juspay/connector-service-core
 
