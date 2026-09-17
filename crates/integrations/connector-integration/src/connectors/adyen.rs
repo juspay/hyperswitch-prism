@@ -306,12 +306,17 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+const MERCHANT_ENDPOINT_PREFIX_TEMPLATE: &str = "{{merchant_endpoint_prefix}}";
+
 fn build_env_specific_endpoint(
     base_url: &str,
     test_mode: Option<bool>,
     connector_config: &ConnectorSpecificConfig,
 ) -> CustomResult<String, IntegrationError> {
-    if test_mode.unwrap_or(true) {
+    // Callers may omit `test_mode` (e.g. SetupRecurring from routers predating
+    // juspay/hyperswitch#14049). Only live base URLs carry the prefix template, so infer
+    // from the URL rather than defaulting to test mode and dispatching the raw template.
+    if test_mode.unwrap_or(!base_url.contains(MERCHANT_ENDPOINT_PREFIX_TEMPLATE)) {
         Ok(base_url.to_string())
     } else {
         let endpoint_prefix = match connector_config {
@@ -324,7 +329,7 @@ fn build_env_specific_endpoint(
             config: "endpoint_prefix",
             context: Default::default(),
         })?;
-        Ok(base_url.replace("{{merchant_endpoint_prefix}}", endpoint_prefix))
+        Ok(base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, endpoint_prefix))
     }
 }
 
