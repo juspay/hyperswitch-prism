@@ -88,15 +88,19 @@ ls Cargo.toml crates/ Makefile >/dev/null || echo NOT_REPO_ROOT
 CLC=$(printf %s "{CONNECTOR}" | tr 'A-Z' 'a-z'); RUN_ID=$CLC-$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')
 R=grace/runs/$RUN_ID; mkdir -p "$R/rca/briefs" "$R/test/select" "$R/test/status_updates"
 WD="{WORKFLOW_DIR}"; [ -n "$WD" ] && [ "${WD%/}" != grace/workflow ] && cp -a "$WD" "$R/workflow.tmp" && mv "$R/workflow.tmp" "$R/workflow"
-{ sed -nE 's/^pub struct ([A-Za-z0-9]+);.*/\1/p' crates/types-traits/domain_types/src/connector_flow.rs | awk '{print tolower($0) "\t" $0}'
-  awk -F'|' '/^## FLOW-GROUP MAP \(Authoritative\)/{f=1;next} f&&/^## /{exit} f&&$2~/`/{g=$2; gsub(/[` ]/,"",g)
-    n=split($3 "," g, a, ","); for(i=1;i<=n;i++){x=a[i]; gsub(/[` ]/,"",x); if(x!="") print tolower(x) "\t" g}}' \
-    grace/rulesbook/codegen/.gracerules_add_flow
-  printf '%s\tIncomingWebhook\n' incomingwebhook webhook webhooks; } > "$R/.names.tsv"
-UNITS=$(printf '%s' '{FLOWS}' | tr -d '[]"' | tr ',' '\n' | awk -F'\t' 'NR==FNR{m[$1]=$2;next} {gsub(/^ +| +$/,"")
-  if($0=="")next; f=$0; p=""; i=index(f,"/"); if(i){p=substr(f,i); f=substr(f,1,i-1)} if(tolower(f) in m) f=m[tolower(f)]
-  u=f p; if(!(u in s)){s[u]=1; o=o (o?",":"") u}} END{print o}' "$R/.names.tsv" -)
 ```
+
+`UNITS` = `{FLOWS}` (comma list or JSON array) split on `,` and trimmed, each entry resolved **case-insensitively**
+on the part before any `/` (the `/PaymentMethod` suffix is kept as written), then deduplicated keeping first-seen
+order:
+
+- a flow marker → its exact casing, from the `pub struct <Marker>;` lines of
+  `crates/types-traits/domain_types/src/connector_flow.rs`;
+- a flow group **or any member of one** → the group name, from the `## FLOW-GROUP MAP (Authoritative)` table of
+  `grace/rulesbook/codegen/.gracerules_add_flow`. The group map wins over the marker list, so a member resolves to
+  its group (`PreAuthenticate` → `ThreeDS`), never to itself;
+- `incomingwebhook`, `webhook`, `webhooks` → `IncomingWebhook`;
+- anything else passes through unchanged.
 
 A flow group (`grace/rulesbook/codegen/.gracerules_add_flow` "## FLOW-GROUP MAP (Authoritative)", aliases
 case-insensitive) is **one** unit, never split; `IncomingWebhook` (aliases `webhook`, `webhooks`, case-insensitive) is the
@@ -140,31 +144,26 @@ vanished or unit withdrawn → `invalidated` (never joined).
 `attempt= mode= brief= units=`; RETURN `status= output=`; LOOPBACK `origin= targets=<agent files> units= round=`;
 JOIN `present|timeout`; SKIP `reason=cap:<key>|time|unit:<status>|stop:<cause>|flag:<flag>|missing:<file>`.
 
-**`orch.sh`**:
+**`orch.sh`** starts `R=grace/runs/<run_id>; RUN_ID=<run_id>`. Its bookkeeping helpers are ordinary shell; write
+them to this contract (`now` = `date -u +%FT%TZ`):
+
+| Helper | Contract |
+|---|---|
+| `now` | `date -u +%FT%TZ` (a function: the verbatim block below calls it) |
+| `ev <kind> <what> [detail]` | append one `events.log` line: `<utc> <kind> <what> <detail>` |
+| `rj <jq args…>` | rewrite `run.json` through `run.json.tmp` + `mv` |
+| `late` | true when now ≥ `run.json .deadline_at` (R9) |
+| `bump <key> [<sub>]` | `+1` on `counters.<key>` (or `counters.<key>.<sub>`), creating it at 0, and print the new value |
+| `row_start <id> <mode> <brief> <units_csv> <bg>` | `touch "$R/.stamp/<id>"` (Resume step 3 dates outputs against this stamp); drop any existing row `<id>` **and** the `S4:pending:<unit_fs>` row of the same unit; append `{id, status: "running", result: null, attempt: <that id's last attempt> + 1, bg, started_at: now, ended_at: null, output: null, mode, brief, units}` — `-` or empty `mode`/`brief` → `null`, `units` = the csv split with empties **and `-`** dropped; then `ev SPAWN <id> attempt= mode= brief= units=` |
+| `row_end <id> <row status> <agent STATUS> <output>` | set that row's `status`, `result`, `ended_at`, `output`; then `ev RETURN <id> status= output=` |
+| `claimed_ucs` | column 1 of `claimed.tsv` without the `hs:` rows, sorted unique (file absent → nothing) |
+| `note_exec <N>` | `+1` on `bugs[<b>].reappeared` for every `<b>` in `test/results/r<N>.json .bugs.reappeared[]` |
+| `note_rca <N>` | for each entry of `rca/r<N>.json` and each id in its `bug_ids[]`, append the entry's `origin` to `bugs[<id>].origins` and its `brief_ref` to `bugs[<id>].briefs` (nulls dropped) |
+| `build_units <build log> <"" \| hs:>` | JSON array of the units whose `claimed.tsv` paths the log's `--> <path>` lines name (arg 2 prefixes those paths, for `hs:` claims), **ignoring rows whose unit column is `-`**; none → `["__finalize__"]` |
+
+The rest are not bookkeeping — git safety, selection rules and process ownership. Write them as given:
 
 ```bash
-R=grace/runs/<run_id>; RUN_ID=<run_id>
-now() { date -u +%FT%TZ; }
-ev() { printf '%s %s %s %s\n' "$(now)" "$1" "$2" "${3:-}" >> "$R/events.log"; }
-rj() { jq "$@" "$R/run.json" > "$R/run.json.tmp" && mv "$R/run.json.tmp" "$R/run.json"; }
-late() { [ "$(date -u +%s)" -ge "$(date -u -d "$(jq -r .deadline_at "$R/run.json")" +%s)" ]; }   # R9
-bump() { rj --arg a "$1" --arg b "${2:-}" '(["counters",$a]+(if $b=="" then [] else [$b] end)) as $p | setpath($p; (getpath($p)//0)+1)'
-  jq -r --arg a "$1" --arg b "${2:-}" '.counters[$a] | if $b=="" then . else .[$b] end' "$R/run.json"; }
-row_start() {  # id mode brief units bg(true|false); "-" = none. Stamp: Resume counts only outputs newer than it
-  mkdir -p "$R/.stamp" && touch "$R/.stamp/$1"
-  rj --arg id "$1" --arg m "$2" --arg b "$3" --arg u "$4" --argjson bg "$5" --arg t "$(now)" '
-    def opt: if . == "-" or . == "" then null else . end;
-    ([.rows[] | select(.id == $id)][0].attempt // 0) as $a
-    | ("S4:pending:" + ($id | sub("^S4:[0-9]+:"; ""))) as $pend
-    | .rows = [.rows[] | select(.id != $id and .id != $pend)] + [{id: $id, status: "running", result: null, attempt: ($a + 1), bg: $bg,
-        started_at: $t, ended_at: null, output: null, mode: ($m | opt), brief: ($b | opt),
-        units: ($u | split(",") | map(select(. != "" and . != "-")))}]'
-  ev SPAWN "$1" "attempt=$(jq -r --arg id "$1" '.rows[] | select(.id == $id) | .attempt' "$R/run.json") mode=$2 brief=$3 units=$4"; }
-row_end() {  # id row_status agent_STATUS output
-  rj --arg id "$1" --arg s "$2" --arg r "$3" --arg o "$4" --arg t "$(now)" \
-    '(.rows[] | select(.id == $id)) |= (.status = $s | .result = $r | .ended_at = $t | .output = $o)'
-  ev RETURN "$1" "status=$3 output=$4"; }
-claimed_ucs() { [ -f "$R/claimed.tsv" ] && cut -f1 "$R/claimed.tsv" | grep -v '^hs:' | sort -u; }
 snap_tree() { local i="$R/.snap.index"; rm -f "$i"; GIT_INDEX_FILE="$i" git read-tree HEAD
   claimed_ucs | GIT_INDEX_FILE="$i" xargs git update-index --add --remove -- 2>/dev/null
   GIT_INDEX_FILE="$i" git write-tree; rm -f "$i"; }
@@ -176,9 +175,6 @@ guard() { [ "$(git branch --show-current)" = "$(jq -r .branch "$R/run.json")" ] 
   && [ "$(git rev-parse HEAD)" = "$(jq -r .base_sha "$R/run.json")" ] \
   && [ "$(git stash list | wc -l)" -eq "$(jq -r .stash_count "$R/preflight.json")" ] \
   || { ev SKIP guard stop:GIT_STATE_VIOLATION; rj '.stopped = "GIT_STATE_VIOLATION"'; echo GIT_STATE_VIOLATION; }; }
-note_exec() { rj --slurpfile r "$R/test/results/r$1.json" 'reduce $r[0].bugs.reappeared[] as $b (.; .bugs[$b].reappeared += 1)'; }
-note_rca() { rj --slurpfile a "$R/rca/r$1.json" 'reduce ($a[0][] | . as $e | .bug_ids[] | {b: ., o: $e.origin, r: $e.brief_ref}) as $x (.;
-    .bugs[$x.b].origins += [$x.o // empty] | .bugs[$x.b].briefs += [$x.r // empty])'; }
 prev_origin() {  # bug_ids_csv → {"<bug_id>": "<last origin>"} for first reappearances, once per bug
   jq -c --arg ids "$1" '[.bugs | to_entries[] | select((.key | IN($ids | split(",")[])) and .value.reappeared == 1
     and (.value.escalated | not) and (.value.origins | length) > 0) | {(.key): .value.origins[-1]}] | add // {}' "$R/run.json"
@@ -199,10 +195,6 @@ kill_warm() {  # [ucs|hs …] (default both) — R12 carve-out: the setsid bash 
   local n p; for n in ${@:-ucs hs}; do p=$(cat "$R/warm/$n.pid" 2>/dev/null) || continue
     case "$(readlink "/proc/$p/exe" 2>/dev/null)" in */bash) ;; *) continue;; esac
     { tr '\0' ' ' < "/proc/$p/cmdline"; } 2>/dev/null | grep -qF "$R/warm/warm.sh" && kill -TERM -- "-$p" 2>/dev/null; done; }
-build_units() {  # build_log ""|hs: → JSON array of the units whose claimed files the compiler errors name, else ["__finalize__"]
-  local u; u=$(grep -oE -- '--> [^:]+' "$1" | cut -c5- | sed "s#^#$2#" | sort -u \
-    | awk -F'\t' 'NR==FNR{if($3!="-")c[$1]=c[$1] $3 ","; next} ($0 in c){printf "%s", c[$0]}' "$R/claimed.tsv" - \
-    | tr ',' '\n' | grep -v '^$' | sort -u | jq -Rcn '[inputs]'); [ "$u" = '[]' ] && u='["__finalize__"]'; echo "$u"; }
 ```
 
 `snapshots.tsv` = `seq ref stage unit commit tree utc`. Snapshot after every UCS tree-writing return: S1m (`s1m`), each
@@ -288,13 +280,10 @@ init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m 
   PARALLEL_HS_BUILD: {PARALLEL_HS_BUILD}
 ```
 
-`ABORT_CREDS` → stop → SKIPPED. Other `ABORT_*` or `FAILED` → stop → FAILED. No PR either way. `DONE` → copy, start the
-warm-build waiter (cap `warm_build_wait_min`), → S1:
-
-```bash
-rj --slurpfile p "$R/preflight.json" '.branch = $p[0].branch | .base_sha = $p[0].base_sha | .ports = $p[0].ports
-  | .workflow_dir = ($p[0].workflow.dir // "grace/workflow") | .hs_mode = $p[0].hs.mode'
-```
+`ABORT_CREDS` → stop → SKIPPED. Other `ABORT_*` or `FAILED` → stop → FAILED. No PR either way. `DONE` → `rj` these
+five from `preflight.json` into `run.json`: `branch`, `base_sha`, `ports`, `workflow_dir` (= its
+`.workflow.dir`, fallback `grace/workflow`) and `hs_mode` (= its `.hs.mode`); start the
+warm-build waiter (cap `warm_build_wait_min`); → S1.
 
 ### S1 wave — `2.1_links.md` × (common + each unit), `2.1a_hs_scout.md` (foreground)
 
@@ -377,8 +366,8 @@ On the warm-build `JOIN` (present or timeout); if S2 has already returned, start
 Any return satisfies the join; only a `done` BASELINE is ingested in round 1.
 
 **Deferred capability probe.** BASELINE races S2, so 5e often runs before `{TECHSPEC_PATH}` exists. After the join
-**and** S2's return, before S3: `jq -e '[.[] | select(.probe // "" | startswith("deferred:"))] | length > 0'
-"$R/test/capabilities.json"` → one foreground 2.6a spawn (`S5:env:0:<k>`), the same template with `PROBE_ONLY: 1`, so
+**and** S2's return, before S3: any `test/capabilities.json` entry whose `.probe` starts with `deferred:`
+→ one foreground 2.6a spawn (`S5:env:0:<k>`), the same template with `PROBE_ONLY: 1`, so
 the entries become `provisioned`/`not_provisioned` before 2.6b reads them (without it no case can ever be
 `sandbox_blocked`, and a provisioning refusal classifies as `PRODUCT_BUG`). `FAILED` → `SKIP`, entries stay `error`.
 
@@ -393,7 +382,7 @@ the entries become `provisioned`/`not_provisioned` before 2.6b reads them (witho
   AMEND_BRIEF: <brief>                         (AMEND only)
 ```
 
-Record `plan_order` (`jq '[.order[] | {seq, unit, status}]' "$R/plan/plan.json"`); pre-create a row
+Record `plan_order` = `plan/plan.json .order[]` as `{seq, unit, status}`; pre-create a row
 `{id: "S4:pending:<unit_fs>", status: "pending", attempt: 0}` per `planned` unit with no `S4:*:<unit_fs>` row yet. `DONE`/`PARTIAL` → every unit `no_op` → stop → SKIPPED ("already implemented"); else test lane → S4.
 `SPEC_GAP` → once, within caps: `rca/briefs/o-s3-gap.json` (the `spec_gap` units, `finding` = REASON, `required_change`
 "answer <topic> in the spec") → links per unit (FOCUS = topic) → S1m → S2 `AMEND` → S3 `AMEND` (same brief) → test
@@ -490,7 +479,7 @@ hooks round, the Spec-gap round, then the code audit.
 `T:design` `AMEND_BRIEF` = it → `__cases_rev__`.
 
 **Spec-gap round** — only `test/cases.json` `spec_gaps[]` entries with `status: "open"` count:
-`jq '[.spec_gaps[]? | select(.status == "open")] | length' "$R/test/cases.json"` > 0 and no `rca/briefs/o-tgap.json` yet →
+at least one, and no `rca/briefs/o-tgap.json` yet →
 within caps (`amend_links`, `amend_techspec`): `rca/briefs/o-tgap.json` (`origin: LINKS`, `units` = the open gaps'
 units, `finding` = their `question`s, evidence [`test/cases.json`], `required_change` "answer in <section>: <question>"
 per gap) → links per gap unit (FOCUS = its questions) → S1m → S2 `AMEND` → `T:design` `AMEND_BRIEF` (same brief)
@@ -619,7 +608,7 @@ changed); `guard`, snapshot → S6. `FAILED` from either → recorded, S6.
 ```
 
 Take the `review` snapshot first; stamping the `FULL` spawn also sets `review_ref` = its `SNAPSHOT_REF`. `FULL` `DONE`
-with S0/S1 findings (`jq '[.[] | select(.sev | IN("S0","S1"))] | length' "$R/review/findings.json"`), time left,
+with S0/S1 findings (`review/findings.json` entries whose `.sev` is `S0` or `S1`), time left,
 `exec_ready` and `bump review_rounds` ≤ `caps.review_remediation_rounds` → exec `ROUND`, `INGEST: review`, `ONLY_CASES` = `P0` cases of the findings'
 units (all units when none) → RCA (step 4) → loop-back → retest → `INCREMENTAL`. No S0/S1 → S7. `FAILED` → one
 re-spawn; still → S7.
