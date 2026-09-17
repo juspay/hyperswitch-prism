@@ -206,12 +206,19 @@ jobs:
       - name: Build binary (${{ matrix.target }})
         run: make -C sdk/java build-ffi-lib PROFILE=release
 
+      # The JavaScript package bundles this alongside libconnector_service_ffi —
+      # its gRPC client loads it from generated/<platform>-<arch>/ at runtime, so
+      # `make -C sdk/javascript dist` needs it staged for every target here.
+      - name: Build gRPC FFI binary (${{ matrix.target }})
+        run: make -C sdk/java build-grpc-ffi-lib PROFILE=release
+
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.target }}
           path: |
             target/${{ matrix.target }}/release/libconnector_service_ffi.*
+            target/${{ matrix.target }}/release/libhyperswitch_grpc_ffi.*
 
       - name: Verify FFI library has UniFFI scaffolding
         if: matrix.target == 'aarch64-apple-darwin'
