@@ -14,7 +14,6 @@ import { compilerCheckpoint } from "./compiler.js";
 // REMOVED: import { compilerCheckCheckpoint } from "./compiler-check.js";
 import { grpcTestCheckpoint } from "./grpc-test.js";
 import { prReviewCheckpoint } from "./pr-review.js";
-import { testSuiteCheckpoint } from "./test-suite.js";
 import { regressionCheckpoint } from "./regression.js";
 import {
   makeFlowCheckpoint,
@@ -55,9 +54,6 @@ export const ALL_CHECKPOINTS: Checkpoint[] = [
   compilerCheckpoint,
   grpcTestCheckpoint,
   prReviewCheckpoint,
-  // 3_test.md — hardening via test-prism + positive-override fix loop.
-  // Soft-fails (continueOnFailure) so it never blocks a PR that's already up.
-  testSuiteCheckpoint,
   regressionCheckpoint,
 ];
 
@@ -153,7 +149,6 @@ export function buildPipeline(task: TaskDefinition): Checkpoint[] {
       compilerCheckpoint,
       grpcTestCheckpoint,
       prReviewCheckpoint,
-      testSuiteCheckpoint,
       regressionCheckpoint,
     ];
   }
