@@ -941,7 +941,9 @@ fn extract_payee_iban(
     }
 }
 
-fn extract_payee_bic(payout_method_data: Option<&PayoutMethodData>) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
+fn extract_payee_bic(
+    payout_method_data: Option<&PayoutMethodData>,
+) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
         Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic, .. }))) => Ok(bic.clone()),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
