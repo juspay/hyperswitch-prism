@@ -174,7 +174,7 @@ message ConnectorErrorDetails {
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
   optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
-  
+
   // Attempt status from the connector flow (Payment/Refund/Dispute).
   // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
   // Only one of payment_status, refund_status, or dispute_status will be set.
@@ -536,6 +536,7 @@ enum WebhookEventType {
   PAYMENT_INTENT_CAPTURE_FAILURE = 10;      // Capture failure
   PAYMENT_INTENT_EXPIRED = 11;              // Payment intent expired
   PAYMENT_ACTION_REQUIRED = 12; // Payment requires additional action
+  PAYMENT_ASSOCIATED_DATA_UPDATE = 43; // Associated data events. Data about a payment shared out of band, typically after the payment has reached a terminal state. Carries no status change.
 
   SOURCE_CHARGEABLE = 13;          // Source is chargeable
   SOURCE_TRANSACTION_CREATED = 14; // Source transaction created
@@ -912,6 +913,12 @@ enum Connector {
   PAYNEARME = 143;
   D24 = 144;
   PAYDOTCOM = 145;
+  NSURE = 146;
+  GLOBALPAYMENTS_HEARTLAND = 147;
+  PAYHERE = 148;
+  ETISALAT = 149;
+  MERCHANTE = 150;
+  ELAVON_PG = 151;
 }
 
 // Payment method types
@@ -1061,6 +1068,8 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
+  PAY_HERE = 137;
+  TAMARA_REDIRECT = 138;
 }
 
 // Product type enumeration
@@ -1505,7 +1514,7 @@ message StudentDetails {
   optional SecretString student_email = 4; // PII — student's email address
 }
 
-// Whether the ticket can be refunded 
+// Whether the ticket can be refunded
 enum TicketRefundability {
   TICKET_REFUNDABILITY_UNSPECIFIED = 0;
   REFUNDABLE = 1;
@@ -2935,7 +2944,7 @@ message PaymentServiceGetResponse {
   // Settlement phase reported by the connector. See SettlementStatus for the
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
-  
+
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
@@ -3440,7 +3449,7 @@ message PaymentServiceRefundRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 17;
 
-  // Connector-side identifier for the original payment that this refund targets.  
+  // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 18;
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
@@ -3868,7 +3877,7 @@ message RecurringPaymentServiceChargeRequest {
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
   optional AuthenticationType auth_type = 36;
-  
+
   optional string complete_authorize_url = 37;
 
   // Channel through which the repeat payment was initiated.
@@ -4017,6 +4026,12 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
+
+  // Send the connector order identifier here if an order was created before
+  // pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order
+  // resource URL returned by PaymentService/CreateOrder to open a payment
+  // session.
+  optional string connector_order_id = 16;
 }
 
 // Response message for pre-authentication step
@@ -4161,7 +4176,7 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
-  
+
   // Capture Settings
   optional CaptureMethod capture_method = 15;
 }
@@ -4325,7 +4340,7 @@ message RefundServiceGetRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 16;
 
-  // Connector-side identifier for the original payment that this refund sync targets. 
+  // Connector-side identifier for the original payment that this refund sync targets.
   optional string connector_order_id = 17;
 
   // Split refund data for platform fee reversals and transfers
@@ -4522,7 +4537,7 @@ message PaymentMethodServiceCreateRequest {
 message PaymentMethodServiceCreateResponse {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   PaymentMethodDetails payment_method_details = 3; // details of the Payment method created
 
   // Customer Information
@@ -4544,7 +4559,7 @@ message PaymentMethodServiceCreateResponse {
 message PaymentMethodServiceGetRequest {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   // Customer Information
   optional Customer customer = 3;
   optional ConnectorState state = 4;   // State Information (for access token)
@@ -4558,7 +4573,7 @@ message PaymentMethodServiceGetRequest {
 message PaymentMethodServiceGetResponse {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   PaymentMethodDetails payment_method_details = 3; // details of the Payment method
 
   // Customer Information
@@ -4715,13 +4730,13 @@ message PaymentMethodServiceRechargeRequest {
   optional string connector_payment_method_id = 2; // Connector's payment method ID (wallet number at connector's end)
   optional string merchant_request_id = 3;         // Request ID generated by the caller system
   optional string merchant_recharge_id = 4;        // Merchant's recharge tracking ID (invoice number or reference)
-  
+
   // Recharge Details
   string product_id = 5;                           // Product or program under which the payment method exists
   Money amount = 6;                                // Recharge amount in minor currency units
   optional string description = 7;                 // Human-readable description or notes about the recharge
   PaymentMethodType payment_method_type = 8;       // Type of payment method (WALLET, GIFT_CARD, PREPAID_CARD, etc.)
-  
+
   // Configuration
   optional ConnectorState state = 9;               // State information for multi-step flows (access token, session data)
   optional SecretString metadata = 10; // Additional metadata for the connector
@@ -4736,11 +4751,11 @@ message PaymentMethodServiceRechargeResponse {
   optional string connector_payment_method_id = 2; // Connector's payment method ID
   optional string merchant_recharge_id = 3;        // Merchant's recharge tracking ID
   optional string connector_recharge_id = 4;       // Connector's recharge tracking ID (invoice number or reference)
-  
+
   // Recharge Result
   RechargeStatus status = 5;                       // Status of the recharge operation (SUCCESS, FAILURE, PENDING)
   PaymentMethodDetails payment_method_details = 6; // Updated payment method details after recharge
-  
+
   // Error and Debugging Information
   optional ErrorInfo error = 7;                    // Error details if the recharge failed
   uint32 status_code = 8;                          // HTTP status code from the connector
@@ -5711,6 +5726,24 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+  // payment tokens are KHASH-hashed with this salt; when unset the connector
+  // falls back to the legacy HMAC-SHA256 token.
+  optional SecretString khash_config_key = 3;
+  optional string base_url = 50;
+}
+
+message NsureConfig {
+  // nSure.ai authorization key, sent verbatim in the `Authorization` header
+  // (no `Bearer`/`Basic` prefix). Shown as "API Key (Authorization Code)" in
+  // the nSure.ai management portal under My Account.
+  SecretString api_key = 1;
+  // nSure.ai Application ID, shown as "Application ID" in the same portal
+  // screen. Identifies the merchant application.
+  optional string app_id = 2;
+  // API version sent in the `x-nsure-api-version` header (`apiVersion.major.minor`).
+  // Defaults to 2.0.0 when unset.
+  optional string api_version = 3;
   optional string base_url = 50;
 }
 
@@ -5772,10 +5805,40 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+// Elavon Payment Gateway (EPG) - JSON REST gateway.
+// NOTE: distinct from the ELAVON connector (Elavon Converge, an XML API).
+message ElavonPgConfig {
+  // Merchant alias - HTTP Basic auth username
+  SecretString api_key = 1;
+  // Secret API key (sk_...) - HTTP Basic auth password
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
   SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
+message EtisalatConfig {
+  SecretString user_name = 1; // Maps from connector_account_details.api_key (primary credential).
+  SecretString password = 2;  // Maps from connector_account_details.key1 (secondary credential).
+  SecretString customer = 3;  // Maps from connector_account_details.api_secret — merchant identifier assigned by EPG (sandbox: "Demo Merchant").
+  optional string base_url = 50;
+}
+
+message MerchanteConfig {
+  SecretString profile_id = 1;
+  SecretString profile_key = 2;
   optional string base_url = 50;
 }
 
@@ -5849,6 +5912,22 @@ message D24Config {
 // api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
 message PaydotcomConfig {
   SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message PayhereConfig {
+  // PayHere App ID -- OAuth client_id, sent in the Basic auth header to
+  // /merchant/v1/oauth/token together with `app_secret`.
+  SecretString app_id = 1;
+  // PayHere Merchant ID -- sent as `merchant_id` in the hosted-checkout form
+  // and used as the first input of the checkout hash.
+  SecretString merchant_id = 2;
+  // PayHere App Secret -- OAuth client_secret, paired with `app_id` for the
+  // token endpoint Basic auth.
+  SecretString app_secret = 3;
+  // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
+  // md5sig verification), never transmitted.
+  SecretString merchant_secret = 4;
   optional string base_url = 50;
 }
 
@@ -6190,6 +6269,18 @@ message ConnectorSpecificConfig {
     D24Config d24 = 155;
     // PAYDOTCOM = 145
     PaydotcomConfig paydotcom = 156;
+    // NSURE = 146
+    NsureConfig nsure = 157;
+    // GLOBALPAYMENTS_HEARTLAND = 147
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 158;
+    // PAYHERE = 148
+    PayhereConfig payhere = 159;
+    // ETISALAT = 149
+    EtisalatConfig etisalat = 160;
+    // MERCHANTE = 150
+    MerchanteConfig merchante = 161;
+    // ELAVON_PG = 151
+    ElavonPgConfig elavon_pg = 162;
   }
 }
 
@@ -6455,7 +6546,11 @@ message PaymentMethodServiceEligibilityRequest {
 
   // The specific payment method (e.g. a BNPL variant) eligibility is being
   // checked for, when the caller wants to scope the check.
-  optional PaymentMethodType payment_method_type = 6;
+  //
+  // Deprecated: prefer `payment_method_types` to check several payment methods
+  // for a connector in a single call. When only this scalar is set, it is treated
+  // as a one-element `payment_method_types`.
+  optional PaymentMethodType payment_method_type = 6 [deprecated = true];
 
   // Description for connector-rendered eligibility messaging.
   optional string description = 7;
@@ -6477,17 +6572,44 @@ message PaymentMethodServiceEligibilityRequest {
   // State Information (for access token), set by CompositePaymentMethodService.Eligibility
   // after bootstrapping the connector's session token.
   optional ConnectorState state = 12;
+
+  // The payment methods eligibility is being checked for. A connector that
+  // supports many payment methods can be checked for all of them in a single
+  // call, avoiding one round-trip per payment method. Preferred over the
+  // deprecated scalar `payment_method_type`.
+  repeated PaymentMethodType payment_method_types = 13;
+}
+
+// Per-payment-method eligibility verdict. One of these is returned for each
+// payment method the caller asked about (see `payment_method_types`).
+message PaymentMethodEligibilityResult {
+  // The payment method this verdict is for.
+  PaymentMethodType payment_method_type = 1;
+
+  // Eligibility verdict for this payment method.
+  EligibilityStatus eligibility = 2;
+
+  // Structured error/reason details for this payment method (e.g. why it is
+  // ineligible). Absent when the payment method is eligible.
+  optional ErrorInfo error_info = 3;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 4;
 }
 
 // Response from a pre-checkout eligibility check.
 message PaymentMethodServiceEligibilityResponse {
-  EligibilityStatus eligibility = 1;
+  // Deprecated: use `results`. Mirrors `results[0].eligibility` for callers
+  // that still check a single payment method.
+  EligibilityStatus eligibility = 1 [deprecated = true];
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;
 
-  // Structured error details (only present on failure).
-  optional ErrorInfo error_info = 3;
+  // Deprecated: use `results[i].error_info`. Mirrors `results[0].error_info`.
+  optional ErrorInfo error_info = 3 [deprecated = true];
 
   // Raw request sent to the connector (for debugging).
   optional SecretString raw_connector_request = 4;
@@ -6500,10 +6622,12 @@ message PaymentMethodServiceEligibilityResponse {
   // Response headers from the connector.
   map<string, string> response_headers = 6;
 
-  // Payment method details resolved as part of the eligibility check (e.g.
-  // wallet/gift-card balance and items), when the connector call that
-  // determines eligibility also returns them.
-  optional PaymentMethodDetails payment_method_details = 9;
+  // Deprecated: use `results[i].payment_method_details`. Mirrors
+  // `results[0].payment_method_details`.
+  optional PaymentMethodDetails payment_method_details = 9 [deprecated = true];
+
+  // Per-payment-method eligibility verdicts, one per requested payment method.
+  repeated PaymentMethodEligibilityResult results = 10;
 }
 
 // ============================================================================

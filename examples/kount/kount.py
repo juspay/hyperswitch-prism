@@ -19,6 +19,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
         kount=payment_pb2.KountConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             auth_server_id="YOUR_AUTH_SERVER_ID",
+            khash_config_key=payment_methods_pb2.SecretString(value="YOUR_KHASH_CONFIG_KEY"),
             base_url="YOUR_BASE_URL",
         ),
     ),

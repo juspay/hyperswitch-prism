@@ -27,39 +27,109 @@ You are the **sole owner** of running integration tests for ONE connector — mo
 
 ## Phase 0: Check Credentials
 
-**FIRST: Verify connector has credentials in `creds.json`:**
+**FIRST: Verify connector has credentials in the creds file the harness will actually read.**
+
+Resolution order (`crates/internal/integration-tests/src/harness/credentials.rs`
+`creds_file_path()`): `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` → `creds.json`
+at the repo root. `.env.connector-tests` (sourced by `scripts/run-tests` and by the
+`make test-*` targets) can set either variable, so read it first.
 
 ```bash
-cat creds.json | jq '.${CONNECTOR}'
+CREDS="${CONNECTOR_AUTH_FILE_PATH:-${UCS_CREDS_PATH:-creds.json}}"
+jq '.{CONNECTOR}' "$CREDS"
 ```
+
+**A present entry is not enough — it must be the flat proto-native shape.**
+`connector-creds` rejects any entry containing `connector_account_details` with
+`CredentialError::LegacyFormat` (`crates/internal/connector-creds/src/lib.rs`,
+`if obj.contains_key("connector_account_details")`), so a legacy block reads as
+"has creds" to `jq` and then fails at run time. Check the shape too:
+
+```bash
+jq -r --arg c "{CONNECTOR}" '
+  (.[$c] // null) as $e
+  | if $e == null then "MISSING"
+    elif (if ($e|type)=="array" then $e[0] else $e end
+          | has("connector_account_details")) then "LEGACY"
+    else "OK" end' "$CREDS"
+```
+
+Prints exactly one of `MISSING`, `LEGACY` or `OK`.
 
 **If NO credentials:**
 
 - Result: **SKIPPED**
-- Reason: "No credentials in creds.json"
+- Reason: "No credentials in {creds file}"
 - Stop here — do NOT run tests
+
+**If credentials are in the LEGACY `connector_account_details` shape:**
+
+- This is a Credentials Issue (see Phase 2 category 3) — convert the entry to the
+  flat shape whose keys mirror the connector's `*Config` message in
+  `crates/types-traits/grpc-api-types/proto/payment.proto`, then re-check.
 
 ---
 
 ## Phase 1: Run Tests
 
-**Before the first run (and again on any readiness failure), clear stale listeners on BOTH ports:**
+**NEVER blanket-kill listeners by port.** `test-prism` owns the server lifecycle
+itself: `scripts/grpc-server.sh` `grpc_server_start` launches the binary and waits
+with `nc -z 127.0.0.1 $port` (40 × 0.5 s); `scripts/run-tests` records that PID in
+`.grpc-server.pid` and tears the server down from an `EXIT INT TERM` trap, where
+`grpc_server_stop` already escalates `kill` → 10 s wait → `kill -9` **on that PID
+only**. A blanket `lsof -ti:8000 | xargs kill -9` kills every listener on the
+machine — including other agents' servers and any unrelated service on that port.
+Do not do it.
+
+**Choose your own ports instead of contending for the defaults:**
 
 ```bash
-# test-prism waits for gRPC on 8000, but stale listeners on 8080 can also kill startup
-lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+# gRPC port the server binds. Read by scripts/run-tests (GRPC_PORT, default 8000).
+export GRPC_PORT=8000
+# Where test_ucs connects. Precedence: --endpoint > UCS_ENDPOINT > saved defaults
+# > localhost:8000. It is NOT derived from GRPC_PORT — set it or they diverge.
+export UCS_ENDPOINT="localhost:${GRPC_PORT}"
+# Prometheus metrics port: config/development.toml [metrics] port = 8080.
+# run-tests does NOT parameterise it, so two concurrent runs collide on 8080 even
+# with different GRPC_PORTs. It is inherited by the server child process.
+export CS__METRICS__PORT=8080
+```
+
+**If the port is genuinely stuck, kill only the PID this workflow started:**
+
+```bash
+if [ -f .grpc-server.pid ]; then kill -9 "$(cat .grpc-server.pid)" 2>/dev/null || true; rm -f .grpc-server.pid; fi
 ```
 
 **Run with timeout (5-10 minutes per connector):**
 
 ```bash
-# Set timeout
-export UCS_TEST_TIMEOUT=600  # 10 minutes
+# `UCS_TEST_TIMEOUT` is read by NOTHING in this repo — do not set it.
+# The per-request budget the harness really reads is UCS_GRPC_TIMEOUT_SECS
+# (default 30), passed to grpcurl as `-max-time`
+# (crates/internal/integration-tests/src/harness/scenario_api.rs).
+export UCS_GRPC_TIMEOUT_SECS=60
 
-# Run all test suites for the connector
-test-prism --connector {CONNECTOR} --interface {TEST_MODE} --report
+# The wall-clock budget for the whole run is yours to enforce:
+timeout 600 test-prism --connector {CONNECTOR} --interface {TEST_MODE} --report
 ```
+
+`test-prism` is `scripts/run-tests` (installed on PATH by
+`scripts/setup-connector-tests.sh`); it wraps
+`cargo run -p integration-tests --bin test_ucs`. `make test-connector connector=X`
+and `make test-scenario connector=X suite=Y scenario=Z` run the same binary and
+honour the port on **both** sides: the Makefile declares `GRPC_PORT ?= 8000` and
+passes `CS__SERVER__PORT=$(GRPC_PORT)` to the server it starts and
+`--endpoint localhost:$(GRPC_PORT)` to the client. Because it is `?=`, an exported
+`GRPC_PORT` and a command-line `GRPC_PORT=9090` both win. What the make targets do
+NOT read is `UCS_ENDPOINT` — they always pass an explicit `--endpoint`, which takes
+precedence over it. So either
+
+```bash
+make test-connector connector={CONNECTOR} GRPC_PORT=9090
+```
+
+or drive `test-prism` directly with `--endpoint` / `UCS_ENDPOINT` as above.
 
 **Or for a specific suite:**
 
@@ -77,9 +147,9 @@ test-prism --connector {CONNECTOR} --suite PaymentService/Authorize
 - `crates/internal/integration-tests/report.json` accumulates entries across runs
 - Always inspect the latest block for the scenario you just reran (usually near the end of the file)
 - Do NOT justify a fix from an older matching scenario block
-- **Markdown reports** are generated at `crates/internal/integration-tests/test_report/connectors/{connector}/` — these provide human-readable summaries with exact request/response pairs for each scenario
+- **Markdown reports** are generated at `crates/internal/integration-tests/test_report/connectors/{connector}/` — these provide human-readable summaries with exact request/response pairs for each scenario. The filename is the suite name run through `sanitize_anchor` (`harness/report.rs`): lowercased, every non-alphanumeric run collapsed to a single `-`. So `PaymentService/Authorize` becomes `paymentservice-authorize.md`
 - **To debug failures**, examine:
-  1. The markdown report in `test_report/connectors/{connector}/{suite}.md` for request/response details
+  1. The markdown report in `test_report/connectors/{connector}/<sanitized-suite>.md` for request/response details
   2. The JSON report for raw proto payloads
   3. The connector transformer code in `crates/integrations/connector-integration/src/connectors/{connector}/` to understand expected fields
 
@@ -104,7 +174,9 @@ UCS_DEBUG_EFFECTIVE_REQ=1 test-prism --connector {CONNECTOR} --interface {TEST_M
 ```
 
 3. Compare the base scenario with the connector override:
-   - Base: `crates/internal/integration-tests/src/global_suites/<suite>_suite/scenario.json`
+   - Base: `crates/internal/integration-tests/src/global_suites/<Service>_<Flow>/scenario.json`
+     (directory name = the suite name with `/` replaced by `_`, e.g.
+     `PaymentService_Authorize/scenario.json`; `suite_spec.json` sits beside it)
    - Override: `crates/internal/integration-tests/src/connector_specs/{CONNECTOR}/override.json`
 4. Read the harness docs/code that explain what the runner really sends:
    - `crates/internal/integration-tests/docs/connector-overrides.md`
@@ -127,7 +199,10 @@ UCS_DEBUG_EFFECTIVE_REQ=1 test-prism --connector {CONNECTOR} --interface {TEST_M
 - `override.json` cannot directly fix:
   - connector config / creds-derived fields
   - generated headers or request-reference IDs
-  - connector code branches that return `NotSupported` / `NotImplemented`
+  - connector code branches that return an `IntegrationError` refusal —
+    `NotSupported` / `NotImplemented` / `FlowNotSupported` /
+    `CaptureMethodNotSupported` / `CurrencyNotSupported`
+    (`crates/types-traits/domain_types/src/errors.rs`)
   - response deserialization mismatches after the connector responds
   - harness/core dependency propagation bugs
 - Downstream suites (`Capture`, `Get`, `Refund`, `Void`) can use authorize-derived IDs **only if** authorize succeeded and the prior response exposes the ID in a path the harness can reuse. If authorize fails, omits the ID, or returns it in an unmapped shape, later suites will still fail with missing transaction/refund IDs.
@@ -177,7 +252,10 @@ When tests fail, follow this investigation order:
 
    Look for:
    - Required fields that must come from scenario input (vs creds/config)
-   - Explicit `NotSupported` or `NotImplemented` branches
+   - Explicit refusal branches — any `IntegrationError::NotSupported` /
+     `NotImplemented` / `FlowNotSupported` construction, or the flow appearing in this
+     connector's `macro_connector_flow_status_impls!` `not_implemented` / `not_supported` list
+     in `{CONNECTOR}.rs`
    - Payment method type checking that rejects certain PMs
    - Response parsing that can fail if connector returns unexpected shape
 
@@ -289,7 +367,7 @@ When tests fail, follow this investigation order:
 **GUARDRAILS (STRICT):**
 
 - ✅ DO: Fix test data, assertions, field names (positive overrides)
-- ❌ DO NOT: Touch UCS core code (`crates/connector-integration/`)
+- ❌ DO NOT: Touch UCS core code (`crates/integrations/connector-integration/`)
 - ❌ DO NOT: Touch testing framework core code ( harness, global_suites)
 - ❌ DO NOT: Create negative overrides (assert failure to pass)
 - ❌ DO NOT: Fix bugs in connector implementation code
@@ -322,7 +400,9 @@ git checkout -b fix/test-{connector}-{issue}
 6. If the connector code shows the field comes from creds/config/header generation, stop — that is **not** an override fix.
 7. If the connector code explicitly rejects the PM/flow, stop — that is **not** an override fix.
 
-**Validate override changes before rerunning the connector:**
+**Validate override changes before rerunning the connector.** These two are the sanctioned
+exception to the workflow's "never run `cargo test`" rule (`1_orchestrator.md` Rule 3) — they
+validate manifest data against the proto schema and run no connector code:
 
 ```bash
 cargo test -p integration-tests all_supported_scenarios_match_proto_schema_for_all_connectors
@@ -338,7 +418,23 @@ test-prism --connector {CONNECTOR} --report
 **If tests now pass:**
 
 - Result: **HARDENED**
-- Commit fix: `git add -A && git commit -m "fix({CONNECTOR}): fix positive override test bug in {description}"`
+- Commit fix — stage an EXPLICIT pathspec. Never `git add -A`: this working tree
+  carries untracked GRACE reports, worktrees and scratch files that would be swept in.
+
+  ```bash
+  git add crates/internal/integration-tests/src/connector_specs/{CONNECTOR}/
+  git commit -m "fix({CONNECTOR}): fix positive override test bug in {description}"
+  ```
+
+  **Never stage the creds file.** A credentials repair is a local-only change: it
+  stays in the working tree and is never committed. `creds.json` is gitignored
+  (`.gitignore`), so `git add creds.json` fails outright with
+  `The following paths are ignored by one of your .gitignore files` — do not reach
+  for `-f`. The same holds for whatever `$CREDS` resolves to and for any `.env`
+  file. Do NOT stage `crates/internal/integration-tests/report.json` or
+  `crates/internal/integration-tests/test_report/` either — those are run
+  artifacts (`report.json` is gitignored; `test_report/` is not, so it *can* be
+  swept in by a careless add).
 - Push: `git push -u origin fix/test-{connector}-{issue}`
 
 **MANDATORY: After pushing, CREATE PR:**
@@ -347,12 +443,33 @@ test-prism --connector {CONNECTOR} --report
 # Create PR after pushing
 gh pr create --title "fix({CONNECTOR}): positive override test fixes" --body "- Test fixes applied for {connector}" --repo juspay/hyperswitch-prism
 
-# If outcome is unsure → Create DRAFT PR
-gh pr create --draft --title "fix({CONNECTOR}): test fixes [WIP]" --repo juspay/hyperswitch-prism
+# If the outcome is unsure, do NOT reach for --draft (see below). Open a normal
+# PR and say so in the title SUFFIX and in a label:
+gh pr create --title "fix({CONNECTOR}): test fixes [WIP]" \
+  --label "GRACE" --body "- Test fixes applied for {connector}" \
+  --repo juspay/hyperswitch-prism
 
-# Add label
-gh pr label add "grace" --repo juspay/hyperswitch-prism
+# Add a label — the label is spelled "GRACE" (that is the name 2.4_pr.md creates
+# on the repo). `gh pr label add` is NOT a real command.
+# The label subcommand does not exist; use `gh pr edit`:
+gh pr edit <number|url|branch> --add-label "GRACE" --repo juspay/hyperswitch-prism
+
+# …or set it at creation time with `gh pr create -l/--label`:
+#   gh pr create --label "GRACE" --title "…" --body "…" --repo juspay/hyperswitch-prism
 ```
+
+**On `--draft`:** the flag is real, but every meaningful job in
+`.github/workflows/ci.yml` is guarded by `!github.event.pull_request.draft` —
+`typos` (Spell check), `clippy`, `auto-fix`, `check` (Compilation Check), `test`
+(Run Tests) and `sdk-test` — so a draft PR skips all of them, while the `CI Result`
+gate (`ci-gate`, `if: always()`) still reports green: it fails only on
+`failure`/`cancelled`, never on `skipped`. A draft PR is a green PR that proved
+nothing. Prefer a non-draft PR with a label, or run `gh pr ready <number>` before
+treating any CI result as signal. Also note the PR **title** is checked by
+`cog verify` (`.github/workflows/pr-convention-checks.yml`), so a marker must be a
+SUFFIX: `fix({CONNECTOR}): test fixes [WIP]` parses, a `[…]` prefix does not, and
+`wip:` / `draft:` are not among the commit types `cog.toml` allows (feat, fix,
+perf, refactor, test, docs, proto, chore, build, revert, ci).
 
 **If still failing:**
 
@@ -377,8 +494,9 @@ gh pr label add "grace" --repo juspay/hyperswitch-prism
 ## Notes
 
 - **ALWAYS check creds first** — no creds = SKIPPED
-- **Set timeout** — 5-10 minutes per connector
-- **If server readiness fails, inspect both 8000 and 8080** — stale metrics listeners can look like a gRPC 8000 problem
+- **Set timeout** — `UCS_GRPC_TIMEOUT_SECS` (per gRPC request, default 30) plus a
+  wall-clock `timeout 600 …` around the run. `UCS_TEST_TIMEOUT` is read by nothing
+- **If server readiness fails, inspect both `$GRPC_PORT` and `$CS__METRICS__PORT`** — the process binds two sockets (gRPC + Prometheus metrics), and a stale metrics listener on 8080 looks like a gRPC-port problem. Scope any kill to `.grpc-server.pid`, never to a port
 - **Positive overrides only** — fix assertions, not just assert failure
 - **NEVER touch UCS core** — only test files
 - **NEVER touch framework core** — only connector_specs/
@@ -403,6 +521,6 @@ gh pr label add "grace" --repo juspay/hyperswitch-prism
 
 - **Capture/Void cascade is by design.** Those suites depend on `no3ds_manual_capture_credit_card` (you can't capture/void an auto-captured payment). If Capture is failing but Refund passes, look at the upstream `manual_capture` authorize first — that is what the cascade needs.
 
-- **Connectors that need upstream context** (e.g. a 3DS pre-step before Authorize) — `ConnectorSuiteSpec` supports an optional `additional_dependencies` map in `specs.json` that gets prepended to the global suite_spec's `depends_on` for that connector. Caveat: it applies suite-wide; do not set it if your no_3ds and 3DS scenarios share the same suite and the upstream context would pollute the no_3ds path.
+- **Connectors that need upstream context** (e.g. a 3DS pre-step before Authorize) — there is no per-connector way to declare one. An `additional_dependencies` map in `specs.json` is a plausible-sounding invention: no such field exists on `ConnectorSuiteSpec` (`crates/internal/integration-tests/src/harness/scenario_types.rs`), no connector under `connector_specs/` sets it, and the runner reads dependencies only from the global `suite_spec.json` (`target_suite_spec.depends_on` in `harness/scenario_api.rs`). `ConnectorSuiteSpec` is a plain `Deserialize` with no `deny_unknown_fields`, so such a block is silently dropped at load time rather than rejected — you get no error and no behaviour change. `crates/internal/integration-tests/README.md` says exactly this: unknown keys are dropped, and "dependencies between suites are declared in the global `suite_spec.json` (`depends_on`), never per connector." Treat missing upstream context as a suite-spec / harness matter → REPORT_TO_MASTER, not an `override.json` fix.
 
 - **Browser-driven 3DS testing** — refer to `connector_specs/stripe/browser_automation_spec.json` for the reference shape. Some connectors expose an SCA-exemption path that lets you skip the Device Data Collection iframe and drive only the ACS challenge UI — check the connector implementation and integration PR before assuming full DDC automation is required.

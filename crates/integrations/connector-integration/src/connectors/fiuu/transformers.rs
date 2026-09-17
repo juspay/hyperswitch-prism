@@ -668,6 +668,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -1042,7 +1043,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
-                | WalletData::PaymayaRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {} => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )

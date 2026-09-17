@@ -6,18 +6,19 @@ You are the **sole owner** of implementing **{FLOW}** for **{CONNECTOR}**. You h
 
 You coordinate by **spawning subagents via the Task tool** for heavy work (links discovery, tech spec generation, code implementation, committing and PR creation). You handle lightweight phases yourself (setup, file discovery).
 
-**HARD GUARDRAIL — MANDATORY SUBAGENT DELEGATION**: You MUST use the Task tool to spawn separate subagents for Phases 1, 2, 4, and 5. Do NOT read the subagent workflow files (`2.1_links.md`, `2.2_techspec.md`, `2.3_codegen.md`, `2.4_pr.md`) yourself — each subagent reads its own file. You are FORBIDDEN from doing the following yourself:
+**HARD GUARDRAIL — MANDATORY SUBAGENT DELEGATION**: You MUST use the Task tool to spawn separate subagents for Phases 1, 2, 4, 4.5, and 5. Do NOT read the subagent workflow files (`2.1_links.md`, `2.2_techspec.md`, `2.3_codegen.md`, `2.5_e2e.md`, `2.4_pr.md`) yourself — each subagent reads its own file. You are FORBIDDEN from doing the following yourself:
 
-- **Phase 1 (Links)**: Do NOT use WebFetch to search for documentation URLs. Do NOT browse connector websites. Do NOT write to `integration-source-links.json`. ONLY spawn the Links Agent (`2.1_links.md`) via Task tool.
-- **Phase 2 (Tech Spec)**: Do NOT read `integration-source-links.json` to extract URLs. Do NOT create URL files. Do NOT run `grace techspec`. Do NOT activate the virtualenv. Do NOT use WebFetch to scrape connector docs. Do NOT synthesize the spec yourself or write to `grace/rulesbook/codegen/references/`. ONLY spawn the Tech Spec Agent (`2.2_techspec.md`) via Task tool — it picks Path A or Path B internally.
+- **Phase 1 (Links)**: Do NOT use WebFetch to search for documentation URLs. Do NOT browse connector websites. Do NOT write to `data/integration-source-links.json`. ONLY spawn the Links Agent (`2.1_links.md`) via Task tool.
+- **Phase 2 (Tech Spec)**: Do NOT read `data/integration-source-links.json` to extract URLs. Do NOT create URL files. Do NOT run `grace techspec`. Do NOT activate the virtualenv. Do NOT use WebFetch to scrape connector docs. Do NOT synthesize the spec yourself or write to `grace/rulesbook/codegen/references/`. ONLY spawn the Tech Spec Agent (`2.2_techspec.md`) via Task tool — it picks Path A or Path B internally.
 - **Phase 4 (Codegen)**: Do NOT read pattern guides or tech specs for implementation. Do NOT write connector code. Do NOT run `cargo build`. Do NOT run `grpcurl`. ONLY spawn the Code Generation Agent (`2.3_codegen.md`) via Task tool.
-- **Phase 5 (Commit & PR)**: Do NOT run `git add`, `git commit`, `git cherry-pick`, `git push`, or `gh pr create`. Do NOT stage files or create branches. ONLY spawn the PR Agent (`2.4_pr.md`) via Task tool. The PR Agent handles ALL git commit, cherry-pick, push, and PR creation work.
+- **Phase 4.5 (E2E)**: Do NOT start the UCS server, issue Hyperswitch API calls, read the Hyperswitch tree, or edit/commit/push anything in Hyperswitch. ONLY spawn the E2E Agent (`2.5_e2e.md`) via Task tool.
+- **Phase 5 (Commit & PR)**: Do NOT run `git add`, `git commit`, `git push`, or `gh pr create`. Do NOT stage files or create branches. ONLY spawn the PR Agent (`2.4_pr.md`) via Task tool. The PR Agent handles ALL git commit, push, and PR creation work — it commits **directly on `{BRANCH}`**. Per its own guardrail (`2.4_pr.md`, "NO BRANCH CREATION, NO CHERRY-PICK"), it does NOT run `git checkout -b` and does NOT cherry-pick.
 
 **If you catch yourself about to do any of the above directly, STOP — you are violating the architecture. Spawn the correct subagent instead.**
 
 Follow the phases below in order. Do not skip or reorder. Do not run phases in parallel.
 
-**Credentials**: Available in `creds.json` at the repo root. If credentials fail during testing (HTTP 401/403), report FAILED — do NOT ask the user.
+**Credentials**: Resolved the way the test harness resolves them — `CONNECTOR_AUTH_FILE_PATH`, else `UCS_CREDS_PATH`, else `creds.json` at the repo root (`crates/internal/integration-tests/src/harness/credentials.rs`, `creds_file_path()`); the keys are lowercase connector names. If credentials fail during testing (HTTP 401/403), report FAILED — do NOT ask the user.
 
 **Note**: Connector names in `{CONNECTORS_FILE}` use the exact casing provided (e.g., `Adyen`, `Paypal`). Use this casing (`{Connector_Name}`) when invoking the Tech Spec Agent (it flows into both `grace techspec` for Path A and the Claude-native workflow for Path B). Use lowercase (`{connector}`) for file names, branch names, and directory paths.
 
@@ -28,7 +29,7 @@ Follow the phases below in order. Do not skip or reorder. Do not run phases in p
 | Parameter           | Description                             | Example           |
 | ------------------- | --------------------------------------- | ----------------- |
 | `{CONNECTOR}`       | Connector name (exact casing from JSON) | `Adyen`           |
-| `{FLOW}`            | Payment flow being implemented          | `BankDebit`       |
+| `{FLOW}`            | Payment flow being implemented — a flow-marker name from `crates/types-traits/domain_types/src/connector_flow.rs`, **or** a flow-group name from the `## FLOW-GROUP MAP` in `grace/rulesbook/codegen/.gracerules_add_flow`. A group is implemented **whole, in this one invocation** — never decomposed into one invocation per marker. | `Authorize`, `ThreeDS` |
 | `{PAYMENT_METHOD}`  | Payment method being added; empty for new-flow runs | `BankDebit` or *(empty)* |
 | `{CONNECTORS_FILE}` | JSON file with connector names          | `connectors.json` |
 | `{BRANCH}`          | Git branch all work happens on          | `feat/bank-debit` |
@@ -45,15 +46,17 @@ You MUST use the **Task tool** to spawn a **Links Agent** for documentation disc
 
 ```
 Task(
-  subagent_type="general",
+  subagent_type="general-purpose",
   description="Find {FLOW} links for {CONNECTOR}",
   prompt="Read and follow the workflow defined in grace/workflow/2.1_links.md
 
 Variables:
   CONNECTOR_NAME: <connector name, exact casing from connectors file>
-  PAYMENT_METHOD: <the payment flow being implemented>"
+  PAYMENT_METHOD: <{PAYMENT_METHOD} if it is set, otherwise {FLOW}>"
 )
 ```
+
+`2.1_links.md` takes only `{{CONNECTOR_NAME}}` and `{{PAYMENT_METHOD}}` — it has no `FLOW` input, and it searches documentation for whatever `{{PAYMENT_METHOD}}` names. So pass `{PAYMENT_METHOD}` on a payment-method-addition run, and fall back to `{FLOW}` only when `{PAYMENT_METHOD}` is empty. Passing `Authorize` while `{PAYMENT_METHOD}` is `BankDebit` sends the Links Agent hunting for the wrong docs.
 
 **Note**: Links discovery failure is NOT a hard gate. If the Links Agent returns no links or fails, proceed to Phase 2 anyway — the Tech Spec Agent will attempt to work with whatever URLs are available. Log the links status for the final report.
 
@@ -71,7 +74,7 @@ You MUST use the **Task tool** to spawn a **Tech Spec Agent**. Do NOT extract UR
 
 ```
 Task(
-  subagent_type="general",
+  subagent_type="general-purpose",
   description="Generate techspec for {CONNECTOR}",
   prompt="Read and follow the workflow defined in grace/workflow/2.2_techspec.md
 
@@ -111,7 +114,7 @@ find grace/rulesbook/codegen/references -iname "*{connector}*{flow}*" -o -iname 
 
 If no results, also try with underscores/hyphens (e.g., `wells_fargo` vs `wellsfargo`).
 
-Note: Specs may be in a flat `specs/` folder (e.g., `specs/adyen_bank_debit.md`) OR in a per-connector subfolder (e.g., `Braintree/Technical_specification/bank_debit_spec.md`). The connector name may be capitalized. Search recursively.
+Note: both generation paths in `2.2_techspec.md` write two copies — the raw spec at `grace/rulesbook/codegen/references/specs/{Connector_Name}.md` (display casing, e.g. `specs/Dlocal.md`) and the canonical copy at `grace/rulesbook/codegen/references/{connector}/technical_specification.md` (lowercase directory, e.g. `paynearme/technical_specification.md`). **Prefer the canonical copy** — it is the only path the downstream `new-connector` skill accepts. The connector name may be capitalized in either location, so search recursively and case-insensitively.
 
 **Recovery — if the spec is still missing after the search above:**
 
@@ -145,7 +148,7 @@ You MUST use the **Task tool** to spawn a **Code Generation Agent**. Do NOT read
 
 ```
 Task(
-  subagent_type="general",
+  subagent_type="general-purpose",
   description="Implement {FLOW} code for {CONNECTOR}",
   prompt="Read and follow the workflow defined in grace/workflow/2.3_codegen.md
 
@@ -168,11 +171,53 @@ Store the codegen result:
 
 ---
 
+## Phase 4.5: End-to-End Verification (SPAWN SUBAGENT — ALWAYS)
+
+**GUARDRAIL: You MUST spawn a subagent. Do NOT start servers, issue Hyperswitch API calls, read the
+Hyperswitch tree, or edit Hyperswitch yourself. Violation = broken architecture.**
+
+A passing grpcurl test proves UCS talks to the connector. It does **not** prove Hyperswitch can
+reach that code — a flow can be fully implemented, built, grpcurl-tested and merged in UCS while
+Hyperswitch has no way to call it, because several flows are gated on Hyperswitch-side trait
+overrides that default to `false`. This phase closes that gap and raises the Hyperswitch PR itself,
+so the operator never has to re-prompt for end-to-end testing.
+
+Run this phase even when `{CODEGEN_STATUS}` is FAILED — knowing whether the path was reachable at
+all is part of the failure report.
+
+```
+Task(
+  subagent_type="general-purpose",
+  description="E2E verify {FLOW} for {CONNECTOR} from Hyperswitch",
+  prompt="Read and follow the workflow defined in grace/workflow/2.5_e2e.md
+
+Variables:
+  CONNECTOR: <connector name>
+  FLOW: <the payment flow, or flow group>
+  PAYMENT_METHOD: <payment method, or empty>
+  HS_REPO_PATH: <path to the Hyperswitch checkout, default /home/infamous/hyperswitch1>
+  BRANCH: <the UCS branch this run committed on>"
+)
+```
+
+Store the result:
+
+- `{E2E_STATUS}` = `SUCCESS` | `E2E_BLOCKED` | `E2E_SKIPPED` | `FAILED`
+- `{HS_PR}` = the Hyperswitch PR URL, or `"none required"`
+- `{HS_CHANGES_REQUIRED}` = what Hyperswitch needed, or `"none"`
+- `{E2E_EVIDENCE}` = the HS request, the UCS log line naming the flow, the connector's real id
+
+**Gate**: `E2E_BLOCKED` and `E2E_SKIPPED` do NOT make the connector FAILED — they are reported
+verbatim and carried into the PR body and the Phase 6 report. `E2E_STATUS: FAILED` DOES: it means
+Hyperswitch reached UCS and the flow misbehaved, which a grpcurl test was too narrow to catch.
+
+---
+
 ## Phase 5: Commit & Pull Request (SPAWN SUBAGENT — ALWAYS, for both SUCCESS and FAILED)
 
-**GUARDRAIL: You MUST spawn a subagent. Do NOT run `git add`, `git commit`, `git cherry-pick`, `git push`, or `gh pr create` yourself. Violation = broken architecture.**
+**GUARDRAIL: You MUST spawn a subagent. Do NOT run `git add`, `git commit`, `git push`, or `gh pr create` yourself. Violation = broken architecture.**
 
-**This phase runs for BOTH successful and failed connectors.** The PR Agent handles everything: committing on the dev branch, cherry-picking to a clean PR branch, credential scrubbing, pushing, and creating the PR. The only case where you skip this phase is if codegen produced no file changes at all (check `git status -- crates/integrations/connector-integration/src/connectors/{connector}*`).
+**This phase runs for BOTH successful and failed connectors.** The PR Agent handles everything: committing directly on `{BRANCH}` (the branch preflight created — it creates no branch of its own and does NOT cherry-pick), credential scrubbing, pushing `{BRANCH}` to `origin`, and creating a same-repo PR on `juspay/hyperswitch-prism`. The only case where you skip this phase is if codegen produced no file changes **anywhere** in the working tree (check plain `git status --porcelain`). Do NOT scope that check to `crates/integrations/connector-integration/src/connectors/{connector}*`: per `2.4_pr.md` Phase 1a, a connector change is never confined to that directory — the Rust registry, `payment.proto`, the `config/*.toml` files and `connector_specs/` change too, so a narrow check would wrongly skip the PR for a run that touched only those.
 
 You MUST use the **Task tool** to spawn a **PR Agent**. Do NOT read the workflow file yourself — the subagent reads it on its own.
 
@@ -180,7 +225,7 @@ You MUST use the **Task tool** to spawn a **PR Agent**. Do NOT read the workflow
 
 ```
 Task(
-  subagent_type="general",
+  subagent_type="general-purpose",
   description="Commit and create PR for {CONNECTOR} {FLOW}",
   prompt="Read and follow the workflow defined in grace/workflow/2.4_pr.md
 
@@ -191,13 +236,19 @@ Variables:
   CONNECTOR_STATUS: <SUCCESS or FAILED>
   FAILURE_REASON: <reason string, empty if SUCCESS>
   GRPCURL_OUTPUT: <the full grpcurl test output from the Codegen Agent, raw text>
-  CONNECTOR_SOURCE_FILES: <paths to connector source files from Phase 3>"
+  CONNECTOR_SOURCE_FILES: <paths to connector source files from Phase 3>
+  E2E_STATUS: <SUCCESS | E2E_BLOCKED | E2E_SKIPPED | FAILED from Phase 4.5>
+  HS_PR: <the Hyperswitch PR URL from Phase 4.5, or 'none required'>
+  HS_CHANGES_REQUIRED: <what Hyperswitch needed, or 'none'>
+  E2E_EVIDENCE: <the end-to-end evidence from Phase 4.5, raw text>"
 )
 ```
 
 **Gate**: If the PR Agent returns FAILED, log the failure but do NOT change the connector's overall status based on PR creation alone. Report the PR status separately in Phase 6.
 
 ### 5b: Verify you are back on the dev branch
+
+This check is still required: `2.4_pr.md` Phase 1a runs `git checkout {BRANCH}` when it finds itself on another branch, so the PR Agent can legitimately move HEAD. Verify, do not assume.
 
 After the PR Agent finishes, verify you are on `{BRANCH}`:
 
@@ -222,13 +273,16 @@ CONNECTOR: {connector}
 STATUS: SUCCESS | FAILED | SKIPPED
 LINKS: {found/missing} | {link_count} links
 PR: {PR_URL or "not created"}
+E2E: {E2E_STATUS}
+HS_PR: {HS_PR}
+HS_CHANGES_REQUIRED: {HS_CHANGES_REQUIRED}
 REASON: <if not SUCCESS, explain why>
 ```
 
 **STATUS definitions (strict):**
 
-- **SUCCESS**: Build passed AND grpcurl Authorize passed AND code was committed AND PR was created. All must be true. No exceptions.
-- **FAILED**: Any phase failed after attempting it (build errors, test errors, service won't start, credentials rejected, PR creation failed, etc.)
+- **SUCCESS**: Build passed AND the grpcurl test for `{FLOW}` passed — every marker of it, if `{FLOW}` is a flow group — AND `{E2E_STATUS}` is `SUCCESS`, `E2E_BLOCKED` or `E2E_SKIPPED` AND code was committed AND PR was created. All must be true. No exceptions.
+- **FAILED**: Any phase failed after attempting it (build errors, test errors, service won't start, credentials rejected, PR creation failed, etc.), **or `{E2E_STATUS}` is `FAILED`** — meaning Hyperswitch reached UCS and the flow misbehaved, which a grpcurl test is too narrow to catch.
 - **SKIPPED**: Connector was skipped before implementation (no tech spec and creation recovery in Phase 3b also failed, no source files, already implemented, no credentials)
 
 ---
@@ -240,4 +294,5 @@ REASON: <if not SUCCESS, explain why>
 | Links Agent           | `2.1_links.md`    | Find and verify backend API documentation links                                                       |
 | Tech Spec Agent       | `2.2_techspec.md` | Generate tech spec via grace CLI (Path A) or Claude-native fallback (Path B); selected by env check   |
 | Code Generation Agent | `2.3_codegen.md`  | Read, analyze, implement, build, and grpcurl test                                                     |
-| PR Agent              | `2.4_pr.md`       | Commit on dev branch, cherry-pick to clean branch, scrub creds, create PR in juspay/hyperswitch-prism |
+| E2E Agent             | `2.5_e2e.md`      | Prove Hyperswitch → UCS → connector for `{FLOW}`; probe sandbox capability; raise the Hyperswitch PR when a flow is unreachable from HS |
+| PR Agent              | `2.4_pr.md`       | Commit directly on `{BRANCH}` (no branch creation, no cherry-pick), scrub creds, push, create PR in juspay/hyperswitch-prism |
