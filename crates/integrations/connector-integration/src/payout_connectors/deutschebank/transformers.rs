@@ -216,9 +216,9 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let req = &item.router_data;
         let payee_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
-        let payee_name = extract_customer_name(
-            req.request.customer.as_ref(),
-            "Payee name is required for Deutsche Bank VoP check",
+        let payee_name = extract_payee_account_holder_name(
+            req.request.payout_method_data.as_ref(),
+            "Payee account_holder_name is required for Deutsche Bank VoP check",
         )?;
 
         Ok(Self {
@@ -505,8 +505,8 @@ pub struct DeutschebankCreditTransfer {
     pub creditor: DeutschebankParty,
     #[serde(rename = "creditorAccount")]
     pub creditor_account: DeutschebankAccount,
-    #[serde(rename = "creditorAgent")]
-    pub creditor_agent: DeutschebankAgent,
+    #[serde(rename = "creditorAgent", skip_serializing_if = "Option::is_none")]
+    pub creditor_agent: Option<DeutschebankAgent>,
 }
 
 #[derive(Debug, Serialize)]
@@ -558,11 +558,11 @@ impl
         let creditor_bic = extract_payee_bic(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
         let debtor_agent_bic = resolve_debtor_agent_bic(req.request.source_bank_data.as_ref())?;
-        // Creditor = payee (from customer.name); debtor = the ordering party,
+        // Creditor = payee (from payout_method_data account_holder_name); debtor = the ordering party,
         // sourced from source_bank_data rather than falling back to the payee.
-        let creditor_name = extract_customer_name(
-            req.request.customer.as_ref(),
-            "Creditor name is required for Deutsche Bank SEPA payment",
+        let creditor_name = extract_payee_account_holder_name(
+            req.request.payout_method_data.as_ref(),
+            "Creditor account_holder_name is required for Deutsche Bank SEPA payment",
         )?;
         let debtor_name = extract_debtor_name(req.request.source_bank_data.as_ref())?;
 
@@ -689,11 +689,9 @@ impl
                             },
                             currency: None,
                         },
-                        creditor_agent: DeutschebankAgent {
-                            financial_institution_identification: DeutschebankBic {
-                                bicfi: creditor_bic,
-                            },
-                        },
+                        creditor_agent: creditor_bic.map(|bic| DeutschebankAgent {
+                            financial_institution_identification: DeutschebankBic { bicfi: bic },
+                        }),
                     }],
                 }],
             },
@@ -943,25 +941,9 @@ fn extract_payee_iban(
     }
 }
 
-fn extract_payee_bic(
-    payout_method_data: Option<&PayoutMethodData>,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+fn extract_payee_bic(payout_method_data: Option<&PayoutMethodData>) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
-        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic: Some(bic), .. }))) => {
-            Ok(bic.clone())
-        }
-        Some(PayoutMethodData::Bank(Bank::Sepa(_))) => Err(error_stack::report!(
-            IntegrationError::MissingRequiredField {
-                field_name: "payout_method_data.bank.sepa.bic",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Deutsche Bank SEPA requires the creditor agent BIC".to_string(),
-                    ),
-                    suggested_action: Some("Set `payout_method_data.bank.sepa.bic`.".to_string(),),
-                    doc_url: None,
-                },
-            }
-        )),
+        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic, .. }))) => Ok(bic.clone()),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Deutsche Bank only supports SEPA bank payouts".to_string(),
             connector: "Deutschebank",
@@ -969,7 +951,7 @@ fn extract_payee_bic(
                 additional_context: Some(
                     "Provide `payout_method_data.bank.sepa` with iban + bic".to_string(),
                 ),
-                suggested_action: Some("Use SEPA bank payout method.".to_string(),),
+                suggested_action: Some("Use SEPA bank payout method.".to_string()),
                 doc_url: None,
             },
         })),
@@ -1223,23 +1205,28 @@ pub(super) fn split_pem_bundle(
     Ok((cert_chain, Secret::new(key_pem)))
 }
 
-fn extract_customer_name(
-    customer: Option<&domain_types::payouts::payouts_types::PayoutCustomer>,
+fn extract_payee_account_holder_name(
+    payout_method_data: Option<&PayoutMethodData>,
     purpose_description: &'static str,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    customer
-        .and_then(|c| c.name.as_ref())
-        .map(|n| Secret::new(n.clone()))
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "customer.name",
+    match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer {
+            account_holder_name: Some(name),
+            ..
+        }))) => Ok(name.clone()),
+        _ => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.bank.sepa.account_holder_name",
                 context: IntegrationErrorContext {
                     additional_context: Some(purpose_description.to_string()),
                     suggested_action: Some(
-                        "Set `customer.name` on the payout request.".to_string()
+                        "Set `payout_method_data.bank.sepa.account_holder_name` on the payout \
+                         request."
+                            .to_string(),
                     ),
                     doc_url: None,
                 },
-            })
-        })
+            }
+        )),
+    }
 }
