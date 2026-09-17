@@ -17,7 +17,11 @@ const OS_BASED_RETURN_URL_CONFIG_KEYS: &[(&str, &str)] = &[
 pub static PLAID_SANITY: PlaidSanity = PlaidSanity;
 
 impl ConnectorSanity for PlaidSanity {
-    fn apply(&self, raw_config: Option<SecretSerdeValue>, req: &mut dyn ConnectorSanityRequest) {
+    fn populate_os_based_return_url(
+        &self,
+        raw_config: Option<&SecretSerdeValue>,
+        req: &mut dyn ConnectorSanityRequest,
+    ) {
         let Some(plaid_config) = raw_config else {
             return;
         };
@@ -26,7 +30,10 @@ impl ConnectorSanity for PlaidSanity {
     }
 }
 
-fn plaid_os_based_return_url(plaid_config: SecretSerdeValue, req: &mut dyn ConnectorSanityRequest) {
+fn plaid_os_based_return_url(
+    plaid_config: &SecretSerdeValue,
+    req: &mut dyn ConnectorSanityRequest,
+) {
     let return_url_map = OS_BASED_RETURN_URL_CONFIG_KEYS
         .iter()
         .filter_map(|(os, config_key)| {
@@ -48,16 +55,7 @@ fn plaid_os_based_return_url(plaid_config: SecretSerdeValue, req: &mut dyn Conne
     );
 
     req.populate_os_based_return_url(OsBasedReturnUrl {
-        os_type: client_platform_code(ClientPlatform::Unspecified),
+        os_type: i32::from(ClientPlatform::Unspecified),
         return_url_map,
     });
-}
-
-fn client_platform_code(platform: ClientPlatform) -> i32 {
-    match platform {
-        ClientPlatform::Unspecified => 0,
-        ClientPlatform::Ios => 1,
-        ClientPlatform::Web => 2,
-        ClientPlatform::Android => 3,
-    }
 }

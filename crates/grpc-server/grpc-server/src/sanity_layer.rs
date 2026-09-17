@@ -51,19 +51,38 @@ impl RequestSanitizer for ConnectorSanitizer {
         let Some(connector) = connector_from_metadata(metadata) else {
             return;
         };
-        let sanitizer = connector.sanity();
-        let raw_config = raw_connector_config(metadata, &connector.get_connector_name());
-        sanitizer.apply(raw_config, req);
+        match connector.sanity() {
+            Some(sanitizer) => {
+                let raw_config = raw_connector_config(metadata, &connector.get_connector_name());
+                sanitizer.apply(raw_config, req);
+            }
+            None => tracing::debug!(
+                connector = %connector.get_connector_name(),
+                "no connector sanity registered"
+            ),
+        }
     }
 }
 
+/// Primary resolution matches the real request pipeline exactly
+/// (`x-connector-config` first, legacy headers as its own fallback — see
+/// `ucs_interface_common::metadata::get_metadata_payload`), so the sanity
+/// layer can never disagree with the handler about which connector a
+/// *processable* request is for.
+///
+/// The bare `connector_variant_from_metadata` fallback only fires when that
+/// primary resolution fails outright (e.g. a legacy connector-name header
+/// present without enough legacy auth headers to build a full config) — at
+/// which point the real handler would reject the request anyway, so there is
+/// no live disagreement risk: neither path leads to the request actually
+/// being processed as some connector. It only restores best-effort dispatch
+/// for connectors that do have something to do before that rejection.
 #[cfg(feature = "connector-sanity-layer")]
 fn connector_from_metadata(metadata: &MetadataMap) -> Option<ConnectorVariant> {
-    connector_variant_from_metadata(metadata).ok().or_else(|| {
-        connector_and_config_from_metadata(metadata)
-            .ok()
-            .map(|(connector, _config)| connector)
-    })
+    connector_and_config_from_metadata(metadata)
+        .ok()
+        .map(|(connector, _config)| connector)
+        .or_else(|| connector_variant_from_metadata(metadata).ok())
 }
 
 #[cfg(feature = "connector-sanity-layer")]

@@ -145,15 +145,24 @@ procedural macro crate.
 Different proto field shapes generate different Rust field types:
 
 - `optional SomeMessage field = 1;` becomes `Option<SomeMessage>`
-- `SomeMessage field = 1;` becomes `SomeMessage`
+- `SomeMessage field = 1;` **also** becomes `Option<SomeMessage>` — prost always
+  wraps a singular message-typed field in `Option`, `optional` keyword or not,
+  because message fields track presence independently of any scalar default.
+  `field_shape()` accounts for this: any message-typed field is classified as
+  `FieldShape::Optional`, regardless of `proto3_optional`.
+- `optional int32 field = 1;` becomes `Option<i32>`; `int32 field = 1;`
+  (no `optional`) becomes plain `i32` — this is where `FieldShape::Required`
+  actually applies. It is only correct for scalar fields.
 - `repeated SomeMessage field = 1;` becomes `Vec<SomeMessage>`
 
 So the setter cannot be one generic assignment for every shape.
 
 The current contract supports these `FieldShape` variants in `setter_body`:
 
-- `FieldShape::Optional`
-- `FieldShape::Required`
+- `FieldShape::Optional` — used for every `optional` field, and for every
+  message-typed field even without `optional`
+- `FieldShape::Required` — scalar fields only; never reachable for a
+  message-typed field
 
 `repeated` is intentionally rejected with a generated `compile_error!`. This is safer than silently picking behavior for a shape that has not been designed.
 

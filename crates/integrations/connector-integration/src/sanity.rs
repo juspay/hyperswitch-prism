@@ -19,28 +19,37 @@ where
 }
 
 pub trait ConnectorSanity: Sync {
+    /// Populates `os_based_return_url` from `raw_config`. Default: no-op.
+    ///
+    /// A new auto-populated field gets its own `populate_*` method here (with
+    /// a no-op default), not a wider `apply` signature — connectors override
+    /// only the fields they actually read from raw config.
+    fn populate_os_based_return_url(
+        &self,
+        _raw_config: Option<&SecretSerdeValue>,
+        _req: &mut dyn ConnectorSanityRequest,
+    ) {
+    }
+
+    /// Runs every `populate_*` hook above. Connectors should not override
+    /// this directly; override the individual `populate_*` methods instead.
     fn apply(&self, raw_config: Option<SecretSerdeValue>, req: &mut dyn ConnectorSanityRequest) {
-        let _ = raw_config;
-        let _ = req;
-        tracing::debug!("no connector sanity registered");
+        self.populate_os_based_return_url(raw_config.as_ref(), req);
     }
 }
 
 pub trait ConnectorSanityExt {
-    fn sanity(&self) -> &'static dyn ConnectorSanity;
+    /// `None` when no sanity handler is registered for this connector — the
+    /// caller decides what that means (e.g. log and skip) instead of every
+    /// connector needing a placeholder implementer.
+    fn sanity(&self) -> Option<&'static dyn ConnectorSanity>;
 }
 
-pub struct NoopSanity;
-
-impl ConnectorSanity for NoopSanity {}
-
-pub static NOOP_SANITY: NoopSanity = NoopSanity;
-
 impl ConnectorSanityExt for ConnectorVariant {
-    fn sanity(&self) -> &'static dyn ConnectorSanity {
+    fn sanity(&self) -> Option<&'static dyn ConnectorSanity> {
         match self {
-            Self::Authenticator(AuthenticatorConnectorEnum::Plaid) => &PLAID_SANITY,
-            _ => &NOOP_SANITY,
+            Self::Authenticator(AuthenticatorConnectorEnum::Plaid) => Some(&PLAID_SANITY),
+            _ => None,
         }
     }
 }

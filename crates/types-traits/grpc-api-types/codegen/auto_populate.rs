@@ -163,10 +163,15 @@ fn find_field<'a>(
         .find(|field| field.name.as_deref() == Some(field_name))
 }
 
+/// prost always generates `Option<T>` for a singular message-typed field,
+/// regardless of whether the `.proto` field carries the `optional` keyword —
+/// message fields track presence independently of any `optional` marker,
+/// unlike scalars. So a message-typed field is always `Optional` shape here;
+/// only a scalar's shape actually depends on `proto3_optional`.
 fn field_shape(field: &FieldDescriptorProto) -> FieldShape {
     if field.label == Some(Label::Repeated as i32) {
         FieldShape::Repeated
-    } else if field.proto3_optional == Some(true) {
+    } else if field.proto3_optional == Some(true) || field.r#type == Some(Type::Message as i32) {
         FieldShape::Optional
     } else {
         FieldShape::Required
