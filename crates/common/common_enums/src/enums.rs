@@ -2120,7 +2120,6 @@ pub enum CardSegmentType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

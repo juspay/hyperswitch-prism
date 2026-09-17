@@ -57,7 +57,6 @@ pub struct WorldpayxmlToken {
     #[serde(rename = "authenticatedShopperID")]
     pub authenticated_shopper_id: Option<String>,
     pub token_details: WorldpayxmlTokenDetails,
-    pub payment_instrument: Option<WorldpayxmlTokenPaymentInstrument>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -66,25 +65,6 @@ pub struct WorldpayxmlTokenDetails {
     pub token_event: Option<String>,
     #[serde(rename = "paymentTokenID")]
     pub payment_token_id: Secret<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayxmlTokenPaymentInstrument {
-    pub emvco_token_details: Option<WorldpayxmlEmvcoTokenDetails>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayxmlEmvcoTokenDetails {
-    pub derived: Option<WorldpayxmlEmvcoTokenDetailsDerived>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayxmlEmvcoTokenDetailsDerived {
-    pub card_brand: Option<String>,
-    pub card_sub_brand: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
