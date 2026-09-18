@@ -575,7 +575,7 @@ jq --slurpfile p "$R/plan/plan.json" '([$p[0].order[] | select(.status == "withd
 **6. Converged** → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`. New blocking bugs, `rca_rounds`
 under cap and no stop-early → 4, then retests only (no second full run). Otherwise → 7.
 
-**7. Converged** → S6.
+**7. Hand off** — nothing left to route, and every `S5:e2e:*` row terminal → S6.
 
 ### E2E stage — `2.5_e2e.md` (`S5:e2e:<N>`, background, one spawn per flow group)
 
