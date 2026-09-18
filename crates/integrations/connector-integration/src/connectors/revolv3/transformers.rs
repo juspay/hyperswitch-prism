@@ -20,7 +20,7 @@ use domain_types::{
     router_request_types::AuthenticationData,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
 
@@ -306,17 +306,12 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
             })?,
         };
 
-        let expiration_year = decrypted_data.get_two_digit_expiry_year().change_context(
+        let application_expiration_date = decrypted_data.get_expiry_date_as_mmyy().change_context(
             IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.wallet.apple_pay.application_expiration_year",
+                field_name: "payment_method_data.wallet.apple_pay.application_expiration_year or payment_method_data.wallet.apple_pay.application_expiration_month",
                 context: Default::default(),
             },
         )?;
-        let application_expiration_date = Secret::new(format!(
-            "{:0>2}{}",
-            decrypted_data.get_expiry_month().peek(),
-            expiration_year.peek()
-        ));
 
         Ok(Self {
             application_primary_account_number: Secret::new(
@@ -357,17 +352,12 @@ impl TryFrom<&GooglePayWalletData> for Revolv3GooglePayDecryptedPackage {
             })?,
         };
 
-        let expiration_year = decrypted_data.get_two_digit_expiry_year().change_context(
+        let application_expiration_date = decrypted_data.get_expiry_date_as_mmyy().change_context(
             IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.wallet.google_pay.card_exp_year",
+                field_name: "payment_method_data.wallet.google_pay.card_exp_year or card_exp_month",
                 context: Default::default(),
             },
         )?;
-        let application_expiration_date = Secret::new(format!(
-            "{:0>2}{}",
-            decrypted_data.card_exp_month.peek(),
-            expiration_year.peek()
-        ));
 
         Ok(Self {
             application_primary_account_number: Secret::new(
