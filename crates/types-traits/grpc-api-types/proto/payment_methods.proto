@@ -390,6 +390,9 @@ message ApplePayDecryptedData {
   // Apple Pay merchant token identifier (present for merchant-provisioned
   // tokens only; stable per card x device x merchant)
   optional string merchant_token_identifier = 5;
+
+  // Identifier of the device that generated the token.
+  optional SecretString device_manufacturer_identifier = 6;
 }
 
 // Apple Pay cryptogram data structure
