@@ -699,8 +699,8 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
-| RCA rounds / fix attempts per bug | 3 / 2 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 2 / 2 / 3 / 4 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
 | Gate iterations per codegen spawn / finalize | 5 / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 2 | `env_repairs_per_round` |
