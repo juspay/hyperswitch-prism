@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.18.0
+
+### Bug Fixes
+
+- **connector:** [dLocal] Fix Status mapping in PSync flow ([#2322](https://github.com/juspay/connector-service/pull/2322)) ([`1d56956`](https://github.com/juspay/connector-service/commit/1d569566978a9324eb294946aab456f9a922349b))
+
+### Miscellaneous Tasks
+
+- **grace:** GRACE v2 — one connector, many flows, one PR ([#2323](https://github.com/juspay/connector-service/pull/2323)) ([`186ab60`](https://github.com/juspay/connector-service/commit/186ab60e3f16e800eb51caa2f73b69c617393962))
+- Update codeowners ([#2314](https://github.com/juspay/connector-service/pull/2314)) ([`88937b7`](https://github.com/juspay/connector-service/commit/88937b742ec8b9d4f004ecbcdd589da3bfed89cd))
+- Remove prism-euler-maintainers from connector-integration codeowners ([#2321](https://github.com/juspay/connector-service/pull/2321)) ([`e0cb43a`](https://github.com/juspay/connector-service/commit/e0cb43a60b4b0679a0b88bf43c029bec1dd3d7ac))
+
+**Full Changelog:** [`2026.09.17.0...2026.09.18.0`](https://github.com/juspay/connector-service/compare/2026.09.17.0...2026.09.18.0)
+
+- - -
+
 ## 2026.09.17.0
 
 ### Features
