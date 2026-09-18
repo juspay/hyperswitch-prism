@@ -40,20 +40,23 @@ caller wrote the industry term rather than the group's canonical name.
 Some industry features are carried by several markers that cannot be implemented independently.
 Those are named as a group, and the group name is a valid `{FLOW}`:
 
-| Flow group | Also accepted as | Markers implemented together |
-|---|---|---|
-| `ThreeDS` | `3DS`, `ThreeDs`, `three_ds` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
+| Flow group | Also accepted as |
+|---|---|
+| `ThreeDS` | `3DS`, `ThreeDs`, `three_ds` |
 
 **A flow group is ONE Connector Agent invocation, ONE commit. Do NOT decompose it
 into one invocation per marker.** The markers in a group share request and response types, share
 connector state across legs (the `connector_feature_data` round-trip), and are governed by a single
 `next_authentication_step` override that decides which leg runs next. Splitting them forces each leg
 to guess at contracts a later leg will change, and pushes all the cross-leg wiring into whichever leg
-happens to run last — where it arrives too late for the legs that needed it. Implement every marker
-in the group in one pass.
+happens to run last — where it arrives too late for the legs that needed it.
 
-The authoritative machine-readable copy of this table is the `## FLOW-GROUP MAP (Authoritative)` section of
-`grace/rulesbook/codegen/.gracerules_add_flow`, which non-Claude agents read. Keep the two in sync.
+**Which markers a group expands to is not fixed, and is not your decision.** `ThreeDS` covers
+`Authorize` plus whichever of `PreAuthenticate`, `Authenticate` and `PostAuthenticate` the connector's
+own documentation calls for — commonly one or two, sometimes none. The Connector Agent's plan stage
+derives that set per connector with the **LEG-COUNT PROCEDURE** in
+`grace/rulesbook/codegen/.gracerules_add_flow` `## FLOW-GROUP MAP (Authoritative)`, which is canonical
+for both Claude and non-Claude agents. You only need the alias row above, to parse `{FLOWS}`.
 
 If `{PAYMENT_METHOD}` is provided:
 - each `{FLOW}` must be an existing flow (typically `Authorize`), passed on as `<flow>/<PAYMENT_METHOD>`
