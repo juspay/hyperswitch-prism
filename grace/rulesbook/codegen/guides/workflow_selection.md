@@ -28,9 +28,16 @@ What do you need to do?
 │   │   │   ClientAuthenticationToken)
 │   │   │   → .gracerules_add_flow  (token markers map to
 │   │   │                            pattern_server_authentication_token.md)
+│   │   │   AUTH MECHANISM 3 - merchant/credential auth. The three
+│   │   │   *AuthenticationToken markers use MerchantAuthenticationFlowData
+│   │   │   and MerchantAuthenticationService. NOT 3DS. See note ³.
 │   │   │
 │   │   ├── 3DS authentication (PreAuthenticate/Authenticate/PostAuthenticate)
 │   │   │   → .gracerules_add_flow
+│   │   │   AUTH MECHANISM 1 - standalone 3DS trio. Uses PaymentFlowData and
+│   │   │   PaymentMethodAuthenticationService. You MUST also override
+│   │   │   next_authentication_step (pattern_authentication_dispatch.md) or
+│   │   │   the three legs never execute. See note ³.
 │   │   │
 │   │   ├── Webhook (IncomingWebhook/VerifyWebhookSource)
 │   │   │   → .gracerules_add_flow
@@ -44,7 +51,7 @@ What do you need to do?
 │   │       → .gracerules_add_flow
 │   │
 │   └── Add a payment method?
-│       (Card/CardRedirect/CardToken/NetworkToken/Wallet/PayLater/
+│       (Card/CardRedirect/PaymentMethodToken/NetworkToken/Wallet/PayLater/
 │        BankRedirect/OpenBanking/BankDebit/BankTransfer/Upi/Crypto/
 │        GiftCard/MobilePayment/Reward/Voucher/RealTimePayment/
 │        MandatePayment, plus Card-NTID / Wallet-NTID sub-patterns)
@@ -121,6 +128,11 @@ add Capture and Void flows to Adyen using grace/rulesbook/codegen/.gracerules_ad
 
 **Supported Flows:**
 
+> **Path base**: every `patterns/...` path in the two tables below and in
+> "Pattern File Locations" is relative to `grace/rulesbook/codegen/guides/`.
+> So `patterns/pattern_authorize.md` means
+> `grace/rulesbook/codegen/guides/patterns/pattern_authorize.md`.
+
 | Flow                             | Prerequisites | connector_flow.rs Marker              | Pattern File                                      |
 | -------------------------------- | ------------- | ------------------------------------- | ------------------------------------------------- |
 | Authorize                        | None          | `Authorize`                           | `patterns/pattern_authorize.md`                   |
@@ -137,19 +149,20 @@ add Capture and Void flows to Adyen using grace/rulesbook/codegen/.gracerules_ad
 | IncomingWebhook                  | PSync         | _(FlowName::IncomingWebhook)_         | `patterns/pattern_IncomingWebhook_flow.md`        |
 | VerifyWebhookSource              | IncomingWebhook | `VerifyWebhookSource`               | `patterns/pattern_verify_webhook_source.md`       |
 | CreateOrder                      | -             | `CreateOrder`                         | `patterns/pattern_createorder.md`                 |
-| SessionToken                     | -             | _(FlowName-only)_                     | `patterns/pattern_server_session_authentication_token.md` |
-| ServerSessionAuthenticationToken | -             | `ServerSessionAuthenticationToken`    | `patterns/pattern_server_session_authentication_token.md` |
-| ServerAuthenticationToken        | -             | `ServerAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (see "Mapping to connector_flow.rs token markers" section) |
-| ClientAuthenticationToken        | -             | `ClientAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (canonical) + `patterns/pattern_client_authentication_token.md` (companion) |
+| SessionToken _(alias)_           | -             | _(no marker — see note ¹)_            | `patterns/pattern_server_session_authentication_token.md` — **mechanism 3**, `MerchantAuthenticationFlowData` (note ³) |
+| ServerSessionAuthenticationToken | -             | `ServerSessionAuthenticationToken`    | `patterns/pattern_server_session_authentication_token.md` — **mechanism 3**, `MerchantAuthenticationFlowData` (note ³) |
+| ServerAuthenticationToken        | -             | `ServerAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (see "Mapping to connector_flow.rs token markers" section) — **mechanism 3**, `MerchantAuthenticationFlowData` (note ³) |
+| ClientAuthenticationToken        | -             | `ClientAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (canonical) + `patterns/pattern_client_authentication_token.md` (companion) — **mechanism 3**, `MerchantAuthenticationFlowData` (note ³) |
 | CreateConnectorCustomer          | -             | `CreateConnectorCustomer`             | `patterns/pattern_create_connector_customer.md`   |
 | PaymentMethodToken               | -             | `PaymentMethodToken`                  | `patterns/pattern_payment_method_token.md`        |
-| PreAuthenticate                  | -             | `PreAuthenticate`                     | `patterns/pattern_preauthenticate.md`             |
-| Authenticate                     | PreAuthenticate | `Authenticate`                      | `patterns/pattern_authenticate.md`                |
-| PostAuthenticate                 | Authenticate  | `PostAuthenticate`                    | `patterns/pattern_postauthenticate.md`            |
+| PreAuthenticate                  | -             | `PreAuthenticate`                     | `patterns/pattern_preauthenticate.md` — **mechanism 1**, `PaymentFlowData`; also needs `patterns/pattern_authentication_dispatch.md` (note ³) |
+| Authenticate                     | PreAuthenticate | `Authenticate`                      | `patterns/pattern_authenticate.md` — **mechanism 1**, `PaymentFlowData`; also needs `patterns/pattern_authentication_dispatch.md` (note ³) |
+| PostAuthenticate                 | Authenticate  | `PostAuthenticate`                    | `patterns/pattern_postauthenticate.md` — **mechanism 1**, `PaymentFlowData`; also needs `patterns/pattern_authentication_dispatch.md` (note ³) |
+| _(dispatch override)_ `next_authentication_step` | any of the three above | _(no marker — a default method on `ValidationTrait`)_ | `patterns/pattern_authentication_dispatch.md` — **mandatory with mechanism 1** (note ⁴) |
 | DefendDispute                    | -             | `DefendDispute`                       | `patterns/pattern_defend_dispute.md`              |
 | AcceptDispute                    | -             | `Accept`                              | `patterns/pattern_accept_dispute.md`              |
 | SubmitEvidence                   | AcceptDispute | `SubmitEvidence`                      | `patterns/pattern_submit_evidence.md`             |
-| DSync                            | -             | _(FlowName::Dsync)_                   | `patterns/pattern_dsync.md`                       |
+| DSync                            | -             | _(FlowName::Dsync — see note ²)_      | `patterns/pattern_dsync.md`                       |
 | PayoutCreate                     | -             | `PayoutCreate`                        | `patterns/pattern_payout_create.md`               |
 | PayoutTransfer                   | PayoutCreate  | `PayoutTransfer`                      | `patterns/pattern_payout_transfer.md`             |
 | PayoutGet                        | PayoutCreate  | `PayoutGet`                           | `patterns/pattern_payout_get.md`                  |
@@ -159,10 +172,83 @@ add Capture and Void flows to Adyen using grace/rulesbook/codegen/.gracerules_ad
 | PayoutCreateRecipient            | -             | `PayoutCreateRecipient`               | `patterns/pattern_payout_create_recipient.md`     |
 | PayoutEnrollDisburseAccount      | PayoutCreateRecipient | `PayoutEnrollDisburseAccount` | `patterns/pattern_payout_enroll_disburse_account.md` |
 
+**Marker notes** (checked against `crates/types-traits/domain_types/src/connector_flow.rs`):
+
+- ¹ `SessionToken` is a **trigger alias only**, not a marker. There is no
+  `SessionToken` struct and no `FlowName::SessionToken`; a word-boundary search
+  finds zero flow-marker hits under `crates/` (the single `crates/` hit is an
+  unrelated error-message string in `payu.rs`) and zero under `*.proto`. Use
+  `ServerSessionAuthenticationToken` — the real marker — when writing code; the
+  alias is kept here only because `.gracerules_add_flow` accepts it as a request
+  word. The pattern file is shared with the `ServerSessionAuthenticationToken`
+  row on purpose.
+- ² The marker is spelled `Dsync` (one capital), not `DSync`. `DSync` has zero
+  hits under `crates/` and zero under `*.proto`. `Dsync` is a `FlowName` variant
+  only — there is no `pub struct Dsync` in `connector_flow.rs`. The row label
+  above is kept as `DSync` because that is the word users type; the code must
+  say `FlowName::Dsync`.
+- Every other marker in the table above resolves to a `pub struct` in
+  `connector_flow.rs`, except `IncomingWebhook`, which — like `Dsync` — is a
+  `FlowName` variant only. `AcceptDispute` maps to `pub struct Accept` (and
+  `FlowName::AcceptDispute`), as the table's marker column already shows.
+- ³ **"Authentication" is three unrelated mechanisms.** Getting the
+  `resource_common_data` wrong here is the top codegen failure mode, because the
+  two families share the word "authentication" and nothing else. Verified in
+  `crates/types-traits/interfaces/src/connector_types.rs`:
+
+  | Mechanism | Markers | `resource_common_data` | gRPC service |
+  | --------- | ------- | ---------------------- | ------------ |
+  | 1 — standalone 3DS trio (cardholder) | `PreAuthenticate` / `Authenticate` / `PostAuthenticate` | **`PaymentFlowData`** | `PaymentMethodAuthenticationService` |
+  | 2 — in-payment 3DS (cardholder) | *(none; folded into Authorize)* | `PaymentFlowData` | `PaymentService.Authorize` |
+  | 3 — merchant / credential auth (**not** cardholder) | `ServerAuthenticationToken` / `ServerSessionAuthenticationToken` / `ClientAuthenticationToken` | **`MerchantAuthenticationFlowData`** | `MerchantAuthenticationService` |
+
+  A **fourth** thing is not authentication at all:
+  `crates/integrations/connector-integration/src/authenticator_connectors/`
+  (sole member `plaid`) does bank-account linking. It is a *sibling* of
+  `connectors/`, not a subdirectory, and it is out of scope for
+  `.gracerules_add_flow`. Full write-up:
+  `patterns/README.md` → "The Three Auth Mechanisms".
+
+  Confirm the split yourself before writing a macro invocation:
+
+  ```bash
+  # mechanism 1 — every hit is PaymentFlowData
+  grep -n "flow_name: PreAuthenticate\|flow_name: Authenticate,\|flow_name: PostAuthenticate" -A1 \
+    crates/integrations/connector-integration/src/connectors/*.rs | grep resource_common_data
+
+  # mechanism 3 — every hit is MerchantAuthenticationFlowData
+  grep -rn "flow_name: ServerAuthenticationToken\|flow_name: ServerSessionAuthenticationToken\|flow_name: ClientAuthenticationToken" -A1 \
+    crates/integrations/connector-integration/src/ | grep resource_common_data
+  ```
+
+  **External 3DS providers do not route through UCS.** The Hyperswitch router's
+  own `authentication_connectors` category (3dsecure.io, Gpayments, Cardinal,
+  Click-to-Pay / CTP) runs entirely in the router; there are zero UCS connectors
+  for those names. Do not generate a UCS connector, a `superposition.toml` entry,
+  or a `connector_specs` entry for one. Two carve-outs: `connectors/netcetera.rs`
+  *does* exist in UCS as an authentication-only connector (the trio plus a stub
+  `Authorize` returning `NotImplemented`, registered in the **payment** registry);
+  and the external-vault-proxy (VGS / Basis Theory / Spreedly) path keeps 3DS on
+  the UCS side — `services.proto` states in its PROXIED PAYMENT METHODS block
+  that the trio *is* available on `ProxyAuthorize` because the proxy substitutes
+  the vault alias with the real PAN, whereas the TOKENIZED PAYMENT METHODS block
+  says the trio is *not* available on `TokenAuthorize`.
+- ⁴ `next_authentication_step` is **not** a flow and has no marker — it is a
+  default method on `ValidationTrait` in
+  `crates/types-traits/interfaces/src/connector_types.rs` that returns
+  `AuthenticationStep::Authorize`, i.e. **skip every 3DS leg**. The consuming
+  loop is `process_composite_authorize` in
+  `crates/internal/composite-service/src/payments.rs`. A connector that
+  implements the trio but does not override this method compiles cleanly and its
+  3DS legs are **unreachable at runtime**. `connectors/barclaycard.rs` is the
+  canonical full-trio override; list the current ones with
+  `grep -ln "fn next_authentication_step" crates/integrations/connector-integration/src/connectors/*.rs`.
+
 **Pattern Files:**
 
 - Flat flow patterns live in `guides/patterns/pattern_{flow_name}.md`
 - Payment-method patterns live in `guides/patterns/authorize/{pm}/pattern_authorize_{pm}.md`
+- In the tables, both are written from the `guides/` base — i.e. `patterns/...`
 
 ---
 
@@ -193,32 +279,44 @@ add UPI:Collect,Intent to PhonePe using grace/rulesbook/codegen/.gracerules_add_
 
 **Supported Payment Methods:**
 
-Every `PaymentMethodData` variant from
-`crates/types-traits/domain_types/src/payment_method_data.rs` (20 variants) has
-a dedicated pattern directory. Coverage is 100%.
+`PaymentMethodData` in `crates/types-traits/domain_types/src/payment_method_data.rs:362`
+has **21** variants. 20 of them have a pattern file below; `CardWithNoCvc`
+does not yet (see its row below). The two NTID variants share the `card/` and
+`wallet/` directories rather than getting one of their own. Paths in the table are relative to
+`grace/rulesbook/codegen/guides/`, the same base as the flow table above.
 
-| Category          | PaymentMethodData Variant | Types                                     | Pattern File                                                   |
-| ----------------- | ------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
-| Card              | `Card`                    | Credit, Debit                             | `authorize/card/pattern_authorize_card.md`                     |
-| Card (NTID / MIT) | `CardDetailsForNetworkTransactionId` | Card MIT via NTID             | `authorize/card/pattern_authorize_card_ntid.md`                |
-| CardRedirect      | `CardRedirect`            | CarteBancaire, Knet, Benefit              | `authorize/card_redirect/pattern_authorize_card_redirect.md`   |
-| CardToken         | `CardToken`               | Pre-tokenized card reference              | `authorize/card_token/pattern_authorize_card_token.md`         |
-| NetworkToken      | `NetworkToken`            | VTS / MDES network tokens                 | `authorize/network_token/pattern_authorize_network_token.md`   |
-| Wallet            | `Wallet`                  | Apple Pay, Google Pay, PayPal, WeChat Pay | `authorize/wallet/pattern_authorize_wallet.md`                 |
-| Wallet (NTID / MIT) | `DecryptedWalletTokenDetailsForNetworkTransactionId` | Wallet MIT via decrypted token | `authorize/wallet/pattern_authorize_wallet_ntid.md` |
-| BankTransfer      | `BankTransfer`            | SEPA, ACH, Wire                           | `authorize/bank_transfer/pattern_authorize_bank_transfer.md`   |
-| BankDebit         | `BankDebit`               | SEPA Direct Debit, ACH Debit, BACS        | `authorize/bank_debit/pattern_authorize_bank_debit.md`         |
-| BankRedirect      | `BankRedirect`            | iDEAL, Sofort, Giropay                    | `authorize/bank_redirect/pattern_authorize_bank_redirect.md`   |
-| OpenBanking       | `OpenBanking`             | TrueLayer, Plaid OBIE PIS                 | `authorize/open_banking/pattern_authorize_open_banking.md`     |
-| UPI               | `Upi`                     | Collect, Intent, QR                       | `authorize/upi/pattern_authorize_upi.md`                       |
-| BNPL              | `PayLater`                | Klarna, Afterpay, Affirm                  | `authorize/bnpl/pattern_authorize_bnpl.md`                     |
-| Crypto            | `Crypto`                  | Bitcoin, Ethereum                         | `authorize/crypto/pattern_authorize_crypto.md`                 |
-| GiftCard          | `GiftCard`                | Gift Card                                 | `authorize/gift_card/pattern_authorize_gift_card.md`           |
-| MobilePayment     | `MobilePayment`           | Carrier Billing                           | `authorize/mobile_payment/pattern_authorize_mobile_payment.md` |
-| Reward            | `Reward`                  | Loyalty Points                            | `authorize/reward/pattern_authorize_reward.md`                 |
-| Voucher           | `Voucher`                 | Boleto, OXXO, PayCash, Efecty             | `authorize/voucher/pattern_authorize_voucher.md`               |
-| RealTimePayment   | `RealTimePayment`         | Pix, PromptPay, DuitNow, FedNow           | `authorize/real_time_payment/pattern_authorize_real_time_payment.md` |
-| MandatePayment    | `MandatePayment`          | Mandate / CIT-based recurring             | `authorize/mandate_payment/pattern_authorize_mandate_payment.md` |
+| Category            | PaymentMethodData Variant | Types                                     | Pattern File                                                            |
+| ------------------- | ------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| Card                | `Card`                    | Credit, Debit                             | `patterns/authorize/card/pattern_authorize_card.md`                     |
+| Card (no CVC)       | `CardWithNoCvc`           | Raw card without CVC                      | **No pattern file yet — follow the generic card pattern** `patterns/authorize/card/pattern_authorize_card.md` |
+| Card (NTID / MIT)   | `CardDetailsForNetworkTransactionId` | Card MIT via NTID              | `patterns/authorize/card/pattern_authorize_card_ntid.md`                |
+| CardRedirect        | `CardRedirect`            | CarteBancaire, Knet, Benefit              | `patterns/authorize/card_redirect/pattern_authorize_card_redirect.md`   |
+| PaymentMethodToken  | `PaymentMethodToken`      | Pre-tokenized card reference              | `patterns/authorize/payment_method_token/pattern_authorize_payment_method_token.md` |
+| NetworkToken        | `NetworkToken`            | VTS / MDES network tokens                 | `patterns/authorize/network_token/pattern_authorize_network_token.md`   |
+| Wallet              | `Wallet`                  | Apple Pay, Google Pay, PayPal, WeChat Pay | `patterns/authorize/wallet/pattern_authorize_wallet.md`                 |
+| Wallet (NTID / MIT) | `DecryptedWalletTokenDetailsForNetworkTransactionId` | Wallet MIT via decrypted token | `patterns/authorize/wallet/pattern_authorize_wallet_ntid.md` |
+| BankTransfer        | `BankTransfer`            | SEPA, ACH, Wire                           | `patterns/authorize/bank_transfer/pattern_authorize_bank_transfer.md`   |
+| BankDebit           | `BankDebit`               | SEPA Direct Debit, ACH Debit, BACS        | `patterns/authorize/bank_debit/pattern_authorize_bank_debit.md`         |
+| BankRedirect        | `BankRedirect`            | iDEAL, Sofort, Giropay                    | `patterns/authorize/bank_redirect/pattern_authorize_bank_redirect.md`   |
+| OpenBanking         | `OpenBanking`             | TrueLayer, Plaid OBIE PIS                 | `patterns/authorize/open_banking/pattern_authorize_open_banking.md`     |
+| UPI                 | `Upi`                     | Collect, Intent, QR                       | `patterns/authorize/upi/pattern_authorize_upi.md`                       |
+| BNPL                | `PayLater`                | Klarna, Afterpay, Affirm                  | `patterns/authorize/bnpl/pattern_authorize_bnpl.md`                     |
+| Crypto              | `Crypto`                  | Bitcoin, Ethereum                         | `patterns/authorize/crypto/pattern_authorize_crypto.md`                 |
+| GiftCard            | `GiftCard`                | Gift Card                                 | `patterns/authorize/gift_card/pattern_authorize_gift_card.md`           |
+| MobilePayment       | `MobilePayment`           | Carrier Billing                           | `patterns/authorize/mobile_payment/pattern_authorize_mobile_payment.md` |
+| Reward              | `Reward`                  | Loyalty Points                            | `patterns/authorize/reward/pattern_authorize_reward.md`                 |
+| Voucher             | `Voucher`                 | Boleto, OXXO, PayCash, Efecty             | `patterns/authorize/voucher/pattern_authorize_voucher.md`               |
+| RealTimePayment     | `RealTimePayment`         | Pix, PromptPay, DuitNow, FedNow           | `patterns/authorize/real_time_payment/pattern_authorize_real_time_payment.md` |
+| MandatePayment      | `MandatePayment`          | Mandate / CIT-based recurring             | `patterns/authorize/mandate_payment/pattern_authorize_mandate_payment.md` |
+
+> **`CardToken` was renamed to `PaymentMethodToken`** by commit `70e0883df`
+> (PR #1010). There is no `PaymentMethodData::CardToken` variant and no
+> `patterns/authorize/card_token/` directory — use the `PaymentMethodToken` row.
+> (A grep for the bare word `CardToken` still hits `worldpay/requests.rs`; that is
+> Worldpay's own `PaymentInstrument::CardToken`, unrelated to this enum.)
+> Note that the PM-level `PaymentMethodToken` variant above and the flow-level
+> `PaymentMethodToken` marker in the Supported Flows table are different things:
+> the flow's pattern is `patterns/pattern_payment_method_token.md`.
 
 **Payment Method Specification Syntax:**
 
@@ -240,7 +338,7 @@ add UPI:Collect,Intent to PhonePe
 add Wallet:Apple Pay,Google Pay and Card:Credit,Debit and BankTransfer:ACH to Stripe
 ```
 
-_Category Names:_ Card, CardRedirect, CardToken, NetworkToken, Wallet, BankTransfer, BankDebit, BankRedirect, OpenBanking, UPI, BNPL, Crypto, GiftCard, MobilePayment, Reward, Voucher, RealTimePayment, MandatePayment (NTID sub-patterns: `Card:NTID`, `Wallet:NTID`)
+_Category Names:_ Card, CardRedirect, PaymentMethodToken, NetworkToken, Wallet, BankTransfer, BankDebit, BankRedirect, OpenBanking, UPI, BNPL, Crypto, GiftCard, MobilePayment, Reward, Voucher, RealTimePayment, MandatePayment (NTID sub-patterns: `Card:NTID`, `Wallet:NTID`)
 
 **Prerequisites:**
 
@@ -268,12 +366,12 @@ _Category Names:_ Card, CardRedirect, CardToken, NetworkToken, Wallet, BankTrans
 
 **Situation:** Stripe connector has Authorize, Capture, but is missing Refund.
 
-**Solution:** Use `.gracerules_flow`
+**Solution:** Use `.gracerules_add_flow`
 
 **Command:**
 
 ```bash
-add Refund flow to Stripe
+add Refund flow to Stripe using grace/rulesbook/codegen/.gracerules_add_flow
 ```
 
 **What Happens:**
@@ -289,12 +387,12 @@ add Refund flow to Stripe
 
 **Situation:** Adyen connector supports Cards but needs Apple Pay.
 
-**Solution:** Use `.gracerules_payment_method`
+**Solution:** Use `.gracerules_add_payment_method`
 
 **Command:**
 
 ```bash
-add Apple Pay to Adyen
+add Wallet:Apple Pay to Adyen using grace/rulesbook/codegen/.gracerules_add_payment_method
 ```
 
 **What Happens:**
@@ -331,7 +429,7 @@ integrate MyConnector using grace/rulesbook/codegen/.gracerules
 
 **Situation:** Stripe's Refund flow has incorrect error mapping.
 
-**Solution:** Use `.gracerules_flow` with fix intent
+**Solution:** Use `.gracerules_add_flow` with fix intent
 
 **Command:**
 
@@ -339,7 +437,9 @@ integrate MyConnector using grace/rulesbook/codegen/.gracerules
 fix error handling in Stripe Refund flow
 ```
 
-Or manually edit using patterns from `guides/flows/refund/`
+Or manually edit using the pattern at `patterns/pattern_refund.md` (i.e.
+`grace/rulesbook/codegen/guides/patterns/pattern_refund.md`; there is no
+`guides/flows/` directory)
 
 ---
 
@@ -369,14 +469,27 @@ Examples:
 - `patterns/pattern_refund.md`
 - `patterns/pattern_payout_create.md`, `patterns/pattern_payout_transfer.md`, ...
 - `patterns/pattern_preauthenticate.md`, `patterns/pattern_authenticate.md`, `patterns/pattern_postauthenticate.md`
+  (**auth mechanism 1** — standalone 3DS trio, `PaymentFlowData`,
+  `PaymentMethodAuthenticationService`)
+- `patterns/pattern_authentication_dispatch.md` (**mandatory companion to the trio** —
+  the `next_authentication_step` override on `ValidationTrait`; without it the
+  three flows above never execute)
 - `patterns/pattern_create_connector_customer.md`
 - `patterns/pattern_verify_webhook_source.md`
-- `patterns/pattern_client_authentication_token.md`
-- `patterns/pattern_server_authentication_token.md` (canonical source for the three
-  token markers `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`,
-  and `ClientAuthenticationToken` — see its "Mapping to connector_flow.rs
-  token markers" section)
-- `patterns/pattern_server_session_authentication_token.md` (wallet-session bootstrap flow)
+- `patterns/pattern_client_authentication_token.md` (**auth mechanism 3**)
+- `patterns/pattern_server_authentication_token.md` (**auth mechanism 3** — merchant /
+  credential auth, `MerchantAuthenticationFlowData`, `MerchantAuthenticationService`;
+  canonical source for the three token markers `ServerSessionAuthenticationToken`,
+  `ServerAuthenticationToken`, and `ClientAuthenticationToken` — see its
+  "Mapping to connector_flow.rs token markers" section)
+- `patterns/pattern_server_session_authentication_token.md` (**auth mechanism 3** —
+  wallet-session bootstrap flow)
+
+> The mechanism labels above are explained in note ³ of "Supported Flows" and in
+> full in `patterns/README.md` → "The Three Auth Mechanisms". Mechanism 1 and
+> mechanism 3 take **different** `resource_common_data` types
+> (`PaymentFlowData` vs `MerchantAuthenticationFlowData`) and are served by
+> **different** gRPC services; they are not variants of one another.
 
 ### Payment Method Patterns (authorize/ tree)
 
@@ -396,7 +509,7 @@ Examples:
 - `patterns/authorize/card_redirect/pattern_authorize_card_redirect.md`
 - `patterns/authorize/open_banking/pattern_authorize_open_banking.md`
 - `patterns/authorize/network_token/pattern_authorize_network_token.md`
-- `patterns/authorize/card_token/pattern_authorize_card_token.md`
+- `patterns/authorize/payment_method_token/pattern_authorize_payment_method_token.md`
 - `patterns/authorize/mandate_payment/pattern_authorize_mandate_payment.md`
 
 ## Tips for Best Results
@@ -430,6 +543,7 @@ Examples:
 ## Related Documentation
 
 - [Patterns README](./patterns/README.md) - Pattern overview
-- [Flows README](./flows/README.md) - Flow patterns index
+- [The Three Auth Mechanisms](./patterns/README.md#-the-three-auth-mechanisms--read-this-before-any-auth-flow) - which of 3DS trio / in-payment 3DS / merchant-credential auth you are actually in, and why external 3DS providers never reach UCS
+- [Authorize Patterns README](./patterns/authorize/README.md) - Payment-method pattern index
 - [Connector Integration Guide](./connector_integration_guide.md) - Step-by-step integration
 - [Quality Guide](./quality/README.md) - Code quality standards

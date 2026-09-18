@@ -20,7 +20,9 @@ let return_url = data.router_return_url
 
 ### `handle_json_response_deserialization_failure`
 - **Location:** `domain_types::utils::handle_json_response_deserialization_failure`
-- **Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, IntegrationError>`
+- **Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorError>`
+- **Note:** the error type is `ConnectorError` (response phase), **not** `IntegrationError`. The
+  `connector` argument is currently ignored by the implementation but is still required.
 - **Description:** Fallback handler when JSON deserialization fails; checks if response is HTML/text.
 - **Example:**
 ```rust
@@ -39,8 +41,12 @@ serde_json::from_str::<ErrorResponse>(&response_data)
 - **Signature:** `fn get_unimplemented_payment_method_error_message(connector: &str) -> String`
 - **Example:**
 ```rust
+// NotImplemented is a TUPLE variant of TWO fields:
+//   NotImplemented(String, IntegrationErrorContext)
+// The helper itself takes exactly ONE argument.
 PaymentMethodData::Wallet(_) => Err(errors::IntegrationError::NotImplemented(
-    get_unimplemented_payment_method_error_message("connector_name", Default::default())
+    get_unimplemented_payment_method_error_message("connector_name"),
+    Default::default(),
 ))?,
 ```
 
@@ -59,12 +65,21 @@ let amount_str = convert_amount(&StringMajorUnitForConnector, item.amount, item.
 ```
 
 ### Available Amount Convertors (`common_utils::types`)
-| Convertor | Output | Example |
-|-----------|--------|---------|
-| `StringMajorUnitForConnector` | String major units | `"10.00"` |
-| `StringMinorUnitForConnector` | String minor units | `"1000"` |
-| `FloatMajorUnitForConnector` | Float major units | `10.00` |
-| `MinorUnitForConnector` | MinorUnit passthrough | `1000` |
+
+There are **five**, not four:
+
+| Convertor | Output | Example | Connectors at HEAD |
+|-----------|--------|---------|--------------------|
+| `StringMajorUnitForConnector` | String major units | `"10.00"` | 25 |
+| `FloatMajorUnitForConnector` | Float major units | `10.00` | 22 |
+| `MinorUnitForConnector` | MinorUnit passthrough | `1000` | 11 |
+| `StringMinorUnitForConnector` | String minor units | `"1000"` | 10 |
+| `StringTwoDecimalUnitForConnector` | String, always 2 dp even for zero-decimal currencies | `"10.00"` | 0 |
+
+**Pick the one that matches the vendor spec's wire format.** There is no safe default:
+`StringMinorUnit` accounts for only 10 of the 67 converter-declaring connectors, so treating it as
+the fallback is wrong about 85% of the time. A decimal point in the vendor's sample payload means a
+*major* unit; quotes mean a *String* variant.
 
 ### `convert_back_amount_to_minor_units`
 - **Location:** `domain_types::utils`
@@ -73,8 +88,10 @@ let amount_str = convert_amount(&StringMajorUnitForConnector, item.amount, item.
 
 ### `to_currency_base_unit`
 - **Location:** `domain_types::utils::to_currency_base_unit`
-- **Signature:** `fn to_currency_base_unit(amount: i64, currency: Currency) -> Result<String, Error>`
+- **Signature:** `fn to_currency_base_unit(amount: MinorUnit, currency: Currency) -> Result<String, Report<IntegrationError>>`
 - **Description:** Converts minor unit amount to base unit string (e.g., 1000 cents -> "10.00").
+  Takes a `MinorUnit`, not a bare `i64`. (`to_currency_base_unit_with_zero_decimal_check` *does*
+  take `amount: i64` -- the two differ.)
 
 ### `to_currency_base_unit_with_zero_decimal_check`
 - **Location:** `domain_types::utils`
@@ -86,7 +103,10 @@ let amount_str = convert_amount(&StringMajorUnitForConnector, item.amount, item.
 
 ### `to_connector_meta_from_secret`
 - **Location:** `connector_integration::utils::to_connector_meta_from_secret`
-- **Signature:** `fn to_connector_meta_from_secret<T>(connector_meta: Option<Secret<Value>>) -> Result<T, Error>`
+- **Signature:** `pub(crate) fn to_connector_meta_from_secret<T: DeserializeOwned>(connector_meta: Option<Secret<Value>>) -> Result<T, Error>`
+- **Note:** `pub(crate)` -- reachable from connector modules via `crate::utils::` or `utils::`,
+  but not from outside the `connector-integration` crate. Handles both a JSON object and a JSON
+  string containing JSON.
 - **Description:** Deserializes connector metadata from secret JSON to a typed struct.
 - **Example:**
 ```rust
@@ -106,12 +126,15 @@ struct Response {
 }
 ```
 
-### `convert_country_alpha2_to_alpha3`
-- **Location:** `domain_types::utils::convert_country_alpha2_to_alpha3`
-- **Description:** Converts ISO country code from 2-letter to 3-letter format. Handles all 249 codes.
+### Country alpha-2 to alpha-3
+- **Location:** `common_enums::transformers` -- an associated function on `CountryAlpha2`, **not** a
+  free function in `domain_types::utils`. There is no `convert_country_alpha2_to_alpha3`.
+- **Signature:** `const fn CountryAlpha2::from_alpha2_to_alpha3(code: CountryAlpha2) -> CountryAlpha3`
+- **Description:** Total mapping over all ISO 3166-1 codes; infallible, so no `?`.
 - **Example:**
 ```rust
-let alpha3 = convert_country_alpha2_to_alpha3(&billing_address.country)?;
+use common_enums::{CountryAlpha2, CountryAlpha3};
+let alpha3: CountryAlpha3 = CountryAlpha2::from_alpha2_to_alpha3(billing_country);
 ```
 
 ### `convert_us_state_to_code`
@@ -151,17 +174,126 @@ let issuer = get_card_issuer(&card.card_number.peek())?;
 ```
 
 ### `get_card_expiry_month_year_2_digit_with_delimiter`
-- **Location:** `domain_types::utils`
-- **Description:** Formats card expiry as "MM/YY" (or custom delimiter). Handles validation and padding.
-- **Example:**
+- **Location:** a **method** on the card types in
+  `domain_types::payment_method_data` -- `Card<T>` (`payment_method_data.rs:253`) and the
+  tokenised card type (`payment_method_data.rs:1586`). It is *not* a free function in
+  `domain_types::utils`.
+- **Signature:** `fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> Result<Secret<String>, IntegrationError>`
+- **Description:** Formats card expiry as `MM<delimiter>YY`; pass `"".to_string()` for `MMYY`.
+  Takes the delimiter by value as a `String`, and only that -- month and year come from `self`.
+- **Example** (real call sites: `connectors/mollie/transformers.rs:936`, `connectors/nmi/transformers.rs:627`):
 ```rust
-let expiry = get_card_expiry_month_year_2_digit_with_delimiter(&card.expiry_month, &card.expiry_year, "/")?;
+let expiry = card_data.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?;
 ```
 
 ### `is_mandate_supported`
 - **Location:** `domain_types::utils`
 - **Signature:** `fn is_mandate_supported<T>(selected_pmd: PaymentMethodData<T>, payment_method_type: Option<PaymentMethodType>, mandate_implemented_pmds: HashSet<PaymentMethodDataType>, connector: &'static str) -> Result<(), Error>`
 - **Description:** Validates if a payment method supports mandate/recurring payments.
+
+---
+
+## Address / Phone Accessors -- read the semantics before choosing
+
+These live on the flow request data (`domain_types::connector_types`) and on `PhoneDetails`
+(`domain_types::payment_address`). Two of them look interchangeable and are not. Picking the wrong
+one sends a malformed phone number to the gateway, which usually surfaces as a vague validation
+rejection rather than a compile error.
+
+| Accessor | Returns | Value |
+|----------|---------|-------|
+| `req.get_billing_phone_number()` | `Result<Secret<String>, Error>` | **Country code + number, concatenated** -- e.g. `"+14155550123"` |
+| `req.get_billing_phone()?.get_number()?` | `Secret<String>` | **Bare national number only** -- e.g. `"4155550123"` |
+
+`get_billing_phone_number()` is `get_number_with_country_code()` under the hood:
+
+```rust
+pub fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
+    let number = self.get_number()?;
+    let country_code = self.get_country_code()?;
+    Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+}
+```
+
+`PhoneDetails::country_code` is stored **with its leading `+`** -- which is why
+`extract_country_code()` and `get_number_with_hash_country_code()` both call
+`trim_start_matches('+')`. So `get_billing_phone_number()` yields an E.164-style string beginning
+with `+`, and it errors if *either* the number or the country code is missing.
+
+The full `PhoneDetails` set (`payment_address.rs:365-395`):
+
+| Method | Returns | Value |
+|--------|---------|-------|
+| `get_number()` | `Result<Secret<String>, Error>` | bare national number |
+| `get_country_code()` | `Result<String, Error>` | country code **with** `+`, e.g. `"+1"` |
+| `extract_country_code()` | `Result<String, Error>` | country code **without** `+`, e.g. `"1"` |
+| `get_number_with_country_code()` | `Result<Secret<String>, Error>` | `"+14155550123"` |
+| `get_number_with_hash_country_code()` | `Result<Secret<String>, Error>` | `"1#4155550123"` (no `+`) |
+
+Choose by what the vendor spec asks for:
+- Spec says "E.164" or shows `+1...` → `get_billing_phone_number()`
+- Spec has **separate** `country_code` and `phone` fields → `extract_country_code()` +
+  `get_billing_phone()?.get_number()?` (most specs want the code without `+` in its own field)
+- Spec shows a `#`-delimited pair → `get_number_with_hash_country_code()`
+
+Every one of these returns `Err(MissingRequiredField)` rather than a default, so a missing phone
+surfaces as a proper error -- do not wrap them in `unwrap_or_default()`.
+
+---
+
+## Failure and Fallback Helpers
+
+### `is_payment_failure` / `is_refund_failure`
+- **Location:** `domain_types::utils::is_payment_failure` (`utils.rs:231`),
+  `connector_integration::utils::is_refund_failure` (`utils.rs:301`)
+- **Signature:** `fn is_payment_failure(status: AttemptStatus) -> bool`,
+  `fn is_refund_failure(status: RefundStatus) -> bool`
+- **Description:** The framework's definition of "this is a failure". `is_payment_failure` is true
+  for `AuthenticationFailed`, `AuthorizationFailed`, `CaptureFailed`, `VoidFailed`, `Expired` and
+  `Failure`; `is_refund_failure` is true for `Failure` and `TransactionFailure`. Both are
+  exhaustive matches, so they stay correct when a status variant is added.
+- **Use them to gate in-band 2xx failures.** A gateway that returns HTTP 200 with a declined body
+  must produce `Err(ErrorResponse{..})`, not `Ok(..)` carrying a failure status:
+
+```rust
+let status = AttemptStatus::from(item.response.status);
+let response = if utils::is_payment_failure(status) {
+    Err(ErrorResponse {
+        code: item.response.error_code.clone()
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+        message: item.response.error_message.clone()
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+        reason: item.response.error_message.clone(),
+        status_code: item.http_code,
+        attempt_status: Some(FlowStatus::Payment(status)),
+        connector_transaction_id: Some(item.response.id.clone()),
+        ..Default::default()
+    })
+} else {
+    Ok(PaymentsResponseData::TransactionResponse { /* all 11 fields */ })
+};
+```
+
+Do not re-derive which statuses count as failure with a hand-written match or a string comparison.
+
+### `NO_ERROR_CODE` / `NO_ERROR_MESSAGE`
+- **Location:** `common_utils::consts` (`crates/common/common_utils/src/consts.rs:154`, `:156`)
+- **Values:** `"No error code"`, `"No error message"`
+- **Description:** The standard stand-ins when the connector's error body omits a code or message.
+  `NO_ERROR_CODE` alone appears 247 times across real connectors.
+- **Never** `.unwrap_or_default()` an error code or message: the resulting `""` is
+  indistinguishable downstream from a connector that genuinely sent an empty string, and it
+  silently breaks error-code reporting.
+
+```rust
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
+// Wrong
+code: response.error_code.unwrap_or_default(),
+
+// Correct
+code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+```
 
 ---
 
@@ -200,11 +332,14 @@ let formatted = format_date(now(), DateFormat::YYYYMMDDHHmmss)?; // "20250117153
 
 ### `preprocess_xml_response_bytes`
 - **Location:** `connector_integration::utils::xml_utils::preprocess_xml_response_bytes`
-- **Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, IntegrationError>`
+  (`crates/integrations/connector-integration/src/utils/xml_utils.rs:14`)
+- **Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes, http_status: u16) -> Result<Bytes, ConnectorError>`
 - **Description:** Converts XML response to JSON bytes for deserialization into Rust structs.
-- **Example:**
+  Takes **two** arguments -- the HTTP status is used to build the error context -- and fails with
+  `ConnectorError`, not `IntegrationError`.
+- **Example** (real call site: `connectors/elavon.rs:260`):
 ```rust
-let json_bytes = preprocess_xml_response_bytes(res.response)?;
+let json_bytes = preprocess_xml_response_bytes(res.response, res.status_code)?;
 let response: ConnectorResponse = serde_json::from_slice(&json_bytes)
     .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 ```
@@ -257,11 +392,10 @@ let xml_body = serialize_to_xml_string_with_root("transaction", &request)?;
 | Missing field error | `missing_field_err("field")` | `domain_types::utils` |
 | Amount to major string | `convert_amount(&StringMajorUnitForConnector, ..)` | `domain_types::utils` |
 | Amount to minor string | `convert_amount(&StringMinorUnitForConnector, ..)` | `domain_types::utils` |
-| Parse XML response | `preprocess_xml_response_bytes(bytes)` | `connector_integration::utils` |
+| Parse XML response | `preprocess_xml_response_bytes(bytes, status_code)` | `connector_integration::utils::xml_utils` |
 | Serialize to XML | `serialize_to_xml_string_with_root("root", &data)` | `connector_integration::utils` |
 | Card network from BIN | `get_card_issuer(card_number)` | `domain_types::utils` |
-| Card expiry formatting | `get_card_expiry_month_year_2_digit_with_delimiter(..)` | `domain_types::utils` |
-| Country alpha2 to alpha3 | `convert_country_alpha2_to_alpha3(&country)` | `domain_types::utils` |
+| Card expiry formatting | `card.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())` | method on `Card<T>` (`domain_types::payment_method_data`) |
 | US state to code | `convert_us_state_to_code("California")` | `domain_types::utils` |
 | Current timestamp (s) | `now_unix_timestamp()` | `common_utils::date_time` |
 | Current timestamp (ms) | `get_timestamp_in_milliseconds(&now())` | `domain_types::utils` |
@@ -269,4 +403,10 @@ let xml_body = serialize_to_xml_string_with_root("transaction", &request)?;
 | Extract HTTP header | `get_http_header("X-Header", headers)` | `domain_types::utils` |
 | Extract card data | `get_card_details(pmd, "connector")` | `domain_types::utils` |
 | Parse connector meta | `to_connector_meta_from_secret(meta)` | `connector_integration::utils` |
-| Unimplemented PM error | `get_unimplemented_payment_method_error_message(..)` | `domain_types::utils` |
+| Unimplemented PM error | `get_unimplemented_payment_method_error_message(conn)` | `domain_types::utils` |
+| Phone, E.164 (`"+1415..."`) | `req.get_billing_phone_number()` | `domain_types::connector_types` |
+| Phone, bare national number | `req.get_billing_phone()?.get_number()?` | `domain_types::payment_address` |
+| Country code without `+` | `req.get_billing_phone()?.extract_country_code()?` | `domain_types::payment_address` |
+| Is this status a failure? | `is_payment_failure(status)` / `is_refund_failure(status)` | `domain_types::utils` / `connector_integration::utils` |
+| Missing connector error code | `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` | `common_utils::consts` |
+| Country alpha2 to alpha3 | `CountryAlpha2::from_alpha2_to_alpha3(c)` | `common_enums::transformers` |

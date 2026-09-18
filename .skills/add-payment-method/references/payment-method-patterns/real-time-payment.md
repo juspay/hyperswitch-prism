@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/real_time_payment/pattern_authorize_real_time_payment.md
