@@ -3361,6 +3361,14 @@ message PaymentServiceCreateOrderRequest {
   // Order line items. Required by some connectors (e.g. Airwallex PayLater /
   // Klarna) when creating the order/payment-intent.
   repeated OrderDetailsWithAmount order_details = 9;
+
+  // Customer Information
+  optional Customer customer =
+      10; // Customer the order is created for. Send the same customer.id as on the Authorize / SetupRecurring that uses this order.
+
+  // Future Usage
+  optional FutureUsage setup_future_usage =
+      11; // Store-for-later intent of the payment this order is created for. OFF_SESSION when the payment method will be stored for merchant-initiated charges.
 }
 
 // Response message for create order operation
