@@ -224,14 +224,46 @@ fn message_contains_field(
         })
 }
 
+/// Memoizes `message_contains_field`'s answer per `(message, field)` pair.
+///
+/// Every call site here (`populate_impl_message_names`, and every
+/// `nested_delegate_body` invocation's field scan and oneof-arm re-scan)
+/// starts a *fresh*, independent, cycle-safe traversal — each one already
+/// computes the objectively correct final answer for `message_name` on its
+/// own, via `message_contains_field`'s own `seen` set. This cache only
+/// avoids re-running that full traversal when the exact same question gets
+/// asked again from a different call site, which happens routinely: the same
+/// message gets queried once per registered field in
+/// `populate_impl_message_names`, then again per field of every message that
+/// needs delegation, then a third time during oneof-arm filtering. It never
+/// shares state *within* an in-progress traversal, so it can't change the
+/// result of any individual `message_contains_field` call — only how many
+/// times that call has to actually run.
+type ReachabilityCache = std::cell::RefCell<BTreeMap<(String, &'static str), bool>>;
+
+fn message_reaches_field(
+    messages: &BTreeMap<String, &DescriptorProto>,
+    message_name: &str,
+    field_name: &'static str,
+    cache: &ReachabilityCache,
+) -> bool {
+    let key = (message_name.to_string(), field_name);
+    if let Some(&cached) = cache.borrow().get(&key) {
+        return cached;
+    }
+    let result = message_contains_field(messages, message_name, field_name, &mut BTreeSet::new());
+    cache.borrow_mut().insert(key, result);
+    result
+}
+
 fn child_contains_field(
     messages: &BTreeMap<String, &DescriptorProto>,
     field: &FieldDescriptorProto,
-    field_name: &str,
+    field_name: &'static str,
+    cache: &ReachabilityCache,
 ) -> bool {
-    message_field_type_name(field).is_some_and(|child_name| {
-        message_contains_field(messages, child_name, field_name, &mut BTreeSet::new())
-    })
+    message_field_type_name(field)
+        .is_some_and(|child_name| message_reaches_field(messages, child_name, field_name, cache))
 }
 
 fn oneof_name(message: &DescriptorProto, field: &FieldDescriptorProto) -> Option<String> {
@@ -249,11 +281,12 @@ fn nested_delegate_body(
     messages: &BTreeMap<String, &DescriptorProto>,
     message_name: &str,
     message: &DescriptorProto,
+    cache: &ReachabilityCache,
 ) -> Option<TokenStream> {
     let field = message
         .field
         .iter()
-        .find(|field| child_contains_field(messages, field, spec.field_name()))?;
+        .find(|field| child_contains_field(messages, field, spec.field_name(), cache))?;
     let child_name = message_field_type_name(field)?;
 
     if field.oneof_index.is_some() {
@@ -276,7 +309,7 @@ fn nested_delegate_body(
             .field
             .iter()
             .filter(|field| field.oneof_index == Some(oneof_index))
-            .filter(|field| child_contains_field(messages, field, spec.field_name()))
+            .filter(|field| child_contains_field(messages, field, spec.field_name(), cache))
             .filter_map(|field| {
                 field.name.as_deref().map(|name| {
                     let variant_ident = format_ident!("{}", name.to_upper_camel_case());
@@ -327,7 +360,10 @@ fn nested_delegate_body(
     }
 }
 
-fn populate_impl_message_names(descriptor_set: &FileDescriptorSet) -> BTreeSet<String> {
+fn populate_impl_message_names(
+    descriptor_set: &FileDescriptorSet,
+    cache: &ReachabilityCache,
+) -> BTreeSet<String> {
     let messages = message_index(descriptor_set);
     let mut names = request_message_names(descriptor_set);
 
@@ -336,12 +372,7 @@ fn populate_impl_message_names(descriptor_set: &FileDescriptorSet) -> BTreeSet<S
             .into_iter()
             .filter(|message_name| {
                 AUTO_POPULATE_FIELDS.iter().any(|spec| {
-                    message_contains_field(
-                        &messages,
-                        message_name,
-                        spec.field_name(),
-                        &mut BTreeSet::new(),
-                    )
+                    message_reaches_field(&messages, message_name, spec.field_name(), cache)
                 })
             }),
     );
@@ -451,7 +482,8 @@ fn generate_sanity_layer(descriptor_set: &FileDescriptorSet) -> TokenStream {
 
 pub fn generate(descriptor_set: &FileDescriptorSet) -> String {
     let messages = message_index(descriptor_set);
-    let message_names = populate_impl_message_names(descriptor_set);
+    let cache = ReachabilityCache::default();
+    let message_names = populate_impl_message_names(descriptor_set, &cache);
     let module = path_tokens(SUPPORTED_PACKAGE_MODULE);
 
     let trait_impls = AUTO_POPULATE_FIELDS
@@ -472,8 +504,10 @@ pub fn generate(descriptor_set: &FileDescriptorSet) -> String {
                     let descriptor = messages.get(message_name)?;
                     let body = match find_field(descriptor, spec.field_name()) {
                         Some(field) => setter_body_for(*spec, field, message_name),
-                        None => nested_delegate_body(*spec, &messages, message_name, descriptor)
-                            .unwrap_or_else(|| quote! { let _ = value; }),
+                        None => {
+                            nested_delegate_body(*spec, &messages, message_name, descriptor, &cache)
+                                .unwrap_or_else(|| quote! { let _ = value; })
+                        }
                     };
                     let message_ident = rust_type_ident(message_name);
 
