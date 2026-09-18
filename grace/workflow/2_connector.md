@@ -505,7 +505,7 @@ at cap, `SECRET_LEAK` or `TREE_MODIFIED` → flag `TEST_ENV_FAILED` (+ that toke
 ```
 
 Round 1 is `FULL_RUN` with `INGEST` = `baseline` (BASELINE `done` and `test/baseline_bugs.json` exists). Every `DONE`/`PARTIAL` that wrote `test/results/r<N>.json` → `note_exec <N>`. `DONE` → 3. `PARTIAL` → `REPAIR` (`RESULTS`) → `ROUND` over its
-`NOT_RUN` cases. `BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → same selection. `FAILED` `ROUND_EXISTS` →
+`NOT_RUN` and `NO_ROW` checks. `BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → same selection. `FAILED` `ROUND_EXISTS` →
 same spawn, next `N`. `FAILED` `SECRET_LEAK` → flag `TEST_ENV_FAILED` + `SECRET_LEAK` → S6 (as the env path at step 1:
 `TEST_ENV_FAILED` is what makes `exec_ready` false, so the S7 prelude does not re-enter the same security gate, and
 what 2.8 keys `INCOMPLETE` on). `FAILED` `MISSING <file>` → once per file
