@@ -3649,6 +3649,10 @@ pub struct SetupRecurringRequest {
     /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
     /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
     pub test_mode: Option<bool>,
+    /// Capture method of the mandate-setup authorization. Connectors that switch the
+    /// authorization type on manual capture (e.g. Adyen's
+    /// `additionalData.authorisationType`/`manualCapture`) need the real value.
+    pub capture_method: Option<grpc_payment_types::CaptureMethod>,
 }
 
 /// ============================================================================
@@ -3845,6 +3849,9 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
             test_mode: req.test_mode,
+            capture_method: req
+                .capture_method
+                .and_then(|v| grpc_payment_types::CaptureMethod::try_from(v).ok()),
         }
     }
 }
@@ -3899,6 +3906,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             recipient_details: None,
             additional_connector_details: None,
             test_mode: req.test_mode,
+            capture_method: None,
         }
     }
 }
@@ -5045,7 +5053,10 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url,
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(CaptureMethod::foreign_try_from)
+                .transpose()?,
             merchant_order_id: value.merchant_order_id,
             minor_amount: Some(common_utils::types::MinorUnit::new(amount.minor_amount)),
             shipping_cost: value
@@ -12684,7 +12695,14 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url.clone(),
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(|cm| {
+                    CaptureMethod::foreign_try_from(
+                        grpc_api_types::payments::CaptureMethod::try_from(cm).unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
             integrity_object: None,
             minor_amount: Some(amount.amount),
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
@@ -13324,7 +13342,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
-                network_txn_link_id: _,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -13456,6 +13474,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         )
                     }),
                     payment_account_reference,
+                    network_txn_link_id,
                 }
             }
             _ => {
@@ -13520,6 +13539,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 splits: None,
                 payment_account_reference: None,
+                network_txn_link_id: None,
             }
         }
     };
@@ -20385,8 +20405,9 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
-        // TokenSetupRecurringRequest has no test_mode field
+        // TokenSetupRecurringRequest has no test_mode or capture_method field
         test_mode: None,
+        capture_method: None,
     }
 }
 
@@ -20612,6 +20633,7 @@ pub fn proxied_setup_recurring_to_base(
         recipient_details: None,
         additional_connector_details: None,
         test_mode: v.test_mode,
+        capture_method: None,
     })
 }
 
@@ -21303,5 +21325,43 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod setup_recurring_tests {
+    use super::*;
+
+    fn proto_request(
+        capture_method: Option<i32>,
+    ) -> grpc_payment_types::PaymentServiceSetupRecurringRequest {
+        grpc_payment_types::PaymentServiceSetupRecurringRequest {
+            capture_method,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn capture_method_survives_setup_recurring_conversion() {
+        let manual = SetupRecurringRequest::from(proto_request(Some(
+            grpc_payment_types::CaptureMethod::Manual as i32,
+        )));
+        assert_eq!(
+            manual.capture_method,
+            Some(grpc_payment_types::CaptureMethod::Manual)
+        );
+        assert_eq!(
+            CaptureMethod::foreign_try_from(manual.capture_method.unwrap()).unwrap(),
+            CaptureMethod::Manual
+        );
+
+        // Absent on the wire must stay absent: going through the `capture_method()`
+        // accessor instead would default it to AUTOMATIC and silently change the
+        // request a connector builds for callers that never send the field.
+        assert_eq!(
+            SetupRecurringRequest::from(proto_request(None)).capture_method,
+            None
+        );
     }
 }
