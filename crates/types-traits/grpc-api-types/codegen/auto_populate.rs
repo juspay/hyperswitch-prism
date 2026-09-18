@@ -492,9 +492,15 @@ pub fn generate(descriptor_set: &FileDescriptorSet) -> String {
             let trait_ident = spec.trait_ident();
             let method_ident = spec.method_ident();
             let value_type = spec.value_type();
+            // Default body covers every message with no real path to the
+            // field — those messages get a bare `impl Trait for Message {}`
+            // below, relying on this default, instead of each one repeating
+            // `let _ = value;` in its own generated method.
             let trait_def = quote! {
                 pub trait #trait_ident {
-                    fn #method_ident(&mut self, value: #value_type);
+                    fn #method_ident(&mut self, value: #value_type) {
+                        let _ = value;
+                    }
                 }
             };
 
@@ -503,20 +509,24 @@ pub fn generate(descriptor_set: &FileDescriptorSet) -> String {
                 .filter_map(|message_name| {
                     let descriptor = messages.get(message_name)?;
                     let body = match find_field(descriptor, spec.field_name()) {
-                        Some(field) => setter_body_for(*spec, field, message_name),
+                        Some(field) => Some(setter_body_for(*spec, field, message_name)),
                         None => {
                             nested_delegate_body(*spec, &messages, message_name, descriptor, &cache)
-                                .unwrap_or_else(|| quote! { let _ = value; })
                         }
                     };
                     let message_ident = rust_type_ident(message_name);
 
-                    Some(quote! {
-                        impl #trait_ident for #module::#message_ident {
-                            fn #method_ident(&mut self, value: #value_type) {
-                                #body
+                    Some(match body {
+                        Some(body) => quote! {
+                            impl #trait_ident for #module::#message_ident {
+                                fn #method_ident(&mut self, value: #value_type) {
+                                    #body
+                                }
                             }
-                        }
+                        },
+                        None => quote! {
+                            impl #trait_ident for #module::#message_ident {}
+                        },
                     })
                 })
                 .collect::<Vec<_>>();
