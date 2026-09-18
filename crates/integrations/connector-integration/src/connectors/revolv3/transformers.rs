@@ -277,15 +277,7 @@ pub enum Revolv3CardBrand {
 }
 
 impl Revolv3CardBrand {
-    /// Maps the wallet-supplied card network label (Apple Pay sends values such as `visa`,
-    /// `masterCard` or `amex`) onto Revolv3's `CardBrandType`.
-    ///
-    /// `cardBrand` is optional on Revolv3's decrypted package and the brand is also derivable
-    /// from the PAN, so a network Revolv3 does not model (Interac, Cartes Bancaires, ...) is
-    /// omitted rather than failing the payment.
     fn from_wallet_network(network: &str) -> Option<Self> {
-        // Uppercasing normalises the wallet casing onto the SCREAMING_SNAKE_CASE serde
-        // aliases of `common_enums::CardNetwork`.
         let card_network: common_enums::CardNetwork =
             serde_json::from_value(serde_json::Value::String(network.to_uppercase())).ok()?;
 
