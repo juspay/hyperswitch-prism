@@ -274,7 +274,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 
 // =============================================================================
-// AUTHORIZE — POST /v3/deposits (non-PCI deposit; WebPay "WP")
+// AUTHORIZE — POST /v3/deposits (non-PCI deposit; WebPay "WP" and local bank
+// transfers "SE"/"COD"/"BM"/"STS"/"AF"/"BQL" (MX) and "IX"/"I"/"NU"/"ME" (BR))
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for D24<T>
@@ -522,8 +523,8 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 // flow listed. Each stub's get_url returns
 // IntegrationError::connector_flow_not_implemented(...).
 //
-// `Authorize` (WebPay redirect deposit), `PSync`, `Refund` and `RSync` are
-// implemented; everything below is not.
+// `Authorize` (WebPay redirect deposit and local bank-transfer deposit),
+// `PSync`, `Refund` and `RSync` are implemented; everything below is not.
 //
 // Directa24 documents no capture and no void endpoint at all: `POST /v3/deposits`
 // carries no capture/auto_capture/capture_method field and their
