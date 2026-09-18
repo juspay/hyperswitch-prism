@@ -64,25 +64,105 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      Authorize,
+    source:    responses::PayloadPaymentStatus,
+    success:   Authorized  => Authorized,
+    failure:   Declined    => Failure,
+    {
+        Processed  => Charged,
+        Processing => Pending,
+        Rejected   => Failure,
+        Voided     => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      PSync,
+    source:    responses::PayloadPaymentStatus,
+    success:   Processed   => Charged,
+    failure:   Declined    => Failure,
+    {
+        Authorized => Authorized,
+        Processing => Pending,
+        Rejected   => Failure,
+        Voided     => Voided,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Payload<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      Void,
+    source:    responses::PayloadPaymentStatus,
+    success:   Voided      => Voided,
+    failure:   Declined    => Failure,
+    {
+        Authorized => VoidInitiated,
+        Processed  => VoidFailed,
+        Processing => Pending,
+        Rejected   => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Payload<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      RSync,
+    source:    responses::RefundStatus,
+    success:   Processed   => Success,
+    failure:   Declined    => Failure,
+    {
+        Processing =>  Pending,
+        Rejected   => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Payload<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      Refund,
+    source:    responses::RefundStatus,
+    success:   Processed   => Success,
+    failure:   Declined    => Failure,
+    {
+        Processing => Pending,
+        Rejected   => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      Capture,
+    source:    responses::PayloadPaymentStatus,
+    success:   Processed   => Charged,
+    failure:   Declined    => CaptureFailed,
+    {
+        Authorized => Pending,
+        Processing => Pending,
+        Rejected   => CaptureFailed,
+        Voided     => CaptureFailed,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Payload<T>
@@ -103,9 +183,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::CreateConnectorCustomer for Payload<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      SetupMandate,
+    source:    responses::PayloadPaymentStatus,
+    success:   Processed   => Charged,
+    failure:   Declined    => Failure,
+    {
+        Authorized => Pending,
+        Processing => Pending,
+        Rejected   => Failure,
+        Voided     => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow:      RepeatPayment,
+    source:    responses::PayloadPaymentStatus,
+    success:   Processed   => Charged,
+    failure:   Declined    => Failure,
+    {
+        Authorized => Authorized,
+        Processing => Pending,
+        Rejected   => Failure,
+        Voided     => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Payload<T>

@@ -750,6 +750,23 @@ impl TryFrom<ResponseRouterData<AffirmVoidResponse, Self>>
 // ===== REFUND =====
 // POST /api/v1/transactions/{id}/refund -> returns refund event { id, type, amount }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AffirmRefundStatus {
+    Refunded,
+    Failed,
+    Pending,
+}
+
+impl From<AffirmRefundStatus> for RefundStatus {
+    fn from(status: AffirmRefundStatus) -> Self {
+        match status {
+            AffirmRefundStatus::Refunded => Self::Success,
+            AffirmRefundStatus::Failed => Self::Failure,
+            AffirmRefundStatus::Pending => Self::Pending,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct AffirmRefundRequest {
     pub amount: MinorUnit,
@@ -795,10 +812,11 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
         // Confirm it is actually a `refund` event before reporting success; anything
         // else is left Pending for RSync to resolve rather than assuming any 2xx means
         // the money moved.
-        let refund_status = match item.response.event_type.as_str() {
-            "refund" => RefundStatus::Success,
-            _ => RefundStatus::Pending,
+        let affirm_status = match item.response.event_type.as_str() {
+            "refund" => AffirmRefundStatus::Refunded,
+            _ => AffirmRefundStatus::Pending,
         };
+        let refund_status = RefundStatus::from(affirm_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
@@ -840,17 +858,18 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
                 .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
         });
 
-        let refund_status = match (this_refund_settled, &item.response.status) {
+        let affirm_status = match (this_refund_settled, &item.response.status) {
             // This refund's own event is present, or the whole transaction is refunded.
-            (true, _) | (_, AffirmTransactionStatus::Refunded) => RefundStatus::Success,
+            (true, _) | (_, AffirmTransactionStatus::Refunded) => AffirmRefundStatus::Refunded,
             // Terminal states in which this refund can never settle (a voided loan was
             // never captured; a declined transaction never funded) — resolve as Failure
             // instead of polling Pending indefinitely.
             (_, AffirmTransactionStatus::Declined | AffirmTransactionStatus::Voided) => {
-                RefundStatus::Failure
+                AffirmRefundStatus::Failed
             }
-            _ => RefundStatus::Pending,
+            _ => AffirmRefundStatus::Pending,
         };
+        let refund_status = RefundStatus::from(affirm_status);
 
         Ok(Self {
             response: Ok(RefundsResponseData {

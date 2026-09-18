@@ -1427,6 +1427,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Context bundle for the Authorize flow status macro.
+/// Mirrors the three inputs that `map_attempt_status` uses beyond the status code itself.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IlixiumAuthorizeCtx {
+    pub operation_type: Option<IlixiumOperationType>,
+    pub has_three_ds_url: bool,
+    pub is_auto_capture: bool,
+}
+
 /// Request-level outcome. **Every** business failure is returned as HTTP 200 with one of these
 /// codes, so this — never the HTTP status — is what the connector branches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

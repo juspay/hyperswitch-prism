@@ -58,22 +58,82 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Iatapay<T>,
+    flow:      Authorize,
+    source:    transformers::IatapayPaymentStatus,
+    success:   Authorized         => Charged,
+    failure:   Failed             => Failure,
+    {
+        Created                   => AuthenticationPending,
+        Initiated                 => Pending,
+        Settled                   => Charged,
+        Cleared                   => Charged,
+        UnexpectedSettled         => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Iatapay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Iatapay<T>,
+    flow:      PSync,
+    source:    transformers::IatapayPaymentStatus,
+    success:   Authorized         => Charged,
+    failure:   Failed             => Failure,
+    {
+        Created                   => AuthenticationPending,
+        Initiated                 => Pending,
+        Settled                   => Charged,
+        Cleared                   => Charged,
+        UnexpectedSettled         => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Iatapay<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Iatapay<T>,
+    flow:      Refund,
+    source:    transformers::IatapayRefundStatus,
+    success:   Settled    => Success,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Locked     => Pending,
+        Initiated  => Pending,
+        Authorized => Pending,
+        Cleared    => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Iatapay<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Iatapay<T>,
+    flow:      RSync,
+    source:    transformers::IatapayRefundStatus,
+    success:   Settled    => Success,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Locked     => Pending,
+        Initiated  => Pending,
+        Authorized => Pending,
+        Cleared    => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Iatapay<T>
 {

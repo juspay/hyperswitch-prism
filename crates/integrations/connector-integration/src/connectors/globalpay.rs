@@ -219,11 +219,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      Authorize,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Preauthorized => Authorized,
+    failure:   Declined      => Failure,
+    {
+        Captured  => Charged,
+        Failed    => Failure,
+        Rejected  => Failure,
+        Pending   => Pending,
+        Initiated => AuthenticationPending,
+        ForReview => Pending,
+        Funded    => Charged,
+        Reversed  => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Globalpay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      PSync,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Captured      => Charged,
+    failure:   Declined      => Failure,
+    {
+        Preauthorized => Authorized,
+        Failed        => Failure,
+        Rejected      => Failure,
+        Pending       => Pending,
+        Initiated     => AuthenticationPending,
+        ForReview     => Pending,
+        Funded        => Charged,
+        Reversed      => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Globalpay<T>
 {
@@ -234,33 +270,141 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      Void,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Reversed      => Voided,
+    failure:   Declined      => Failure,
+    {
+        Preauthorized => VoidInitiated,
+        Captured      => VoidFailed,
+        Failed        => Failure,
+        Rejected      => Failure,
+        Pending       => Pending,
+        Initiated     => Pending,
+        ForReview     => Pending,
+        Funded        => VoidFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Globalpay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      Capture,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Captured      => Charged,
+    failure:   Declined      => CaptureFailed,
+    {
+        Preauthorized => Pending,
+        Failed        => CaptureFailed,
+        Rejected      => CaptureFailed,
+        Pending       => Pending,
+        Initiated     => Pending,
+        ForReview     => Pending,
+        Funded        => Charged,
+        Reversed      => CaptureFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Globalpay<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      Refund,
+    source:    globalpay::GlobalpayRefundStatus,
+    success:   Captured      => Success,
+    failure:   Declined      => Failure,
+    {
+        Funded        => Success,
+        Pending       => Pending,
+        Initiated     => Pending,
+        ForReview     => Pending,
+        Failed        => Failure,
+        Rejected      => Failure,
+        Reversed      => Failure,
+        Preauthorized => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Globalpay<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      RSync,
+    source:    globalpay::GlobalpayRefundStatus,
+    success:   Funded        => Success,
+    failure:   Failed        => Failure,
+    {
+        Captured      => Success,
+        Pending       => Pending,
+        Initiated     => Pending,
+        ForReview     => Pending,
+        Declined      => Failure,
+        Rejected      => Failure,
+        Reversed      => Failure,
+        Preauthorized => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Globalpay<T>
 {
 }
 
 // ===== ADVANCED FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      SetupMandate,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Captured      => Charged,
+    failure:   Declined      => Failure,
+    {
+        Preauthorized => Pending,
+        Failed    => Failure,
+        Rejected  => Failure,
+        Pending   => Pending,
+        Initiated => AuthenticationPending,
+        ForReview => Pending,
+        Funded    => Charged,
+        Reversed  => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Globalpay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      RepeatPayment,
+    source:    globalpay::GlobalpayPaymentStatus,
+    success:   Captured      => Charged,
+    failure:   Declined      => Failure,
+    {
+        Preauthorized => Authorized,
+        Failed        => Failure,
+        Rejected      => Failure,
+        Pending       => Pending,
+        Initiated     => AuthenticationPending,
+        ForReview     => Pending,
+        Funded        => Charged,
+        Reversed      => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Globalpay<T>
 {

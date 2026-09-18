@@ -142,9 +142,35 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cryptopay<T>,
+    flow:      Authorize,
+    source:    transformers::CryptopayPaymentStatus,
+    success:   Completed  => Charged,
+    failure:   Cancelled  => Failure,
+    {
+        New        => AuthenticationPending,
+        Unresolved => Unresolved,
+        Refunded   => Unresolved,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Cryptopay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cryptopay<T>,
+    flow:      PSync,
+    source:    transformers::CryptopayPaymentStatus,
+    success:   Completed  => Charged,
+    failure:   Cancelled  => Failure,
+    {
+        New        => AuthenticationPending,
+        Unresolved => Unresolved,
+        Refunded   => Unresolved,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cryptopay<T>

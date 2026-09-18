@@ -490,6 +490,19 @@ impl PayoutFlowStatusRules for connector_flow::PayoutEligibility {
 /// Until then, connectors add impls voluntarily flow by flow.
 ///
 /// Implemented by `impl_flow_status_mapping!` (in `domain_types::status_mapping`).
+/// Per-connector, per-refund-flow terminal mapping.
+///
+/// Parallel to [`ConnectorTerminalMapping`] for payment flows.
+/// Implement via `impl_refund_flow_status_mapping!`.
+pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
+    type ConnectorStatus;
+
+    fn success_connector_status() -> Self::ConnectorStatus;
+    fn failure_connector_status() -> Self::ConnectorStatus;
+
+    fn map_refund_status(status: Self::ConnectorStatus) -> RefundStatus;
+}
+
 pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// The connector-native status type for this flow (e.g. `StripePaymentStatus`).
     type ConnectorStatus;
