@@ -202,6 +202,8 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
             split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
         }
     }
 }
