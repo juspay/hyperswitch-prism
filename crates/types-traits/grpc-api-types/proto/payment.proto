@@ -3705,6 +3705,12 @@ message PaymentServiceSetupRecurringRequest {
   // that branch endpoint construction on this (e.g. Adyen's merchant-prefixed
   // live URL) default to test mode and skip live-URL substitution.
   optional bool test_mode = 41;
+
+  // Capture method for the mandate-setup authorization. Connectors that switch
+  // the authorization type on manual capture (Adyen's
+  // additionalData.authorisationType / manualCapture) need the real value;
+  // absent means the connector's default (automatic).
+  optional CaptureMethod capture_method = 42;
 }
 
 // Response message for a mandate setup operation
@@ -3766,6 +3772,10 @@ message PaymentServiceSetupRecurringResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
   optional string payment_account_reference = 22;
+
+  // Network-issued link id chaining related transactions (Adyen's
+  // additionalData.transactionLinkId), carried forward on subsequent MITs.
+  optional string network_txn_link_id = 23;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
