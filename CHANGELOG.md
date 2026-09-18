@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.18.1
+
+### Bug Fixes
+
+- **deutschebank:** Make creditor BIC optional and source payee name from payout_method_data ([#2318](https://github.com/juspay/connector-service/pull/2318)) ([`b82031b`](https://github.com/juspay/connector-service/commit/b82031b50d8fa1bdd8e5752205abf71769250ae7))
+- **proto:** SetupRecurring drops capture_method and network_txn_link_id ([#2327](https://github.com/juspay/connector-service/pull/2327)) ([`7bdd9f3`](https://github.com/juspay/connector-service/commit/7bdd9f3143fe9a201cb9414c3505b7ba796a73fc))
+
+### Miscellaneous Tasks
+
+- **grace:** Fix the 3DS leg count and replace the self-generated test oracle ([#2326](https://github.com/juspay/connector-service/pull/2326)) ([`f5b8e98`](https://github.com/juspay/connector-service/commit/f5b8e987a57d91740ed23f4e1eea36618e049616))
+
+**Full Changelog:** [`2026.09.18.0...2026.09.18.1`](https://github.com/juspay/connector-service/compare/2026.09.18.0...2026.09.18.1)
+
+- - -
+
 ## 2026.09.18.0
 
 ### Bug Fixes
