@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.18.0
+
+### Bug Fixes
+
+- **connector:** [dLocal] Fix Status mapping in PSync flow ([#2322](https://github.com/juspay/connector-service/pull/2322)) ([`1d56956`](https://github.com/juspay/connector-service/commit/1d569566978a9324eb294946aab456f9a922349b))
+
+### Miscellaneous Tasks
+
+- **grace:** GRACE v2 — one connector, many flows, one PR ([#2323](https://github.com/juspay/connector-service/pull/2323)) ([`186ab60`](https://github.com/juspay/connector-service/commit/186ab60e3f16e800eb51caa2f73b69c617393962))
+- Update codeowners ([#2314](https://github.com/juspay/connector-service/pull/2314)) ([`88937b7`](https://github.com/juspay/connector-service/commit/88937b742ec8b9d4f004ecbcdd589da3bfed89cd))
+- Remove prism-euler-maintainers from connector-integration codeowners ([#2321](https://github.com/juspay/connector-service/pull/2321)) ([`e0cb43a`](https://github.com/juspay/connector-service/commit/e0cb43a60b4b0679a0b88bf43c029bec1dd3d7ac))
+
+**Full Changelog:** [`2026.09.17.0...2026.09.18.0`](https://github.com/juspay/connector-service/compare/2026.09.17.0...2026.09.18.0)
+
+- - -
+
+## 2026.09.17.0
+
+### Features
+
+- **Connector:** Kount khash payment token ([#2293](https://github.com/juspay/connector-service/pull/2293)) ([`3d39ab4`](https://github.com/juspay/connector-service/commit/3d39ab4cc60527a93317d2cfc79c8c34d061b607))
+
+### Miscellaneous Tasks
+
+- **grace:** Remove task_update ledger, grace/scripts/scripts, and test.rs.template ([#2312](https://github.com/juspay/connector-service/pull/2312)) ([`7cdeb77`](https://github.com/juspay/connector-service/commit/7cdeb7796a6216510423d5866a9693b2d6da2219))
+
+### Build System / Dependencies
+
+- **docker:** CARGO_BUILD_PROFILE build arg, defaulting to release ([#2310](https://github.com/juspay/connector-service/pull/2310)) ([`e5764f2`](https://github.com/juspay/connector-service/commit/e5764f24ea4a5bcefec424413e348f204c2a5f1a))
+
+**Full Changelog:** [`2026.09.16.1...2026.09.17.0`](https://github.com/juspay/connector-service/compare/2026.09.16.1...2026.09.17.0)
+
+- - -
+
 ## 2026.09.16.1
 
 ### Features

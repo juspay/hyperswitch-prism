@@ -15,7 +15,8 @@ entry point per job and records the repo facts agents get wrong. It does not res
 | Connector coverage / capability metrics | skill `coverage-report` (`.skills/coverage-report/`) |
 | Embed prism into an app | skill `demo-integration` (`.skills/demo-integration/`) |
 | Use the Prism SDKs (Python/Node/Java/Rust) | skill `sdk-integration` (`.skills/sdk-integration/`) |
-| Batch / multi-connector run (one flow across many connectors) | `grace/workflow/1_orchestrator.md` (legacy; see note below) |
+| Multi-flow run for one connector (links → techspec → plan → codegen → test/RCA loop → review → single PR) | `grace/workflow/2_connector.md` |
+| Batch / multi-connector run (the same flows across many connectors) | `grace/workflow/1_orchestrator.md` (spawns `2_connector.md` per connector) |
 
 Each skill also has a `make` launcher: `make new-connector`, `make gen-tech-spec`,
 `make add-flow`, `make add-payment-method`, `make review-pr` — they just open an AI editor
@@ -33,8 +34,11 @@ Three overlapping copies of the same procedures exist. In order of precedence:
    symlinks into it; edit the rulesbook target, never the symlink.
 2. **`grace/rulesbook/codegen/.gracerules`, `.gracerules_add_flow`, `.gracerules_add_payment_method`** —
    kept for non-Claude agents (Cursor, Windsurf, opencode, codex). Do not follow them when a skill covers the job.
-3. **`grace/workflow/*.md` — legacy prompt-driven path.** Stale relative to the codebase. Only
-   `1_orchestrator.md` still has a unique job (batch/multi-connector runs); treat the rest as historical.
+3. **`grace/workflow/*.md` — prompt-driven GRACE runs.** Current: `2_connector.md` (GRACE v2, one connector × many
+   flows, one PR), the stage files it spawns (`2.0_preflight.md`, `2.1_links.md`, `2.1a_hs_scout.md`, `2.2_techspec.md`,
+   `2.3a_plan.md`, `2.3b_codegen_unit.md`, `2.6a`–`2.6e`, `2.7_review.md`, `2.8_pr_run.md`), and `1_orchestrator.md`
+   (batch over connectors). `2.3_codegen.md`, `2.4_pr.md` and `2.5_e2e.md` stay single-flow: the v2 files cite them by
+   section, `grace/grace-workspace` still drives `2.1`–`2.4`, and `.gracerules*` still spawn `2.1` and `2.2`.
 
 ## Repo facts
 
@@ -61,7 +65,9 @@ Three overlapping copies of the same procedures exist. In order of precedence:
   `grace/rulesbook/codegen/references/specs/<Connector>.md`.
 - **Test specs / scenarios**: `crates/internal/integration-tests/src/connector_specs/<connector>/specs.json`.
 - **Credentials** resolve in this order: `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` →
-  `creds.json` at repo root. `creds_dummy.json` is the placeholder template; never commit real creds.
+  `creds.json` at repo root. `creds_dummy.json` is the placeholder template; never commit real creds. Entries must use
+  the **flat** shape mirroring the connector's `*Config` proto message — the legacy `connector_account_details` shape is
+  rejected by `crates/internal/connector-creds` (a GRACE run aborts with `ABORT_CREDS`).
 - **Other crates**: `crates/grpc-server/grpc-server` (server), `crates/types-traits/grpc-api-types`
   (protos under `proto/`), `crates/types-traits/domain_types`, `crates/common/`, `crates/internal/`.
 - Generated coverage matrix: `docs-generated/all_connector.md` (via `make docs`).
