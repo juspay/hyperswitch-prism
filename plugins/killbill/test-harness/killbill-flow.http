@@ -1,0 +1,124 @@
+### KillBill × Hyperswitch Prism plugin — full flow (VS Code REST Client / IntelliJ HTTP Client)
+#
+# Run the requests top to bottom. After a create, copy the returned id from the Location
+# header (or response body) into the @vars below, then continue. (VS Code REST Client users can
+# instead reference named requests, e.g. {{createAccount.response.headers.Location}}.)
+#
+# Prereqs: a running KillBill with killbill-hyperswitch installed; a real connector sandbox key.
+
+@kbUrl        = http://127.0.0.1:8080
+# Basic base64("admin:password"); regenerate if you changed the RBAC user.
+@rbac         = Basic YWRtaW46cGFzc3dvcmQ=
+@apiKey       = hyperswitch-test
+@apiSecret    = hyperswitch-test-secret
+@createdBy    = test-harness
+@plugin       = killbill-hyperswitch
+@amount       = 10.00
+@currency     = USD
+
+# Fill these in from the responses as you go:
+@accountId    = PASTE_ACCOUNT_ID
+@paymentMethodId = PASTE_PAYMENT_METHOD_ID
+@paymentId    = PASTE_PAYMENT_ID
+
+### 1. Create tenant (RBAC only; 409 = already exists, reuse it)
+POST {{kbUrl}}/1.0/kb/tenants
+Authorization: {{rbac}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: application/json
+
+{ "apiKey": "{{apiKey}}", "apiSecret": "{{apiSecret}}" }
+
+### 2. Upload plugin config for the tenant  (edit the connector + creds)
+POST {{kbUrl}}/1.0/kb/tenants/uploadPluginConfig/{{plugin}}
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: text/plain
+
+org.killbill.billing.plugin.hyperswitch.connector=stripe
+org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
+org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
+org.killbill.billing.plugin.hyperswitch.stripe.apiKey=sk_test_REPLACE_ME
+
+### 3. Create account  -> copy the Location id into @accountId
+# @name createAccount
+POST {{kbUrl}}/1.0/kb/accounts
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: application/json
+
+{ "currency": "{{currency}}", "name": "Test Harness", "email": "harness@example.com" }
+
+### 4. Add payment method (card)  -> copy the Location id into @paymentMethodId
+POST {{kbUrl}}/1.0/kb/accounts/{{accountId}}/paymentMethods?isDefault=true
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: application/json
+
+{
+  "pluginName": "{{plugin}}",
+  "pluginInfo": { "properties": [
+    { "key": "ccNumber", "value": "4242424242424242" },
+    { "key": "ccExpirationMonth", "value": "12" },
+    { "key": "ccExpirationYear", "value": "2030" },
+    { "key": "ccVerificationValue", "value": "123" },
+    { "key": "ccFirstName", "value": "John" },
+    { "key": "ccLastName", "value": "Doe" }
+  ] }
+}
+
+### 5. Purchase  -> copy paymentId from the response body into @paymentId
+POST {{kbUrl}}/1.0/kb/accounts/{{accountId}}/payments?withPluginInfo=true
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: application/json
+
+{ "transactionType": "PURCHASE", "amount": {{amount}}, "currency": "{{currency}}", "paymentMethodId": "{{paymentMethodId}}" }
+
+### 6. Get payment (with plugin info)
+GET {{kbUrl}}/1.0/kb/payments/{{paymentId}}?withPluginInfo=true&withAttempts=true
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+
+### 7. Refund
+POST {{kbUrl}}/1.0/kb/payments/{{paymentId}}/refunds?withPluginInfo=true
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+Content-Type: application/json
+
+{ "amount": {{amount}}, "currency": "{{currency}}" }
+
+### 8. (Optional) Capture a prior AUTHORIZE   POST /payments/{id}
+# { "amount": {{amount}}, "currency": "{{currency}}" }
+
+### 8b. (Optional) Void a prior AUTHORIZE
+DELETE {{kbUrl}}/1.0/kb/payments/{{paymentId}}
+Authorization: {{rbac}}
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+X-Killbill-CreatedBy: {{createdBy}}
+
+### 9. Replay a connector webhook to the plugin servlet
+# NOTE: without a valid connector signature this returns {"status":"rejected"} (source not verified) — expected.
+POST {{kbUrl}}/plugins/{{plugin}}/webhook
+X-Killbill-ApiKey: {{apiKey}}
+X-Killbill-ApiSecret: {{apiSecret}}
+Content-Type: application/json
+
+{
+  "id": "evt_test_harness_001",
+  "object": "event",
+  "type": "payment_intent.succeeded",
+  "data": { "object": { "id": "pi_test_harness_001", "object": "payment_intent", "amount": 1000, "currency": "usd", "status": "succeeded" } }
+}
