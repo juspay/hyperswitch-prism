@@ -12,11 +12,13 @@ import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.EventClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CountryAlpha2
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -24,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NuveiConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -61,8 +63,6 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"  // Personal Information.
-                lastNameBuilder.value = "Doe"
                 countryAlpha2Code = CountryAlpha2.US
                 emailBuilder.value = "test@example.com"  // Contact Information.
             }
@@ -71,16 +71,6 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
         sessionToken = "probe_session_token"  // Session and Token Information.
         browserInfoBuilder.apply {
-            colorDepth = 24  // Display Information.
-            screenHeight = 900
-            screenWidth = 1440
-            javaEnabled = false  // Browser Settings.
-            javaScriptEnabled = true
-            language = "en-US"
-            timeZoneOffsetMinutes = -480
-            acceptHeader = "application/json"  // Browser Headers.
-            userAgent = "Mozilla/5.0 (probe-bot)"
-            acceptLanguage = "en-US,en;q=0.9"
             ipAddress = "1.2.3.4"  // Device Information.
         }
     }.build()
@@ -305,6 +295,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -353,9 +374,11 @@ fun main(args: Array<String>) {
         "createOrder" -> createOrder(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, refund, refundGet, void")
     }
 }

@@ -21,6 +21,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_order",
     "create_server_session_authentication_token",
     "get",
+    "parse_event",
     "refund",
     "refund_get",
     "void",
@@ -80,8 +81,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                last_name: Some(Secret::new("Doe".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),
                 email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
                 ..Default::default()
@@ -92,16 +91,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         session_token: Some("probe_session_token".to_string()), // Session and Token Information.
         browser_info: Some(BrowserInformation {
-            color_depth: Some(24), // Display Information.
-            screen_height: Some(900),
-            screen_width: Some(1440),
-            java_enabled: Some(false), // Browser Settings.
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            time_zone_offset_minutes: Some(-480),
-            accept_header: Some("application/json".to_string()), // Browser Headers.
-            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
-            accept_language: Some("en-US,en;q=0.9".to_string()),
             ip_address: Some("1.2.3.4".to_string()), // Device Information.
             ..Default::default()
         }),
@@ -161,6 +150,33 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
         ..Default::default()
+    }
+}
+
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -489,6 +505,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -540,10 +566,11 @@ async fn main() {
             process_create_server_session_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_session_authentication_token, process_get, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_session_authentication_token, process_get, process_parse_event, process_refund_get, process_void", flow);
             return;
         }
     };

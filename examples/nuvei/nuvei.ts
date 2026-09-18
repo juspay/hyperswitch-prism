@@ -5,9 +5,9 @@
 // Nuvei — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx nuvei.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "refund", "refund_get", "void"];
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -43,8 +43,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
-                "lastName": {"value": "Doe"},
                 "countryAlpha2Code": CountryAlpha2.US,
                 "email": {"value": "test@example.com"}  // Contact Information.
             }
@@ -53,16 +51,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
         "sessionToken": "probe_session_token",  // Session and Token Information.
         "browserInfo": {
-            "colorDepth": 24,  // Display Information.
-            "screenHeight": 900,
-            "screenWidth": 1440,
-            "javaEnabled": false,  // Browser Settings.
-            "javaScriptEnabled": true,
-            "language": "en-US",
-            "timeZoneOffsetMinutes": -480,
-            "acceptHeader": "application/json",  // Browser Headers.
-            "userAgent": "Mozilla/5.0 (probe-bot)",
-            "acceptLanguage": "en-US,en;q=0.9",
             "ipAddress": "1.2.3.4"  // Device Information.
         }
     };
@@ -119,6 +107,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -326,6 +339,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -356,7 +387,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

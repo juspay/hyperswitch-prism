@@ -9,10 +9,11 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -48,8 +49,6 @@ def _build_authorize_request(capture_method: str):
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
-                last_name=payment_methods_pb2.SecretString(value="Doe"),
                 country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
                 email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
             ),
@@ -58,16 +57,6 @@ def _build_authorize_request(capture_method: str):
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
         session_token="probe_session_token",  # Session and Token Information.
         browser_info=payment_pb2.BrowserInformation(
-            color_depth=24,  # Display Information.
-            screen_height=900,
-            screen_width=1440,
-            java_enabled=False,  # Browser Settings.
-            java_script_enabled=True,
-            language="en-US",
-            time_zone_offset_minutes=-480,
-            accept_header="application/json",  # Browser Headers.
-            user_agent="Mozilla/5.0 (probe-bot)",
-            accept_language="en-US,en;q=0.9",
             ip_address="1.2.3.4",  # Device Information.
         ),
     )
@@ -119,6 +108,16 @@ def _build_get_request(connector_transaction_id: str):
         amount=payment_pb2.Money(  # Amount Information.
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
+
+def _build_parse_event_request():
+    return events_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="ppp_status=OK&PPP_TransactionId=257354778&userid=&merchant_unique_id=5CXS9TWCNFJP&customData=&productId=&first_name=Test&last_name=Test&email=test%40test.com&currency=EUR&clientUniqueId=5CXS9TWCNFJP&Status=APPROVED&transactionType=Sale&TransactionID=2110000000012345678&totalAmount=20.00&responseTimeStamp=2020-03-21.15:42:49&advanceResponseChecksum=2164dc8cd5d93a4529dd6894f20563639ac22b953b06cdd0c5c4f1fb4e2cd3d3".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -315,6 +314,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

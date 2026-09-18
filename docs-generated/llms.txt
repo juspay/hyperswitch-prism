@@ -619,7 +619,7 @@ connector_id: nuvei
 doc: docs/connectors/nuvei.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card, Eps, Giropay, Ideal, Sofort
-flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, handle_event, parse_event, refund, refund_get, void
 examples_python: examples/nuvei/nuvei.py
 
 ## Paybox
