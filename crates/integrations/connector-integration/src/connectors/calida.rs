@@ -177,6 +177,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Calida<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        Ok(())
+    }
 }
 
 macros::create_all_prerequisites!(
@@ -306,16 +313,6 @@ impl ConnectorValidation for Calida<DefaultPCIHolder> {
             .into()),
             _ => Ok(()),
         }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), IntegrationError> {
-        Ok(())
     }
 
     fn is_webhook_source_verification_mandatory(&self) -> bool {

@@ -987,6 +987,7 @@ pub(crate) fn apple_pay_method() -> PaymentMethod {
                         online_payment_cryptogram: Some(Secret::new("AAAAAA==".to_string())),
                         eci_indicator: Some("05".to_string()),
                     }),
+                    merchant_token_identifier: Some("probe_merchant_token_id".to_string()),
                 })),
             }),
             payment_method: Some(proto::apple_wallet::PaymentMethod {

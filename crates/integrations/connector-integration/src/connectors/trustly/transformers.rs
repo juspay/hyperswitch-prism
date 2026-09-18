@@ -841,6 +841,50 @@ pub fn verify_webhook_signature(
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
 }
 
+pub const TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX: &str = "payout_";
+
+fn is_payout_message_id(message_id: &str) -> bool {
+    message_id.starts_with(TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX)
+}
+
+fn unexpected_webhook_event(
+    event: &TrustlyWebhookMethod,
+    flow: &'static str,
+) -> error_stack::Report<errors::WebhookError> {
+    error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound).attach_printable(format!(
+        "trustly: `{}` notification is not a {flow} event",
+        event.as_str()
+    ))
+}
+
+pub fn is_payment_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
+            | TrustlyWebhookMethod::Cancel
+            | TrustlyWebhookMethod::Account
+            | TrustlyWebhookMethod::Pending
+    ) && !is_payout_message_id(message_id)
+}
+
+pub fn is_refund_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed
+    ) && !is_payout_message_id(message_id)
+}
+
+pub fn is_payout_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::PayoutConfirmation
+            | TrustlyWebhookMethod::PayoutFailed
+            | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Cancel
+    ) && is_payout_message_id(message_id)
+}
+
 pub fn get_webhook_event(
     event: TrustlyWebhookMethod,
     message_id: String,
@@ -861,7 +905,10 @@ pub fn get_webhook_event(
         (TrustlyWebhookMethod::Cancel, false) => {
             domain_types::connector_types::EventType::PayoutCancelled
         }
-        (TrustlyWebhookMethod::Account, _) | (TrustlyWebhookMethod::Pending, _) => {
+        (TrustlyWebhookMethod::Account, _) => {
+            domain_types::connector_types::EventType::PaymentAssociatedDataUpdate
+        }
+        (TrustlyWebhookMethod::Pending, _) => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
         }
         (TrustlyWebhookMethod::PayoutConfirmation, true) => {
@@ -879,23 +926,60 @@ pub fn get_webhook_event(
     }
 }
 
-pub fn get_trustly_payment_webhook_status(event: &TrustlyWebhookMethod) -> AttemptStatus {
+pub fn get_trustly_payment_webhook_status(
+    event: &TrustlyWebhookMethod,
+    message_id: &str,
+) -> error_stack::Result<AttemptStatus, errors::WebhookError> {
+    if !is_payment_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "payment"));
+    }
+
     match event {
-        TrustlyWebhookMethod::Credit => AttemptStatus::Charged,
-        TrustlyWebhookMethod::Debit => AttemptStatus::Failure,
-        TrustlyWebhookMethod::Cancel => AttemptStatus::Voided,
-        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => AttemptStatus::Pending,
-        _ => AttemptStatus::Pending,
+        TrustlyWebhookMethod::Credit => Ok(AttemptStatus::Charged),
+        TrustlyWebhookMethod::Debit => Ok(AttemptStatus::Failure),
+        TrustlyWebhookMethod::Cancel => Ok(AttemptStatus::Voided),
+        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => Ok(AttemptStatus::Pending),
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed => {
+            Err(unexpected_webhook_event(event, "payment"))
+        }
     }
 }
 
 pub fn get_trustly_refund_webhook_status(
     event: &TrustlyWebhookMethod,
-) -> common_enums::RefundStatus {
+    message_id: &str,
+) -> error_stack::Result<common_enums::RefundStatus, errors::WebhookError> {
+    if !is_refund_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "refund"));
+    }
+
     match event {
-        TrustlyWebhookMethod::PayoutConfirmation => common_enums::RefundStatus::Success,
-        TrustlyWebhookMethod::PayoutFailed => common_enums::RefundStatus::Failure,
-        _ => common_enums::RefundStatus::Pending,
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::RefundStatus::Success),
+        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::RefundStatus::Failure),
+        TrustlyWebhookMethod::Credit
+        | TrustlyWebhookMethod::Debit
+        | TrustlyWebhookMethod::Cancel
+        | TrustlyWebhookMethod::Account
+        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "refund")),
+    }
+}
+
+pub fn get_trustly_payout_webhook_status(
+    event: &TrustlyWebhookMethod,
+    message_id: &str,
+) -> error_stack::Result<common_enums::PayoutStatus, errors::WebhookError> {
+    if !is_payout_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "payout"));
+    }
+
+    match event {
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
+        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
+        TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
+        TrustlyWebhookMethod::Debit
+        | TrustlyWebhookMethod::Account
+        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "payout")),
     }
 }
 

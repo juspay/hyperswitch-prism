@@ -416,7 +416,7 @@ cargo run --bin check_coverage
 - `docs/connector-overrides.md` — override.json patch rules
 - `docs/code-walkthrough.md` — how the harness builds a request
 - `docs/context-mapping.md` — dependency context propagation
-- `grace/workflow/3_test.md` — operational workflow for moving a connector to "Hardened"
+- `grace/workflow/2.6d_test_exec.md` — how the GRACE test phase runs this harness for a connector
 
 ## Support
 
