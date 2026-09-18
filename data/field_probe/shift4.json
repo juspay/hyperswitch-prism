@@ -30,23 +30,58 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"apple_pay\",\"applePay\":{\"token\":{\"data\":\"probe\",\"signature\":\"probe\",\"header\":{\"publicKeyHash\":\"probe\",\"ephemeralPublicKey\":\"probe\",\"transactionId\":\"probe_txn_id\"},\"version\":\"EC_v1\"}}}}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -70,7 +105,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Bizum": {
         "status": "not_supported",
@@ -82,7 +117,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -135,11 +170,11 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -155,7 +190,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -171,7 +206,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -216,7 +251,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Giropay": {
         "status": "not_supported",
@@ -228,19 +263,57 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"google_pay\",\"googlePay\":{\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Ideal": {
         "status": "supported",
@@ -297,7 +370,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -309,7 +382,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -325,11 +398,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -341,7 +414,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -405,15 +478,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -429,7 +502,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Pix": {
         "status": "not_implemented",
@@ -453,15 +526,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -485,7 +558,7 @@
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Sofort": {
         "status": "not_supported",
@@ -493,11 +566,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Trustly": {
         "status": "not_supported",
@@ -505,7 +578,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -521,11 +594,11 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       },
       "Webpay": {
         "status": "not_implemented",
@@ -533,7 +606,7 @@
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: Wallet"
       }
     },
     "capture": {

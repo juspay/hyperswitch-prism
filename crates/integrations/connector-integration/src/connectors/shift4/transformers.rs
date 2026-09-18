@@ -17,7 +17,7 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -31,6 +31,9 @@ use url::Url;
 // Import the connector's RouterData wrapper type created by the macro
 use super::Shift4RouterData;
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
+
+/// Wallet name used in token-extraction error context.
+const APPLE_PAY_WALLET_NAME: &str = "Apple Pay";
 
 #[derive(Debug, Clone)]
 pub struct Shift4AuthType {
@@ -176,6 +179,83 @@ pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     TokenPayment(Shift4TokenPayment),
     BankRedirect(Shift4BankRedirectPayment),
+    Wallet(Shift4WalletPayment),
+}
+
+/// Wallet payment (Apple Pay / Google Pay) using connector-side (PSP) decryption:
+/// Shift4 receives the encrypted wallet token and decrypts it itself.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4WalletPayment {
+    pub payment_method: Shift4WalletMethod,
+}
+
+/// Serializes as `{ "type": <wallet>, "<wallet>": { token } }` — the `type`
+/// discriminator plus the wallet-specific token object Shift4 expects in the
+/// charge's `paymentMethod`. The tag is emitted by serde, so no separate wallet-type
+/// enum is needed.
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Shift4WalletMethod {
+    GooglePay {
+        #[serde(rename = "googlePay")]
+        google_pay: Shift4GooglePayToken,
+    },
+    ApplePay {
+        #[serde(rename = "applePay")]
+        apple_pay: Shift4ApplePayToken,
+    },
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4GooglePayToken {
+    /// The Google Pay token string, decrypted by Shift4.
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4ApplePayToken {
+    /// The Apple Pay `PKPaymentToken.paymentData` object, decrypted by Shift4.
+    #[serde(rename = "token")]
+    pub payment_data: Shift4ApplePayTokenData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ApplePayTokenData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: Shift4ApplePayTokenHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ApplePayTokenHeader {
+    pub public_key_hash: Secret<String>,
+    pub ephemeral_public_key: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+/// Deserialization target for the base64-decoded Apple Pay
+/// `PKPaymentToken.paymentData`. Kept separate from the serialize type so a
+/// domain-side schema change surfaces as a parse error instead of a malformed
+/// Shift4 request; the wire type is then built explicitly from these fields.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DecodedApplePayToken {
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: DecodedApplePayHeader,
+    version: Secret<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DecodedApplePayHeader {
+    public_key_hash: Secret<String>,
+    ephemeral_public_key: Secret<String>,
+    transaction_id: Secret<String>,
 }
 
 /// Token-based payment — the `card` field carries a token ID from Shift4 Components SDK
@@ -383,6 +463,90 @@ impl<T: PaymentMethodDataTypes>
                 Shift4PaymentMethod::BankRedirect(Shift4BankRedirectPayment {
                     payment_method: bank_redirect_method,
                     flow: Some(Shift4FlowRequest { return_url }),
+                })
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                // Connector-side (PSP) decryption: forward the encrypted wallet token and
+                // let Shift4 decrypt it. Google Pay carries a token string; Apple Pay carries
+                // the `PKPaymentToken.paymentData` object.
+                let wallet_method = match wallet_data {
+                    WalletData::GooglePay(_) => Shift4WalletMethod::GooglePay {
+                        google_pay: Shift4GooglePayToken {
+                            token: wallet_data.get_wallet_token()?,
+                        },
+                    },
+                    WalletData::ApplePay(_) => {
+                        let decoded: DecodedApplePayToken = wallet_data
+                            .get_wallet_token_as_json(APPLE_PAY_WALLET_NAME.to_string())?;
+                        Shift4WalletMethod::ApplePay {
+                            apple_pay: Shift4ApplePayToken {
+                                payment_data: Shift4ApplePayTokenData {
+                                    data: decoded.data,
+                                    signature: decoded.signature,
+                                    header: Shift4ApplePayTokenHeader {
+                                        public_key_hash: decoded.header.public_key_hash,
+                                        ephemeral_public_key: decoded.header.ephemeral_public_key,
+                                        transaction_id: decoded.header.transaction_id,
+                                    },
+                                    version: decoded.version,
+                                },
+                            },
+                        }
+                    }
+                    WalletData::AliPayQr(_)
+                    | WalletData::AliPayRedirect(_)
+                    | WalletData::AliPayHkRedirect(_)
+                    | WalletData::BluecodeRedirect {}
+                    | WalletData::AmazonPayRedirect(_)
+                    | WalletData::MomoRedirect(_)
+                    | WalletData::KakaoPayRedirect(_)
+                    | WalletData::GoPayRedirect(_)
+                    | WalletData::GcashRedirect(_)
+                    | WalletData::ApplePayRedirect(_)
+                    | WalletData::ApplePayThirdPartySdk(_)
+                    | WalletData::DanaRedirect {}
+                    | WalletData::GrabpayRedirect {}
+                    | WalletData::GooglePayRedirect(_)
+                    | WalletData::GooglePayThirdPartySdk(_)
+                    | WalletData::MbWayRedirect(_)
+                    | WalletData::MobilePayRedirect(_)
+                    | WalletData::PaypalRedirect(_)
+                    | WalletData::PaypalSdk(_)
+                    | WalletData::Paze(_)
+                    | WalletData::SamsungPay(_)
+                    | WalletData::TwintRedirect {}
+                    | WalletData::VippsRedirect {}
+                    | WalletData::TouchNGoRedirect(_)
+                    | WalletData::WeChatPayRedirect(_)
+                    | WalletData::WeChatPayQr(_)
+                    | WalletData::CashappQr(_)
+                    | WalletData::SwishQr(_)
+                    | WalletData::Mifinity(_)
+                    | WalletData::RevolutPay(_)
+                    | WalletData::MbWay(_)
+                    | WalletData::Satispay(_)
+                    | WalletData::Wero(_)
+                    | WalletData::LazyPayRedirect(_)
+                    | WalletData::PhonePeRedirect(_)
+                    | WalletData::BillDeskRedirect(_)
+                    | WalletData::CashfreeRedirect(_)
+                    | WalletData::PayURedirect(_)
+                    | WalletData::EaseBuzzRedirect(_)
+                    | WalletData::PaymayaRedirect(_)
+                    | WalletData::PayhereRedirect {}
+                    | WalletData::QwikcilverWalletDirect(_)
+                    | WalletData::Skrill(_)
+                    | WalletData::Neteller(_) => {
+                        return Err(IntegrationError::NotImplemented(
+                            "Wallet".to_string(),
+                            Default::default(),
+                        )
+                        .into())
+                    }
+                };
+
+                Shift4PaymentMethod::Wallet(Shift4WalletPayment {
+                    payment_method: wallet_method,
                 })
             }
             _ => {
