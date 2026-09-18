@@ -4698,11 +4698,26 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    device_pan_bin: None,
+                    card_bin: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
+                    card_type: None,
+                    issuer_name: None,
+                    issuer_country: None,
                 }
             }
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    device_pan_bin: None,
+                    card_bin: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
+                    issuer_name: None,
+                    issuer_country: None,
                 }
             }
             _ => AdditionalPaymentMethodConnectorResponse::Card {
@@ -4771,9 +4786,39 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Bin of the DPAN (device PAN), as returned by the connector
+        device_pan_bin: Option<String>,
+        /// Bin of the underlying card, as returned by the connector
+        card_bin: Option<String>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::enums::CountryAlpha2>,
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Bin of the DPAN (device PAN), as returned by the connector
+        device_pan_bin: Option<String>,
+        /// Bin of the underlying card, as returned by the connector
+        card_bin: Option<String>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::enums::FundingSource>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::enums::CountryAlpha2>,
     },
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
