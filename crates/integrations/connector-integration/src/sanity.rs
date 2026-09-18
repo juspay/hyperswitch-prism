@@ -38,18 +38,16 @@ pub trait ConnectorSanity: Sync {
     }
 }
 
-pub trait ConnectorSanityExt {
-    /// `None` when no sanity handler is registered for this connector — the
-    /// caller decides what that means (e.g. log and skip) instead of every
-    /// connector needing a placeholder implementer.
-    fn sanity(&self) -> Option<&'static dyn ConnectorSanity>;
-}
-
-impl ConnectorSanityExt for ConnectorVariant {
-    fn sanity(&self) -> Option<&'static dyn ConnectorSanity> {
-        match self {
-            Self::Authenticator(AuthenticatorConnectorEnum::Plaid) => Some(&PLAID_SANITY),
-            _ => None,
-        }
+/// `None` when no sanity handler is registered for this connector — the
+/// caller decides what that means (e.g. log and skip) instead of every
+/// connector needing a placeholder implementer.
+///
+/// A plain function, not a trait: there's exactly one caller and one
+/// implementer, so there's no polymorphism to buy with a trait here — just
+/// method-call syntax, which isn't worth a trait definition on its own.
+pub fn sanity_for(connector: &ConnectorVariant) -> Option<&'static dyn ConnectorSanity> {
+    match connector {
+        ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid) => Some(&PLAID_SANITY),
+        _ => None,
     }
 }

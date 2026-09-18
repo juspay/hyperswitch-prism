@@ -9,7 +9,7 @@
 #[cfg(feature = "connector-sanity-layer")]
 use common_utils::SecretSerdeValue;
 #[cfg(feature = "connector-sanity-layer")]
-use connector_integration::sanity::ConnectorSanityExt;
+use connector_integration::sanity::sanity_for;
 #[cfg(feature = "connector-sanity-layer")]
 use domain_types::connector_types::ConnectorVariant;
 #[cfg(feature = "connector-sanity-layer")]
@@ -51,7 +51,7 @@ impl RequestSanitizer for ConnectorSanitizer {
         let Some(connector) = connector_from_metadata(metadata) else {
             return;
         };
-        match connector.sanity() {
+        match sanity_for(&connector) {
             Some(sanitizer) => {
                 let raw_config = raw_connector_config(metadata, &connector.get_connector_name());
                 sanitizer.apply(raw_config, req);
