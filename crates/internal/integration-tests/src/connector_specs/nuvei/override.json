@@ -29,7 +29,9 @@
       },
       "assert": {
         "status": {
-          "one_of": ["FAILURE"]
+          "one_of": [
+            "FAILURE"
+          ]
         },
         "connector_transaction_id": {
           "must_exist": true
@@ -37,27 +39,53 @@
         "error": null,
         "error.connector_details.message": null
       }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "assert": {
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
+        },
+        "connector_response.additional_payment_method_data.card.auth_code": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "assert": {
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
+        },
+        "connector_response.additional_payment_method_data.card.auth_code": {
+          "must_exist": true
+        }
+      }
     }
   },
   "PaymentService/CreateOrder": {
     "create_order_basic": {
       "assert": {
         "status": {
-          "one_of": ["PENDING"]
+          "one_of": [
+            "PENDING"
+          ]
         }
       }
     },
     "create_order_with_metadata": {
       "assert": {
         "status": {
-          "one_of": ["PENDING"]
+          "one_of": [
+            "PENDING"
+          ]
         }
       }
     },
     "create_order_with_payment_method_type": {
       "assert": {
         "status": {
-          "one_of": ["AUTHENTICATION_PENDING"]
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
         },
         "session_token": null,
         "session_data": {
@@ -80,6 +108,66 @@
         "amount": {
           "minor_amount": 6000,
           "currency": "USD"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 15100,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "2221008123677736"
+            },
+            "card_holder_name": {
+              "value": "CL-BRW2"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 15100,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "2221008123677736"
+            },
+            "card_holder_name": {
+              "value": "CL-BRW2"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 15100,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "2221008123677736"
+            },
+            "card_holder_name": {
+              "value": "CL-BRW2"
+            }
+          }
         }
       }
     }

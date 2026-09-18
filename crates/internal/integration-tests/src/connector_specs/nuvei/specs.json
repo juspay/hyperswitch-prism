@@ -11,6 +11,20 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "ach_bank_debit",
+    "ach_bank_transfer",
+    "eps",
+    "giropay",
+    "ideal",
+    "sofort"
+  ],
+  "unsupported_scenarios": {}
 }

@@ -11904,6 +11904,15 @@ impl
             .connector_feature_data
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
             .transpose()?;
+        // The capture request carries no address and no customer block, so the
+        // address- and customer-derived members of L2L3Data stay empty here; only
+        // `order_info` and `tax_info` can be populated from a capture.
+        let capture_address = PaymentAddress::default();
+        let l2_l3_data = value
+            .l2_l3_data
+            .as_ref()
+            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &capture_address, None)))
+            .transpose()?;
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -11912,7 +11921,7 @@ impl
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, // Default
             payment_method_type: None,
-            address: PaymentAddress::default(),
+            address: capture_address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_capture_id.unwrap_or_default(),
             customer_id: None,
@@ -11945,7 +11954,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
-            l2_l3_data: None,
+            l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
             settlement_status: None,
