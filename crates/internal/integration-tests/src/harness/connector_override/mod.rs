@@ -11,6 +11,7 @@ mod glomopay;
 mod helcim;
 mod json_merge;
 mod loader;
+mod nuvei;
 mod redsys;
 
 /// Connector-specific behavior extension points.
@@ -83,6 +84,10 @@ impl OverrideRegistry {
 
         if connector.eq_ignore_ascii_case("helcim") {
             return Box::new(helcim::HelcimConnectorOverride::new());
+        }
+
+        if connector.eq_ignore_ascii_case("nuvei") {
+            return Box::new(nuvei::NuveiConnectorOverride::new());
         }
 
         if connector.eq_ignore_ascii_case("redsys") {

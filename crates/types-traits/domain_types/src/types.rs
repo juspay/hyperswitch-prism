@@ -6048,7 +6048,7 @@ impl
                 })
                 .transpose()?,
             access_token,
-            session_token: None,
+            session_token: value.session_token,
             reference_id: None,
             connector_order_id: None,
             preprocessing_id: None,
@@ -18898,6 +18898,23 @@ impl<
             Option<PaymentMethodData<T>>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Enum accessors borrow the whole request, so they run before any field moves.
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_api_types::payments::FutureUsage::Unspecified => None,
+            future_usage => Some(FutureUsage::foreign_try_from(future_usage)?),
+        };
+        let payment_channel = match value.payment_channel() {
+            grpc_api_types::payments::PaymentChannel::Unspecified => None,
+            channel => Some(common_enums::PaymentChannel::foreign_try_from(channel)?),
+        };
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let billing_descriptor = value
+            .billing_descriptor
+            .as_ref()
+            .map(|descriptor| BillingDescriptor::from((descriptor, None, None)));
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
@@ -19008,6 +19025,12 @@ impl<
                 .as_ref()
                 .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
                 .and_then(|m| m.device_channel),
+
+            setup_future_usage,
+            customer_acceptance,
+            enable_partial_authorization: value.enable_partial_authorization,
+            payment_channel,
+            billing_descriptor,
         })
     }
 }
@@ -19221,7 +19244,7 @@ impl
             minor_amount_capturable: None,
             amount: None,
             access_token,
-            session_token: None,
+            session_token: value.session_token,
             reference_id: None,
             // Elavon PG's hosted-payment-page 3DS opens its payment session against
             // an Order created by PaymentService/CreateOrder, so the order created
@@ -19302,6 +19325,13 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
+        let l2_l3_data = value
+            .l2_l3_data
+            .as_ref()
+            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .transpose()?;
+        let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -19325,7 +19355,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            customer_id: None,
+            customer_id,
             connector_customer: None,
             description,
             return_url: value.return_url.clone(),
@@ -19358,7 +19388,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             merchant_request_id: None,
-            l2_l3_data: None,
+            l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
             settlement_status: None,
@@ -19915,7 +19945,18 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 connector_feature_data,
                 connector_response_reference_id,
                 status_code,
+                mandate_reference,
+                network_txn_id,
+                network_txn_link_id,
             } => PaymentMethodAuthenticationServiceAuthenticateResponse {
+                mandate_reference_details: mandate_reference
+                    .map(|mandate_reference| {
+                        grpc_payment_types::MandateReferenceDetails::foreign_try_from(
+                            *mandate_reference,
+                        )
+                    })
+                    .transpose()?,
+                network_txn_link_id,
                 merchant_order_id: connector_response_reference_id,
                 connector_transaction_id: resource_id
                     .map(Option::foreign_try_from)
@@ -20041,7 +20082,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 raw_connector_status,
                 status_code: status_code.into(),
                 response_headers,
-                network_transaction_id: None,
+                network_transaction_id: network_txn_id,
                 state: None,
             },
             _ => {
@@ -20091,6 +20132,8 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 response_headers,
                 connector_feature_data: None,
                 state: None,
+                mandate_reference_details: None,
+                network_txn_link_id: None,
             }
         }
     };

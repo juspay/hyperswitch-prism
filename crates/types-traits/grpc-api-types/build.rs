@@ -55,6 +55,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Secret-bearing proto `string` fields: keep the wire type (HS and SDK clients
+    // send plain strings) but serialize through Secret<String>, so
+    // hyperswitch_masking::masked_serialize (request/response log fields) masks them
+    // while plain serde_json output is unchanged.
+    for field in [
+        ".types.WebhookSecrets.secret",
+        ".types.RedirectResponseSecrets.secret",
+        ".types.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse.session_token",
+        ".types.PaypalClientAuthenticationResponse.session_token",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::masked_serde::string\")]",
+        );
+    }
+    for field in [
+        ".types.WebhookSecrets.additional_secret",
+        ".types.RedirectResponseSecrets.additional_secret",
+        ".types.PaymentServiceAuthorizeRequest.session_token",
+        ".types.PaymentServiceSetupRecurringRequest.session_token",
+        ".types.RecurringPaymentServiceChargeRequest.session_token",
+        ".types.PaymentMethodAuthenticationServicePreAuthenticateRequest.session_token",
+        ".types.CompositeAuthorizeRequest.session_token",
+        ".types.CompositePreAuthenticateRequest.session_token",
+        ".types.CompositeVerifyRedirectResponseRequest.session_token",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::masked_serde::option_string\")]",
+        );
+    }
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

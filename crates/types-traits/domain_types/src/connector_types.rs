@@ -2129,6 +2129,10 @@ pub enum PaymentsResponseData {
         connector_feature_data: Option<serde_json::Value>,
         connector_response_reference_id: Option<String>,
         status_code: u16,
+        /// Set when the Authenticate leg itself charged the payment (e.g. frictionless 3DS)
+        mandate_reference: Option<Box<MandateReference>>,
+        network_txn_id: Option<String>,
+        network_txn_link_id: Option<String>,
     },
     PostAuthenticateResponse {
         authentication_data: Option<router_request_types::AuthenticationData>,
@@ -2460,9 +2464,20 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
+    /// Stored-credential intent, for connectors whose Authenticate leg can charge
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub enable_partial_authorization: Option<bool>,
+    pub payment_channel: Option<PaymentChannel>,
+    pub billing_descriptor: Option<BillingDescriptor>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
+    pub fn is_customer_initiated_mandate_payment(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
+
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(common_enums::CaptureMethod::Automatic)

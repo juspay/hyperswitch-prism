@@ -2224,6 +2224,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
                 connector_feature_data: pending,
                 connector_response_reference_id: item.response.reference(),
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
         };
 

@@ -3888,6 +3888,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
+
+  // Session and Token Information
+  optional string session_token = 43; // Connector session token, if applicable
 }
 
 // Response message for repeat payment operation
@@ -4028,6 +4031,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
   // resource URL returned by PaymentService/CreateOrder to open a payment
   // session.
   optional string connector_order_id = 16;
+
+  // Session and Token Information
+  optional string session_token = 17; // Connector session token, if applicable
 }
 
 // Response message for pre-authentication step
@@ -4104,6 +4110,18 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Domain-specific data (e.g. student fields for tuition payments)
   optional DomainData domain_data = 16;
+
+  // Stored-credential intent, used when this leg is the charging call
+  optional FutureUsage setup_future_usage = 18; // Indicates future usage intention
+  optional CustomerAcceptance customer_acceptance = 19; // Details of customer acceptance for mandates
+
+  // Payment Options applied when this leg is the charging call
+  optional bool enable_partial_authorization = 20; // Allow partial authorization
+  optional PaymentChannel payment_channel = 21; // Describes the channel through which the payment was initiated
+  optional BillingDescriptor billing_descriptor = 22; // Billing descriptor information
+
+  // Level 2 / Level 3 data
+  optional L2L3Data l2_l3_data = 23;
 }
 
 // Response message for authentication step
@@ -4136,6 +4154,10 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 13;
+
+  // Stored-credential results, set when this leg charged the payment
+  optional MandateReferenceDetails mandate_reference_details = 15; // Reference to the created mandate
+  optional string network_txn_link_id = 16; // Network transaction link identifier
 }
 
 // Request message for post-authentication step
