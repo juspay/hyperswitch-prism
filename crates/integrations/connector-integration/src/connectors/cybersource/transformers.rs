@@ -3908,6 +3908,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             authentication_data,
                             connector_feature_data,
                             status_code: item.http_code,
+                            mandate_reference: None,
+                            network_txn_id: None,
+                            network_txn_link_id: None,
                         }),
                         ..item.router_data
                     })

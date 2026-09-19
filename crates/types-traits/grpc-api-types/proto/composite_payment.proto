@@ -229,6 +229,10 @@ message CompositePreAuthenticateRequest {
   // Send the connector order identifier here if an order was created before
   // pre-authentication (mirrors PaymentMethodAuthenticationServicePreAuthenticateRequest).
   optional string connector_order_id = 19;
+
+  // Connector session token, if applicable (mirrors
+  // PaymentMethodAuthenticationServicePreAuthenticateRequest.session_token).
+  optional string session_token = 20;
 }
 
 // Generic composite response for pre-authenticate that includes access
