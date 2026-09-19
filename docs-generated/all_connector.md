@@ -232,7 +232,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Nmi](connectors/nmi.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Noon](connectors/noon.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ? | x | x | ✓ | ✓ | ✓ | ✓ | ✓ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Novalnet](connectors/novalnet.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
-| [Nuvei](connectors/nuvei.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ? | ? | x | ? | ? | ? | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ✓ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Nuvei](connectors/nuvei.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ✓ | ? | x | ? | ? | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ✓ | ✓ | ✓ | ? | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Paybox](connectors/paybox.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | ? | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Payconex](connectors/payconex.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paydotcom](connectors/paydotcom.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ? | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
