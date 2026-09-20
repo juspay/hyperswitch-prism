@@ -64,6 +64,12 @@ fn d24_x_date() -> String {
     )
 }
 
+// Generates `D24AmountConvertor::convert_back`, for reading a Directa24 amount
+// off a response. The `amount_converters` list below covers the request
+// direction, where the connector struct is in scope; a response transformer
+// only receives `ResponseRouterData`, which carries no connector.
+macros::create_amount_converter_wrapper!(connector_name: D24, amount_type: FloatMajorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: D24,
     generic_type: T,

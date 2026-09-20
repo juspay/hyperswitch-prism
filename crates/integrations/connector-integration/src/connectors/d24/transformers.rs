@@ -27,7 +27,10 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
+use crate::{
+    connectors::d24::{D24AmountConvertor, D24RouterData},
+    types::ResponseRouterData,
+};
 
 /// The Directa24 `payment_method` codes this integration can emit.
 ///
@@ -1096,6 +1099,12 @@ impl From<D24DepositStatus> for AttemptStatus {
 pub struct D24SyncResponse {
     pub deposit_id: i64,
     pub status: D24DepositStatus,
+    /// `THIRD_PARTY_PAYER` or `AMOUNT_MISMATCH` — documented as "relevant for
+    /// bank transfers paid from another account / wrong amount". Surfaced as
+    /// the raw connector status reason; the amount comparison below does not
+    /// depend on it, because the figures are authoritative and this field is
+    /// nullable.
+    pub status_reason: Option<String>,
     pub invoice_id: Option<String>,
     pub user_id: Option<Secret<String>>,
     pub country: Option<String>,
@@ -1107,6 +1116,24 @@ pub struct D24SyncResponse {
     pub payment_type: Option<String>,
 }
 
+/// The settled amount from a deposit sync, expressed in the currency the caller
+/// asked about — or `None` when it cannot be pinned to that currency.
+///
+/// `amount` and `local_amount` are both documented as "amount in local
+/// currency", i.e. the currency in `currency`; `usd_amount` is the USD
+/// equivalent. A Directa24 deposit may be created in the local currency **or**
+/// in USD (Authorize guard 3), so only one of the two is comparable with
+/// `PaymentsSyncData::amount`. Anything else returns `None` rather than a guess:
+/// comparing a MXN figure against a USD request would report every such deposit
+/// as underpaid.
+fn d24_settled_amount(response: &D24SyncResponse, requested: Currency) -> Option<FloatMajorUnit> {
+    match response.currency {
+        Some(currency) if currency == requested => response.amount.or(response.local_amount),
+        _ if requested == Currency::USD => response.usd_amount,
+        _ => None,
+    }
+}
+
 impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -1115,7 +1142,41 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
     fn try_from(item: ResponseRouterData<D24SyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
         let raw_status = response.status.to_string();
-        let status = AttemptStatus::from(response.status);
+
+        // A COMPLETED deposit is not necessarily a fully paid one. WebPay
+        // settles a card for the exact amount requested, but a local bank
+        // transfer is pushed by the payer, who controls what actually arrives:
+        // Directa24 completes the deposit for the amount received and flags the
+        // difference with `status_reason: AMOUNT_MISMATCH`. Mapping COMPLETED
+        // straight to `Charged` would book the full requested amount as
+        // settled, so compare the two first.
+        //
+        // The status is only ever downgraded (`Charged` -> `PartialCharged`),
+        // never upgraded: an overpaid deposit is still fully charged, and the
+        // surplus is reconciled out of band. When the settled amount is unknown
+        // — no comparable figure, or a conversion that fails — the mapping
+        // falls back to the connector's own status rather than inventing a
+        // partial payment or stranding the poll.
+        let requested_currency = item.router_data.request.currency;
+        let settled_amount = d24_settled_amount(&response, requested_currency)
+            .and_then(|amount| D24AmountConvertor::convert_back(amount, requested_currency).ok());
+
+        let mut status = AttemptStatus::from(response.status);
+        if status == AttemptStatus::Charged
+            && settled_amount.is_some_and(|settled| settled < item.router_data.request.amount)
+        {
+            status = AttemptStatus::PartialCharged;
+        }
+
+        // Report the figure alongside the status, so the caller reconciles
+        // against what was really paid. Only once money has settled: before
+        // that `amount` is the amount D24 is waiting for, not a receipt.
+        let minor_amount_captured = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        )
+        .then_some(settled_amount)
+        .flatten();
 
         // A DECLINED deposit is reported through `status`, not by returning an
         // Err: the UCS PSync convention is that the sync response carries the
@@ -1123,10 +1184,12 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+                minor_amount_captured,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: Some(raw_status.clone()),
                     message: Some(raw_status),
-                    reason: None,
+                    reason: response.status_reason.clone(),
                 }),
                 ..item.router_data.resource_common_data
             },
