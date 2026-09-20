@@ -581,13 +581,14 @@ fn d24_payer_document(
         }
         (DocumentKind::Other, CountryAlpha2::MX) => {
             let normalized = document.document_number.peek().trim().to_ascii_uppercase();
-            if !(7..=18).contains(&normalized.len())
-                || !normalized.chars().all(|c| c.is_ascii_alphanumeric())
+            // Characters, not bytes: the error message below reports the same
+            // unit, and Directa24 documents the limit as a character count.
+            let length = normalized.chars().count();
+            if !(7..=18).contains(&length) || !normalized.chars().all(|c| c.is_ascii_alphanumeric())
             {
                 return Err(invalid_payer_document(format!(
                     "a Mexican document (CURP, RFC, IFE or passport) must be 7-18 ASCII \
-                     letters and digits; received {} characters",
-                    normalized.chars().count()
+                     letters and digits; received {length} characters"
                 )));
             }
             Ok((None, Secret::new(normalized)))
