@@ -1175,9 +1175,11 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
 ///   A local bank-transfer deposit (SPEI, Pix, ...) *does* need a bank account
 ///   to be refunded, and no UCS refund field carries one, so those refunds are
 ///   not supported. Hyperswitch rejects them before calling UCS (its D24
-///   `local_bank_transfer` refunds are `NotSupported`). This flow does not
-///   reject them locally (`RefundsData` has no payment method type and only an
-///   optional `payment_method_data`), so any other caller gets D24's
+///   `local_bank_transfer` refunds are `NotSupported`); this flow rejects them
+///   locally too — see the guard below. `RefundsData` carries no payment method
+///   *type*, only an optional `payment_method_data`, so the guard fires only
+///   when the caller populated `PaymentServiceRefundRequest.payment_method`.
+///   Without it the refund is still attempted and D24 answers
 ///   `804 MISSING_BANK_ACCOUNT`.
 #[derive(Debug, Serialize)]
 pub struct D24RefundRequest {
@@ -1218,6 +1220,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
+
+        // --- Guard: local bank-transfer deposits ------------------------------
+        // Directa24 refunds a bank-transfer deposit to a bank account and needs
+        // `bank_account` to do it; no UCS refund field carries one, so the call
+        // can only come back as `804 MISSING_BANK_ACCOUNT`. Hyperswitch already
+        // blocks these upstream — this is the independent UCS-side guard, for
+        // any other caller and for the day that upstream rule changes.
+        //
+        // `payment_method` is optional on `PaymentServiceRefundRequest`, so a
+        // caller that omits it is not blocked here and still gets D24's `804`.
+        // Refusing every refund that omits it would break WebPay refunds, which
+        // are supported.
+        if let Some(PaymentMethodData::BankTransfer(bank_transfer_data)) =
+            request.payment_method_data.as_ref()
+        {
+            if matches!(
+                bank_transfer_data.deref(),
+                BankTransferData::LocalBankTransfer { .. }
+            ) {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "refunding a LocalBankTransfer deposit (Directa24 returns it to a \
+                              bank account and requires bank_account, which no UCS refund field \
+                              carries)"
+                        .to_string(),
+                    connector: "d24",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Refund a Directa24 local bank transfer out of band, through the \
+                             Directa24 dashboard or support, where the payer's bank account can \
+                             be supplied."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }));
+            }
+        }
 
         // `connector_transaction_id` holds exactly what Authorize wrote into
         // `ResponseId::ConnectorTransactionId` — `deposit_id.to_string()`. The
