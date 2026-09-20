@@ -296,6 +296,7 @@
     "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/enums/PaymentMethodStatus.java",
     "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/enums/EventType.java",
     "https://github.com/shift4developer/shift4-node/blob/master/lib/resources/paymentMethods.js"
+  ],
   "ElavonPg": [
     "https://developer.elavon.com/products/elavon-payment-gateway/v1/api-reference",
     "https://developer.elavon.com/products/elavon-payment-gateway/v1/api-reference#tag/Transactions",
