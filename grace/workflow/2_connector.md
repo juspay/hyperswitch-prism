@@ -662,6 +662,14 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    `scope.sections`, `AMEND_BRIEF`. 2.2 and 2.3a: one spawn per brief. 2.3b: after a 2.3a AMEND its S3 follow-up (S4),
    else `scope.units` with the brief, ∪ the 2.3a AMEND's `test_hooks_changed` (`u` brief) and the units of the
    brief's `retest.add_checks[]`.
+   **Do not spawn a unit the amended plan gives nothing to do.** After the plan AMEND returns, a unit of that set
+   whose plan revision carries no new or changed item — and whose work another unit's shared code already covers —
+   gets `ev SKIP S4:<NN>:<unit_fs> reason=unit:no_items` and no spawn. The spawn is not free: it reloads the plan and
+   the connector module to conclude `NO_CHANGE`. When the brief carries per-unit `fix[]` entries, "nothing to do" is
+   "no `fix[]` entry names this unit"; when it does not, the plan revision's own `amendments[].units` decides.
+   Several plan AMENDs may also be **one** spawn: briefs from the same RCA round that the planner must reconcile
+   against each other are cheaper and more coherent amended together, with each sub-brief cited and left
+   authoritative for its own bugs, than as one 2.3a spawn per brief against `amend_plan`.
 3. **NO_CHANGE propagation**: a target returning `NO_CHANGE` hands the `nc` brief (`upstream_no_change: true`) to the
    brief's later targets; live evidence decides.
 4. **Caps before each spawn** (R8): at cap, or an `amend_targets[]` stage returning `FAILED` → **drop**:
@@ -690,6 +698,12 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    `2.6d_test_exec.md` "Phase 1: Bookkeeping (INGEST, STATUS_UPDATES)"): per bug of `rca/r<N>.json` `open→rca`,
    `rca→<proposed_status>`, then `fixing→retest` (chain completed) or `fixing→unresolved` (dropped); plus the
    `unresolved` moves of 4–6. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
+   An entry's `proposed_status` is **either a single status for all of its `bug_ids[]`, or an object keyed by bug id**
+   (2.6e writes the object form when one entry clusters bugs that end differently) — read it as
+   `(if (.proposed_status|type)=="object" then .proposed_status[$b] else .proposed_status end)`, or the file is
+   written with an object as a status and 2.6d rejects every update in it. A bug that no check can observe
+   (log masking, a refusal only a direct caller can reach) never reaches `fixed` through a retest: move it
+   yourself with the evidence in `note`, and say which round's scan or transcript is that evidence.
 8. **Re-test** (`select_checks`): **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of
    every AMEND this round). That is the whole rule.
 
