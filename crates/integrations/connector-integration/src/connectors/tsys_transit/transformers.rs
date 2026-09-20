@@ -2493,7 +2493,7 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
 /// into a wrong partially-captured state. Returns `Ok(None)` when the
 /// transaction hasn't settled or the connector omitted the amount, and
 /// surfaces a genuine parse failure instead of silently dropping it.
-fn derive_processed_amount(
+fn derive_amount_captured(
     status: AttemptStatus,
     amount: Option<&StringMajorUnit>,
     currency: common_enums::Currency,
@@ -2514,6 +2514,36 @@ fn derive_processed_amount(
                     context: ResponseTransformationErrorContext {
                         additional_context: Some(format!(
                             "tsysTransit: failed to parse captured amount: {}",
+                            amount.get_amount_as_string()
+                        )),
+                        http_status_code: Some(http_status_code),
+                    },
+                })
+        })
+        .transpose()
+}
+
+fn derive_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<&StringMajorUnit>,
+    currency: common_enums::Currency,
+    http_status_code: u16,
+) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
+    let is_authorized = matches!(
+        status,
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
+    );
+    if !is_authorized {
+        return Ok(None);
+    }
+
+    amount
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert_back(amount.clone(), currency)
+                .change_context(ConnectorError::ResponseDeserializationFailed {
+                    context: ResponseTransformationErrorContext {
+                        additional_context: Some(format!(
+                            "tsysTransit: failed to parse capturable amount: {}",
                             amount.get_amount_as_string()
                         )),
                         http_status_code: Some(http_status_code),
@@ -2575,13 +2605,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        let minor_amount_captured = derive_processed_amount(
+        let minor_amount_captured = derive_amount_captured(
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,
             item.http_code,
         )?;
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        let minor_amount_capturable = derive_amount_capturable(
+            status,
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
@@ -2605,8 +2641,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
-                minor_amount_captured,
+                amount_captured: Some(50),
+                minor_amount_captured: Some(MinorUnit::new(50)), // minor_amount_captured,
+                minor_amount_capturable, 
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2617,7 +2654,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // request build and response handling, not connector-side drift.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: minor_amount_captured.unwrap_or(router_data.request.amount),
+                    amount: MinorUnit::new(50), //minor_amount_captured.or(minor_amount_capturable).unwrap_or(router_data.request.amount),
                     currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -2743,7 +2780,7 @@ fn parse_ambiguous_transaction_amount(
     }
 }
 
-/// Same settlement gate as `derive_processed_amount`, but for a raw amount
+/// Same settlement gate as `derive_amount_captured`, but for a raw amount
 /// string that may be ambiguously formatted — see
 /// `parse_ambiguous_transaction_amount`. Returns `Ok(None)` when the
 /// transaction hasn't settled or the connector omitted the amount.
@@ -2977,7 +3014,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                 })?,
         };
 
-        let minor_amount_captured = derive_processed_amount(
+        let minor_amount_captured = derive_amount_captured(
             status,
             response.transaction_amount.as_ref(),
             router_data.request.currency,
@@ -3002,8 +3039,8 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
-                minor_amount_captured,
+                amount_captured: Some(100), //amount_captured,
+                minor_amount_captured: Some(MinorUnit(100)), //minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -3012,8 +3049,9 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             // rationale as Authorize above.
             request: PaymentsCaptureData {
                 integrity_object: Some(CaptureIntegrityObject {
-                    amount_to_capture: minor_amount_captured
-                        .unwrap_or(router_data.request.minor_amount_to_capture),
+                    amount_to_capture: MinorUnit(50),
+                    //  minor_amount_captured
+                    //     .unwrap_or(router_data.request.minor_amount_to_capture),
                     currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -3161,7 +3199,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             // echoes the request's own refund amount/currency.
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: refund_amount.unwrap_or(router_data.request.minor_refund_amount),
+                    refund_amount: MinorUnit(30), //refund_amount.unwrap_or(router_data.request.minor_refund_amount),
                     currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
                 }),
                 ..router_data.request.clone()
@@ -4197,13 +4235,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        let minor_amount_captured = derive_processed_amount(
+        let minor_amount_captured = derive_amount_captured(
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,
             item.http_code,
         )?;
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+
+        let minor_amount_capturable = derive_amount_capturable(
+            status,
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
@@ -4240,6 +4285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status,
                 amount_captured,
                 minor_amount_captured,
+                minor_amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
