@@ -9816,7 +9816,15 @@ pub fn generate_refund_sync_response(
 
     match refunds_response {
         Ok(response) => {
-            let status = response.refund_status;
+            // `resource_common_data.status` only ever diverges from `response.refund_status` when the server-side
+            // integrity check set it to `ManualReview`.
+            let status = if router_data_v2.resource_common_data.status
+                == common_enums::RefundStatus::ManualReview
+            {
+                router_data_v2.resource_common_data.status
+            } else {
+                response.refund_status
+            };
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
             let response_headers = router_data_v2
                 .resource_common_data
@@ -11584,7 +11592,17 @@ pub fn generate_refund_response(
 
     match refund_response {
         Ok(response) => {
-            let status = response.refund_status;
+            // `resource_common_data.status` starts at `Pending` and is only ever moved to
+            // `ManualReview` by the server-side integrity check (see
+            // `SetIntegrityFailureStatus`). So this only ever
+            // overrides `response.refund_status` for the integrity-check case.
+            let status = if router_data_v2.resource_common_data.status
+                == common_enums::RefundStatus::ManualReview
+            {
+                router_data_v2.resource_common_data.status
+            } else {
+                response.refund_status
+            };
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
 
             Ok(RefundResponse {

@@ -2641,8 +2641,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: Some(50),
-                minor_amount_captured: Some(MinorUnit::new(50)), // minor_amount_captured,
+                amount_captured,
+                minor_amount_captured,
                 minor_amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
@@ -2654,7 +2654,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // request build and response handling, not connector-side drift.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: MinorUnit::new(50), //minor_amount_captured.or(minor_amount_capturable).unwrap_or(router_data.request.amount),
+                    amount: minor_amount_captured
+                        .or(minor_amount_capturable)
+                        .unwrap_or(router_data.request.amount),
                     currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -2780,29 +2782,6 @@ fn parse_ambiguous_transaction_amount(
     }
 }
 
-/// Same settlement gate as `derive_amount_captured`, but for a raw amount
-/// string that may be ambiguously formatted — see
-/// `parse_ambiguous_transaction_amount`. Returns `Ok(None)` when the
-/// transaction hasn't settled or the connector omitted the amount.
-fn derive_transaction_amount(
-    status: AttemptStatus,
-    amount: Option<&str>,
-    currency: common_enums::Currency,
-    http_status_code: u16,
-) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
-    let is_settled = matches!(
-        status,
-        AttemptStatus::Charged | AttemptStatus::PartialCharged
-    );
-    if !is_settled {
-        return Ok(None);
-    }
-
-    amount
-        .map(|amount| parse_ambiguous_transaction_amount(amount, currency, http_status_code))
-        .transpose()
-}
-
 impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -2836,22 +2815,40 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 payment_account_reference: None,
             };
 
-            let minor_amount_captured = derive_transaction_amount(
-                status,
-                transaction_details.transaction_amount.as_deref(),
-                transaction_details
-                    .currency_code
-                    .unwrap_or(router_data.request.currency),
-                item.http_code,
-            )?;
+            let transaction_amount = transaction_details
+                .transaction_amount
+                .as_deref()
+                .map(|amount| {
+                    parse_ambiguous_transaction_amount(
+                        amount,
+                        transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.currency),
+                        item.http_code,
+                    )
+                })
+                .transpose()?;
 
+            let minor_amount_captured = matches!(
+                status,
+                AttemptStatus::Charged | AttemptStatus::PartialCharged
+            )
+            .then(|| transaction_amount)
+            .flatten();
             let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+            let minor_amount_capturable = matches!(
+                status,
+                AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
+            )
+            .then(|| transaction_amount)
+            .flatten();
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
                     amount_captured,
                     minor_amount_captured,
+                    minor_amount_capturable,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Ok(payments_response_data),
@@ -3039,8 +3036,8 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: Some(100), //amount_captured,
-                minor_amount_captured: Some(MinorUnit(100)), //minor_amount_captured,
+                amount_captured,
+                minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -3049,9 +3046,8 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             // rationale as Authorize above.
             request: PaymentsCaptureData {
                 integrity_object: Some(CaptureIntegrityObject {
-                    amount_to_capture: MinorUnit(50),
-                    //  minor_amount_captured
-                    //     .unwrap_or(router_data.request.minor_amount_to_capture),
+                    amount_to_capture: minor_amount_captured
+                        .unwrap_or(router_data.request.minor_amount_to_capture),
                     currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -3199,7 +3195,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             // echoes the request's own refund amount/currency.
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: MinorUnit(30), //refund_amount.unwrap_or(router_data.request.minor_refund_amount),
+                    refund_amount: refund_amount.unwrap_or(router_data.request.minor_refund_amount),
                     currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
                 }),
                 ..router_data.request.clone()
