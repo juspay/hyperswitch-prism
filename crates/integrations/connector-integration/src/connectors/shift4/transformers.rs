@@ -531,8 +531,23 @@ fn shift4_mandate_reference(credential_id: &Secret<String>) -> Box<MandateRefere
 ///   method (`pm_...`) the charge used, and only while a customer owns it and its
 ///   `status` is `chargeable`. Shift4 documents `pending`, `failed` and `used`
 ///   ("already charged and cannot be reused") too, none of which can be charged.
-/// * Card: the stored card (`card_...`), and only when a customer owns it
-///   (`card.customerId`, or the charge's flat `customerId`).
+/// * Card: the stored card (`card_...`), and only when `card.customerId` names the
+///   customer that owns it. The charge's flat `customerId` is deliberately *not*
+///   accepted as a substitute: it says which customer the charge was assigned to,
+///   not who owns the card, so it cannot stand in for card ownership. Shift4 sets
+///   `card.customerId` itself when it files the card under the charge's customer,
+///   so on a charge that really did store a card the two agree; reading the card's
+///   own field just means the mandate is never handed back on Shift4's word about a
+///   different object.
+///
+/// The card branch looks asymmetric next to the wallet one — no `status` check —
+/// because the Shift4 card object has no `status` field at all. Its attributes are
+/// `id`, `created`, `objectType`, `first6`, `last4`, `fingerprint`, `expMonth`,
+/// `expYear`, `cardholderName`, `customerId`, `brand`, `type`, `country`, `issuer`,
+/// the `address*` fields, `fraudCheckData`, `merchantAccountId` and `fastCredit`
+/// (<https://dev.shift4.com/docs/api#card-object>). `status` is a payment-method
+/// concept only (<https://dev.shift4.com/docs/api#payment-methods>), so on a card
+/// there is nothing to check and ownership is the whole test.
 ///
 /// The charge id (`char_...`) cannot charge the credential again, so there is no
 /// fallback to it.
@@ -552,7 +567,7 @@ fn build_shift4_mandate_reference(
     response
         .card
         .as_ref()
-        .filter(|card| card.customer_id.is_some() || response.customer_id.is_some())
+        .filter(|card| card.customer_id.is_some())
         .map(|card| shift4_mandate_reference(&card.id))
 }
 
@@ -2833,7 +2848,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item.request.minor_amount.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Shift4 has no default charge amount: `POST /charges` requires an \
+                         explicit `amount`, and `0` is not a stand-in for \"unset\" but a \
+                         distinct instruction to run a card-on-file verification that stores \
+                         the credential without moving funds. Defaulting a missing amount to \
+                         `0` would silently turn a payment into a verification, so the setup \
+                         is refused before anything reaches Shift4."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set the amount on the SetupRecurring request: the minor-unit amount \
+                         to charge while storing the credential, or `0` to store it with a \
+                         zero-amount card-on-file verification."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://dev.shift4.com/docs/api#create-a-new-charge".to_string(),
+                    ),
+                },
             })
         })?;
         let billing_details = item
@@ -2867,7 +2901,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Payment method not supported for SetupMandate".to_string(),
                     connector: "Shift4",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "A Shift4 SetupRecurring stores a credential the later \
+                             merchant-initiated charge can reference by id, so it only accepts \
+                             the payment methods Shift4 files under a customer: a raw card, a \
+                             Shift4 card token (`tok_...`), and Apple Pay / Google Pay, which \
+                             is stored as a payment method (`pm_...`). Shift4's other payment \
+                             methods — the bank redirects (iDEAL, EPS) among them — are \
+                             single-use and leave nothing chargeable behind, so there would be \
+                             no mandate to hand back."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Send a card, a Shift4 card token, or Apple Pay / Google Pay on \
+                             SetupRecurring. To take a one-off payment with another payment \
+                             method, use Authorize instead."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://dev.shift4.com/docs/api#create-a-new-charge".to_string(),
+                        ),
+                    },
                 }))
             }
         };
