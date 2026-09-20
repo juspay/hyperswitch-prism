@@ -2643,7 +2643,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status,
                 amount_captured: Some(50),
                 minor_amount_captured: Some(MinorUnit::new(50)), // minor_amount_captured,
-                minor_amount_capturable, 
+                minor_amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
