@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.21.2
+
+### Features
+
+- **connector:**
+  - [PayNearMe] add SetupMandate, RepeatPayment and CreateOrder standing orders; refuse Apple Pay and Google Pay ([#2295](https://github.com/juspay/connector-service/pull/2295)) ([`147f435`](https://github.com/juspay/connector-service/commit/147f435ade86cce72bec63ce51cfe725ebb25714))
+  - Add GlobalpaymentsRealex card flows (Authorize, PSync, Capture, Void, Refund, RSync) and merchant-driven 3DS2 ([#2204](https://github.com/juspay/connector-service/pull/2204)) ([`b63cfcf`](https://github.com/juspay/connector-service/commit/b63cfcfd8312806c86d17ea362d82218c5d5ea60))
+- **grace:** Alpha connectors without credentials, operator-supplied creds, and less run rework ([#2332](https://github.com/juspay/connector-service/pull/2332)) ([`a602f88`](https://github.com/juspay/connector-service/commit/a602f88529188dadebcc8c2801a7cbf6a0a98b85))
+
+**Full Changelog:** [`2026.09.21.1...2026.09.21.2`](https://github.com/juspay/connector-service/compare/2026.09.21.1...2026.09.21.2)
+
+- - -
+
 ## 2026.09.21.1
 
 ### Features
