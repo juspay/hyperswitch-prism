@@ -6,6 +6,7 @@ use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
 use common_utils::events::FlowName;
+use composite_service::events::NotifyConnectorWithFeatureData;
 use connector_integration::types::{
     ConnectorData, ConnectorDataProvider, FrmConnectorData, SurchargeConnectorData,
 };
@@ -43,6 +44,7 @@ use grpc_api_types::payments::{
     EventServiceParseRequest, EventServiceParseResponse, NotifyConnectorRequest,
     NotifyConnectorResponse,
 };
+use hyperswitch_masking::Secret;
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
     configs::Config,
@@ -321,6 +323,20 @@ impl EventService for EventServiceImpl {
         &self,
         request: tonic::Request<NotifyConnectorRequest>,
     ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+        self.notify_connector_with_feature_data((request, None))
+            .await
+    }
+}
+
+#[tonic::async_trait]
+impl NotifyConnectorWithFeatureData for EventServiceImpl {
+    async fn notify_connector_with_feature_data(
+        &self,
+        (request, connector_feature_data): (
+            tonic::Request<NotifyConnectorRequest>,
+            Option<Secret<String>>,
+        ),
+    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
         let service_name = request
             .extensions()
             .get::<String>()
@@ -375,6 +391,7 @@ impl EventService for EventServiceImpl {
                         | grpc_api_types::payments::NotifyEventType::FrmPaymentFailure => {
                             Self::handle_frm_payment_outcome_notify(
                                 request_data,
+                                connector_feature_data,
                                 &service_name,
                                 config,
                             )
@@ -667,6 +684,7 @@ impl EventServiceImpl {
 
     async fn handle_frm_payment_outcome_notify(
         request_data: RequestData<NotifyConnectorRequest>,
+        connector_feature_data: Option<Secret<String>>,
         service_name: &str,
         config: std::sync::Arc<Config>,
     ) -> Result<
@@ -708,7 +726,8 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            FrmPaymentOutcomeRequest::foreign_try_from(req.clone()).to_grpc_error()?;
+            FrmPaymentOutcomeRequest::foreign_try_from((req.clone(), connector_feature_data))
+                .to_grpc_error()?;
 
         // Resolve effective connector URLs — applies superposition (x-environment) first,
         // then any caller-supplied base_url override from x-connector-config on top.

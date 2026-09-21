@@ -4968,14 +4968,26 @@ impl CustomerInfo {
             .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
 
-    /// Phone number in E.123 international format (`+<country><number>`).
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
     /// `None` when the customer has no phone number.
     pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
-        let phone = self.customer_phone_number.as_ref()?;
-        payment_address::e123_phone_number(
-            self.customer_phone_country_code.as_deref(),
-            phone.peek(),
-        )
+        self.customer_phone_number
+            .as_ref()
+            .map(|number| number.peek().trim())
+            .filter(|number| !number.is_empty())
+            .map(|number| {
+                let country_code = self
+                    .customer_phone_country_code
+                    .as_deref()
+                    .map(str::trim)
+                    .map(|code| code.trim_start_matches('+'))
+                    .map(|code| code.strip_prefix("00").unwrap_or(code))
+                    .filter(|code| !code.is_empty());
+                Secret::new(match country_code {
+                    Some(code) if !number.starts_with('+') => format!("+{code}{number}"),
+                    _ => number.to_owned(),
+                })
+            })
     }
 }
 

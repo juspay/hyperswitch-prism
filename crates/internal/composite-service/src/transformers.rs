@@ -26,6 +26,8 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 
+use hyperswitch_masking::Secret;
+
 use crate::utils::{
     get_access_token, get_connector_customer_id, get_payment_method_token, get_session_token,
     grpc_connector_from_connector_variant,
@@ -1452,7 +1454,11 @@ impl
     ForeignFrom<(
         &grpc_api_types::payments::CompositeNotifyRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
-    )> for grpc_api_types::payments::NotifyConnectorRequest
+    )>
+    for (
+        grpc_api_types::payments::NotifyConnectorRequest,
+        Option<Secret<String>>,
+    )
 {
     fn foreign_from(
         (item, access_token_response): (
@@ -1477,28 +1483,16 @@ impl
             connector_customer_id,
         });
 
-        // `NotifyConnectorRequest` carries no top-level `connector_feature_data`; the
-        // connector reads it from `content.frm_notification`. Composite callers send it
-        // top-level, so fold it down. A value already nested there wins, being the more
-        // specific of the two.
-        let mut content = item.content.clone();
-        if let Some(grpc_api_types::payments::notify_connector_content::Content::FrmNotification(
-            frm,
-        )) = content
-            .as_mut()
-            .and_then(|content| content.content.as_mut())
-        {
-            if let Some(feature_data) = item.connector_feature_data.clone() {
-                frm.connector_feature_data.get_or_insert(feature_data);
-            }
-        }
-
-        Self {
-            event_id: item.event_id.clone(),
-            event_type: item.event_type,
-            content,
-            timestamp: item.timestamp,
-            state: resolved_state,
-        }
+        // The feature data is not a proto field; it travels beside the request.
+        (
+            grpc_api_types::payments::NotifyConnectorRequest {
+                event_id: item.event_id.clone(),
+                event_type: item.event_type,
+                content: item.content.clone(),
+                timestamp: item.timestamp,
+                state: resolved_state,
+            },
+            item.connector_feature_data.clone(),
+        )
     }
 }

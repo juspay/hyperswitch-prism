@@ -1486,26 +1486,6 @@ pub(super) fn merge_pre_risk_merchant(
     })
 }
 
-/// Card expiry as Kount's `expirationMonth` / `expirationYear` integers. The
-/// year is expanded to four digits first. Either part that isn't numeric — a
-/// vault template token, say — yields `None` rather than failing the order.
-fn card_expiry<T: PaymentMethodDataTypes>(
-    card: &Card<T>,
-) -> Result<(Option<i32>, Option<i32>), errors::IntegrationError> {
-    let month = card
-        .get_card_expiry_month_2_digit()?
-        .peek()
-        .parse::<i32>()
-        .ok();
-    let year = card
-        .get_expiry_year_4_digit()
-        .peek()
-        .trim()
-        .parse::<i32>()
-        .ok();
-    Ok((month, year))
-}
-
 /// Kount payment type for a card, from its (optional) `card_type`. Falls back to
 /// the generic `CARD` when credit/debit is unknown.
 fn card_payment_type<T: PaymentMethodDataTypes>(card: &Card<T>) -> KountPaymentType {
@@ -1684,73 +1664,69 @@ pub(super) fn kount_pre_risk_feature_data(
 pub(super) fn kount_custom_fields(
     metadata: Option<&Secret<String>>,
 ) -> Option<serde_json::Map<String, serde_json::Value>> {
-    let raw = metadata
+    let parsed = metadata
         .map(|m| m.peek().trim().to_owned())
-        .filter(|s| !s.is_empty())?;
-
-    let parsed = serde_json::from_str::<serde_json::Value>(&raw)
-        .inspect_err(|err| {
-            tracing::warn!(
-                error = %err,
-                "Kount metadata is not valid JSON; customFields will not be sent"
-            );
-        })
-        .ok()?;
-
-    let metadata_obj = match parsed {
-        serde_json::Value::Object(map) => map,
-        _ => {
-            tracing::warn!("Kount metadata is not a JSON object; customFields will not be sent");
-            return None;
-        }
-    };
-
-    // Absent is normal/silent — most callers won't send this key yet.
-    let custom_fields = metadata_obj.get("customFields")?;
-
-    let obj = match custom_fields {
-        serde_json::Value::Object(map) => map.clone(),
-        _ => {
-            tracing::warn!(
-                "Kount metadata.customFields is not a JSON object; customFields will not be sent"
-            );
-            return None;
-        }
-    };
-
-    let filtered: serde_json::Map<String, serde_json::Value> = obj
-        .into_iter()
-        .filter(|(key, value)| match value {
-            serde_json::Value::Null => false,
-            serde_json::Value::String(s) => {
-                let ok = key.len() <= 32 && s.len() <= 256;
-                if !ok {
+        .filter(|raw| !raw.is_empty())
+        .and_then(|raw| {
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .inspect_err(|err| {
                     tracing::warn!(
-                        key = %key,
-                        "Kount custom field dropped: exceeds Kount's length limits"
+                        error = %err,
+                        "Kount metadata is not valid JSON; customFields will not be sent"
                     );
-                }
-                ok
-            }
-            serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
-                let ok = key.len() <= 32;
-                if !ok {
-                    tracing::warn!(
-                        key = %key,
-                        "Kount custom field dropped: key exceeds Kount's 32-char limit"
-                    );
-                }
-                ok
-            }
-            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                })
+                .ok()
+        });
+
+    let filtered: serde_json::Map<String, serde_json::Value> = parsed
+        .as_ref()
+        .and_then(serde_json::Value::as_object)
+        // Absent is normal/silent — most callers won't send this key yet.
+        .and_then(|metadata_obj| metadata_obj.get("customFields"))
+        .and_then(|custom_fields| match custom_fields {
+            serde_json::Value::Object(map) => Some(map.clone()),
+            _ => {
                 tracing::warn!(
-                    key = %key,
-                    "Kount custom field dropped: array/object values are not allowed"
+                    "Kount metadata.customFields is not a JSON object; customFields will not be sent"
                 );
-                false
+                None
             }
         })
-        .collect();
+        .map(|obj| {
+            obj.into_iter()
+                .filter(|(key, value)| match value {
+                    serde_json::Value::Null => false,
+                    serde_json::Value::String(s) => {
+                        let ok = key.len() <= 32 && s.len() <= 256;
+                        if !ok {
+                            tracing::warn!(
+                                key = %key,
+                                "Kount custom field dropped: exceeds Kount's length limits"
+                            );
+                        }
+                        ok
+                    }
+                    serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
+                        let ok = key.len() <= 32;
+                        if !ok {
+                            tracing::warn!(
+                                key = %key,
+                                "Kount custom field dropped: key exceeds Kount's 32-char limit"
+                            );
+                        }
+                        ok
+                    }
+                    serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                        tracing::warn!(
+                            key = %key,
+                            "Kount custom field dropped: array/object values are not allowed"
+                        );
+                        false
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     (!filtered.is_empty()).then_some(filtered)
 }
@@ -1945,7 +1921,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             PaymentMethodData::Card(card) => {
                                 let pan = card.card_number.peek();
                                 let (bin, last4) = card_bin_last4(pan);
-                                let (exp_month, exp_year) = card_expiry(card)?;
+                                // A non-numeric part — a vault template token, say — yields
+                                // `None` rather than failing the order.
+                                let exp_month = card
+                                    .get_card_expiry_month_2_digit()?
+                                    .peek()
+                                    .parse::<i32>()
+                                    .ok();
+                                let exp_year =
+                                    card.get_expiry_year_4_digit().peek().parse::<i32>().ok();
                                 (bin, last4, salted_token(pan), exp_month, exp_year)
                             }
                             // Non-card methods: salted token of the instrument identifier

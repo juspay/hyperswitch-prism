@@ -1886,11 +1886,6 @@ message FrmNotificationContent {
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
 
-  // Connector-specific feature data (e.g. AVS/CVV verification results) for the
-  // notify call. This is the only place the connector reads it from. Composite
-  // callers send it top-level on `CompositeNotifyRequest` and the composite
-  // transformer folds it down to here; a value already set here wins.
-  optional SecretString connector_feature_data = 9;
 }
 
 // FRM payment success details

@@ -13,8 +13,22 @@ use grpc_api_types::payments::{
     CompositeNotifyResponse, ConnectorState, EventServiceHandleRequest, EventServiceParseRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, NotifyConnectorRequest,
-    NotifyEventType,
+    NotifyConnectorResponse, NotifyEventType,
 };
+use hyperswitch_masking::Secret;
+
+/// `NotifyConnectorRequest` has no field for connector feature data, so the composite caller
+/// passes it alongside the request.
+#[tonic::async_trait]
+pub trait NotifyConnectorWithFeatureData {
+    async fn notify_connector_with_feature_data(
+        &self,
+        request: (
+            tonic::Request<NotifyConnectorRequest>,
+            Option<Secret<String>>,
+        ),
+    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status>;
+}
 
 /// Composite implementation of [`CompositeEventService`].
 ///
@@ -29,7 +43,7 @@ use grpc_api_types::payments::{
 #[derive(Debug, Clone)]
 pub struct CompositeEvents<E, MA>
 where
-    E: EventService + Clone + Send + Sync + 'static,
+    E: EventService + NotifyConnectorWithFeatureData + Clone + Send + Sync + 'static,
     MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
 {
     event_service: E,
@@ -57,7 +71,7 @@ impl CompositeAccessTokenRequest for CompositeNotifyRequest {
 
 impl<E, MA> CompositeEvents<E, MA>
 where
-    E: EventService + Clone + Send + Sync + 'static,
+    E: EventService + NotifyConnectorWithFeatureData + Clone + Send + Sync + 'static,
     MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
 {
     pub fn new(event_service: E, merchant_authentication_service: MA) -> Self {
@@ -118,7 +132,7 @@ where
 #[tonic::async_trait]
 impl<E, MA> CompositeEventService for CompositeEvents<E, MA>
 where
-    E: EventService + Clone + Send + Sync + 'static,
+    E: EventService + NotifyConnectorWithFeatureData + Clone + Send + Sync + 'static,
     MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
 {
     async fn handle_event(
@@ -188,15 +202,15 @@ where
             .await?;
 
         // Build the underlying NotifyConnectorRequest using ForeignFrom
-        let inner =
-            NotifyConnectorRequest::foreign_from((&payload, access_token_response.as_ref()));
+        let (inner, connector_feature_data): (NotifyConnectorRequest, Option<Secret<String>>) =
+            ForeignFrom::foreign_from((&payload, access_token_response.as_ref()));
         let mut inner_request = tonic::Request::new(inner);
         *inner_request.metadata_mut() = metadata;
         *inner_request.extensions_mut() = extensions;
 
         let notify_response = self
             .event_service
-            .notify_connector(inner_request)
+            .notify_connector_with_feature_data((inner_request, connector_feature_data))
             .await?
             .into_inner();
 
