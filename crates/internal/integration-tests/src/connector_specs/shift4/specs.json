@@ -3,6 +3,7 @@
   "supported_suites": [
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Authorize",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/Capture",
     "CustomerService/Create",
     "PaymentService/Get",
@@ -11,7 +12,8 @@
     "PaymentService/Refund",
     "PaymentService/Void",
     "RefundService/Get",
-    "PaymentService/SetupRecurring"
+    "PaymentService/SetupRecurring",
+    "EventService/HandleEvent"
   ],
   "supported_payment_methods": [
     "card",
@@ -22,7 +24,7 @@
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
-      "no3ds_auto_capture_google_pay_encrypted": "The scenario's token is replaced by a browser-generated Google Pay token, which needs GPAY_HOSTED_URL and a metadata.google_pay gateway block for shift4 in creds.json; the shift4 creds carry neither, so the scenario can only skip. Shift4 accepts only a Google Pay token issued for its own gateway and, for PAN_ONLY credentials, declines with HTTP 402 authentication_required without browser 3DS. Google Pay CRYPTOGRAM_3DS Authorize, SetupRecurring and RecurringPaymentService/Charge were verified against the Shift4 sandbox by grpcurl instead (PR #2279)."
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: grace/rulesbook/codegen/references/shift4/technical_specification.md (Stored credentials, wallet doc gap) - the scenario needs a browser-generated Google Pay token issued for Shift4's own gateway, which the shift4 creds do not carry"
     }
   }
 }

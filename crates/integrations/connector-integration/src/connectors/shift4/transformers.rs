@@ -1,19 +1,28 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, AuthorizationStatus, Currency, RefundStatus};
-use common_utils::{pii, request::Method, types::MinorUnit};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    pii,
+    request::Method,
+    types::{MinorUnit, StringMinorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
+        IncrementalAuthorization, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, MandateReference,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
         Shift4ClientAuthenticationResponse as Shift4ClientAuthenticationResponseDomain,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address,
@@ -26,16 +35,19 @@ use domain_types::{
         FlowStatus,
     },
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 // Import the connector's RouterData wrapper type created by the macro
 use super::Shift4RouterData;
-use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 
 /// Shift4's refund object has no failure fields, so a declined authorization
 /// release surfaces only as `status: "failed"`. This spells out what actually
@@ -228,6 +240,12 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
     /// no `orderId` / `invoice` / `merchantReference` field.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external: Option<Shift4External>,
+    /// Merchant-supplied 3DS results (`threeDSecure.external`), sent with the raw
+    /// card when the merchant authenticated the shopper on its own 3DS server.
+    /// Absent on every charge that carries no such result, including one that
+    /// settles a Shift4-run 3DS token (the token already binds the outcome).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_secure: Option<Shift4ThreeDSecure>,
     #[serde(flatten)]
     pub payment_method: Shift4PaymentMethod<T>,
 }
@@ -934,6 +952,29 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        // G-ThreeDS-04: Shift4 captures a charge once, so multiple / scheduled capture
+        // cannot be honoured on any payment-method arm. Refused before the payment
+        // method match so no arm can send `captured: false` on the caller's behalf.
+        shift4_reject_unsupported_capture_method(item.request.capture_method)?;
+
+        // G-ThreeDS-01: a card flagged for 3DS is charged only with the outcome of an
+        // authentication (a Shift4 3DS token, or the merchant's external results).
+        // Refused locally, before any HTTP call, rather than downgraded to a sale.
+        let three_ds_settlement = if item.resource_common_data.is_three_ds()
+            && matches!(item.request.payment_method_data, PaymentMethodData::Card(_))
+        {
+            Some(Shift4ThreeDsSettlement::try_from_authentication_data(
+                item.request.authentication_data.as_ref(),
+            )?)
+        } else {
+            None
+        };
+        let (three_ds_token, three_d_secure) = match three_ds_settlement {
+            Some(Shift4ThreeDsSettlement::Token(token)) => (Some(token), None),
+            Some(Shift4ThreeDsSettlement::External(external)) => (None, Some(external)),
+            None => (None, None),
+        };
+
         let is_zero_amount = item.request.minor_amount == MinorUnit::new(0);
         // Shift4 rejects a zero-amount charge that asks to be captured with
         // HTTP 400 `{"type":"invalid_request","message":"Zero amount charge cannot
@@ -948,12 +989,19 @@ impl<T: PaymentMethodDataTypes>
             .get_payment_method_billing();
 
         let payment_method = match &item.request.payment_method_data {
-            PaymentMethodData::Card(card_data) => Shift4PaymentMethod::Card(Shift4CardPayment {
-                card: Shift4CardData::new(
-                    card_data,
-                    billing_details.and_then(|billing| billing.address.as_ref()),
-                ),
-            }),
+            PaymentMethodData::Card(card_data) => match &three_ds_token {
+                // A 3DS-authenticated card is charged by the token `/3d-secure` minted,
+                // never by the raw card again: the token carries the authentication.
+                Some(token) => Shift4PaymentMethod::TokenPayment(Shift4TokenPayment {
+                    card: token.clone(),
+                }),
+                None => Shift4PaymentMethod::Card(Shift4CardPayment {
+                    card: Shift4CardData::new(
+                        card_data,
+                        billing_details.and_then(|billing| billing.address.as_ref()),
+                    ),
+                }),
+            },
             PaymentMethodData::PaymentMethodToken(pmt) => {
                 Shift4PaymentMethod::TokenPayment(Shift4TokenPayment {
                     card: pmt.token.clone(),
@@ -995,6 +1043,7 @@ impl<T: PaymentMethodDataTypes>
             }
         };
         let is_wallet = matches!(payment_method, Shift4PaymentMethod::Wallet(_));
+        let is_bank_redirect = matches!(payment_method, Shift4PaymentMethod::BankRedirect(_));
         let is_token = matches!(payment_method, Shift4PaymentMethod::TokenPayment(_));
 
         // A CIT that stores the card or the Apple Pay / Google Pay payment method
@@ -1026,7 +1075,9 @@ impl<T: PaymentMethodDataTypes>
         // sale omits it even when the customer is known: Shift4 would otherwise
         // attach the card (as the customer's default card) or the payment method
         // to that customer, keeping a credential nobody asked to store.
-        let customer_id = if stores_on_file || is_token {
+        // The one exception is the 3DS token: `/3d-secure` minted it from a raw card, and
+        // it is charged on its own without attaching a customer.
+        let customer_id = if stores_on_file || (is_token && three_ds_token.is_none()) {
             connector_customer
         } else {
             None
@@ -1103,8 +1154,10 @@ impl<T: PaymentMethodDataTypes>
             customer_id,
             options,
             transaction_type: Some(transaction_type),
-            // A wallet charge carries billing on `paymentMethod.billing` instead.
-            billing: if is_wallet {
+            // A wallet or bank-redirect charge carries billing on `paymentMethod.billing`;
+            // Shift4 rejects a charge-level billing next to `paymentMethod` (HTTP 400
+            // "Cannot define billing in Payment Method charge").
+            billing: if is_wallet || is_bank_redirect {
                 None
             } else {
                 build_shift4_billing(billing_details, item.request.email.as_ref())
@@ -1116,7 +1169,522 @@ impl<T: PaymentMethodDataTypes>
                 &item.resource_common_data.connector_request_reference_id,
                 None,
             ),
+            three_d_secure,
             payment_method,
+        })
+    }
+}
+
+// ===== 3D SECURE (PreAuthenticate enrolment + settling Authorize) =====
+
+const SHIFT4_3DS_DOC: &str = "https://dev.shift4.com/docs/api#create-a-charge";
+
+/// Prefix of the token `POST /3d-secure` returns (`tok_<24 alnum>`, valid 24h).
+/// It is how the settling Authorize tells a Shift4-run 3DS result from a
+/// merchant-supplied one: both ride `AuthenticationData`, and the token rides
+/// `threeds_server_transaction_id` because that is the only field Hyperswitch
+/// forwards from the PreAuthenticate response to the settling Authorize.
+const SHIFT4_3DS_TOKEN_PREFIX: &str = "tok_";
+
+/// Shift4 captures a charge exactly once (`POST /charges/{id}/capture` settles one
+/// amount and releases the rest), so a capture method that means "more than one
+/// capture" cannot be honoured. Shared by every arm of Authorize and by the
+/// enrolment leg, which binds the same `captured` value to the later charge.
+fn shift4_reject_unsupported_capture_method(
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    match capture_method {
+        Some(
+            method @ (common_enums::CaptureMethod::ManualMultiple
+            | common_enums::CaptureMethod::Scheduled),
+        ) => Err(error_stack::report!(
+            IntegrationError::CaptureMethodNotSupported {
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Shift4 supports only AUTOMATIC and MANUAL capture; a {method} capture \
+                         needs more than one capture of the same charge."
+                    )),
+                    suggested_action: Some(
+                        "Send capture_method AUTOMATIC, or MANUAL followed by a single Capture."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://dev.shift4.com/docs/api#capture-a-charge".to_string()),
+                },
+            }
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn shift4_three_ds_missing_authentication_data(
+    additional_context: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::MissingRequiredField {
+        field_name: "authentication_data",
+        context: IntegrationErrorContext {
+            additional_context: Some(additional_context.to_string()),
+            suggested_action: Some(
+                "Run PaymentMethodAuthenticationService.PreAuthenticate first and pass its \
+                 authentication_data (the Shift4 3DS token) to Authorize, or supply the \
+                 results of your own 3DS server (eci / cavv, trans_status, ds_trans_id, \
+                 acs_transaction_id)."
+                    .to_string(),
+            ),
+            doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+        },
+    })
+}
+
+fn shift4_three_ds_invalid(
+    field_name: &'static str,
+    additional_context: String,
+    suggested_action: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name,
+        context: IntegrationErrorContext {
+            additional_context: Some(additional_context),
+            suggested_action: Some(suggested_action.to_string()),
+            doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+        },
+    })
+}
+
+fn shift4_three_ds_missing_external_field(
+    field_name: &'static str,
+    additional_context: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            additional_context: Some(additional_context.to_string()),
+            suggested_action: Some(
+                "Send the complete 3DS2 result of your 3DS server with the Authorize request."
+                    .to_string(),
+            ),
+            doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+        },
+    })
+}
+
+/// What a 3DS-flagged card Authorize settles with.
+enum Shift4ThreeDsSettlement {
+    /// The `tok_...` token `POST /3d-secure` minted: charged in place of the card.
+    Token(Secret<String>),
+    /// 3DS results the merchant obtained on its own 3DS server, sent as
+    /// `threeDSecure.external` beside the raw card.
+    External(Shift4ThreeDSecure),
+}
+
+impl Shift4ThreeDsSettlement {
+    /// A value is "present" only when non-blank: Hyperswitch always sends `cavv` as
+    /// `Some(..)`, possibly empty, so a blank result counts as absent.
+    fn try_from_authentication_data(
+        authentication_data: Option<&AuthenticationData>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let authentication_data = authentication_data.ok_or_else(|| {
+            shift4_three_ds_missing_authentication_data(
+                "The payment is flagged for 3D Secure but carries no authentication result, so \
+                 charging it would take the payment without authenticating the cardholder.",
+            )
+        })?;
+        let has_external_result = authentication_data
+            .cavv
+            .as_ref()
+            .is_some_and(|cavv| !cavv.peek().trim().is_empty())
+            || authentication_data
+                .eci
+                .as_ref()
+                .is_some_and(|eci| !eci.trim().is_empty());
+
+        // A Shift4 token is recognised only when no external result rides along, so a
+        // merchant result can never be mistaken for a token (and vice versa).
+        if !has_external_result {
+            if let Some(token) = authentication_data
+                .threeds_server_transaction_id
+                .as_ref()
+                .filter(|id| id.starts_with(SHIFT4_3DS_TOKEN_PREFIX))
+            {
+                return Ok(Self::Token(Secret::new(token.clone())));
+            }
+            return Err(shift4_three_ds_missing_authentication_data(
+                "authentication_data carries neither a Shift4 3DS token (`tok_...` in \
+                 threeds_server_transaction_id) nor an external 3DS result (eci or cavv).",
+            ));
+        }
+        Shift4ThreeDSecure::try_from_external_result(authentication_data).map(Self::External)
+    }
+}
+
+/// `threeDSecure` object on `POST /charges`. Only `external` is sent: the
+/// `require*` flags keep Shift4's documented defaults.
+#[derive(Debug, Serialize)]
+pub struct Shift4ThreeDSecure {
+    pub external: Shift4ExternalThreeDs,
+}
+
+/// `threeDSecure.external`: the outcome of an authentication the merchant ran itself.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ExternalThreeDs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<Shift4ThreeDsVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    /// CAVV / AAV / UCAF.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_value: Option<Secret<String>>,
+    pub ds_transaction_id: String,
+    pub acs_transaction_id: String,
+    pub status: Shift4ExternalThreeDsStatus,
+}
+
+/// The 3DS protocol versions Shift4 documents for `external.version`.
+#[derive(Debug, Serialize)]
+pub enum Shift4ThreeDsVersion {
+    #[serde(rename = "2.1.0")]
+    V2_1_0,
+    #[serde(rename = "2.2.0")]
+    V2_2_0,
+}
+
+/// Final authentication results Shift4 accepts in `external.status`. The
+/// non-final states of the 3DS spec (challenge required, decoupled, information
+/// only) have no representation here on purpose: they are not results.
+#[derive(Debug, Serialize)]
+pub enum Shift4ExternalThreeDsStatus {
+    #[serde(rename = "Y")]
+    Authenticated,
+    #[serde(rename = "N")]
+    NotAuthenticated,
+    #[serde(rename = "A")]
+    AttemptProcessed,
+    #[serde(rename = "U")]
+    Unavailable,
+    #[serde(rename = "R")]
+    Rejected,
+}
+
+impl Shift4ThreeDSecure {
+    /// Build `external` from the merchant's 3DS results, failing closed on anything
+    /// that would let Shift4 believe an authentication happened that did not.
+    fn try_from_external_result(
+        authentication_data: &AuthenticationData,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        // G-ThreeDS-05: exhaustive on purpose — an unmapped status must not default
+        // to `U`, which would claim a verification that never took place.
+        let status = match authentication_data.trans_status {
+            Some(common_enums::TransactionStatus::Success) => {
+                Shift4ExternalThreeDsStatus::Authenticated
+            }
+            Some(common_enums::TransactionStatus::Failure) => {
+                Shift4ExternalThreeDsStatus::NotAuthenticated
+            }
+            Some(common_enums::TransactionStatus::NotVerified) => {
+                Shift4ExternalThreeDsStatus::AttemptProcessed
+            }
+            Some(common_enums::TransactionStatus::VerificationNotPerformed) => {
+                Shift4ExternalThreeDsStatus::Unavailable
+            }
+            Some(common_enums::TransactionStatus::Rejected) => {
+                Shift4ExternalThreeDsStatus::Rejected
+            }
+            Some(
+                common_enums::TransactionStatus::ChallengeRequired
+                | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                | common_enums::TransactionStatus::InformationOnly,
+            ) => {
+                return Err(shift4_three_ds_invalid(
+                    "authentication_data.trans_status",
+                    "The 3DS transaction status is not a final authentication result \
+                     (challenge required, decoupled challenge or information only); Shift4's \
+                     `external.status` accepts only Y, N, A, U or R."
+                        .to_string(),
+                    "Complete the challenge on your 3DS server and send the final transaction \
+                     status.",
+                ))
+            }
+            None => {
+                return Err(shift4_three_ds_missing_external_field(
+                    "authentication_data.trans_status",
+                    "external 3DS results need the final transaction status.",
+                ))
+            }
+        };
+
+        let version = authentication_data
+            .message_version
+            .as_ref()
+            .map(|version| match (version.get_major(), version.get_minor()) {
+                (2, 1) => Ok(Shift4ThreeDsVersion::V2_1_0),
+                (2, 2) => Ok(Shift4ThreeDsVersion::V2_2_0),
+                _ => Err(shift4_three_ds_invalid(
+                    "authentication_data.message_version",
+                    format!(
+                        "Shift4 accepts 3DS protocol versions 2.1.0 and 2.2.0 only; got {version}."
+                    ),
+                    "Authenticate with 3DS 2.1.0 or 2.2.0.",
+                )),
+            })
+            .transpose()?;
+
+        // Only 3DS2 is accepted, and Shift4 requires both server-side ids for it.
+        let non_blank = |value: &Option<String>| value.clone().filter(|v| !v.trim().is_empty());
+        let ds_transaction_id = non_blank(&authentication_data.ds_trans_id).ok_or_else(|| {
+            shift4_three_ds_missing_external_field(
+                "authentication_data.ds_trans_id",
+                "Shift4 requires external.dsTransactionId for 3DS2 results.",
+            )
+        })?;
+        let acs_transaction_id =
+            non_blank(&authentication_data.acs_transaction_id).ok_or_else(|| {
+                shift4_three_ds_missing_external_field(
+                    "authentication_data.acs_transaction_id",
+                    "Shift4 requires external.acsTransactionId for 3DS2 results.",
+                )
+            })?;
+
+        Ok(Self {
+            external: Shift4ExternalThreeDs {
+                version,
+                eci: non_blank(&authentication_data.eci),
+                authentication_value: authentication_data
+                    .cavv
+                    .clone()
+                    .filter(|cavv| !cavv.peek().trim().is_empty()),
+                ds_transaction_id,
+                acs_transaction_id,
+                status,
+            },
+        })
+    }
+}
+
+/// `POST /3d-secure` body, sent form-urlencoded. The endpoint is not in Shift4's
+/// public API reference; the field set is the one Hyperswitch sends against the
+/// live API.
+///
+/// `amount`, `currency` and `captured` must equal the values of the charge that
+/// settles this enrolment later: Shift4 binds the token to them and refuses a
+/// charge whose amount or currency differs. No CVC, cardholder name or billing
+/// is sent, as in Hyperswitch.
+#[derive(Debug, Serialize)]
+pub struct Shift4PreAuthenticateRequest<T: PaymentMethodDataTypes> {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub captured: bool,
+    #[serde(rename = "card[number]")]
+    pub card_number: RawCardNumber<T>,
+    #[serde(rename = "card[expMonth]")]
+    pub card_exp_month: Secret<String>,
+    #[serde(rename = "card[expYear]")]
+    pub card_exp_year: Secret<String>,
+    /// Where Shift4 sends the shopper back after the ACS challenge. Mandatory for
+    /// the enrolment redirect; there is deliberately no fallback to `return_url`.
+    #[serde(rename = "returnUrl")]
+    pub return_url: Url,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        Shift4RouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for Shift4PreAuthenticateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: Shift4RouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        shift4_reject_unsupported_capture_method(request.capture_method)?;
+        let captured = request.is_auto_capture()?;
+
+        let card = match &request.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "3D Secure enrolment for a non-card payment method".to_string(),
+                    connector: "Shift4",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Shift4's /3d-secure enrolment call takes a card only.".to_string()
+                        ),
+                        suggested_action: Some(
+                            "Authorize the payment method without PreAuthenticate.".to_string()
+                        ),
+                        doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+                    },
+                }))
+            }
+        };
+
+        let return_url = request.continue_redirection_url.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "continue_redirection_url",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Shift4's 3D Secure enrolment needs the URL the shopper returns to after \
+                         the challenge; return_url is not used in its place."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send continue_redirection_url on the PreAuthenticate request.".to_string()
+                    ),
+                    doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+                },
+            })
+        })?;
+        let currency = request.currency.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "The enrolment binds the charge currency, so it must be sent.".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the payment currency on the PreAuthenticate request.".to_string()
+                    ),
+                    doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+                },
+            })
+        })?;
+
+        Ok(Self {
+            amount: request.amount,
+            currency,
+            captured,
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            return_url,
+        })
+    }
+}
+
+/// `POST /3d-secure` response. `token.id` is what the settling charge sends as
+/// `card`; `redirectUrl` is present only when the card is enrolled and the
+/// shopper must complete a challenge.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ThreeDsResponse {
+    pub enrolled: bool,
+    pub version: Option<String>,
+    pub redirect_url: Option<String>,
+    pub token: Shift4ThreeDsToken,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ThreeDsToken {
+    pub id: Secret<String>,
+    pub three_d_secure_info: Option<Shift4ThreeDsInfo>,
+}
+
+/// Authentication outcome Shift4 reports on the token. Informational only.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ThreeDsInfo {
+    pub enrolled: Option<bool>,
+    pub liability_shift: Option<String>,
+    pub version: Option<String>,
+    pub authentication_flow: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4ThreeDsResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<Shift4ThreeDsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let http_code = item.http_code;
+        let response = item.response;
+
+        // An enrolled card comes back with a `redirectUrl`; a card that is not
+        // enrolled comes back with only the token, which the settling charge uses
+        // as-is (the frictionless exit). An unparsable URL is an error, never a
+        // silently dropped redirect: the shopper would be charged unauthenticated.
+        let redirection_data = response
+            .redirect_url
+            .as_deref()
+            .map(|redirect_url| {
+                Url::parse(redirect_url)
+                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+                    .map_err(|_| {
+                        ConnectorError::unexpected_response_error_with_context(
+                            http_code,
+                            Some(
+                                "Shift4 /3d-secure returned a redirectUrl that is not a valid URL"
+                                    .to_string(),
+                            ),
+                        )
+                    })
+            })
+            .transpose()?;
+        let status = if redirection_data.is_some() {
+            AttemptStatus::AuthenticationPending
+        } else {
+            AttemptStatus::Pending
+        };
+
+        // The token rides `threeds_server_transaction_id`: it is the only
+        // AuthenticationData field Hyperswitch forwards from this response to the
+        // settling Authorize, and Shift4 has no 3DS-server transaction id of its own.
+        let authentication_data = AuthenticationData {
+            threeds_server_transaction_id: Some(response.token.id.expose()),
+            trans_status: None,
+            eci: None,
+            cavv: None,
+            ucaf_collection_indicator: None,
+            message_version: None,
+            ds_trans_id: None,
+            acs_transaction_id: None,
+            transaction_id: None,
+            network_params: None,
+            exemption_indicator: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
+        };
+
+        let mut router_data = item.router_data;
+        router_data.request.enrolled_for_3ds = response.enrolled;
+        router_data.resource_common_data.status = status;
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: None,
+                authentication_data: Some(authentication_data),
+                redirection_data,
+                connector_response_reference_id: None,
+                status_code: http_code,
+            }),
+            ..router_data
         })
     }
 }
@@ -3105,4 +3673,593 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
             ..item.router_data
         })
     }
+}
+
+// ===== Incoming webhooks =====
+//
+// Shift4 publishes no webhook schema and no signature scheme; the event
+// envelope is `{ "id": "evt_...", "type": "<EVENT>", "data": <object> }` where
+// `data` is the charge, refund or dispute object the event is about
+// (grace/rulesbook/codegen/references/shift4/technical_specification.md,
+// "Webhook Events"). The `status` key means a different enum in each of those
+// objects, so the body is parsed twice: once for `type` alone, then again with
+// the typed `data` object that event class needs. Only ids, flags and amounts
+// are deserialized; no card data is read.
+
+/// Shift4 event types (`type` in the envelope). Anything this integration does
+/// not act on, including event types Shift4 adds later, lands on `Unknown`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Shift4WebhookEvent {
+    ChargePending,
+    ChargeSucceeded,
+    ChargeCaptured,
+    ChargeFailed,
+    ChargeUpdated,
+    ChargeRefunded,
+    RefundUpdated,
+    ChargeDisputeCreated,
+    ChargeDisputeUpdated,
+    ChargeDisputeWon,
+    ChargeDisputeLost,
+    ChargeDisputeFundsWithdrawn,
+    ChargeDisputeFundsRestored,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Shift4WebhookEventKind {
+    #[serde(rename = "type")]
+    pub event_type: Shift4WebhookEvent,
+}
+
+/// Event envelope with a typed `data` object.
+#[derive(Debug, Deserialize)]
+pub struct Shift4WebhookBody<D> {
+    #[serde(rename = "type")]
+    pub event_type: Shift4WebhookEvent,
+    pub data: D,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Shift4WebhookRefundRef {
+    pub id: Option<String>,
+}
+
+/// `data.charge` is documented as the parent charge; whether a real event
+/// embeds the object or only its id is a live check (verify_live VL-07), so
+/// both shapes are accepted.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Shift4WebhookChargeRef {
+    Id(String),
+    Object { id: Option<String> },
+}
+
+impl Shift4WebhookChargeRef {
+    fn into_id(self) -> Option<String> {
+        match self {
+            Self::Id(id) => Some(id),
+            Self::Object { id } => id,
+        }
+    }
+}
+
+/// `data` of `CHARGE_*` events (the charge object).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4WebhookChargeData {
+    pub id: Option<String>,
+    pub captured: Option<bool>,
+    pub refunded: Option<bool>,
+    pub refunds: Option<Vec<Shift4WebhookRefundRef>>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+}
+
+impl Shift4WebhookChargeData {
+    /// A `CHARGE_REFUNDED` on a charge that was never captured is Shift4's
+    /// release of an authorization (there is no void endpoint or void event;
+    /// see "Void / Cancel" in the spec), not money going back to the payer.
+    fn is_released_authorization(&self) -> bool {
+        self.captured == Some(false) && self.refunded == Some(true)
+    }
+}
+
+/// `data` of `REFUND_UPDATED` (the refund object).
+#[derive(Debug, Deserialize)]
+pub struct Shift4WebhookRefundData {
+    pub id: Option<String>,
+    pub status: Option<Shift4RefundStatus>,
+    pub charge: Option<Shift4WebhookChargeRef>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Shift4DisputeStatus {
+    RetrievalRequestNew,
+    RetrievalRequestRepresented,
+    ChargebackNew,
+    ChargebackRepresentedSuccessfully,
+    ChargebackRepresentedUnsuccessfully,
+    ChargebackPrevented,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Shift4DisputeReason {
+    Fraudulent,
+    Unrecognized,
+    Duplicate,
+    SubscriptionCanceled,
+    ProductNotReceived,
+    ProductUnacceptable,
+    CreditNotProcessed,
+    General,
+    #[serde(other)]
+    Unknown,
+}
+
+impl Shift4DisputeReason {
+    fn as_code(self) -> Option<&'static str> {
+        match self {
+            Self::Fraudulent => Some("FRAUDULENT"),
+            Self::Unrecognized => Some("UNRECOGNIZED"),
+            Self::Duplicate => Some("DUPLICATE"),
+            Self::SubscriptionCanceled => Some("SUBSCRIPTION_CANCELED"),
+            Self::ProductNotReceived => Some("PRODUCT_NOT_RECEIVED"),
+            Self::ProductUnacceptable => Some("PRODUCT_UNACCEPTABLE"),
+            Self::CreditNotProcessed => Some("CREDIT_NOT_PROCESSED"),
+            Self::General => Some("GENERAL"),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// `data` of `CHARGE_DISPUTE_*` (the dispute object).
+#[derive(Debug, Deserialize)]
+pub struct Shift4WebhookDisputeData {
+    pub id: Option<String>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<Currency>,
+    pub status: Option<Shift4DisputeStatus>,
+    pub reason: Option<Shift4DisputeReason>,
+    pub charge: Option<Shift4WebhookChargeRef>,
+}
+
+fn parse_webhook_body<D: for<'de> Deserialize<'de>>(
+    body: &[u8],
+    error: WebhookError,
+) -> Result<Shift4WebhookBody<D>, error_stack::Report<WebhookError>> {
+    body.parse_struct("Shift4WebhookBody").change_context(error)
+}
+
+pub(crate) fn parse_webhook_event(
+    body: &[u8],
+    error: WebhookError,
+) -> Result<Shift4WebhookEvent, error_stack::Report<WebhookError>> {
+    let kind: Shift4WebhookEventKind = body
+        .parse_struct("Shift4WebhookEventKind")
+        .change_context(error)?;
+    Ok(kind.event_type)
+}
+
+/// Dispute status to the UCS status and the stage it belongs to: retrieval
+/// requests are pre-disputes, chargebacks are disputes (decision UD-06).
+fn map_dispute_status(
+    status: Shift4DisputeStatus,
+) -> Option<(common_enums::DisputeStatus, common_enums::DisputeStage)> {
+    use common_enums::{DisputeStage, DisputeStatus};
+    match status {
+        Shift4DisputeStatus::RetrievalRequestNew => {
+            Some((DisputeStatus::DisputeOpened, DisputeStage::PreDispute))
+        }
+        Shift4DisputeStatus::RetrievalRequestRepresented => {
+            Some((DisputeStatus::DisputeChallenged, DisputeStage::PreDispute))
+        }
+        Shift4DisputeStatus::ChargebackNew => {
+            Some((DisputeStatus::DisputeOpened, DisputeStage::Dispute))
+        }
+        Shift4DisputeStatus::ChargebackRepresentedSuccessfully => {
+            Some((DisputeStatus::DisputeWon, DisputeStage::Dispute))
+        }
+        Shift4DisputeStatus::ChargebackRepresentedUnsuccessfully => {
+            Some((DisputeStatus::DisputeLost, DisputeStage::Dispute))
+        }
+        Shift4DisputeStatus::ChargebackPrevented => {
+            Some((DisputeStatus::DisputeCancelled, DisputeStage::Dispute))
+        }
+        Shift4DisputeStatus::Unknown => None,
+    }
+}
+
+fn dispute_status_to_event(status: common_enums::DisputeStatus) -> EventType {
+    match status {
+        common_enums::DisputeStatus::DisputeOpened => EventType::DisputeOpened,
+        common_enums::DisputeStatus::DisputeExpired => EventType::DisputeExpired,
+        common_enums::DisputeStatus::DisputeAccepted => EventType::DisputeAccepted,
+        common_enums::DisputeStatus::DisputeCancelled => EventType::DisputeCancelled,
+        common_enums::DisputeStatus::DisputeChallenged => EventType::DisputeChallenged,
+        common_enums::DisputeStatus::DisputeWon => EventType::DisputeWon,
+        common_enums::DisputeStatus::DisputeLost => EventType::DisputeLost,
+    }
+}
+
+/// Stateless event classification (ParseEvent): the body alone decides.
+pub(crate) fn get_webhook_event_type(
+    body: &[u8],
+) -> Result<EventType, error_stack::Report<WebhookError>> {
+    let event = parse_webhook_event(body, WebhookError::WebhookEventTypeNotFound)?;
+    let charge = || {
+        parse_webhook_body::<Shift4WebhookChargeData>(body, WebhookError::WebhookEventTypeNotFound)
+            .map(|parsed| parsed.data)
+    };
+    Ok(match event {
+        // `CHARGE_SUCCEEDED` fires for an authorization as well as for a sale;
+        // only `captured` tells them apart. A body without the flag is not
+        // evidence of either, so it stays in flight.
+        Shift4WebhookEvent::ChargeSucceeded => match charge()?.captured {
+            Some(true) => EventType::PaymentIntentSuccess,
+            Some(false) => EventType::PaymentIntentAuthorizationSuccess,
+            None => EventType::PaymentIntentProcessing,
+        },
+        Shift4WebhookEvent::ChargeCaptured => EventType::PaymentIntentSuccess,
+        Shift4WebhookEvent::ChargePending | Shift4WebhookEvent::ChargeUpdated => {
+            EventType::PaymentIntentProcessing
+        }
+        Shift4WebhookEvent::ChargeFailed => EventType::PaymentIntentFailure,
+        Shift4WebhookEvent::ChargeRefunded => {
+            if charge()?.is_released_authorization() {
+                EventType::PaymentIntentCancelled
+            } else {
+                EventType::RefundSuccess
+            }
+        }
+        Shift4WebhookEvent::RefundUpdated => {
+            let refund = parse_webhook_body::<Shift4WebhookRefundData>(
+                body,
+                WebhookError::WebhookEventTypeNotFound,
+            )?
+            .data;
+            match refund.status {
+                Some(Shift4RefundStatus::Successful) => EventType::RefundSuccess,
+                Some(Shift4RefundStatus::Processing) => EventType::RefundProcessing,
+                Some(Shift4RefundStatus::Failed) => EventType::RefundFailure,
+                Some(Shift4RefundStatus::Unknown) | None => {
+                    EventType::IncomingWebhookEventUnspecified
+                }
+            }
+        }
+        Shift4WebhookEvent::ChargeDisputeCreated => EventType::DisputeOpened,
+        Shift4WebhookEvent::ChargeDisputeWon => EventType::DisputeWon,
+        Shift4WebhookEvent::ChargeDisputeLost => EventType::DisputeLost,
+        Shift4WebhookEvent::ChargeDisputeUpdated => {
+            let dispute = parse_webhook_body::<Shift4WebhookDisputeData>(
+                body,
+                WebhookError::WebhookEventTypeNotFound,
+            )?
+            .data;
+            match dispute.status.and_then(map_dispute_status) {
+                Some((status, _stage)) => dispute_status_to_event(status),
+                None => EventType::IncomingWebhookEventUnspecified,
+            }
+        }
+        Shift4WebhookEvent::ChargeDisputeFundsWithdrawn
+        | Shift4WebhookEvent::ChargeDisputeFundsRestored
+        | Shift4WebhookEvent::Unknown => EventType::IncomingWebhookEventUnspecified,
+    })
+}
+
+/// Stateless reference extraction (ParseEvent). Charge events point at the
+/// charge (`data.id`), a refund on a captured charge at `data.refunds[0].id`,
+/// a `REFUND_UPDATED` at the refund (`data.id`) and a dispute at the dispute
+/// with its parent charge. A missing id is an error, never an empty reference.
+pub(crate) fn get_webhook_reference(
+    body: &[u8],
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+    let event = parse_webhook_event(body, WebhookError::WebhookReferenceIdNotFound)?;
+    let missing =
+        |field: &'static str| report!(WebhookError::WebhookMissingRequiredField { field });
+    match event {
+        Shift4WebhookEvent::ChargePending
+        | Shift4WebhookEvent::ChargeSucceeded
+        | Shift4WebhookEvent::ChargeCaptured
+        | Shift4WebhookEvent::ChargeFailed
+        | Shift4WebhookEvent::ChargeUpdated => {
+            let charge = parse_webhook_body::<Shift4WebhookChargeData>(
+                body,
+                WebhookError::WebhookReferenceIdNotFound,
+            )?
+            .data;
+            let id = charge.id.ok_or_else(|| missing("data.id"))?;
+            Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(id),
+                    merchant_transaction_id: None,
+                },
+            )))
+        }
+        Shift4WebhookEvent::ChargeRefunded => {
+            let charge = parse_webhook_body::<Shift4WebhookChargeData>(
+                body,
+                WebhookError::WebhookReferenceIdNotFound,
+            )?
+            .data;
+            if charge.is_released_authorization() {
+                let id = charge.id.ok_or_else(|| missing("data.id"))?;
+                return Ok(Some(WebhookResourceReference::Payment(
+                    PaymentWebhookReference {
+                        connector_transaction_id: Some(id),
+                        merchant_transaction_id: None,
+                    },
+                )));
+            }
+            let refund_id = charge
+                .refunds
+                .and_then(|refunds| refunds.into_iter().next())
+                .and_then(|refund| refund.id)
+                .ok_or_else(|| missing("data.refunds[0].id"))?;
+            Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: Some(refund_id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                },
+            )))
+        }
+        Shift4WebhookEvent::RefundUpdated => {
+            let refund = parse_webhook_body::<Shift4WebhookRefundData>(
+                body,
+                WebhookError::WebhookReferenceIdNotFound,
+            )?
+            .data;
+            let id = refund.id.ok_or_else(|| missing("data.id"))?;
+            Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: Some(id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: refund.charge.and_then(|c| c.into_id()),
+                    merchant_transaction_id: None,
+                },
+            )))
+        }
+        Shift4WebhookEvent::ChargeDisputeCreated
+        | Shift4WebhookEvent::ChargeDisputeUpdated
+        | Shift4WebhookEvent::ChargeDisputeWon
+        | Shift4WebhookEvent::ChargeDisputeLost => {
+            let dispute = parse_webhook_body::<Shift4WebhookDisputeData>(
+                body,
+                WebhookError::WebhookReferenceIdNotFound,
+            )?
+            .data;
+            let id = dispute.id.ok_or_else(|| missing("data.id"))?;
+            Ok(Some(WebhookResourceReference::Dispute(
+                DisputeWebhookReference {
+                    connector_dispute_id: Some(id),
+                    connector_transaction_id: dispute.charge.and_then(|c| c.into_id()),
+                },
+            )))
+        }
+        Shift4WebhookEvent::ChargeDisputeFundsWithdrawn
+        | Shift4WebhookEvent::ChargeDisputeFundsRestored
+        | Shift4WebhookEvent::Unknown => Ok(None),
+    }
+}
+
+/// HandleEvent payment leg. Refund, dispute and unknown events are not
+/// payment events and are refused rather than reported as a payment outcome.
+pub(crate) fn build_webhook_payment_response(
+    body: &[u8],
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let event = parse_webhook_event(body, WebhookError::WebhookBodyDecodingFailed)?;
+    let charge = parse_webhook_body::<Shift4WebhookChargeData>(
+        body,
+        WebhookError::WebhookBodyDecodingFailed,
+    )?
+    .data;
+    let status = match event {
+        Shift4WebhookEvent::ChargeSucceeded => match charge.captured {
+            Some(true) => AttemptStatus::Charged,
+            Some(false) => AttemptStatus::Authorized,
+            None => AttemptStatus::Pending,
+        },
+        Shift4WebhookEvent::ChargeCaptured => AttemptStatus::Charged,
+        Shift4WebhookEvent::ChargePending | Shift4WebhookEvent::ChargeUpdated => {
+            AttemptStatus::Pending
+        }
+        Shift4WebhookEvent::ChargeFailed => AttemptStatus::Failure,
+        Shift4WebhookEvent::ChargeRefunded if charge.is_released_authorization() => {
+            AttemptStatus::Voided
+        }
+        Shift4WebhookEvent::ChargeRefunded
+        | Shift4WebhookEvent::RefundUpdated
+        | Shift4WebhookEvent::ChargeDisputeCreated
+        | Shift4WebhookEvent::ChargeDisputeUpdated
+        | Shift4WebhookEvent::ChargeDisputeWon
+        | Shift4WebhookEvent::ChargeDisputeLost
+        | Shift4WebhookEvent::ChargeDisputeFundsWithdrawn
+        | Shift4WebhookEvent::ChargeDisputeFundsRestored
+        | Shift4WebhookEvent::Unknown => {
+            return Err(report!(WebhookError::WebhookProcessingFailed));
+        }
+    };
+    let id = charge
+        .id
+        .ok_or_else(|| report!(WebhookError::WebhookMissingRequiredField { field: "data.id" }))?;
+    let failed = status == AttemptStatus::Failure;
+    Ok(WebhookDetailsResponse {
+        resource_id: Some(ResponseId::ConnectorTransactionId(id.clone())),
+        status,
+        connector_response_reference_id: Some(id),
+        connector_request_reference_id: None,
+        mandate_reference: None,
+        error_code: charge.failure_code.filter(|_| failed),
+        error_message: charge.failure_message.filter(|_| failed),
+        error_reason: None,
+        raw_connector_response: Some(String::from_utf8_lossy(body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        amount_captured: None,
+        minor_amount_captured: None,
+        network_txn_id: None,
+        payment_method_update: None,
+        sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+    })
+}
+
+/// HandleEvent refund leg: `CHARGE_REFUNDED` on a captured charge and
+/// `REFUND_UPDATED`.
+pub(crate) fn build_webhook_refund_response(
+    body: &[u8],
+) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let event = parse_webhook_event(body, WebhookError::WebhookBodyDecodingFailed)?;
+    let (refund_id, status) = match event {
+        Shift4WebhookEvent::ChargeRefunded => {
+            let charge = parse_webhook_body::<Shift4WebhookChargeData>(
+                body,
+                WebhookError::WebhookBodyDecodingFailed,
+            )?
+            .data;
+            if charge.is_released_authorization() {
+                return Err(report!(WebhookError::WebhookProcessingFailed));
+            }
+            let refund_id = charge
+                .refunds
+                .and_then(|refunds| refunds.into_iter().next())
+                .and_then(|refund| refund.id)
+                .ok_or_else(|| {
+                    report!(WebhookError::WebhookMissingRequiredField {
+                        field: "data.refunds[0].id"
+                    })
+                })?;
+            (refund_id, RefundStatus::Success)
+        }
+        Shift4WebhookEvent::RefundUpdated => {
+            let refund = parse_webhook_body::<Shift4WebhookRefundData>(
+                body,
+                WebhookError::WebhookBodyDecodingFailed,
+            )?
+            .data;
+            let refund_id = refund.id.ok_or_else(|| {
+                report!(WebhookError::WebhookMissingRequiredField { field: "data.id" })
+            })?;
+            // An unreadable or unknown refund state is left in flight rather
+            // than reported as a failed refund.
+            let status = match refund.status {
+                Some(Shift4RefundStatus::Successful) => RefundStatus::Success,
+                Some(Shift4RefundStatus::Failed) => RefundStatus::Failure,
+                Some(Shift4RefundStatus::Processing) | Some(Shift4RefundStatus::Unknown) | None => {
+                    RefundStatus::Pending
+                }
+            };
+            (refund_id, status)
+        }
+        Shift4WebhookEvent::ChargePending
+        | Shift4WebhookEvent::ChargeSucceeded
+        | Shift4WebhookEvent::ChargeCaptured
+        | Shift4WebhookEvent::ChargeFailed
+        | Shift4WebhookEvent::ChargeUpdated
+        | Shift4WebhookEvent::ChargeDisputeCreated
+        | Shift4WebhookEvent::ChargeDisputeUpdated
+        | Shift4WebhookEvent::ChargeDisputeWon
+        | Shift4WebhookEvent::ChargeDisputeLost
+        | Shift4WebhookEvent::ChargeDisputeFundsWithdrawn
+        | Shift4WebhookEvent::ChargeDisputeFundsRestored
+        | Shift4WebhookEvent::Unknown => {
+            return Err(report!(WebhookError::WebhookProcessingFailed));
+        }
+    };
+    Ok(RefundWebhookDetailsResponse {
+        connector_refund_id: Some(refund_id.clone()),
+        merchant_transaction_id: None,
+        status,
+        connector_response_reference_id: Some(refund_id),
+        error_code: None,
+        error_message: None,
+        raw_connector_response: Some(String::from_utf8_lossy(body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
+}
+
+/// HandleEvent dispute leg. `CREATED`, `WON` and `LOST` are decided by the
+/// event; `UPDATED` by the dispute `status`. The stage comes from the status
+/// (retrieval request = pre-dispute, chargeback = dispute); an event that
+/// carries none is a chargeback.
+pub(crate) fn build_webhook_dispute_response(
+    body: &[u8],
+) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    use common_enums::{DisputeStage, DisputeStatus};
+    let event = parse_webhook_event(body, WebhookError::WebhookBodyDecodingFailed)?;
+    let dispute = parse_webhook_body::<Shift4WebhookDisputeData>(
+        body,
+        WebhookError::WebhookBodyDecodingFailed,
+    )?
+    .data;
+    let mapped = dispute.status.and_then(map_dispute_status);
+    let stage = mapped
+        .map(|(_, stage)| stage)
+        .unwrap_or(DisputeStage::Dispute);
+    let status = match event {
+        Shift4WebhookEvent::ChargeDisputeCreated => DisputeStatus::DisputeOpened,
+        Shift4WebhookEvent::ChargeDisputeWon => DisputeStatus::DisputeWon,
+        Shift4WebhookEvent::ChargeDisputeLost => DisputeStatus::DisputeLost,
+        Shift4WebhookEvent::ChargeDisputeUpdated => match mapped {
+            Some((status, _)) => status,
+            None => {
+                return Err(report!(WebhookError::WebhookMissingRequiredField {
+                    field: "data.status"
+                }))
+            }
+        },
+        Shift4WebhookEvent::ChargePending
+        | Shift4WebhookEvent::ChargeSucceeded
+        | Shift4WebhookEvent::ChargeCaptured
+        | Shift4WebhookEvent::ChargeFailed
+        | Shift4WebhookEvent::ChargeUpdated
+        | Shift4WebhookEvent::ChargeRefunded
+        | Shift4WebhookEvent::RefundUpdated
+        | Shift4WebhookEvent::ChargeDisputeFundsWithdrawn
+        | Shift4WebhookEvent::ChargeDisputeFundsRestored
+        | Shift4WebhookEvent::Unknown => {
+            return Err(report!(WebhookError::WebhookProcessingFailed));
+        }
+    };
+    let dispute_id = dispute
+        .id
+        .ok_or_else(|| report!(WebhookError::WebhookMissingRequiredField { field: "data.id" }))?;
+    let amount = dispute.amount.ok_or_else(|| {
+        report!(WebhookError::WebhookMissingRequiredField {
+            field: "data.amount"
+        })
+    })?;
+    let currency = dispute.currency.ok_or_else(|| {
+        report!(WebhookError::WebhookMissingRequiredField {
+            field: "data.currency"
+        })
+    })?;
+    let amount = domain_types::utils::convert_amount_for_webhook(
+        &StringMinorUnitForConnector,
+        amount,
+        currency,
+    )?;
+    let reason = dispute.reason.and_then(Shift4DisputeReason::as_code);
+    Ok(DisputeWebhookDetailsResponse {
+        amount,
+        currency,
+        dispute_id: dispute_id.clone(),
+        status,
+        stage,
+        connector_response_reference_id: Some(dispute_id),
+        dispute_message: reason.map(str::to_string),
+        raw_connector_response: Some(String::from_utf8_lossy(body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        connector_reason_code: reason.map(str::to_string),
+    })
 }
