@@ -4,7 +4,7 @@ environment = "sandbox"
 # WARNING: Enabling this can produce large gRPC error trailers. Client applications
 # and intermediate proxies must support a sufficiently large HTTP/2 maximum
 # header-list size.
-return_raw_and_typed_connector_data = false
+return_raw_and_typed_connector_data = true
 
 [log.console]
 enabled = true
