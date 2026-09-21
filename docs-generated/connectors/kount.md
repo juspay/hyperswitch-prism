@@ -26,11 +26,8 @@ config = sdk_config_pb2.ConnectorConfig(
         kount=payment_pb2.KountConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             auth_server_id="YOUR_AUTH_SERVER_ID",
-<<<<<<< HEAD
             client_id="YOUR_CLIENT_ID",
-=======
             khash_config_key=payment_methods_pb2.SecretString(value="YOUR_KHASH_CONFIG_KEY"),
->>>>>>> origin/main
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -56,11 +53,8 @@ const config = ConnectorConfig.create({
         kount: {
             apiKey: { value: 'YOUR_API_KEY' },
             authServerId: 'YOUR_AUTH_SERVER_ID',
-<<<<<<< HEAD
             clientId: 'YOUR_CLIENT_ID',
-=======
             khashConfigKey: { value: 'YOUR_KHASH_CONFIG_KEY' },
->>>>>>> origin/main
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -82,11 +76,8 @@ val config = ConnectorConfig.newBuilder()
             .setKount(KountConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setAuthServerId("YOUR_AUTH_SERVER_ID")
-<<<<<<< HEAD
                 .setClientId("YOUR_CLIENT_ID")
-=======
                 .setKhashConfigKey(SecretString.newBuilder().setValue("YOUR_KHASH_CONFIG_KEY").build())
->>>>>>> origin/main
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -146,7 +137,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L40) · [Kotlin](../../examples/kount/kount.kt#L40) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L41) · [Kotlin](../../examples/kount/kount.kt#L41) · [Rust](../../examples/kount/kount.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -157,4 +148,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L49) · [Kotlin](../../examples/kount/kount.kt#L50) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L50) · [Kotlin](../../examples/kount/kount.kt#L51) · [Rust](../../examples/kount/kount.rs)

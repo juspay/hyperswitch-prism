@@ -126,7 +126,6 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   WorldpayxmlDdcData: ["jwt"],
   WorldpayxmlChallengeData: ["jwt"],
   NmiData: ["publicKey"],
-  FrmNotificationContent: ["connectorFeatureData"],
   AdditionalCardInfo: ["cardExpMonth", "cardExpYear", "cardHolderName"],
   CustomerInfo: ["customerName", "customerEmail", "customerPhoneNumber", "customerBankId", "customerBankName"],
   AdyenClientAuthenticationResponse: ["sessionData"],

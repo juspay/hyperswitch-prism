@@ -2064,7 +2064,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         card.get_card_expiry_month_2_digit()
                             .ok()
                             .and_then(|month| month.peek().parse::<i32>().ok()),
-                        card.get_expiry_year_4_digit().peek().parse::<i32>().ok(),),
+                        card.get_expiry_year_4_digit().peek().parse::<i32>().ok(),
+                    ),
                     _ => (None, None),
                 };
                 let payment_token = match (instrument.token_source.as_deref(), instrument.hash_kind)
@@ -2093,7 +2094,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     last4: last4.map(Secret::new),
                     payment_token: payment_token.map(Secret::new),
                     expiration_month: exp_month.map(Secret::new),
-                    expiration_year: exp_year.map(Secret::new)
+                    expiration_year: exp_year.map(Secret::new),
                 }
             })
         });
