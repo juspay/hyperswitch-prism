@@ -152,6 +152,15 @@ pub struct AuthenticationData {
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<Secret<serde_json::Value>>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    /// JWS-signed content from the ACS, validated by the 3DS SDK on an app-channel challenge.
+    pub acs_signed_content: Option<String>,
+    /// ACS identifier assigned by the scheme.
+    pub acs_reference_number: Option<String>,
+    /// Directory Server identifier for the card range. Static per scheme, not a
+    /// per-transaction value.
+    pub directory_server_id: Option<String>,
+    /// Card scheme resolved for this authentication (EMVCo schemeId).
+    pub scheme_id: Option<String>,
 }
 
 impl AuthenticationData {
@@ -342,6 +351,10 @@ impl ForeignFrom<AuthenticationData> for payments::AuthenticationData {
             authentication_type: value.authentication_type.map(|authentication_type| {
                 payments::DecoupledAuthenticationType::foreign_from(authentication_type).into()
             }),
+            acs_signed_content: value.acs_signed_content,
+            acs_reference_number: value.acs_reference_number,
+            directory_server_id: value.directory_server_id,
+            scheme_id: value.scheme_id,
         }
     }
 }

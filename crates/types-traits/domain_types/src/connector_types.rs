@@ -2501,15 +2501,6 @@ pub struct AcquirerDetails {
     pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
 }
 
-/// Merchant details shared by FRM and 3DS (EMVCo AReq `merchant` object).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct MerchantDetails {
-    pub merchant_id: Option<String>,
-    pub merchant_category_code: Option<u32>,
-    pub merchant_name: Option<String>,
-    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
-}
-
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
@@ -2530,7 +2521,7 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
     /// EMVCo AReq `merchant` object (name, MCC, country).
-    pub merchant_details: Option<MerchantDetails>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
     /// EMVCo AReq `acquirer` object.
     pub acquirer_details: Option<AcquirerDetails>,
     /// EMVCo `threeDSRequestorChallengeInd`.

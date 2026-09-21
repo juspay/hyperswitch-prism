@@ -7,6 +7,8 @@
 // transformer request/response bodies are minimal stubs; the real EMVCo 3DS
 // request/response porting is a separate, later step.
 
+// DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
+pub(crate) mod legacy_blob_transport;
 pub mod netcetera_types;
 pub mod transformers;
 
@@ -88,7 +90,7 @@ fn resolve_netcetera_base_url(
             });
     }
 
-    // DEPRECATED (remove after 2026-09-23): legacy `NoKey` callers carry `endpoint_prefix`
+    // DEPRECATED (remove on or after 2026-10-23): legacy `NoKey` callers carry `endpoint_prefix`
     // inside the `connector_feature_data` blob.
 
     let netcetera_meta: netcetera_types::NetceteraMeta = connector_feature_data

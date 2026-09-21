@@ -75,6 +75,8 @@ impl ConnectorResponseHeaders for FrmFlowData {
 pub struct MerchantDetails {
     pub merchant_id: Option<String>,
     pub merchant_category_code: Option<u32>,
+    pub merchant_name: Option<String>,
+    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
 
 /// Request data for pre-risk check

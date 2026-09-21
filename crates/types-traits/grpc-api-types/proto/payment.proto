@@ -464,6 +464,7 @@ enum ThreeDsRequestorAuthenticationIndicator {
   THREE_DS_REQUESTOR_AUTHENTICATION_INDICATOR_ADD_CARD = 4;                // "04"
   THREE_DS_REQUESTOR_AUTHENTICATION_INDICATOR_MAINTAIN_CARD = 5;           // "05"
   THREE_DS_REQUESTOR_AUTHENTICATION_INDICATOR_CARDHOLDER_VERIFICATION = 6; // "06"
+  THREE_DS_REQUESTOR_AUTHENTICATION_INDICATOR_BILLING_AGREEMENT = 7;       // "07"
 }
 
 // EMVCo 3DS `messageCategory`.
@@ -510,7 +511,8 @@ message ThreeDsSdkDeviceDetails {
   optional string device_display = 4;
 }
 
-// EMVCo 3DS `sdkInformation` for app-based (DEVICE_CHANNEL_APP) authentication.
+// EMVCo 3DS `sdkInformation`, produced by the 3DS SDK on the consumer device.
+// Send when device_channel is DEVICE_CHANNEL_APP; relayed to the DS unmodified.
 message ThreeDsSdkInformation {
   // Unique id created on installation of the 3DS Requestor App on the device.
   string sdk_app_id = 1;
@@ -1392,6 +1394,17 @@ message AuthenticationData {
   // frictionless). Used by connectors (e.g. Cybersource
   // effectiveAuthenticationType).
   optional DecoupledAuthenticationType authentication_type = 17;
+  // JWS-signed content from the ACS, validated by the 3DS SDK on an
+  // app-channel challenge.
+  optional string acs_signed_content = 18;
+  // ACS identifier assigned by the scheme, shown during the challenge.
+  optional string acs_reference_number = 19;
+  // Directory Server identifier for the card range, from the 3DS Server's
+  // card-range lookup. Static per scheme, not a per-transaction value.
+  optional string directory_server_id = 20;
+  // Card scheme resolved for this authentication (EMVCo schemeId), sent for
+  // cobadged cards.
+  optional string scheme_id = 21;
 }
 
 // Details of customer acceptance for mandates or terms
@@ -1961,8 +1974,8 @@ enum FrmDecision {
 // Merchant details shared by FRM risk scoring and 3DS authentication (the
 // EMVCo AReq `merchant` object).
 message MerchantDetails {
-  // Merchant identifier. For 3DS, the acquirer-assigned merchant id belongs
-  // in AcquirerDetails.acquirer_merchant_id; leave this unset there.
+  // Merchant's identifier with the platform or connector. The acquirer-assigned
+  // merchant id is AcquirerDetails.acquirer_merchant_id.
   optional string merchant_id = 1;
 
   // Merchant Category Code (ISO 18245).
@@ -4190,7 +4203,7 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Connector-specific passthrough. Must NOT carry 3DS values; use fields
   // 17-24. Reading 3DS values from here is deprecated and will be removed
-  // after 2026-09-23. Sending any of fields 17-24 switches the request to
+  // after 2026-10-23. Sending any of fields 17-24 switches the request to
   // the typed contract and these blobs are no longer read for 3DS values.
   optional SecretString metadata = 7;
   optional SecretString connector_feature_data = 8;
@@ -6064,7 +6077,7 @@ message PayhereConfig {
 // optional because an external vault (e.g. VGS) may terminate TLS on the
 // outbound route instead. Supersedes endpoint_prefix,
 // merchant_configuration_id and three_ds_requestor_id/name in the
-// connector_feature_data blob (deprecated, removed after 2026-09-23).
+// connector_feature_data blob (deprecated, removed on or after 2026-10-23).
 message NetceteraConfig {
   optional SecretString certificate = 1;
   optional SecretString private_key = 2;

@@ -470,7 +470,7 @@ pub struct MerchantData {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct NetceteraMeta {
-    // DEPRECATED transport (remove after 2026-09-23). Transaction-level values (acquirer_*,
+    // DEPRECATED transport (remove on or after 2026-10-23). Transaction-level values (acquirer_*,
     // merchant name/mcc/country, notification URLs, force_3ds_challenge) now arrive on typed
     // `PaymentsAuthenticateData` fields; account-level values (endpoint_prefix,
     // merchant_configuration_id, three_ds_requestor_id/name) on `ConnectorSpecificConfig::Netcetera`.

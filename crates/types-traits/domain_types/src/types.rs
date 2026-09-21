@@ -73,7 +73,7 @@ fn extract_headers_from_metadata(
     }
 }
 
-fn convert_optional_country_alpha2(
+pub(crate) fn convert_optional_country_alpha2(
     value: grpc_api_types::payments::CountryAlpha2,
 ) -> Result<Option<CountryAlpha2>, error_stack::Report<IntegrationError>> {
     if matches!(value, grpc_api_types::payments::CountryAlpha2::Unspecified) {
@@ -1221,10 +1221,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkInformation>
                     ("y".to_string(), jwk.y),
                 ])
             })
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "sdk_information.sdk_ephem_pub_key",
-                context: IntegrationErrorContext::default(),
-            })?;
+            .unwrap_or_default();
         let sdk_max_timeout = u8::try_from(value.sdk_max_timeout).change_context(
             IntegrationError::InvalidDataFormat {
                 field_name: "sdk_information.sdk_max_timeout",
@@ -1270,27 +1267,6 @@ impl ForeignTryFrom<grpc_api_types::payments::AcquirerDetails>
             acquirer_bin: value.acquirer_bin,
             acquirer_merchant_id: value.acquirer_merchant_id,
             acquirer_country_code,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::payments::MerchantDetails>
-    for connector_types::MerchantDetails
-{
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        value: grpc_api_types::payments::MerchantDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let merchant_country_code = value
-            .merchant_country_code
-            .map(|_| convert_optional_country_alpha2(value.merchant_country_code()))
-            .transpose()?
-            .flatten();
-        Ok(Self {
-            merchant_id: value.merchant_id,
-            merchant_category_code: value.merchant_category_code,
-            merchant_name: value.merchant_name,
-            merchant_country_code,
         })
     }
 }
@@ -6620,6 +6596,10 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
                 )
                 .into()
             }),
+            acs_signed_content: value.acs_signed_content,
+            acs_reference_number: value.acs_reference_number,
+            directory_server_id: value.directory_server_id,
+            scheme_id: value.scheme_id,
         })
     }
 }
@@ -19162,7 +19142,7 @@ impl<
         // Contract selection: a caller that sends any typed 3DS field (17-24) is on the typed
         // contract and `metadata` is never consulted for 3DS values. A caller that sends none is
         // a legacy caller and gets the pre-typed behaviour unchanged.
-        // DEPRECATED (remove after 2026-09-23): the legacy JSON-in-`metadata` transport.
+        // DEPRECATED (remove on or after 2026-10-23): the legacy JSON-in-`metadata` transport.
         let uses_typed_contract = value.merchant_details.is_some()
             || value.acquirer_details.is_some()
             || value.device_channel.is_some()
@@ -19247,13 +19227,15 @@ impl<
             },
             device_channel: match value.device_channel {
                 Some(raw) => Some(connector_types::DeviceChannel::foreign_try_from(
-                    grpc_api_types::payments::DeviceChannel::try_from(raw).unwrap_or_default(),
+                    grpc_api_types::payments::DeviceChannel::try_from(raw).map_err(|_| {
+                        unknown_enum_value("device_channel")
+                    })?,
                 )?),
                 None => legacy_sdk_metadata.as_ref().and_then(|m| m.device_channel),
             },
             merchant_details: value
                 .merchant_details
-                .map(connector_types::MerchantDetails::foreign_try_from)
+                .map(crate::frm::frm_types::MerchantDetails::foreign_try_from)
                 .transpose()?,
             acquirer_details: value
                 .acquirer_details
@@ -19264,7 +19246,9 @@ impl<
                 .map(|raw| {
                     connector_types::ThreeDsRequestorChallengeIndicator::foreign_try_from(
                         grpc_api_types::payments::ThreeDsRequestorChallengeIndicator::try_from(raw)
-                            .unwrap_or_default(),
+                            .map_err(|_| {
+                                unknown_enum_value("three_ds_requestor_challenge_indicator")
+                            })?,
                     )
                 })
                 .transpose()?,
@@ -19275,7 +19259,9 @@ impl<
                         grpc_api_types::payments::ThreeDsRequestorAuthenticationIndicator::try_from(
                             raw,
                         )
-                        .unwrap_or_default(),
+                        .map_err(|_| {
+                            unknown_enum_value("three_ds_requestor_authentication_indicator")
+                        })?,
                     )
                 })
                 .transpose()?,
@@ -19284,7 +19270,7 @@ impl<
                 .map(|raw| {
                     connector_types::ThreeDsMessageCategory::foreign_try_from(
                         grpc_api_types::payments::ThreeDsMessageCategory::try_from(raw)
-                            .unwrap_or_default(),
+                            .map_err(|_| unknown_enum_value("message_category"))?,
                     )
                 })
                 .transpose()?,
@@ -19293,7 +19279,7 @@ impl<
                 .map(|raw| {
                     connector_types::ThreeDsCompletionIndicator::foreign_try_from(
                         grpc_api_types::payments::ThreeDsCompletionIndicator::try_from(raw)
-                            .unwrap_or_default(),
+                            .map_err(|_| unknown_enum_value("threeds_completion_indicator"))?,
                     )
                 })
                 .transpose()?,
@@ -19301,7 +19287,16 @@ impl<
     }
 }
 
-/// DEPRECATED transport (remove after 2026-09-23) for `device_channel` / `sdk_information`:
+/// A field carried an enum discriminant this build does not know, i.e. the caller is newer
+/// than this server. Distinct from an absent field, which is never an error.
+fn unknown_enum_value(field_name: &'static str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name,
+        context: IntegrationErrorContext::default(),
+    })
+}
+
+/// DEPRECATED transport (remove on or after 2026-10-23) for `device_channel` / `sdk_information`:
 /// callers that predate the typed `PaymentMethodAuthenticationServiceAuthenticateRequest`
 /// fields serialised them as JSON inside the opaque `metadata` string. Read only when the
 /// request carries none of the typed 3DS fields.

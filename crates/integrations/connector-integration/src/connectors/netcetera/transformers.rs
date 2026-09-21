@@ -275,6 +275,9 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         pre_authn_response.three_ds_server_trans_id.clone(),
                     ),
                     message_version: Some(maximum_supported_3ds_version),
+                    // `ds_trans_id` also carries the card-range directory server id for
+                    // callers that predate `directory_server_id`. Safe to keep; drop only
+                    // once no caller reads it here.
                     ds_trans_id: card_range
                         .as_ref()
                         .and_then(|range| range.directory_server_id.clone()),
@@ -288,6 +291,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
+                    acs_signed_content: None,
+                    acs_reference_number: None,
+                    directory_server_id: card_range
+                        .as_ref()
+                        .and_then(|range| range.directory_server_id.clone()),
+                    scheme_id: card_range.as_ref().map(|range| range.scheme_id.to_string()),
                 };
 
                 Ok(Self {
@@ -386,24 +395,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .and_then(|browser| browser.ip_address);
 
         // Contract selection: exactly one transport, never mixed. See `MerchantSideObjects`.
-        let merchant_side = if request.uses_typed_three_ds_contract() {
-            build_merchant_side_from_typed(request, common_data, &item.router_data.connector_config)
-        } else {
-            // DEPRECATED (remove after 2026-09-23): legacy callers carry the acquirer / merchant
-            // objects in the `connector_feature_data` blob (`NetceteraMeta`). Absent => objects
-            // omitted and the 3DS Server falls back to its stored merchant config.
-            let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
-                match common_data.connector_feature_data {
-                    Some(_) => Some(crate::utils::to_connector_meta_from_secret(
-                        common_data.connector_feature_data.clone(),
-                    )?),
-                    None => None,
-                };
-            tracing::warn!(
-                netcetera_legacy_3ds_transport = true,
-                "Netcetera AReq built from the deprecated connector_feature_data blob"
-            );
-            build_merchant_side_from_legacy_blob(netcetera_meta.as_ref(), common_data)
+        let merchant_side = match super::legacy_blob_transport::legacy_merchant_side(
+            request,
+            common_data,
+        )? {
+            // DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
+            Some(legacy) => legacy,
+            None => {
+                build_merchant_side(request, common_data, &item.router_data.connector_config)
+            }
         };
         let MerchantSideObjects {
             acquirer,
@@ -534,18 +534,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-/// AReq objects whose source depends on which contract the caller is on.
-struct MerchantSideObjects {
-    acquirer: Option<netcetera_types::AcquirerData>,
-    merchant: Option<netcetera_types::MerchantData>,
+/// AReq objects assembled from the request, `ConnectorSpecificConfig` and the
+/// request URLs.
+pub(super) struct MerchantSideObjects {
+    pub(super) acquirer: Option<netcetera_types::AcquirerData>,
+    pub(super) merchant: Option<netcetera_types::MerchantData>,
     /// EMVCo `threeDSRequestorURL` / merchant `notificationURL` (browser CRes return URL).
-    three_ds_requestor_url: Option<url::Url>,
-    challenge_indicator: Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
+    pub(super) three_ds_requestor_url: Option<url::Url>,
+    pub(super) challenge_indicator:
+        Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
 }
 
-/// Typed contract: values come only from the typed request fields, `return_url`,
-/// `webhook_url` and `ConnectorSpecificConfig::Netcetera`. The blob is never consulted.
-fn build_merchant_side_from_typed<T: PaymentMethodDataTypes>(
+/// Values come from the typed request fields, `return_url`, `webhook_url` and
+/// `ConnectorSpecificConfig::Netcetera`.
+fn build_merchant_side<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthenticateData<T>,
     common_data: &PaymentFlowData,
     connector_config: &domain_types::router_data::ConnectorSpecificConfig,
@@ -612,33 +614,6 @@ fn build_merchant_side_from_typed<T: PaymentMethodDataTypes>(
         challenge_indicator: request
             .three_ds_requestor_challenge_indicator
             .map(netcetera_types::ThreeDSRequestorChallengeIndicator::from),
-    }
-}
-
-/// DEPRECATED (remove after 2026-09-23). Legacy contract: byte-for-byte the pre-typed
-/// behaviour, sourced from the `connector_feature_data` blob (`NetceteraMeta`), including the
-/// blob `notification_url` taking precedence over the request's `return_url` and
-/// `force_3ds_challenge = true` mapping to challenge indicator 04.
-fn build_merchant_side_from_legacy_blob(
-    netcetera_meta: Option<&netcetera_types::NetceteraMeta>,
-    common_data: &PaymentFlowData,
-) -> MerchantSideObjects {
-    let return_url = common_data
-        .return_url
-        .as_ref()
-        .and_then(|u| url::Url::parse(u).ok());
-    MerchantSideObjects {
-        acquirer: netcetera_meta.map(netcetera_types::NetceteraMeta::to_acquirer_data),
-        merchant: netcetera_meta.map(|meta| meta.to_merchant_data(return_url.clone())),
-        three_ds_requestor_url: netcetera_meta
-            .and_then(|m| m.notification_url.clone())
-            .or(return_url),
-        challenge_indicator: netcetera_meta
-            .and_then(|m| m.force_3ds_challenge)
-            .filter(|force| *force)
-            .map(|_| {
-                netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate
-            }),
     }
 }
 
@@ -795,6 +770,16 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
+                    acs_signed_content: response
+                        .authentication_response
+                        .acs_signed_content
+                        .clone(),
+                    acs_reference_number: response
+                        .authentication_response
+                        .acs_reference_number
+                        .clone(),
+                    directory_server_id: None,
+                    scheme_id: None,
                 };
 
                 Ok(Self {
@@ -920,6 +905,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         };
 
         Ok(Self {
