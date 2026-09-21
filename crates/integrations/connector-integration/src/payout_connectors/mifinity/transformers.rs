@@ -390,7 +390,10 @@ impl TryFrom<ResponseRouterData<MifinityPayoutResponse, Self>>
         // confirmed asynchronously via callback or the status-sync endpoint.
         let payout = item.response.payload.first();
         let payout_status = PayoutStatus::Initiated;
-        let connector_payout_id = payout.map(|p| p.transaction_id.clone());
+        // Status sync is addressed by transactionReference (not transactionId).
+        let connector_payout_id = payout
+            .and_then(|p| p.transaction_reference.clone())
+            .or_else(|| payout.map(|p| p.transaction_id.clone()));
 
         Ok(Self {
             response: Ok(PayoutTransferResponse {
@@ -428,7 +431,7 @@ pub struct MifinityStatusPayload {
     pub transaction_reference: Option<String>,
     /// Numeric status code (see [`map_mifinity_status`]).
     pub transaction_status: Option<i32>,
-    pub transaction_status_description: Option<String>,
+    pub transaction_status_description: Option<MifinityTransactionStatus>,
     pub transaction_last_updated: Option<String>,
     pub trace_id: Option<String>,
 }
@@ -439,23 +442,53 @@ pub struct MifinityStatusResponse {
     pub payload: Vec<MifinityStatusPayload>,
 }
 
-/// Maps MiFinity's numeric `transactionStatus` code to a payout status.
-///
-/// | Code | Description            | Payout Status |
-/// |------|------------------------|---------------|
-/// | 1    | RECEIVED               | Pending       |
-/// | 2    | INTERNAL_ERROR         | Failure       |
-/// | 3    | SUBMITTED              | Pending       |
-/// | 5    | PROCESSED_BY_ACQUIRER  | Success       |
-/// | 6    | REJECTED               | Failure       |
-/// | 7    | IN_PROGRESS            | Pending       |
-/// | 8    | ON_HOLD_KYC            | Pending       |
-fn map_mifinity_status(code: Option<i32>) -> PayoutStatus {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MifinityTransactionStatus {
+    #[serde(rename = "Received")]
+    Received,
+    #[serde(rename = "Internal Error")]
+    InternalError,
+    #[serde(rename = "Submitted")]
+    Submitted,
+    #[serde(rename = "Processed by Acquirer")]
+    ProcessedByAcquirer,
+    #[serde(rename = "Rejected")]
+    Rejected,
+    #[serde(rename = "In Progress")]
+    InProgress,
+    #[serde(rename = "On Hold KYC")]
+    OnHoldKyc,
+}
+
+impl From<MifinityTransactionStatus> for PayoutStatus {
+    fn from(status: MifinityTransactionStatus) -> Self {
+        match status {
+            MifinityTransactionStatus::ProcessedByAcquirer => Self::Success,
+            MifinityTransactionStatus::InternalError | MifinityTransactionStatus::Rejected => {
+                Self::Failure
+            }
+            MifinityTransactionStatus::Submitted => Self::Initiated,
+            MifinityTransactionStatus::Received
+            | MifinityTransactionStatus::InProgress
+            | MifinityTransactionStatus::OnHoldKyc => Self::Pending,
+        }
+    }
+}
+
+/// Maps MiFinity's exact `transactionStatusDescription` to a payout status.
+/// Falls back to the numeric `transactionStatus` code when the description is absent or unknown.
+fn map_mifinity_status(
+    code: Option<i32>,
+    description: Option<MifinityTransactionStatus>,
+) -> PayoutStatus {
+    if let Some(status) = description {
+        return status.into();
+    }
+
     match code {
         Some(5) => PayoutStatus::Success,
         Some(2) | Some(6) => PayoutStatus::Failure,
-        // 1 RECEIVED, 3 SUBMITTED, 7 IN_PROGRESS, 8 ON_HOLD_KYC and any
-        // unknown/absent code are treated as non-terminal (still pending).
+        Some(3) => PayoutStatus::Initiated,
         _ => PayoutStatus::Pending,
     }
 }
@@ -469,7 +502,10 @@ impl TryFrom<ResponseRouterData<MifinityStatusResponse, Self>>
         item: ResponseRouterData<MifinityStatusResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let entry = item.response.payload.first();
-        let payout_status = map_mifinity_status(entry.and_then(|p| p.transaction_status));
+        let payout_status = map_mifinity_status(
+            entry.and_then(|p| p.transaction_status),
+            entry.and_then(|p| p.transaction_status_description),
+        );
         let connector_payout_id = entry
             .and_then(|p| p.transaction_reference.clone())
             .or_else(|| item.router_data.request.connector_payout_id.clone());

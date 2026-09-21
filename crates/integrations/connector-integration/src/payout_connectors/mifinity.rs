@@ -347,18 +347,18 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<String, IntegrationError> {
-        // MiFinity's status endpoint is keyed by `traceId` — the caller-assigned
-        // correlation id sent on the original PayoutTransfer request. That value
-        // travels here as `connector_request_reference_id` (derived from the
-        // merchant payout id); fall back to the connector payout id if unset.
+        // MiFinity's status endpoint is keyed by `transactionReference`, which
+        // is persisted as connector_payout_id from the transfer response.
         let trace_id = {
-            let reference = req
-                .resource_common_data
-                .connector_request_reference_id
-                .clone();
-            if reference.is_empty() {
-                req.request.connector_payout_id.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
+            if let Some(reference) = req.request.connector_payout_id.clone() {
+                reference
+            } else {
+                let reference = req
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone();
+                if reference.is_empty() {
+                    return Err(IntegrationError::MissingRequiredField {
                         field_name: "connector_payout_id",
                         context: IntegrationErrorContext {
                             additional_context: Some(
@@ -367,9 +367,9 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                             ),
                             ..Default::default()
                         },
-                    },
-                )?
-            } else {
+                    }
+                    .into());
+                }
                 reference
             }
         };
@@ -377,7 +377,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let base_url = self
             .base_url(&req.resource_common_data.connectors)
             .trim_end_matches('/');
-        Ok(format!("{base_url}/api/transactions/status/{trace_id}"))
+        Ok(format!("{base_url}/api/transactions/{trace_id}/status"))
     }
 
     fn get_headers(
