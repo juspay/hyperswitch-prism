@@ -4385,11 +4385,6 @@ where
             )?,
         };
 
-        // A response that also produced an ErrorResponse is a failed attempt, whatever the
-        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
-        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
-        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
-        // `attempt_status: None` makes the router write Failure.
         let status = if adyen_payments_response_data.error.is_some() {
             AttemptStatus::Failure
         } else {
@@ -4519,11 +4514,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
         };
 
-        // A response that also produced an ErrorResponse is a failed attempt, whatever the
-        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
-        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
-        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
-        // `attempt_status: None` makes the router write Failure.
         let status = if adyen_payments_response_data.error.is_some() {
             AttemptStatus::Failure
         } else {
@@ -6865,11 +6855,6 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             )?,
         };
 
-        // A response that also produced an ErrorResponse is a failed attempt, whatever the
-        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
-        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
-        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
-        // `attempt_status: None` makes the router write Failure.
         let status = if adyen_payments_response_data.error.is_some() {
             AttemptStatus::Failure
         } else {
