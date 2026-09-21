@@ -376,7 +376,6 @@ pub enum ConnectorSpecificConfig {
         certificate: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
         base_url: Option<String>,
-        endpoint_prefix: Option<String>,
         merchant_configuration_id: Option<String>,
         three_ds_requestor_id: Option<String>,
         three_ds_requestor_name: Option<String>,
@@ -1570,7 +1569,7 @@ impl ConnectorSpecificConfig {
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
-            Netcetera { endpoint_prefix },
+            Netcetera { base_url },
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -2102,7 +2101,7 @@ impl ConnectorSpecificConfig {
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
-                Netcetera { endpoint_prefix },
+                Netcetera { base_url },
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2794,7 +2793,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 certificate: netcetera.certificate,
                 private_key: netcetera.private_key,
                 base_url: netcetera.base_url,
-                endpoint_prefix: netcetera.endpoint_prefix,
                 merchant_configuration_id: netcetera.merchant_configuration_id,
                 three_ds_requestor_id: netcetera.three_ds_requestor_id,
                 three_ds_requestor_name: netcetera.three_ds_requestor_name,

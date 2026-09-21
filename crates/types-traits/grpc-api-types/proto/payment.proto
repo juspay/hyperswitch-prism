@@ -6087,9 +6087,6 @@ message NetceteraConfig {
   // Merchant profile id stored on the Netcetera 3DS Server.
   optional string merchant_configuration_id = 5;
   optional string base_url = 50;
-  // Per-merchant host prefix substituted into the `{{merchant_endpoint_prefix}}`
-  // template of base_url.
-  optional string endpoint_prefix = 51;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector

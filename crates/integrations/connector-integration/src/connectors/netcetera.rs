@@ -49,65 +49,6 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
 
-/// The template segment in the configured Netcetera 3DS Server host that must be replaced with
-/// the per-merchant endpoint prefix (e.g. `flowbird`) before the request is dispatched.
-const MERCHANT_ENDPOINT_PREFIX_TEMPLATE: &str = "{{merchant_endpoint_prefix}}";
-
-/// Resolve the per-request Netcetera 3DS Server host by substituting the
-/// `{{merchant_endpoint_prefix}}` template segment in the configured `base_url` with the
-/// `endpoint_prefix` from the merchant's Netcetera MCA metadata (forwarded by the router on
-/// `PaymentFlowData.connector_feature_data`).
-///
-/// `base_url(&connectors)` returns a borrowed `&str` from config, so the substitution cannot
-/// happen there — it must be done per-request here, where the request's `connector_feature_data`
-/// is available. If the template is absent the base host is returned unchanged; if it is present
-/// but no `endpoint_prefix` is configured, a clear error is raised (an unsubstituted template
-/// would produce an invalid URL).
-fn resolve_netcetera_base_url(
-    base_url: &str,
-    connector_config: &ConnectorSpecificConfig,
-    connector_feature_data: Option<hyperswitch_masking::Secret<serde_json::Value>>,
-) -> CustomResult<String, IntegrationError> {
-    let base_url = base_url.trim_end_matches('/');
-    if !base_url.contains(MERCHANT_ENDPOINT_PREFIX_TEMPLATE) {
-        return Ok(base_url.to_string());
-    }
-
-    // Typed connector config (same mechanism as `AdyenConfig.endpoint_prefix`). A caller on the
-    // typed config never has the blob consulted: a missing prefix is a config error.
-    if let ConnectorSpecificConfig::Netcetera {
-        endpoint_prefix, ..
-    } = connector_config
-    {
-        return endpoint_prefix
-            .as_deref()
-            .map(|prefix| base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, prefix))
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidConnectorConfig {
-                    config: "netcetera.endpoint_prefix",
-                    context: Default::default(),
-                })
-            });
-    }
-
-    // DEPRECATED (remove on or after 2026-10-23): legacy `NoKey` callers carry `endpoint_prefix`
-    // inside the `connector_feature_data` blob.
-
-    let netcetera_meta: netcetera_types::NetceteraMeta = connector_feature_data
-        .map(|data| crate::utils::to_connector_meta_from_secret(Some(data)))
-        .transpose()?
-        .unwrap_or_default();
-
-    let endpoint_prefix = netcetera_meta.endpoint_prefix.ok_or_else(|| {
-        error_stack::report!(IntegrationError::InvalidConnectorConfig {
-            config: "netcetera.endpoint_prefix",
-            context: Default::default(),
-        })
-    })?;
-
-    Ok(base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, &endpoint_prefix))
-}
-
 // ---------------------------------------------------------------------------
 // Marker traits
 // ---------------------------------------------------------------------------
@@ -247,14 +188,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        // Real Netcetera 3DS Server host (configured per-environment under
-        // `[connectors] netcetera.base_url`). The configured value contains a
-        // `{{merchant_endpoint_prefix}}` template segment which is substituted
-        // per-request in `resolve_netcetera_base_url` using the merchant's
-        // `endpoint_prefix` (from `NetceteraMeta` / `connector_feature_data`).
-        // `base_url` returns a borrowed `&str` from config, so it CANNOT do the
-        // per-merchant substitution itself — it returns the raw templated host and
-        // each flow's `get_url` resolves the prefix before dispatching.
+        // Netcetera 3DS Server host, configured per environment under
+        // `[connectors] netcetera.base_url`.
         connectors.netcetera.base_url.as_str()
     }
 
@@ -413,11 +348,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server version / 3DS method endpoint (PRes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                &req.connector_config,
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/versioning"))
         }
     }
@@ -451,11 +384,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server authentication endpoint (AReq -> ARes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                &req.connector_config,
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/authentication"))
         }
     }
@@ -489,11 +420,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server results fetch endpoint (RReq -> RRes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                &req.connector_config,
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/results"))
         }
     }

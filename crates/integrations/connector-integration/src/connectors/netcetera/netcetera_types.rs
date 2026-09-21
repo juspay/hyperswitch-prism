@@ -486,12 +486,6 @@ pub struct NetceteraMeta {
     pub merchant_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
-    /// Per-merchant subdomain that replaces the `{{merchant_endpoint_prefix}}` template segment
-    /// in the configured Netcetera 3DS Server host (e.g. `flowbird` ->
-    /// `https://flowbird.3ds-server.<env>.netcetera-cloud-payment.ch`). Sourced from the
-    /// merchant's Netcetera MCA metadata (`endpoint_prefix`) and forwarded by the router on
-    /// `PaymentFlowData.connector_feature_data`.
-    pub endpoint_prefix: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     /// Dynamic Results Response (RRes) notification URL. When present it is forwarded in the AReq
     /// merchant object as `resultsResponseNotificationUrl`, so Netcetera pushes the final challenge
