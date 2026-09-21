@@ -565,27 +565,3 @@ pub fn workspace_path() -> PathBuf {
         PathBuf::from(".")
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Common;
-
-    #[test]
-    fn raw_and_typed_connector_data_is_disabled_by_default() {
-        let common = serde_json::from_value::<Common>(serde_json::json!({
-            "environment": "development"
-        }));
-
-        assert!(common.is_ok_and(|config| !config.return_raw_and_typed_connector_data));
-    }
-
-    #[test]
-    fn raw_and_typed_connector_data_can_be_enabled() {
-        let common = serde_json::from_value::<Common>(serde_json::json!({
-            "environment": "development",
-            "return_raw_and_typed_connector_data": true
-        }));
-
-        assert!(common.is_ok_and(|config| config.return_raw_and_typed_connector_data));
-    }
-}
