@@ -21,10 +21,20 @@ use super::{netcetera_types, transformers::MerchantSideObjects};
 
 /// True when the caller sent none of the typed 3DS request fields, i.e. it
 /// predates the typed contract and carries those values in the JSON blobs.
+/// Exactly one transport is used per request; the two are never mixed.
 pub(super) fn is_legacy_caller<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthenticateData<T>,
 ) -> bool {
-    !request.uses_typed_three_ds_contract()
+    request.merchant_details.is_none()
+        && request.acquirer_details.is_none()
+        && request.device_channel.is_none()
+        && request.sdk_information.is_none()
+        && request.three_ds_requestor_challenge_indicator.is_none()
+        && request
+            .three_ds_requestor_authentication_indicator
+            .is_none()
+        && request.message_category.is_none()
+        && request.threeds_completion_indicator.is_none()
 }
 
 /// Build the AReq merchant-side objects from the deprecated
