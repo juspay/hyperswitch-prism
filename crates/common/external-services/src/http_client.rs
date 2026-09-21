@@ -93,3 +93,71 @@ fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) ->
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+
+    /// Local server that closes the first `close_first` connections without answering
+    /// (what hyper sees when it picks a stale keep-alive connection), then replies 200.
+    async fn spawn_server(close_first: usize) -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let seen = Arc::new(AtomicUsize::new(0));
+        let counter = seen.clone();
+        tokio::spawn(async move {
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let n = counter.fetch_add(1, Ordering::SeqCst);
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 2048];
+                    let _ = stream.read(&mut buf).await;
+                    if n >= close_first {
+                        let _ = stream
+                            .write_all(
+                                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+                            )
+                            .await;
+                    }
+                });
+            }
+        });
+        (url, seen)
+    }
+
+    #[tokio::test]
+    async fn detects_connection_closed_before_message_completed() {
+        let (url, _) = spawn_server(usize::MAX).await;
+        let error = reqwest::Client::new().get(&url).send().await.unwrap_err();
+        assert!(is_connection_closed_before_message_could_complete(&error));
+    }
+
+    #[tokio::test]
+    async fn retries_once_when_connection_closed_before_message_completed() {
+        let (url, seen) = spawn_server(1).await;
+        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url)).await;
+        assert!(retried, "the request should have been retried");
+        assert_eq!(response.unwrap().status(), 200);
+        assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn does_not_retry_more_than_once() {
+        let (url, seen) = spawn_server(usize::MAX).await;
+        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url)).await;
+        assert!(retried);
+        assert_eq!(
+            response.unwrap_err().current_context(),
+            &ApiClientError::ConnectionClosedIncompleteMessage
+        );
+        assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+}
