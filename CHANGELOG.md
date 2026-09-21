@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.21.0
+
+### Features
+
+- Add generated connector sanity layer ([#2287](https://github.com/juspay/connector-service/pull/2287)) ([`98b7db5`](https://github.com/juspay/connector-service/commit/98b7db52374bcfd77e8acd71ae36be939672d6d5))
+
+### Bug Fixes
+
+- **proto:** Make deprecated fields optional ([#2329](https://github.com/juspay/connector-service/pull/2329)) ([`4ce7ddc`](https://github.com/juspay/connector-service/commit/4ce7ddc81f509e4fda46b93cb8d310c7a6a74680))
+- Gate raw and typed connector data ([#2333](https://github.com/juspay/connector-service/pull/2333)) ([`293d643`](https://github.com/juspay/connector-service/commit/293d6430a2611bef83a33ee356d1580418431602))
+
+**Full Changelog:** [`2026.09.18.1...2026.09.21.0`](https://github.com/juspay/connector-service/compare/2026.09.18.1...2026.09.21.0)
+
+- - -
+
 ## 2026.09.18.1
 
 ### Bug Fixes
