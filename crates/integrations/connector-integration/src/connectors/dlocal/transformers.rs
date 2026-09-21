@@ -1023,7 +1023,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             && matches!(&item.response.status, DlocalPaymentStatus::Active)
         {
             common_enums::AttemptStatus::Charged
-        } else if redirection_data.is_some() {
+        } else if redirection_data.is_some()
+            && matches!(&item.response.status, DlocalPaymentStatus::Pending)
+        {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
@@ -1043,6 +1045,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1252,7 +1255,9 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
             && matches!(&item.response.status, DlocalPaymentStatus::Active)
         {
             common_enums::AttemptStatus::Charged
-        } else if redirection_data.is_some() {
+        } else if redirection_data.is_some()
+            && matches!(&item.response.status, DlocalPaymentStatus::Pending)
+        {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
@@ -1291,6 +1296,7 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -1333,6 +1339,7 @@ impl<F> TryFrom<ResponseRouterData<DlocalPaymentsSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -1369,6 +1376,7 @@ impl<F> TryFrom<ResponseRouterData<DlocalPaymentsCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -1404,6 +1412,7 @@ impl<F> TryFrom<ResponseRouterData<DlocalPaymentsCancelResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })

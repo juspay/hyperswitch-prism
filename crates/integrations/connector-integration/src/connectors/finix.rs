@@ -150,6 +150,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: PaymentMethod,
         payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         // Check for specific wallet types that need tokenization
         let is_google_pay_wallet = payment_method == PaymentMethod::Wallet

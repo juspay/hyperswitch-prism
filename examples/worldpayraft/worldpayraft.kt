@@ -8,6 +8,7 @@
 package examples.worldpayraft
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.RecurringPaymentClient

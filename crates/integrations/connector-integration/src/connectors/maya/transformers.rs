@@ -527,6 +527,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -603,6 +604,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             request: PaymentsSyncData {
                 integrity_object,
@@ -644,6 +646,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

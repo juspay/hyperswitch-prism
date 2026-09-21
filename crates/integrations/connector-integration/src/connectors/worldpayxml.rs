@@ -8,11 +8,14 @@ use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -31,13 +34,13 @@ use transformers::{self as worldpayxml};
 
 use requests::{
     WorldpayxmlCaptureRequest, WorldpayxmlPSyncRequest, WorldpayxmlPaymentsRequest,
-    WorldpayxmlRSyncRequest, WorldpayxmlRefundRequest, WorldpayxmlVoidPCRequest,
-    WorldpayxmlVoidRequest,
+    WorldpayxmlRSyncRequest, WorldpayxmlRefundRequest, WorldpayxmlRepeatPaymentRequest,
+    WorldpayxmlSetupMandateRequest, WorldpayxmlVoidPCRequest, WorldpayxmlVoidRequest,
 };
 use responses::{
     WorldpayxmlAuthorizeResponse, WorldpayxmlCaptureResponse, WorldpayxmlRefundResponse,
-    WorldpayxmlRsyncResponse, WorldpayxmlTransactionResponse, WorldpayxmlVoidPCResponse,
-    WorldpayxmlVoidResponse,
+    WorldpayxmlRepeatPaymentResponse, WorldpayxmlRsyncResponse, WorldpayxmlSetupMandateResponse,
+    WorldpayxmlTransactionResponse, WorldpayxmlVoidPCResponse, WorldpayxmlVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -119,6 +122,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Worldpayxml<T>
 {
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        _completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        // Card 3DS starts with Cardinal device data collection; both the DDC return and
+        // the challenge return re-enter Authorize, which branches on the redirect payload.
+        // Wallets authorize directly: decrypted wallet tokens carry a network cryptogram,
+        // so they are already authenticated. Google Pay FPAN 3DS is supported on the
+        // granular path only, where the caller routes it through PreAuthenticate.
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+            && matches!(redirect_state, RedirectState::InitialRequest)
+        {
+            AuthenticationStep::PreAuthenticate
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Worldpayxml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Worldpayxml<T>
+{
 }
 
 macros::create_all_prerequisites!(
@@ -166,6 +201,20 @@ macros::create_all_prerequisites!(
             response_body: WorldpayxmlRsyncResponse,
             response_format: xml,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: WorldpayxmlSetupMandateRequest,
+            response_body: WorldpayxmlSetupMandateResponse,
+            response_format: xml,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: WorldpayxmlRepeatPaymentRequest,
+            response_body: WorldpayxmlRepeatPaymentResponse,
+            response_format: xml,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: VoidPC,
@@ -232,12 +281,91 @@ macros::macro_connector_implementation!(
                 (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
             ];
             headers.extend(self.build_auth_header(auth)?);
+            // The 3ds challenge-completion leg must reach the same Worldpay machine that
+            // issued the challenge, so replay the cookie captured from that response.
+            if worldpayxml::parse_worldpayxml_challenge_return(req.request.redirect_response.as_ref())
+                .is_some()
+            {
+                let cookie =
+                    worldpayxml::get_worldpayxml_cookie(req.request.connector_feature_data.as_ref())?;
+                headers.push(("Cookie".to_string(), cookie.into_masked()));
+            }
             Ok(headers)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayxml,
+    curl_request: SoapXml(WorldpayxmlSetupMandateRequest),
+    curl_response: WorldpayxmlSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = worldpayxml::WorldpayxmlAuthType::try_from(&req.connector_config)?;
+            let mut headers = vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ];
+            headers.extend(self.build_auth_header(auth)?);
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayxml,
+    curl_request: SoapXml(WorldpayxmlRepeatPaymentRequest),
+    curl_response: WorldpayxmlRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = worldpayxml::WorldpayxmlAuthType::try_from(&req.connector_config)?;
+            let mut headers = vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ];
+            headers.extend(self.build_auth_header(auth)?);
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(self.connector_base_url_payments(req).to_string())
         }
@@ -541,6 +669,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Worldpayxml<T>
+{
+}
+
+macros::macro_connector_local_flow_implementation!(
+    connector: Worldpayxml,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    handle_response: worldpayxml::handle_pre_authenticate_response,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Worldpayxml,
     generic_type: T,
@@ -549,11 +693,8 @@ macros::macro_connector_flow_status_impls!(
         IncrementalAuthorization,
         PostAuthenticate,
         Authenticate,
-        PreAuthenticate,
         SubmitEvidence,
         DefendDispute,
-        RepeatPayment,
-        SetupMandate,
         PaymentMethodToken,
         CreateConnectorCustomer,
         GetConnectorCustomer,

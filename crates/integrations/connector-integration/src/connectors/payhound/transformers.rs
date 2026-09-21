@@ -1138,6 +1138,8 @@ fn payhound_payments_response(
 
     Ok(Ok(PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+        // Payhound is a crypto invoice gateway: there is no card, so no PAR.
+        payment_account_reference: None,
         redirection_data: redirection_data.map(Box::new),
         // Payhound has no stored-credential concept.
         mandate_reference: None,
@@ -1270,6 +1272,8 @@ pub(super) fn payhound_webhook_details(
 
     Ok(WebhookDetailsResponse {
         status: outcome.status,
+        // The callback body is the invoice object; it carries no payment-method details.
+        connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(response.id.clone())),
         connector_response_reference_id: reference.clone(),
         connector_request_reference_id: reference,

@@ -154,7 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         item: {ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth: {ConnectorName}AuthType = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth: {ConnectorName}AuthType = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
         
         Ok(Self {
             transaction_details: TransactionDetails {
@@ -226,8 +226,9 @@ fn extract_session_from_metadata(
 ) -> Result<SessionData, IntegrationError> {
     let session_meta_value = meta_data
         .ok_or_else(|| IntegrationError::MissingRequiredField {
-            field_name: "connector_meta_data for session in Void"
-        , context: Default::default() })?
+            field_name: "connector_meta_data for session in Void",
+            context: Default::default(),
+        })?
         .peek();
 
     let session_str = match session_meta_value {
@@ -316,13 +317,20 @@ pub struct {ConnectorName}VoidResponse {
     pub processed_at: Option<String>,
 }
 
+// PREFERRED: type `status` as an enum with `#[serde(other)] Unknown` so this match can be
+// exhaustive with no `_ =>` arm (see `TravelhubResult` /  `map_travelhub_status`,
+// connectors/travelhub/transformers.rs:494-568). When the vendor's value set is genuinely
+// untyped, keep the fallback NON-terminal: an unrecognised string is not proof the void failed.
 impl From<&{ConnectorName}VoidResponse> for enums::AttemptStatus {
     fn from(item: &{ConnectorName}VoidResponse) -> Self {
-        match item.status.as_str() {
+        match item.status.to_lowercase().as_str() {
             "completed" | "successful" | "voided" => Self::Voided,
             "failed" | "declined" | "rejected" => Self::VoidFailed,
             "pending" | "processing" => Self::Pending,
-            _ => Self::VoidFailed, // Default to failed for unknown statuses
+            other => {
+                router_env::logger::warn!(connector_status = %other, "unmapped void status");
+                Self::Pending
+            }
         }
     }
 }
@@ -392,10 +400,17 @@ pub enum AttemptStatus {
 
 #### Checkout.com
 ```rust
+// This connector signals the void result ONLY through the HTTP status line, so the two-way
+// split is the connector's own classification, not a guess. Do not copy this shape to a
+// connector that returns a status field in the body.
 fn map_checkout_void_status(http_status: u16) -> AttemptStatus {
     match http_status {
         202 => AttemptStatus::Voided,
-        _ => AttemptStatus::VoidFailed,
+        400..=499 => AttemptStatus::VoidFailed,
+        other => {
+            router_env::logger::warn!(http_status = %other, "unmapped void http status");
+            AttemptStatus::Pending
+        }
     }
 }
 ```
@@ -407,7 +422,10 @@ fn map_fiserv_void_status(status: &str) -> AttemptStatus {
         "VOIDED" => AttemptStatus::Voided,
         "FAILED" | "DECLINED" => AttemptStatus::VoidFailed,
         "PROCESSING" => AttemptStatus::Pending,
-        _ => AttemptStatus::VoidFailed,
+        other => {
+            router_env::logger::warn!(connector_status = %other, "unmapped void status");
+            AttemptStatus::Pending
+        }
     }
 }
 ```
@@ -419,7 +437,12 @@ fn map_generic_void_status(status: &str) -> AttemptStatus {
         "voided" | "cancelled" | "canceled" | "completed" | "successful" => AttemptStatus::Voided,
         "failed" | "declined" | "rejected" | "error" => AttemptStatus::VoidFailed,
         "pending" | "processing" | "initiated" => AttemptStatus::Pending,
-        _ => AttemptStatus::VoidFailed, // Conservative default
+        other => {
+            // `VoidFailed` is NOT the conservative choice: it is terminal, and it strands a void
+            // that actually succeeded. Stay Pending and let PSync resolve it.
+            router_env::logger::warn!(connector_status = %other, "unmapped void status");
+            AttemptStatus::Pending
+        }
     }
 }
 ```
@@ -451,14 +474,20 @@ impl<F> TryFrom<ResponseRouterData<{ConnectorName}VoidResponse, RouterDataV2<F, 
 
         // Always create TransactionResponse for void (success or failure)
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+            // `PaymentsResponseData::TransactionResponse` is an ENUM struct-variant
+            // (connector_types.rs:2009): there is no functional-update (`..`) syntax for
+            // enum variants, so every one of its 11 fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.action_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: http_code,
+            payment_account_reference: None,
         });
 
         Ok(router_data)
@@ -491,20 +520,36 @@ fn validate_void_request(
 ) -> Result<(), IntegrationError> {
     if connector_transaction_id.is_empty() {
         return Err(IntegrationError::MissingRequiredField {
-            field_name: "connector_transaction_id".to_string(),
-        , context: Default::default() });
+            field_name: "connector_transaction_id",
+            context: Default::default(),
+        });
     }
     
     // Some connectors provide current payment status
     match payment_status {
+        // `IntegrationError` has no `InvalidRequestData` variant. The real variant list is at
+        // crates/types-traits/domain_types/src/errors.rs:115; free-form detail goes in
+        // `IntegrationErrorContext::additional_context`, never in an invented `message` field.
         "captured" | "settled" => {
-            return Err(IntegrationError::InvalidRequestData {
-                message: "Cannot void captured/settled payment. Use refund instead.".to_string(),
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "payment_status",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Cannot void a captured/settled payment".to_string(),
+                    ),
+                    suggested_action: Some("Issue a refund instead of a void".to_string()),
+                    doc_url: None,
+                },
             })
         }
         "voided" | "cancelled" => {
-            return Err(IntegrationError::InvalidRequestData {
-                message: "Payment already voided".to_string(),
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "payment_status",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Payment is already voided".to_string()),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })
         }
         _ => {}
@@ -609,7 +654,7 @@ mod void_tests {
         let router_data = create_test_void_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 202,
         };
 
@@ -722,11 +767,18 @@ fn can_void_payment(payment_status: &str) -> bool {
 
 // Provide helpful error messages
 if !can_void_payment(&current_status) {
-    return Err(IntegrationError::InvalidRequestData {
-        message: format!(
-            "Cannot void payment with status '{}'. Use refund for captured payments.", 
-            current_status
-        ),
+    return Err(IntegrationError::InvalidDataFormat {
+        field_name: "payment_status",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "Cannot void payment with status '{}'",
+                current_status
+            )),
+            suggested_action: Some(
+                "Use refund for captured payments".to_string(),
+            ),
+            doc_url: None,
+        },
     });
 }
 ```
@@ -743,8 +795,9 @@ fn extract_session_data(
 ) -> Result<SessionData, IntegrationError> {
     let meta_data = connector_meta_data
         .ok_or_else(|| IntegrationError::MissingRequiredField {
-            field_name: "connector_meta_data for session data in Void"
-        , context: Default::default() })?;
+            field_name: "connector_meta_data for session data in Void",
+            context: Default::default(),
+        })?;
         
     // Parse session data from metadata
     // ... implementation

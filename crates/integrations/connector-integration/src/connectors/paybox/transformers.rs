@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 use std::marker::{Send, Sync};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
-    date_time::{format_date, now, DateFormat},
+    date_time::{format_date, now, now_unix_millis, DateFormat},
     errors::CustomResult,
     types::MinorUnit,
 };
@@ -151,13 +150,7 @@ fn get_transaction_type(
 }
 
 fn generate_request_id() -> CustomResult<String, IntegrationError> {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?
-        .as_millis()
-        .to_string();
+    let timestamp = now_unix_millis().to_string();
 
     timestamp.get(4..).map(|s| s.to_string()).ok_or_else(|| {
         Report::new(IntegrationError::InvalidDataFormat {
@@ -358,6 +351,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxAuthorizeRespon
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,
@@ -518,6 +512,7 @@ impl TryFrom<ResponseRouterData<PayboxPSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -661,6 +656,7 @@ impl TryFrom<ResponseRouterData<PayboxCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -828,6 +824,7 @@ impl TryFrom<ResponseRouterData<PayboxVoidResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Voided,
@@ -1329,6 +1326,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -1591,6 +1589,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,

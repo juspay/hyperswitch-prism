@@ -12,5 +12,30 @@
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
     "EventService/HandleEvent"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "sync_poll_until_terminal_seconds": 15,
+  "unsupported_scenarios": {
+    "PaymentService/Get": {
+      "sync_payment": "Adyen has no status-by-transaction-ID lookup for a non-redirect card payment; status is only available via webhook.",
+      "sync_payment_with_handle_response": "same reason as sync_payment.",
+      "sync_upi_collect": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_intent": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_qr": "UPI is not in supported_payment_methods for this connector."
+    },
+    "PaymentService/CreateOrder": {
+      "create_order_with_payment_method_type": "Adyen's CreateOrder does not return a session_token; it never sets session_data (confirmed in adyen's own transformer)."
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_fail_invalid_transaction_id": "Adyen's /amountUpdates endpoint is asynchronous: it always returns a 'received' acknowledgement synchronously, regardless of whether the referenced transaction is valid. Whether the update actually succeeds is only reported later, via webhook. Confirmed against Adyen's documented behavior for its other async endpoints (e.g. refund/capture, which use the same accept-then-notify pattern) and against a live call with a fabricated connector_transaction_id, which returned AUTHORIZATION_SUCCESS instead of an error. This cannot be observed synchronously through this endpoint."
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "the global scenario asserts a top-level event_status field the response does not have; the real status lives nested at eventContent.paymentsResponse.status. Not verified working; needs the global scenario or assertion fixed.",
+      "refund_succeeded": "same as payment_succeeded.",
+      "payment_failed": "adyen has no test fixture for this scenario in webhook_payload.json, so it sends an empty body and fails to decode.",
+      "invalid_signature": "adyen's webhook_payload.json fixture for this scenario omits required fields (amount, merchantAccountCode, merchantReference), so it fails to decode before signature verification is ever reached."
+    }
+  }
 }

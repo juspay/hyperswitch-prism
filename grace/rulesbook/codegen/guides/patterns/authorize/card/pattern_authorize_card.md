@@ -419,9 +419,12 @@ fn build_redirect_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        splits: None,
         status_code: 200,
+        payment_account_reference: None,
     })
 }
 ```
@@ -626,31 +629,60 @@ let expiry = format!("{exp_month}/{}", &exp_year[exp_year.len()-2..]);
 
 ### Status Mapping
 
+Status mapping has **two halves**, and reviewers require both:
+
+1. **Deserialization layer** — model the connector's status as a typed enum with
+   `#[serde(other)] Unknown`, so an unrecognised wire value never fails the parse.
+2. **Mapping layer** — match exhaustively with **no catch-all `_ =>` arm**, so adding a
+   new wire variant is a compile error rather than a silent status mismapping.
+
 ```rust
-// Common pattern for mapping connector status to AttemptStatus
+// 1. Deserialization layer -- absorb unknown wire values here.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorPaymentStatus {
+    Approved,
+    Success,
+    Authorized,
+    Pending,
+    Declined,
+    Failure,
+    RequiresAction,
+    #[serde(other)]
+    Unknown,
+}
+
+// 2. Mapping layer -- exhaustive, infallible, no `_ =>`.
 fn map_connector_status(
-    connector_status: &str,
+    connector_status: &ConnectorPaymentStatus,
     capture_method: Option<CaptureMethod>,
-) -> Result<AttemptStatus, IntegrationError> {
+) -> AttemptStatus {
     match connector_status {
-        "approved" | "success" | "AUTHORIZED" => {
-            match capture_method {
-                Some(CaptureMethod::Automatic) | None => Ok(AttemptStatus::Charged),
-                Some(CaptureMethod::Manual) => Ok(AttemptStatus::Authorized),
-                _ => Err(IntegrationError::CaptureMethodNotSupported),
-            }
-        }
-        "pending" | "PENDING" => Ok(AttemptStatus::Pending),
-        "declined" | "failure" => Ok(AttemptStatus::Failure),
-        "requires_action" => Ok(AttemptStatus::AuthenticationPending),
-        _ => Err(ConnectorError::ResponseHandlingFailed),
+        ConnectorPaymentStatus::Approved
+        | ConnectorPaymentStatus::Success
+        | ConnectorPaymentStatus::Authorized => match capture_method {
+            Some(CaptureMethod::Manual) => AttemptStatus::Authorized,
+            _ => AttemptStatus::Charged,
+        },
+        ConnectorPaymentStatus::Pending => AttemptStatus::Pending,
+        ConnectorPaymentStatus::Declined | ConnectorPaymentStatus::Failure => AttemptStatus::Failure,
+        ConnectorPaymentStatus::RequiresAction => AttemptStatus::AuthenticationPending,
+        // Unrecognised wire value: stay non-terminal and let PSync/webhook settle it.
+        ConnectorPaymentStatus::Unknown => AttemptStatus::Pending,
     }
 }
 ```
 
+Exemplar of the `#[serde(other)]` half:
+`crates/integrations/connector-integration/src/connectors/flywire/transformers.rs:468`.
+
 ### Response Data Construction
 
 ```rust
+// Imports used below:
+//   use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+//   use domain_types::{router_data::{ErrorResponse, FlowStatus}, utils::is_payment_failure};
+
 // Standard response construction pattern
 impl TryFrom<ResponseRouterData<ConnectorAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
@@ -659,19 +691,23 @@ impl TryFrom<ResponseRouterData<ConnectorAuthorizeResponse, Self>>
 
     fn try_from(item: ResponseRouterData<ConnectorAuthorizeResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = map_connector_status(&response.status, item.router_data.request.capture_method)?;
+        let status = map_connector_status(&response.status, item.router_data.request.capture_method);
 
         let payment_response_data = if is_payment_failure(status) {
             Err(ErrorResponse {
-                code: response.error_code.unwrap_or_default(),
-                message: response.error_message.unwrap_or_default(),
+                code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: response.decline_reason,
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                // `attempt_status` is `Option<FlowStatus>`, not `Option<AttemptStatus>`.
+                // Wrap in the flow-appropriate variant -- see
+                // `crates/types-traits/domain_types/src/router_data.rs` (`enum FlowStatus`).
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.transaction_id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                ..Default::default()
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -686,9 +722,12 @@ impl TryFrom<ResponseRouterData<ConnectorAuthorizeResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: response.network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.reference_id),
                 incremental_authorization_allowed: Some(false),
+                splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         };
 
@@ -762,10 +801,16 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            Ok(vec![
-                ("Content-Type".to_string(), "application/json".to_string().into()),
-                ("Authorization".to_string(), self.get_auth_header(&req.connector_auth_type)?),
-            ])
+            // `get_auth_header` returns a `Vec` of header pairs, not a single value --
+            // append it, do not drop it into a tuple slot. Exemplar:
+            // `crates/integrations/connector-integration/src/connectors/travelhub.rs:90-101`.
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            )];
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut auth_header);
+            Ok(header)
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -792,7 +837,7 @@ impl<T: PaymentMethodDataTypes> ConnectorCommon for MyConnector<T> {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         // Implement authentication header logic
         todo!()
@@ -832,7 +877,7 @@ impl<T: PaymentMethodDataTypes> ConnectorIntegrationV2<
         // Custom request body construction
     }
 
-    fn handle_response(
+    fn handle_response_v2(
         &self,
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         event_builder: Option<&mut events::Event>,
@@ -889,10 +934,10 @@ let card_type = card
 match status {
     AttemptStatus::AuthenticationPending => {
         let redirect_form = build_threeds_form(&response.three_ds_data)?;
-        redirection_data: Some(Box::new(redirect_form)),
+        Some(Box::new(redirect_form))
     }
-    _ => redirection_data: None,
-}
+    _ => None,
+};
 ```
 
 ### 4. Expiry Date Format Issues

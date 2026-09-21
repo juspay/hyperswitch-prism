@@ -30,7 +30,6 @@ use std::str::FromStr;
 
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -144,7 +143,7 @@ fn get_refund_credit_card_payment(
 }
 
 fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+    common_utils::crypto::generate_cryptographically_secure_random_string(MAX_ID_LENGTH)
 }
 
 /// Returns invoice number if length <= MAX_ID_LENGTH, otherwise random string
@@ -1910,7 +1909,7 @@ struct ShipToList {
 struct Profile<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> {
     merchant_customer_id: Option<String>,
     description: Option<String>,
-    email: Option<String>,
+    email: Option<Email>,
     payment_profiles: Option<Vec<PaymentProfiles<T>>>,
     ship_to_list: Option<Vec<ShipToList>>,
 }
@@ -2239,6 +2238,7 @@ impl<
                         incremental_authorization_allowed: None,
                         status_code: http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                 }
             }
@@ -2399,20 +2399,61 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(new_router_data)
             }
             None => {
-                // A psync response with no transaction record. Transient server-side
-                // conditions (server busy / maintenance) are not a payment failure, so
-                // mirror hyperswitch and keep the existing router data unchanged;
-                // otherwise surface the connector error while preserving the prior
-                // attempt status (as hyperswitch's `get_err_response` does).
+                // A psync poll with no transaction record. `E00053` ("server too
+                // busy") and `E00104` ("server in maintenance") are not payment
+                // failures - Authorize.Net is asking us to retry later.
+                //
+                // Hyperswitch returns `Ok(item.data)` unchanged, keeping the prior
+                // attempt status, because its psync `item.data.response` is a
+                // `TransactionResponse` seeded from the stored attempt
+                // (`construct_payment_router_data`) and `item.data.status` is the
+                // stored `payment_attempt.status`. This connector is stateless:
+                // `router_data` is built with `response: Err(ErrorResponse::default())`
+                // and no prior status, so returning it unchanged surfaces as
+                // `HE_00 / 500 / PAYMENT_STATUS_UNSPECIFIED` (a spurious error).
+                //
+                // Emit instead an `Ok(TransactionResponse)` with `AttemptStatus::Unknown`
+                // ("polled, could not infer") and `status_code = http_code` (200). It
+                // serializes to `PaymentStatus::Unspecified`, which hyperswitch maps
+                // back to the previous attempt status on psync
+                // (`unified_connector_service/transformers.rs`,
+                // `PaymentStatus::Unspecified => Ok(prev_status)`) - matching the
+                // direct connector leg. Any other message code is a real error.
                 match response.messages.message.iter().find(|m| {
                     m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
                 }) {
-                    Some(_) => Ok(router_data),
+                    Some(_) => {
+                        let connector_transaction_id = router_data
+                            .request
+                            .connector_transaction_id
+                            .get_connector_transaction_id()
+                            .ok();
+                        let mut new_router_data = router_data;
+                        new_router_data.resource_common_data.status = AttemptStatus::Unknown;
+                        new_router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: connector_transaction_id
+                                .clone()
+                                .map(ResponseId::ConnectorTransactionId)
+                                .unwrap_or(ResponseId::NoResponseId),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            network_txn_link_id: None,
+                            connector_response_reference_id: connector_transaction_id,
+                            incremental_authorization_allowed: None,
+                            status_code: http_code,
+                            splits: None,
+                            payment_account_reference: None,
+                        });
+                        Ok(new_router_data)
+                    }
                     None => Ok(Self {
                         response: Err(get_err_response(http_code, response.messages)),
                         ..router_data
@@ -2695,6 +2736,10 @@ pub fn convert_to_payments_response_data_or_error(
 ) -> PaymentConversionResult {
     let status = get_hs_status(response, http_status_code, operation, capture_method);
 
+    // `Unresolved` (authorize.net responseCode "4" - held for review) is an accepted,
+    // non-terminal state: authorize.net returns no `transaction_response.errors` for it, so
+    // hyperswitch's direct path yields `response = Ok(TransactionResponse)`. Match that here
+    // instead of wrapping it as an `ErrorResponse`.
     let is_successful_status = matches!(
         status,
         AttemptStatus::Authorized
@@ -2703,6 +2748,7 @@ pub fn convert_to_payments_response_data_or_error(
             | AttemptStatus::Charged
             | AttemptStatus::Voided
             | AttemptStatus::VoidedPostCapture
+            | AttemptStatus::Unresolved
     );
 
     // Extract connector response data from transaction response if available
@@ -2767,6 +2813,7 @@ pub fn convert_to_payments_response_data_or_error(
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
         }
@@ -2805,6 +2852,7 @@ pub fn convert_to_payments_response_data_or_error(
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
                 splits: None,
+                payment_account_reference: None,
             })
         }
         None if status == AttemptStatus::VoidedPostCapture
@@ -2851,6 +2899,8 @@ pub enum SyncStatus {
     FDSPendingReview,
     #[serde(rename = "FDSAuthorizedPendingReview")]
     FDSAuthorizedPendingReview,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2860,8 +2910,12 @@ pub struct SyncTransactionResponse {
     pub transaction_id: String,
     #[serde(rename = "transactionStatus")]
     pub transaction_status: SyncStatus,
-    pub response_code: Option<u8>,
-    pub response_reason_code: Option<u8>,
+    // Authorize.Net reason codes run past 255 (e.g. 315 invalid card number, 318
+    // duplicate transaction), so `u8` overflows and fails the whole psync body.
+    // Hyperswitch does not model these fields at all and so never fails on them;
+    // they are carried here only for `typed_connector_response`, never read.
+    pub response_code: Option<i32>,
+    pub response_reason_code: Option<i32>,
     pub response_reason_description: Option<String>,
     pub network_trans_id: Option<String>,
     // Additional fields available but not needed for our implementation
@@ -2884,6 +2938,14 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
                 Self::Unresolved
             }
+            // This service is stateless - there is no prior attempt status to fall back
+            // on, so an unrecognised `transactionStatus` must not resolve to a concrete
+            // status. `Unspecified` serializes to `PaymentStatus::Unspecified`, which
+            // hyperswitch maps back to the stored status
+            // (`unified_connector_service/transformers.rs`,
+            // `PaymentStatus::Unspecified => Ok(prev_status)`), so the retention happens
+            // on the side that actually holds the attempt.
+            SyncStatus::Unknown => Self::Unspecified,
         }
     }
 }
@@ -2899,6 +2961,8 @@ pub enum RSyncStatus {
     Declined,
     GeneralError,
     Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2923,6 +2987,10 @@ impl From<RSyncStatus> for RefundStatus {
             RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
                 Self::Failure
             }
+            // Refund analogue of the `SyncStatus::Unknown` arm above: `RefundStatus::Unknown`
+            // serializes to proto `RefundStatus::Unspecified`, which hyperswitch maps back to
+            // the stored refund status.
+            RSyncStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -3203,6 +3271,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             });
         } else {
             let error_response = ErrorResponse {
@@ -3553,7 +3622,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .request
                         .email
                         .as_ref()
-                        .map(|e| e.peek().clone().expose().expose()),
+                        .map(|e| e.peek().clone()),
                     payment_profiles: None,
                     ship_to_list,
                 },

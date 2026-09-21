@@ -345,7 +345,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
             | WalletData::PaymayaRedirect(_)
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::PayhereRedirect {}
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
             )),
@@ -941,6 +943,7 @@ impl<F, Req>
                     mandate_reference: None,
                     status_code: _http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
                 let error = None;
 
@@ -982,6 +985,7 @@ impl<F, Req>
                     mandate_reference: None,
                     status_code: _http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
                 let error = None;
 
@@ -1551,6 +1555,7 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
                 mandate_reference: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2137,6 +2142,7 @@ impl<F, Req>
             incremental_authorization_allowed: None,
             status_code: _status_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

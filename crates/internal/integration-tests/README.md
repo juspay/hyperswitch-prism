@@ -84,6 +84,7 @@ crates/internal/integration-tests/
 │   │   ├── stripe/
 │   │   │   ├── specs.json              # supported_suites + spec fields
 │   │   │   ├── override.json           # Scenario-level grpc_req / assert overrides
+│   │   │   ├── connector_specific_scenarios.json  # Optional: scenarios only this connector has
 │   │   │   ├── webhook_payload.json    # Optional: HandleEvent suite test payloads
 │   │   │   └── browser_automation_spec.json   # Optional: browser-driven 3DS / redirect hooks
 │   │   └── …
@@ -127,6 +128,35 @@ A template lives at `.github/test/template_creds.json`.
 
 The harness reads from the path resolved as: explicit `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` env var → `creds.json` at the workspace root. `.env.connector-tests` (sourced by `scripts/run-tests`) can also set `UCS_CREDS_PATH` — if your edits don't seem to land, **check that file first** to see which `creds.json` the harness actually loads.
 
+### `connector_specs/<connector>/connector_specific_scenarios.json`
+
+Optional. Scenarios that exist **only** for this connector, run in addition to the
+global suites its `specs.json` declares. Same `suite -> scenario` shape as
+`override.json`, but the values are whole scenario definitions.
+
+```jsonc
+{
+  "PaymentService/Authorize": {
+    "tsys_soft_decline_retry": {
+      "grpc_req": { "amount": { "minor_amount": 5205, "currency": "USD" } },
+      "assert": { "status": { "one_of": ["FAILURE"] } }
+    }
+  }
+}
+```
+
+Add one only when the case cannot exist for other connectors — a sandbox-specific
+trigger, or a production bug pinned as a permanent test. Anything shareable belongs
+in `global_suites/` so every connector gets it.
+
+Rules the harness enforces:
+
+- **Additive only.** A name that already exists in the global suite is an error, not
+  an override — use `override.json` to change a shared scenario.
+- **Same proto schema** as global scenarios.
+- **Counted separately** in the run summary (`connector_specific=N`), so private
+  coverage never reads as baseline coverage.
+
 ### `connector_specs/<connector>/specs.json`
 
 Per-connector spec. All fields except `connector` and `supported_suites` are optional.
@@ -159,26 +189,29 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
     "PaymentMethodAuthenticationService/PreAuthenticate": "merchant_order_id"
   },
 
+  // Scenarios this connector cannot support, as suite -> scenario -> reason.
+  // They are skipped instead of run and failed. Lives here rather than in
+  // override.json because it states a capability, not a test-data delta: what
+  // a connector cannot do is answered by this one file. The reason is the map
+  // value, so a declaration without one cannot be written.
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_upi_qr": "redsys has no UPI support"
+    }
+  },
+
   // For Get / sync flows: re-poll until status reaches a terminal value
   // or this budget elapses. Set when the sandbox auto-settles after a delay.
-  "sync_poll_until_terminal_seconds": 30,
-
-  // Per-connector additions to suite_spec's depends_on. Prepended at runtime.
-  // Useful for connectors whose Authorize requires upstream context that
-  // isn't part of the standard global chain.
-  "additional_dependencies": {
-    "PaymentService/Authorize": [
-      {
-        "suite": "PaymentMethodAuthenticationService/PreAuthenticate",
-        "scenario": "threeds_card_pre_authenticate",
-        "context_map": {
-          "authentication_data": "res.authentication_data"
-        }
-      }
-    ]
-  }
+  "sync_poll_until_terminal_seconds": 30
 }
 ```
+
+> **There is no `additional_dependencies` key.** Earlier revisions of this file documented one; no code
+> reads it, so a `specs.json` that sets it is silently ignored. Suite dependencies live only in the
+> global `global_suites/<Service>_<Flow>/suite_spec.json` `depends_on`, which every connector shares. A
+> connector that genuinely needs a different prerequisite chain needs a connector-specific scenario in
+> `connector_specific_scenarios.json`, or a change to the global suite — not a per-connector override of
+> the chain.
 
 ### `connector_specs/<connector>/override.json`
 
@@ -375,7 +408,8 @@ cargo run --bin check_coverage
 - `docs/connector-overrides.md` — override.json patch rules
 - `docs/code-walkthrough.md` — how the harness builds a request
 - `docs/context-mapping.md` — dependency context propagation
-- `grace/workflow/3_test.md` — operational workflow for moving a connector to "Hardened"
+- `grace/workflow/2.6d_test_exec.md` — how a GRACE run executes this harness, and how it reads `report.json`
+- `grace/workflow/2.3b_codegen_unit.md` Phase 2t — how a GRACE run authors a connector's scenarios here
 
 ## Support
 

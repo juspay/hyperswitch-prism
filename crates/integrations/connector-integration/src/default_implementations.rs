@@ -212,6 +212,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayvantiv,
         Qwikcilver,
         Givepayments,
+        Payhere,
     ],
     not_implemented: [
         Aci,
@@ -293,9 +294,19 @@ default_impl_verify_webhook_source_v2!(
         Tesouro,
         Boost,
         Citigate,
+        JpmorganOrbital,
+        Paynearme,
+        Saferpay,
+        Paydotcom,
         Moneris,
+        Etisalat,
+        Merchante,
         Ilixium,
+        ElavonPg,
+        GlobalpaymentsHeartland,
         Worldpayraft,
+        Travelhub,
+        D24,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -373,8 +384,14 @@ macro_rules! default_impl_recharge_v2 {
 
 default_impl_recharge_v2!(
     Citigate,
+    JpmorganOrbital,
+    Paynearme,
+    Saferpay,
+    Paydotcom,
     Boost,
     Ilixium,
+    ElavonPg,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -426,6 +443,8 @@ default_impl_recharge_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -474,9 +493,12 @@ default_impl_recharge_v2!(
     Worldpay,
     Worldpayvantiv,
     Worldpayraft,
+    D24,
     Worldpayxml,
     Xendit,
     Zift,
+    Travelhub,
+    Payhere
 );
 
 // ============================================================================
@@ -603,8 +625,14 @@ macro_rules! default_impl_get_payment_method_v2 {
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
+    Paynearme,
+    Saferpay,
+    Paydotcom,
     Boost,
     Ilixium,
+    ElavonPg,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -656,6 +684,8 @@ default_impl_create_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -704,15 +734,24 @@ default_impl_create_payment_method_v2!(
     Worldpay,
     Worldpayvantiv,
     Worldpayraft,
+    D24,
     Worldpayxml,
     Xendit,
     Zift,
+    Travelhub,
+    Payhere
 );
 
 default_impl_get_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
+    Paynearme,
+    Saferpay,
+    Paydotcom,
     Boost,
     Ilixium,
+    ElavonPg,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -764,6 +803,8 @@ default_impl_get_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -812,16 +853,25 @@ default_impl_get_payment_method_v2!(
     Worldpay,
     Worldpayvantiv,
     Worldpayraft,
+    D24,
     Worldpayxml,
     Xendit,
     Zift,
+    Travelhub,
+    Payhere
 );
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Citigate,
+        JpmorganOrbital,
+        Paynearme,
+        Saferpay,
+        Paydotcom,
         Boost,
         Ilixium,
+        ElavonPg,
+        GlobalpaymentsHeartland,
         Tesouro,
         Adyen,
         Authorizedotnet,
@@ -879,6 +929,8 @@ default_impl_payment_method_eligibility_v2!(
         Mifinity,
         Mollie,
         Moneris,
+        Etisalat,
+        Merchante,
         Multisafepay,
         Nexinets,
         Nexixpay,
@@ -911,6 +963,7 @@ default_impl_payment_method_eligibility_v2!(
         Wellsfargo,
         Worldpay,
         Worldpayraft,
+        D24,
         Worldpayxml,
         Xendit,
         Zift,
@@ -920,7 +973,8 @@ default_impl_payment_method_eligibility_v2!(
         Truelayer,
         Hyperswitch,
         Affirm,
-        Maya
+        Maya,
+        Travelhub,
     ],
 );
 
@@ -989,8 +1043,14 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 
 default_impl_refresh_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
+    Paynearme,
+    Saferpay,
+    Paydotcom,
     Boost,
     Ilixium,
+    ElavonPg,
+    GlobalpaymentsHeartland,
     AbsaSanlam,
     Aci,
     Adyen,
@@ -1043,6 +1103,8 @@ default_impl_refresh_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -1091,7 +1153,10 @@ default_impl_refresh_payment_method_v2!(
     Worldpay,
     Worldpayvantiv,
     Worldpayraft,
+    D24,
     Worldpayxml,
     Xendit,
     Zift,
+    Travelhub,
+    Payhere
 );

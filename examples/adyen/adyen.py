@@ -12,7 +12,7 @@ from payments import MerchantAuthenticationClient
 from payments import DisputeClient
 from payments import EventClient
 from payments import RecurringPaymentClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"]
 
@@ -135,7 +135,7 @@ def _build_incremental_authorization_request():
     )
 
 def _build_parse_event_request():
-    return payment_pb2.EventServiceParseRequest(
+    return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.

@@ -156,6 +156,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: common_enums::PaymentMethod,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         matches!(payment_method, common_enums::PaymentMethod::Card)
     }

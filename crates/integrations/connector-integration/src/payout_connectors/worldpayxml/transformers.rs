@@ -1,6 +1,9 @@
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, PayoutVoid},
-    errors::{ConnectorError, IntegrationError},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payouts::payouts_types::{
         PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
         PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
@@ -49,38 +52,62 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
     }
 }
 
-fn map_worldpayxml_payout_status(
-    last_event: &responses::WorldpayxmlLastEvent,
-) -> common_enums::PayoutStatus {
-    use responses::WorldpayxmlLastEvent;
-    match last_event {
-        WorldpayxmlLastEvent::Authorised
-        | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::SettledByMerchant => common_enums::PayoutStatus::Success,
-        WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
-            common_enums::PayoutStatus::Pending
+impl TryFrom<&responses::WorldpayxmlLastEvent> for common_enums::PayoutStatus {
+    type Error = ConnectorError;
+
+    fn try_from(last_event: &responses::WorldpayxmlLastEvent) -> Result<Self, Self::Error> {
+        use responses::WorldpayxmlLastEvent;
+        match last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::SettledByMerchant => Ok(Self::Success),
+            WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
+                Ok(Self::Pending)
+            }
+            WorldpayxmlLastEvent::Cancelled => Ok(Self::Cancelled),
+            WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
+                Ok(Self::Reversed)
+            }
+            WorldpayxmlLastEvent::Refused
+            | WorldpayxmlLastEvent::RefundFailed
+            | WorldpayxmlLastEvent::PushRefused
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error => Ok(Self::Failure),
+            _ => Err(ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "worldpayxml: lastEvent is not part of a payout lifecycle.".to_string(),
+                    ),
+                },
+            }),
         }
-        WorldpayxmlLastEvent::Cancelled => common_enums::PayoutStatus::Cancelled,
-        WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
-            common_enums::PayoutStatus::Reversed
-        }
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::PushRefused
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error => common_enums::PayoutStatus::Failure,
     }
 }
 
-fn worldpayxml_amount_exponent(currency: common_enums::Currency) -> String {
-    if currency.is_three_decimal_currency() {
-        "3".to_string()
-    } else if currency.is_zero_decimal_currency() {
-        "0".to_string()
-    } else {
-        "2".to_string()
-    }
+fn worldpayxml_amount_exponent(
+    currency: common_enums::Currency,
+) -> Result<String, Report<IntegrationError>> {
+    currency
+        .number_of_digits_after_decimal_point()
+        .map(|digits| digits.to_string())
+        .map_err(|err| {
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use an ISO 4217 currency Worldpay accepts (e.g. GBP, USD, EUR)."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Currency {currency:?} has no known minor-unit exponent: {err}"
+                    )),
+                },
+            }
+            .into()
+        })
 }
 
 // ----- PayoutTransfer (PoFulfill) request -----
@@ -134,13 +161,13 @@ impl
                 Some(requests::WorldpayxmlAddress {
                     first_name: router_data.request.get_billing_first_name().ok(),
                     last_name: router_data.request.get_billing_last_name().ok(),
-                    address1: Some(line1),
+                    address1: line1,
                     address2: None,
                     address3: None,
-                    postal_code: Some(zip),
-                    city: Some(city),
+                    postal_code: zip,
+                    city,
                     state: router_data.request.get_optional_billing_state(),
-                    country_code: Some(country),
+                    country_code: country,
                     telephone_number: None,
                 })
             }
@@ -188,7 +215,7 @@ impl
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: request.destination_currency,
-                        exponent: worldpayxml_amount_exponent(request.destination_currency),
+                        exponent: worldpayxml_amount_exponent(request.destination_currency)?,
                     },
                     payment_details: requests::WorldpayxmlPayoutPaymentDetails { payment_method },
                 },
@@ -252,7 +279,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Se
         Ok(Self {
             response: Ok(PayoutTransferResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: common_enums::PayoutStatus::try_from(&payment.last_event)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),
@@ -344,7 +371,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutGetResponse, Self>>
         Ok(Self {
             response: Ok(PayoutGetResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: common_enums::PayoutStatus::try_from(&payment.last_event)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),

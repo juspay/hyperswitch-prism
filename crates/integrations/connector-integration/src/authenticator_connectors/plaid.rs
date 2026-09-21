@@ -1,3 +1,4 @@
+pub mod sanity;
 #[cfg(test)]
 mod test;
 pub mod transformers;
@@ -173,6 +174,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _payment_method: common_enums::PaymentMethod,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         true
     }

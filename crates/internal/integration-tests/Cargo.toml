@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 grpc-server = { path = "../../grpc-server/grpc-server" }
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+connector-creds = { path = "../connector-creds" }
 ucs_env = { path = "../../common/ucs_env" }
 connector_service_ffi = { package = "ffi", path = "../../ffi/ffi" }
 
@@ -29,8 +30,6 @@ regex = "1"
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
-
-[dev-dependencies]
 serde_ignored = "0.1"
 
 [lints]

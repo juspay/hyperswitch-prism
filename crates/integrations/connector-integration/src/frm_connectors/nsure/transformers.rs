@@ -1,0 +1,1412 @@
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, FrmDecision};
+use common_utils::types::FloatMajorUnit;
+use domain_types::connector_flow::PreRiskCheck;
+use domain_types::{
+    connector_types::CustomerInfo,
+    errors,
+    frm::frm_types::{
+        FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
+        FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
+        FrmRefundProcessedResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+    },
+    payment_address::{Address, OrderDetailsWithAmount},
+    payment_method_data::{DefaultPCIHolder, PaymentMethodData},
+    router_data::ConnectorSpecificConfig,
+    router_data_v2::RouterDataV2,
+};
+use hyperswitch_masking::{PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
+
+use crate::types::ResponseRouterData;
+
+pub(crate) type Error = error_stack::Report<errors::IntegrationError>;
+type ResponseError = error_stack::Report<errors::ConnectorError>;
+
+/// nSure.ai Server-to-Server API reference.
+pub const NSURE_DOC_URL: &str =
+    "https://docs.nsure.ai/docs/nsureai-open-api/tm3emswyhns77-server-to-server-api";
+
+/// Default `x-nsure-api-version` when the merchant config does not pin one.
+/// nSure documents the format as `apiVersion.major.minor`.
+pub const NSURE_DEFAULT_API_VERSION: &str = "2.0.0";
+
+// ──────────────────────────────────────────────────────────────────────────
+// Auth
+// ──────────────────────────────────────────────────────────────────────────
+
+pub struct NsureAuthType {
+    /// Sent verbatim in the `Authorization` header — nSure uses a bare key,
+    /// with no `Bearer`/`Basic` scheme prefix.
+    pub api_key: Secret<String>,
+    pub app_id: Option<String>,
+    pub api_version: Option<String>,
+}
+
+impl TryFrom<&ConnectorSpecificConfig> for NsureAuthType {
+    type Error = Error;
+
+    fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+        match config {
+            ConnectorSpecificConfig::Nsure {
+                api_key,
+                app_id,
+                api_version,
+                ..
+            } => Ok(Self {
+                api_key: api_key.clone(),
+                app_id: app_id.clone(),
+                api_version: api_version.clone(),
+            }),
+            _ => Err(error_stack::report!(
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "expected an Nsure connector config (api_key = the nSure.ai \
+                             authorization key from the management portal)"
+                                .to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Send the nSure.ai credentials as connector_config.nsure".to_owned(),
+                        ),
+                        doc_url: Some(NSURE_DOC_URL.to_owned()),
+                    },
+                }
+            )),
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Error response
+// ──────────────────────────────────────────────────────────────────────────
+
+/// nSure returns `{"error": {"message": "..."}}` for 400/401/500.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NsureErrorResponse {
+    #[serde(default)]
+    pub error: Option<NsureErrorDetail>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NsureErrorDetail {
+    #[serde(default)]
+    pub message: Option<String>,
+}
+
+impl NsureErrorResponse {
+    pub fn message(&self) -> String {
+        self.error
+            .as_ref()
+            .and_then(|detail| detail.message.clone())
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string())
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Request — POST /transactions/{transactionId}
+// ──────────────────────────────────────────────────────────────────────────
+
+/// nSure evaluation mode. Only `preAuthorization` is implemented; the
+/// `postAuthorization` variant is intentionally absent so it cannot be
+/// selected by accident.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum NsureMode {
+    #[serde(rename = "preAuthorization")]
+    PreAuthorization,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsurePreRiskCheckRequest {
+    pub metadata: NsureMetadata,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_info: Option<NsureSessionInfo>,
+    pub end_user_info: NsureEndUserInfo,
+    pub mode: NsureMode,
+    pub transaction_details: NsureTransactionDetails,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureMetadata {
+    pub unique_request_id: String,
+    /// Epoch milliseconds.
+    pub timestamp: i128,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_type: Option<NsureAccountType>,
+}
+
+/// Device and session signals. Every field is a `Secret`: taken together they
+/// are a device fingerprint, and `end_user_ip` is personal data in its own right
+/// under GDPR. `Secret` masks them in logs only — the serialized request body
+/// still carries the real values.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureSessionInfo {
+    /// Minted by the nSure browser/mobile SDK; optional within sessionInfo.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<Secret<String>>,
+    /// Required by nSure whenever `sessionInfo` is present.
+    pub user_agent: Secret<String>,
+    /// Required by nSure whenever `sessionInfo` is present.
+    pub end_user_ip: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureEndUserInfo {
+    /// Stable merchant-side user key. nSure's `endUserInfo` oneOf requires it and
+    /// it is what lets them build cross-transaction history for the buyer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_info: Option<NsurePhoneInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_first_seen_timestamp: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_first_successful_tx_timestamp: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsurePhoneInfo {
+    pub phone: Secret<String>,
+    pub country_code: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureTransactionDetails {
+    pub paid_amount: NsureAmount,
+    pub payment_method: NsurePaymentMethod,
+    /// Required, and nSure enforces `minItems: 1`. Items are vertical-specific
+    /// `oneOf` variants keyed by `itemClass`; prism supplies the fields common to
+    /// every variant and takes the vertical from `connector_feature_data`.
+    pub cart: Vec<NsureCartItem>,
+}
+
+/// Fields required by every nSure cart-item variant (`quantity`,
+/// `itemFulfillment`, `sellingPrice`), plus the optional discriminator and the
+/// vertical-specific extras that some variants demand.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureCartItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_class: Option<String>,
+    // No `brand`: the sandbox rejects it outright with
+    // `"transactionDetails.cart[0].brand" is not allowed` (HTTP 400), with and
+    // without `itemClass` set, so it is not a permitted cart property on
+    // apiVersion 2.0.0.
+    pub quantity: u16,
+    pub item_fulfillment: NsureItemFulfillment,
+    pub selling_price: NsureAmount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sku: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categories: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_type: Option<String>,
+}
+
+/// nSure `itemFulfillment`. `digital` means instant, unrecoverable delivery —
+/// a materially higher-risk shape than a shipped good.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NsureItemFulfillment {
+    Digital,
+    Physical,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureAmount {
+    pub value_in_currency: FloatMajorUnit,
+    pub currency: Currency,
+}
+
+/// nSure's `paymentMethod` is a `oneOf` discriminated by `type`, with `type`,
+/// `paymentProcessor` and `billingInfo` shared across every variant. Only the
+/// variants prism can fully populate are emitted; anything else uses the
+/// documented `other` variant (which requires only `name`) so the body stays
+/// valid rather than failing the variant's required fields.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsurePaymentMethod {
+    #[serde(rename = "type")]
+    pub payment_method_type: NsurePaymentMethodType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_processor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_first_successful_tx_timestamp: Option<i64>,
+    // ── card-variant fields ──
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bin: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last4: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    // ── shared ──
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_info: Option<NsureBillingInfo>,
+    /// Required by the `other` variant.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<NsurePaymentMethodName>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NsurePaymentMethodType {
+    Card,
+    Paypal,
+    BankTransfer,
+    Other,
+}
+
+/// Value for `paymentMethod.name`, which nSure's `other` variant requires. It
+/// names the instrument for methods that have no first-class nSure variant, so
+/// the set is closed rather than free-form text.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NsurePaymentMethodName {
+    GooglePay,
+    ApplePay,
+    AliPay,
+    /// A wallet prism carries but nSure has no dedicated name for.
+    Wallet,
+    /// A payment method that is neither card, wallet nor bank transfer.
+    Other,
+    /// No payment method data reached the connector at all.
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureBillingInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<NsureAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_info: Option<NsurePhoneInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Connector feature data
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Signals nSure wants that the FRM request has no first-class field for.
+///
+/// `sessionInfo.deviceId` is minted by the nSure browser/mobile SDK and
+/// `paymentMethod.paymentProcessor` names the downstream PSP — neither is
+/// present on `PreRiskCheckRequest`, so both are read from the request's
+/// `connector_feature_data` JSON. Absent or unparsable data degrades to
+/// `None` rather than failing the risk check: nSure treats both as optional.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureFeatureData {
+    /// nSure SDK device fingerprint — their single highest-value signal.
+    #[serde(default)]
+    pub device_id: Option<String>,
+    /// Downstream PSP name (nSure enum, e.g. `adyen`, `stripe`).
+    #[serde(default)]
+    pub payment_processor: Option<String>,
+    /// Buyer registration state: `guest` | `private` | `business`.
+    #[serde(default)]
+    pub account_type: Option<NsureAccountType>,
+    /// Epoch ms of the buyer's first interaction with the merchant (account age).
+    #[serde(default)]
+    pub user_first_seen_timestamp: Option<i64>,
+    /// Epoch ms of the buyer's first successful transaction.
+    #[serde(default)]
+    pub user_first_successful_tx_timestamp: Option<i64>,
+    /// Epoch ms the instrument was first used successfully (card tenure).
+    #[serde(default)]
+    pub payment_method_first_successful_tx_timestamp: Option<i64>,
+    /// nSure basket vertical. Selects the `cart[]` oneOf variant; when unset the
+    /// item is sent without `itemClass`, which nSure matches structurally.
+    #[serde(default)]
+    pub item_class: Option<String>,
+    /// Vertical-specific fields some `itemClass` variants require (e.g. `gaming`
+    /// needs `productType`). Passed straight through onto every cart item.
+    #[serde(default)]
+    pub product_type: Option<String>,
+}
+
+/// nSure `metadata.accountType`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NsureAccountType {
+    Guest,
+    Private,
+    Business,
+}
+
+impl NsureFeatureData {
+    fn parse(raw: Option<&Secret<String>>) -> Self {
+        raw.and_then(|data| serde_json::from_str(data.peek()).ok())
+            .unwrap_or_default()
+    }
+
+    /// nSure asks for the processor's raw response on the capture/failure
+    /// status transitions. It has no first-class field on the FRM notification,
+    /// so it rides in `connector_feature_data` alongside the other
+    /// provider-specific signals.
+    fn raw_processor_response(raw: Option<&Secret<String>>) -> Option<serde_json::Value> {
+        let parsed: serde_json::Value = serde_json::from_str(raw?.peek()).ok()?;
+        parsed.get("raw_payment_processor_response").cloned()
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Request construction
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Reduce a browser locale to the ISO 639-1 code nSure accepts.
+///
+/// `sessionInfo.language` is validated against the bare two-letter list, so the
+/// `en-US` / `pt_BR` forms browsers actually send are rejected with a 400.
+/// Takes the primary subtag and lowercases it; anything that is not two ASCII
+/// letters is dropped rather than sent and rejected — the field is optional.
+fn nsure_language(raw: &str) -> Option<String> {
+    let primary = raw
+        .split(['-', '_'])
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    (primary.len() == 2 && primary.chars().all(|c| c.is_ascii_alphabetic())).then_some(primary)
+}
+
+fn nsure_phone_info(
+    number: Option<&Secret<String>>,
+    country_code: Option<&String>,
+) -> Option<NsurePhoneInfo> {
+    // nSure requires both `phone` and `countryCode` on a phoneInfo object, so
+    // a half-populated phone is dropped rather than sent as an invalid object.
+    let phone = number?;
+    let country_code = country_code?;
+    Some(NsurePhoneInfo {
+        phone: phone.clone(),
+        // nSure expects the bare dialling digits, not a `+`-prefixed code.
+        country_code: country_code.trim_start_matches('+').to_string(),
+    })
+}
+
+/// Build `endUserInfo` — the *buyer*, i.e. whoever holds the account placing the
+/// order.
+///
+/// Deliberately sourced from `customer_info`, never from
+/// `paymentMethod.cardHolderName`. The two describe different people: the buyer
+/// versus whoever the card belongs to. A mismatch between them is one of the
+/// strongest signals a risk engine has ("this account is paying with someone
+/// else's card"), so populating both from one source would collapse the
+/// comparison and hide it. nSure receives both independently and decides.
+///
+/// It also keeps buyer history coherent: nSure keys `userFirstSeenTimestamp` and
+/// friends off `endUserInfo`, so one buyer paying with two different cards must
+/// stay one buyer, and a fraudster cycling stolen cards must not get a fresh
+/// identity per transaction. Cardholder name is unavailable for wallets and
+/// bank transfers anyway, which would leave this block empty for those methods.
+fn nsure_end_user_info(
+    customer: Option<&CustomerInfo>,
+    feature_data: &NsureFeatureData,
+) -> NsureEndUserInfo {
+    let tenure = |info: NsureEndUserInfo| NsureEndUserInfo {
+        user_first_seen_timestamp: feature_data.user_first_seen_timestamp,
+        user_first_successful_tx_timestamp: feature_data.user_first_successful_tx_timestamp,
+        ..info
+    };
+    let Some(customer) = customer else {
+        return tenure(NsureEndUserInfo::default());
+    };
+    // `first_name`/`last_name` are preferred; fall back to splitting the
+    // single `customer_name` field on the first space when they are absent.
+    let (first_name, last_name) = match (&customer.first_name, &customer.last_name) {
+        (None, None) => customer
+            .customer_name
+            .as_ref()
+            .map(|name| {
+                let full = name.peek().trim().to_string();
+                match full.split_once(' ') {
+                    Some((first, last)) => (
+                        Some(Secret::new(first.to_string())),
+                        Some(Secret::new(last.trim().to_string())),
+                    ),
+                    None => (Some(Secret::new(full)), None),
+                }
+            })
+            .unwrap_or((None, None)),
+        (first, last) => (first.clone(), last.clone()),
+    };
+    tenure(NsureEndUserInfo {
+        id: customer
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string()),
+        email: customer.customer_email.clone(),
+        first_name,
+        last_name,
+        phone_info: nsure_phone_info(
+            customer.customer_phone_number.as_ref(),
+            customer.customer_phone_country_code.as_ref(),
+        ),
+        ..Default::default()
+    })
+}
+
+fn nsure_billing_info(address: Option<&Address>) -> Option<NsureBillingInfo> {
+    let address = address?;
+    let details = address.address.as_ref();
+    let nsure_address = details.map(|details| NsureAddress {
+        country: details.get_optional_country(),
+        state: details.get_optional_state(),
+        city: details.get_optional_city(),
+        // nSure models the street as one line. `get_combined_address_line` is
+        // not usable here: it joins with `,` and errors unless *both* lines are
+        // present, whereas most addresses carry only line1.
+        street: details.get_optional_combined_address_line(),
+        postal_code: details.get_optional_zip(),
+    });
+    let info = NsureBillingInfo {
+        first_name: address.get_optional_first_name(),
+        last_name: address.get_optional_last_name(),
+        address: nsure_address,
+        phone_info: nsure_phone_info(
+            address.get_optional_phone_number().as_ref(),
+            address.get_optional_phone_country_code().as_ref(),
+        ),
+    };
+    // Don't send an object where every field is empty.
+    let is_empty = info.first_name.is_none()
+        && info.last_name.is_none()
+        && info.address.is_none()
+        && info.phone_info.is_none();
+    (!is_empty).then_some(info)
+}
+
+fn nsure_payment_method(
+    payment_method: Option<&PaymentMethodData<DefaultPCIHolder>>,
+    billing_info: Option<NsureBillingInfo>,
+    payment_processor: Option<String>,
+    merchant_id: Option<String>,
+    payment_method_first_successful_tx_timestamp: Option<i64>,
+) -> NsurePaymentMethod {
+    let base = NsurePaymentMethod {
+        payment_method_type: NsurePaymentMethodType::Other,
+        payment_processor,
+        merchant_id,
+        payment_method_first_successful_tx_timestamp,
+        bin: None,
+        last4: None,
+        expiration_month: None,
+        expiration_year: None,
+        card_holder_name: None,
+        billing_info,
+        name: None,
+    };
+    match payment_method {
+        Some(PaymentMethodData::Card(card)) => {
+            // `get_card_isin` / `get_last4` come from `cards::CardNumber`, so the
+            // BIN and last four are derived the same way as everywhere else.
+            NsurePaymentMethod {
+                payment_method_type: NsurePaymentMethodType::Card,
+                bin: Some(Secret::new(card.card_number.0.get_card_isin())),
+                last4: Some(Secret::new(card.card_number.0.get_last4())),
+                expiration_month: Some(card.card_exp_month.clone()),
+                expiration_year: Some(card.get_expiry_year_4_digit()),
+                // Instrument identity, kept separate from the buyer identity in
+                // `endUserInfo` so nSure can compare the two. See
+                // `nsure_end_user_info`.
+                card_holder_name: card.card_holder_name.clone(),
+                ..base
+            }
+        }
+        Some(PaymentMethodData::Wallet(wallet)) => {
+            // nSure's `digitalWallet` variant requires `last4`, which prism's
+            // wallet payloads do not carry, so only PayPal gets a first-class
+            // variant. Every other wallet uses `other` with the wallet name,
+            // which keeps the signal without producing an invalid body.
+            match wallet {
+                domain_types::payment_method_data::WalletData::PaypalRedirect(_)
+                | domain_types::payment_method_data::WalletData::PaypalSdk(_) => {
+                    NsurePaymentMethod {
+                        payment_method_type: NsurePaymentMethodType::Paypal,
+                        ..base
+                    }
+                }
+                domain_types::payment_method_data::WalletData::GooglePay(_)
+                | domain_types::payment_method_data::WalletData::GooglePayRedirect(_) => {
+                    NsurePaymentMethod {
+                        name: Some(NsurePaymentMethodName::GooglePay),
+                        ..base
+                    }
+                }
+                domain_types::payment_method_data::WalletData::ApplePay(_)
+                | domain_types::payment_method_data::WalletData::ApplePayRedirect(_) => {
+                    NsurePaymentMethod {
+                        name: Some(NsurePaymentMethodName::ApplePay),
+                        ..base
+                    }
+                }
+                domain_types::payment_method_data::WalletData::AliPayQr(_)
+                | domain_types::payment_method_data::WalletData::AliPayRedirect(_) => {
+                    NsurePaymentMethod {
+                        name: Some(NsurePaymentMethodName::AliPay),
+                        ..base
+                    }
+                }
+                _ => NsurePaymentMethod {
+                    name: Some(NsurePaymentMethodName::Wallet),
+                    ..base
+                },
+            }
+        }
+        Some(PaymentMethodData::BankTransfer(_)) | Some(PaymentMethodData::BankDebit(_)) => {
+            NsurePaymentMethod {
+                payment_method_type: NsurePaymentMethodType::BankTransfer,
+                ..base
+            }
+        }
+        // Everything prism can carry but nSure has no first-class variant for.
+        Some(_) => NsurePaymentMethod {
+            name: Some(NsurePaymentMethodName::Other),
+            ..base
+        },
+        None => NsurePaymentMethod {
+            name: Some(NsurePaymentMethodName::Unknown),
+            ..base
+        },
+    }
+}
+
+/// Build nSure's `cart`. The array is required and must be non-empty
+/// (`minItems: 1`), so an order with no line items still sends one item
+/// representing the whole purchase. `quantity`, `itemFulfillment` and
+/// `sellingPrice` are required on every variant; `itemClass`/`productType` come
+/// from `connector_feature_data` because prism has no notion of nSure's
+/// vertical taxonomy.
+fn nsure_cart(
+    order_details: Option<&Vec<OrderDetailsWithAmount>>,
+    total: &NsureAmount,
+    feature_data: &NsureFeatureData,
+) -> Result<Vec<NsureCartItem>, Error> {
+    let items = match order_details.filter(|details| !details.is_empty()) {
+        Some(details) => details
+            .iter()
+            .map(|detail| {
+                Ok::<_, Error>(NsureCartItem {
+                    item_class: feature_data.item_class.clone(),
+                    quantity: detail.quantity,
+                    // Unknown shipping requirement is treated as physical:
+                    // claiming `digital` for a shipped good would overstate risk.
+                    item_fulfillment: if detail.requires_shipping == Some(false) {
+                        NsureItemFulfillment::Digital
+                    } else {
+                        NsureItemFulfillment::Physical
+                    },
+                    // `OrderDetailsWithAmount::amount` is documented as "the
+                    // amount per quantity of product", i.e. per unit, and is sent
+                    // as-is next to `quantity`.
+                    //
+                    // UNCONFIRMED: whether nSure reads `sellingPrice` as the unit
+                    // price or the line total. If it is the line total, a line of
+                    // 2 x 50 sends `sellingPrice: 50, quantity: 2` against a
+                    // `paidAmount` of 100 and the cart will not reconcile.
+                    // Pending confirmation from nSure; quantity is 1 in every
+                    // request exercised so far, where both readings agree.
+                    selling_price: NsureAmount {
+                        value_in_currency: super::NsureAmountConvertor::convert(
+                            detail.amount,
+                            total.currency,
+                        )?,
+                        currency: total.currency,
+                    },
+                    sku: detail.sku.clone().or_else(|| detail.product_id.clone()),
+                    categories: detail.category.as_ref().map(|c| vec![c.clone()]),
+                    product_name: Some(detail.product_name.clone()),
+                    product_type: feature_data.product_type.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        // No line items: one synthetic item carrying the order total, so the
+        // required non-empty cart is satisfied without fabricating detail.
+        None => vec![NsureCartItem {
+            item_class: feature_data.item_class.clone(),
+            quantity: 1,
+            item_fulfillment: NsureItemFulfillment::Physical,
+            selling_price: total.clone(),
+            sku: None,
+            categories: None,
+            product_name: None,
+            product_type: feature_data.product_type.clone(),
+        }],
+    };
+    Ok(items)
+}
+
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + Serialize,
+    >
+    TryFrom<
+        super::NsureRouterData<
+            RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
+            T,
+        >,
+    > for NsurePreRiskCheckRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: super::NsureRouterData<
+            RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+
+        // `uniqueRequestId` is nSure's idempotency/correlation key. It must be
+        // the same value used as the `{transactionId}` path segment so the
+        // evaluation and any later status update refer to one transaction.
+        let unique_request_id = req.merchant_transaction_id.clone().ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "merchant_transaction_id",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "nSure.ai needs merchant_transaction_id: it is both the \
+                         POST /transactions/{transactionId} path segment and the \
+                         metadata.uniqueRequestId in the body"
+                            .to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Set merchant_transaction_id on the FRM Pre Risk Check request".to_owned(),
+                    ),
+                    doc_url: Some(NSURE_DOC_URL.to_owned()),
+                },
+            })
+        })?;
+
+        let currency = req.amount.currency;
+        let feature_data = NsureFeatureData::parse(req.connector_feature_data.as_ref());
+
+        // sessionInfo carries the SDK device id plus the browser signals prism
+        // already has. Omitted entirely when none of the three are available.
+        let browser = req.browser_info.as_ref();
+        let end_user_ip = browser.and_then(|info| info.ip_address.map(|ip| ip.to_string()));
+        let user_agent = browser.and_then(|info| info.user_agent.clone());
+        // nSure requires userAgent and endUserIp on any sessionInfo it is given,
+        // so a partial session block is omitted rather than sent incomplete. The
+        // SDK deviceId rides along when present.
+        let session_info = match (user_agent, end_user_ip) {
+            (Some(user_agent), Some(end_user_ip)) => Some(NsureSessionInfo {
+                device_id: feature_data.device_id.clone().map(Secret::new),
+                user_agent: Secret::new(user_agent),
+                end_user_ip: Secret::new(end_user_ip),
+                language: browser
+                    .and_then(|info| info.language.as_deref())
+                    .and_then(nsure_language)
+                    .map(Secret::new),
+                // Left unset on purpose. `sessionInfo.country` means *where the
+                // session is*, which only a session-derived source (IP
+                // geolocation, SDK) can answer, and prism has neither. Filling
+                // it from the billing address would make it agree with
+                // `billingInfo.address.country` by construction and destroy the
+                // billing-vs-session mismatch signal — the same collapse avoided
+                // for cardholder vs buyer name in `nsure_end_user_info`.
+                country: None,
+            }),
+            _ => None,
+        };
+
+        let paid_amount = NsureAmount {
+            value_in_currency: super::NsureAmountConvertor::convert(req.amount.amount, currency)?,
+            currency,
+        };
+        let cart = nsure_cart(req.order_details.as_ref(), &paid_amount, &feature_data)?;
+
+        let billing_info = nsure_billing_info(
+            req.address
+                .as_ref()
+                .and_then(|address| address.get_payment_billing()),
+        );
+
+        let payment_method = nsure_payment_method(
+            req.payment_method.as_ref(),
+            billing_info,
+            feature_data.payment_processor.clone(),
+            req.merchant_details
+                .as_ref()
+                .and_then(|details| details.merchant_id.clone()),
+            feature_data.payment_method_first_successful_tx_timestamp,
+        );
+
+        Ok(Self {
+            metadata: NsureMetadata {
+                unique_request_id,
+                timestamp: i128::from(common_utils::date_time::now_unix_millis()),
+                account_type: feature_data.account_type,
+            },
+            session_info,
+            end_user_info: nsure_end_user_info(req.customer_info.as_ref(), &feature_data),
+            mode: NsureMode::PreAuthorization,
+            transaction_details: NsureTransactionDetails {
+                paid_amount,
+                payment_method,
+                cart,
+            },
+        })
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Response
+// ──────────────────────────────────────────────────────────────────────────
+
+/// nSure decision values, per the `POST /transactions/{transactionId}` 200 schema.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum NsureDecision {
+    Approved,
+    Rejected,
+    SoftApproved,
+    Review,
+    #[serde(rename = "Not Reviewed")]
+    NotReviewed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<&NsureDecision> for FrmDecision {
+    fn from(value: &NsureDecision) -> Self {
+        match value {
+            NsureDecision::Approved => Self::Approve,
+            NsureDecision::Rejected => Self::Reject,
+            // A soft approval is still an approval — nSure accepts liability on
+            // it, so it must not be downgraded to a manual-review hold.
+            NsureDecision::SoftApproved => Self::Approve,
+            NsureDecision::Review => Self::Review,
+            // "Not Reviewed" means nSure returned no opinion (e.g. the segment is
+            // not enabled). Route to review rather than silently approving.
+            NsureDecision::NotReviewed => Self::Review,
+            // Any value nSure adds later: fail safe to review, never to approve.
+            NsureDecision::Unknown => Self::Review,
+        }
+    }
+}
+
+/// Pairs the parsed decision with the verbatim body it was parsed from, so the
+/// audit trail keeps fields this connector does not model.
+#[derive(Debug, Clone)]
+pub struct NsureResponseWithRaw<T> {
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
+}
+
+impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for NsureResponseWithRaw<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            parsed_response,
+            raw_response,
+        })
+    }
+}
+
+impl<T: Serialize> Serialize for NsureResponseWithRaw<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.parsed_response.serialize(serializer)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureOrderDecision {
+    #[serde(default)]
+    pub decision: Option<NsureDecision>,
+    #[serde(default)]
+    pub segment_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct NsurePreRiskCheckResponse(pub NsureResponseWithRaw<NsureOrderDecision>);
+
+impl TryFrom<ResponseRouterData<NsurePreRiskCheckResponse, Self>>
+    for RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<NsurePreRiskCheckResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Serialise the captured raw JSON, not the typed struct, so nothing
+        // nSure sent is dropped from the audit trail. `None` on failure
+        // degrades the trail rather than failing the flow.
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
+        let parsed = &item.response.0.parsed_response;
+
+        Ok(Self {
+            response: Ok(PreRiskCheckResponse {
+                // A *missing* `decision` is fail-safed here, not just an
+                // unrecognised one. `NsureOrderDecision.decision` is
+                // `#[serde(default)]` under a transparent wrapper, so an empty
+                // body — or one whose decision sits under a key we don't model —
+                // deserializes happily to `None`. Left as `None` that would
+                // reach the router as `FRM_DECISION_UNSPECIFIED` on a 2xx with
+                // no error, so map it to `Review` alongside the unrecognised
+                // string case in `From<&NsureDecision>`.
+                frm_decision: Some(
+                    parsed
+                        .decision
+                        .as_ref()
+                        .map_or(FrmDecision::Review, FrmDecision::from),
+                ),
+                // nSure's pre-auth decision response carries no numeric score.
+                risk_score: None,
+                // No reason field either; the segment that produced the decision
+                // is the only explanatory value returned.
+                reason: parsed
+                    .segment_id
+                    .as_ref()
+                    .map(|segment| format!("segmentId: {segment}")),
+                // nSure does not mint its own id — the transaction is keyed by
+                // the merchant's transactionId, which is what we sent.
+                frm_transaction_id: item.router_data.request.merchant_transaction_id.clone(),
+                status_code: item.http_code,
+            }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Lifecycle notifications — PUT /transactions/{transactionId}/status
+//
+// nSure's pre-auth flow is two calls, not one: the risk evaluation above, and
+// this status callback afterwards. Their docs are explicit that the transition
+// to `fundsCaptured` is "the formal handshake for the nSure.ai liability
+// shift" — without it nSure never learns the payment's outcome and no
+// chargeback liability transfers, which is the commercial point of the
+// integration.
+// ──────────────────────────────────────────────────────────────────────────
+
+/// `status` values accepted by `PUT /transactions/{id}/status`.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NsureTransactionStatus {
+    /// Merchant followed a `Rejected` recommendation and stopped the payment.
+    Rejected,
+    /// Processor declined the authorization.
+    ProcessorAuthorizationFailure,
+    /// Capture attempt failed.
+    FundsCaptureFailure,
+    /// Capture succeeded — this is the value that shifts liability.
+    FundsCaptured,
+    /// Funds returned to the buyer.
+    Refunded,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureStatusUpdateRequest {
+    pub status: NsureTransactionStatus,
+    /// nSure asks for the processor's raw response on the failure and capture
+    /// transitions; it is the payload they use to reconcile the authorization.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_payment_processor_response: Option<serde_json::Value>,
+}
+
+impl NsureTransactionStatus {
+    /// Map the payment outcome onto nSure's vocabulary.
+    ///
+    /// An FRM `Reject` that the merchant honoured is `rejected`; anything that
+    /// reached a successful capture is `fundsCaptured` regardless of the
+    /// original recommendation — sending `fundsCaptured` after a `Rejected`
+    /// verdict is nSure's documented "merchant override", which moves liability
+    /// back to the merchant but must still be reported.
+    fn from_attempt_status(
+        status: Option<AttemptStatus>,
+        frm_decision: Option<FrmDecision>,
+    ) -> Option<Self> {
+        match status {
+            Some(
+                AttemptStatus::Charged
+                | AttemptStatus::PartialCharged
+                | AttemptStatus::PartialChargedAndChargeable,
+            ) => Some(Self::FundsCaptured),
+            Some(AttemptStatus::AuthorizationFailed) => Some(Self::ProcessorAuthorizationFailure),
+            Some(AttemptStatus::CaptureFailed) => Some(Self::FundsCaptureFailure),
+            Some(AttemptStatus::Failure) => Some(Self::ProcessorAuthorizationFailure),
+            // A void only means `rejected` when it was nSure's `Reject` the
+            // merchant acted on. Voids happen for plenty of reasons that have
+            // nothing to do with risk — buyer cancelled, stock-out, authorization
+            // expired — and reporting one of those as `rejected` would tell nSure
+            // their decline was honoured, feeding a false positive into their
+            // model and the liability record. nSure has no "cancelled" status, so
+            // the honest move is to report nothing.
+            Some(AttemptStatus::Voided | AttemptStatus::VoidedPostCapture) => {
+                matches!(frm_decision, Some(FrmDecision::Reject)).then_some(Self::Rejected)
+            }
+            Some(AttemptStatus::AutoRefunded) => Some(Self::Refunded),
+            // No payment outcome to report: fall back to the FRM decision, so a
+            // transaction the merchant declined on nSure's advice is still
+            // closed out on their side.
+            _ => match frm_decision {
+                Some(FrmDecision::Reject) => Some(Self::Rejected),
+                _ => None,
+            },
+        }
+    }
+}
+
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + Serialize,
+    >
+    TryFrom<
+        super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmPaymentOutcome,
+                FrmFlowData,
+                FrmPaymentOutcomeRequest,
+                FrmPaymentOutcomeResponse,
+            >,
+            T,
+        >,
+    > for NsureStatusUpdateRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmPaymentOutcome,
+                FrmFlowData,
+                FrmPaymentOutcomeRequest,
+                FrmPaymentOutcomeResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        let status =
+            NsureTransactionStatus::from_attempt_status(req.payment_status, req.frm_decision)
+                .ok_or_else(|| {
+                    error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                        field_name: "payment_status",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "nSure needs a payment outcome to close out the transaction; \
+                         no nSure status maps to the supplied payment_status"
+                                    .to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Send the payment status (charged / authorization_failed / \
+                         capture_failed / voided) on the FRM notification"
+                                    .to_owned(),
+                            ),
+                            doc_url: Some(NSURE_DOC_URL.to_owned()),
+                        },
+                    })
+                })?;
+
+        Ok(Self {
+            status,
+            // The connector-agnostic notification carries the PSP payload (when
+            // the caller supplies one) in connector_feature_data.
+            raw_payment_processor_response: NsureFeatureData::raw_processor_response(
+                req.connector_feature_data.as_ref(),
+            ),
+        })
+    }
+}
+
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + Serialize,
+    >
+    TryFrom<
+        super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmRefundProcessed,
+                FrmFlowData,
+                FrmRefundProcessedRequest,
+                FrmRefundProcessedResponse,
+            >,
+            T,
+        >,
+    > for NsureRefundStatusRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        _item: super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmRefundProcessed,
+                FrmFlowData,
+                FrmRefundProcessedRequest,
+                FrmRefundProcessedResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // A processed refund is unambiguous — nSure has a single value for it.
+        Ok(Self {
+            status: NsureTransactionStatus::Refunded,
+        })
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Disputes — POST /transactions/{transactionId}/disputes
+// ──────────────────────────────────────────────────────────────────────────
+
+/// nSure tracks a dispute as opening or closing; there is no richer state.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NsureDisputeStatus {
+    Open,
+    Close,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureDisputeRequest {
+    pub status: NsureDisputeStatus,
+}
+
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + Serialize,
+    >
+    TryFrom<
+        super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmChargebackReceived,
+                FrmFlowData,
+                FrmChargebackReceivedRequest,
+                FrmChargebackReceivedResponse,
+            >,
+            T,
+        >,
+    > for NsureDisputeRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        _item: super::NsureRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::FrmChargebackReceived,
+                FrmFlowData,
+                FrmChargebackReceivedRequest,
+                FrmChargebackReceivedResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Hyperswitch notifies on receipt of a chargeback, which is the opening
+        // of a dispute. Closing is reported separately when the dispute resolves.
+        Ok(Self {
+            status: NsureDisputeStatus::Open,
+        })
+    }
+}
+
+/// nSure answers the notification endpoints with `200` and an empty or minimal
+/// body; there is nothing to map beyond the status code.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NsureNotificationBody {
+    #[serde(default)]
+    pub ok: Option<bool>,
+}
+
+// The connector macros generate one templating type per (request, response)
+// pair, so each flow needs its own named types even where the wire shape is
+// identical. Mirrors Kount's per-flow newtypes.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct NsurePaymentOutcomeResponse(pub NsureNotificationBody);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct NsureRefundProcessedResponse(pub NsureNotificationBody);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct NsureChargebackResponse(pub NsureNotificationBody);
+
+/// Refund status update. Same wire shape as [`NsureStatusUpdateRequest`] but a
+/// distinct type so the macros can template it separately.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NsureRefundStatusRequest {
+    pub status: NsureTransactionStatus,
+}
+
+impl TryFrom<ResponseRouterData<NsurePaymentOutcomeResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::FrmPaymentOutcome,
+        FrmFlowData,
+        FrmPaymentOutcomeRequest,
+        FrmPaymentOutcomeResponse,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<NsurePaymentOutcomeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(FrmPaymentOutcomeResponse {
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<NsureRefundProcessedResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::FrmRefundProcessed,
+        FrmFlowData,
+        FrmRefundProcessedRequest,
+        FrmRefundProcessedResponse,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<NsureRefundProcessedResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(FrmRefundProcessedResponse {
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<NsureChargebackResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::FrmChargebackReceived,
+        FrmFlowData,
+        FrmChargebackReceivedRequest,
+        FrmChargebackReceivedResponse,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<NsureChargebackResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(FrmChargebackReceivedResponse {
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The verdict mapping decides whether a payment proceeds, so every variant
+    /// is pinned — in particular that nothing outside `Approved`/`SoftApproved`
+    /// can yield an approval.
+    #[test]
+    fn decision_maps_fail_safe() {
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Approved),
+            FrmDecision::Approve
+        );
+        // nSure accepts liability on a soft approval, so it is a real approval.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::SoftApproved),
+            FrmDecision::Approve
+        );
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Rejected),
+            FrmDecision::Reject
+        );
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Review),
+            FrmDecision::Review
+        );
+        // "Not Reviewed" means nSure gave no opinion — hold, never approve.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::NotReviewed),
+            FrmDecision::Review
+        );
+        // Any value nSure adds later must not approve by accident.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Unknown),
+            FrmDecision::Review
+        );
+    }
+
+    /// A body that parses but carries no `decision` must not reach the router as
+    /// an absent verdict; it is fail-safed to `Review` at the response boundary.
+    #[test]
+    fn absent_decision_is_deserialized_as_none() {
+        let parsed = serde_json::from_str::<NsureOrderDecision>("{}");
+        assert!(
+            parsed.is_ok(),
+            "an empty object is a valid decision body, which is why the \
+             missing-decision case has to be handled rather than relying on a \
+             deserialization error"
+        );
+        let decision = parsed.ok().and_then(|body| body.decision);
+        assert!(decision.is_none());
+        assert_eq!(
+            decision
+                .as_ref()
+                .map_or(FrmDecision::Review, FrmDecision::from),
+            FrmDecision::Review
+        );
+    }
+
+    /// The status callback drives nSure's liability handshake, so the capture and
+    /// failure transitions are pinned.
+    #[test]
+    fn capture_and_failure_statuses_map() {
+        use NsureTransactionStatus as S;
+        for status in [
+            AttemptStatus::Charged,
+            AttemptStatus::PartialCharged,
+            AttemptStatus::PartialChargedAndChargeable,
+        ] {
+            assert_eq!(
+                S::from_attempt_status(Some(status), None),
+                Some(S::FundsCaptured),
+                "{status:?} shifts liability and must report fundsCaptured"
+            );
+        }
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::AuthorizationFailed), None),
+            Some(S::ProcessorAuthorizationFailure)
+        );
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::CaptureFailed), None),
+            Some(S::FundsCaptureFailure)
+        );
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::AutoRefunded), None),
+            Some(S::Refunded)
+        );
+    }
+
+    /// A void is only nSure's rejection being honoured when nSure actually said
+    /// `Reject`. Voids for stock-outs, buyer cancellations or expiry must report
+    /// nothing rather than tell nSure a decline they never issued was upheld.
+    #[test]
+    fn void_reports_rejected_only_when_nsure_rejected() {
+        use NsureTransactionStatus as S;
+        for status in [AttemptStatus::Voided, AttemptStatus::VoidedPostCapture] {
+            assert_eq!(
+                S::from_attempt_status(Some(status), Some(FrmDecision::Reject)),
+                Some(S::Rejected)
+            );
+            assert_eq!(
+                S::from_attempt_status(Some(status), Some(FrmDecision::Approve)),
+                None,
+                "{status:?} after an approval is not a rejection nSure issued"
+            );
+            assert_eq!(S::from_attempt_status(Some(status), None), None);
+        }
+    }
+
+    /// With no payment outcome yet, a transaction the merchant declined on
+    /// nSure's advice is still closed out; anything else reports nothing.
+    #[test]
+    fn missing_status_falls_back_to_the_frm_decision() {
+        use NsureTransactionStatus as S;
+        assert_eq!(
+            S::from_attempt_status(None, Some(FrmDecision::Reject)),
+            Some(S::Rejected)
+        );
+        assert_eq!(
+            S::from_attempt_status(None, Some(FrmDecision::Approve)),
+            None
+        );
+        assert_eq!(S::from_attempt_status(None, None), None);
+    }
+
+    /// Browsers send region-qualified locales; nSure validates against bare
+    /// ISO 639-1 and 400s on anything else.
+    #[test]
+    fn language_is_reduced_to_iso_639_1() {
+        assert_eq!(nsure_language("en-US").as_deref(), Some("en"));
+        assert_eq!(nsure_language("pt_BR").as_deref(), Some("pt"));
+        assert_eq!(nsure_language("EN").as_deref(), Some("en"));
+        assert_eq!(nsure_language("en").as_deref(), Some("en"));
+        // Not two ASCII letters: dropped rather than sent and rejected.
+        assert_eq!(nsure_language("english"), None);
+        assert_eq!(nsure_language(""), None);
+    }
+}

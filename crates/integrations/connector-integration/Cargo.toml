@@ -51,5 +51,11 @@ josekit = "0.8.7"
 async-trait = "0.1.88"
 openssl = {version = "0.10.70"}
 
+[features]
+# Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
+# switch — no dependencies — so feature-off builds are byte-identical. Enabled
+# by grpc-server's `deja` umbrella feature.
+deja = []
+
 [lints]
 workspace = true

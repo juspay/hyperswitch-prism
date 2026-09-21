@@ -77,7 +77,7 @@ pub struct CalidaWebhookResponse {
     pub payment_method_type: Option<String>,
     pub shop_name: Option<String>,
     pub sender_name: Option<String>,
-    pub sender_email: Option<String>,
+    pub sender_email: Option<Secret<String, pii::EmailStrategy>>,
     pub description: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
@@ -313,6 +313,7 @@ where
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -365,6 +366,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {

@@ -81,6 +81,8 @@ pub enum Bank {
     PixEmv(PixEmvBankTransfer),
     OpenBanking(OpenBanking),
     Trustly(TrustlyBankTransfer),
+    Payshap(PayshapBankTransfer),
+    PayshapProxy(PayshapProxyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -197,6 +199,27 @@ pub struct TrustlyBankTransfer {
     /// Bank country code. Maps to Trustly's `ClearingHouse` (the English country
     /// name in upper case).
     pub bank_country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PayshapBankTransfer {
+    /// Bank account number is a unique identifier assigned by a bank to a customer.
+    pub bank_account_number: Secret<String>,
+
+    /// Bank account holder name.
+    pub account_holder_name: Option<Secret<String>>,
+
+    /// Bank name.
+    pub bank_name: Option<common_enums::BankNames>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct PayshapProxyBankTransfer {
+    /// Cellphone number.
+    pub cellphone: Option<Secret<String>>,
+
+    /// Shap ID.
+    pub shap_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
