@@ -1318,8 +1318,8 @@ message OnlineMandate {
 // scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
 // per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
-  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  optional Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
   optional int64 start_date = 3;        // Unix timestamp for start date
   optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
@@ -3314,7 +3314,7 @@ message PaymentServiceCaptureResponse {
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -3742,7 +3742,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -6613,7 +6613,7 @@ message PaymentMethodEligibilityResult {
 message PaymentMethodServiceEligibilityResponse {
   // Deprecated: use `results`. Mirrors `results[0].eligibility` for callers
   // that still check a single payment method.
-  EligibilityStatus eligibility = 1 [deprecated = true];
+  optional EligibilityStatus eligibility = 1 [deprecated = true];
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;
