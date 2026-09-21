@@ -140,16 +140,17 @@ static PAYHOUND_NONCE: AtomicU64 = AtomicU64::new(0);
 /// The clock read is propagated with `?` rather than defaulted — a nonce of `0` would be rejected
 /// by Payhound and would be far harder to diagnose than the clock error itself.
 pub(super) fn next_nonce() -> CustomResult<u64, IntegrationError> {
+    // Read the clock through `common_utils::date_time::now`, the one sanctioned source
+    // (`connector-integration/clippy.toml` bans `SystemTime::now` outright). Microseconds are
+    // derived here rather than using `date_time::now_unix_millis` on purpose: a millisecond nonce
+    // is ~1000x smaller than a microsecond one, and Payhound requires every nonce to be strictly
+    // greater than any previously used with the same API key, with no way to reset it. Narrowing
+    // the resolution would permanently brick any key that has already signed with microseconds.
     let now_micros = u64::try_from(
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: payhound_context(
-                    "payhound: system clock is before the UNIX epoch, so no X-MB-Nonce could be \
-                     derived",
-                ),
-            })?
-            .as_micros(),
+        common_utils::date_time::now()
+            .assume_utc()
+            .unix_timestamp_nanos()
+            / 1_000,
     )
     .change_context(IntegrationError::RequestEncodingFailed {
         context: payhound_context(
