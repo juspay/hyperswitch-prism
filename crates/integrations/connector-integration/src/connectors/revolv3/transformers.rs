@@ -12,12 +12,14 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         ApplePayPaymentData, ApplePayWalletData, Card, CardDetailsForNetworkTransactionId,
-        GooglePayWalletData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        DecryptedWalletTokenDetailsForNetworkTransactionId, GooglePayWalletData,
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        TokenSource, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::AuthenticationData,
+    utils::CardIssuer,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -177,6 +179,11 @@ impl Revolv3BillingDetails {
         }
         Ok(self)
     }
+
+    fn with_fallback_full_name(mut self, card_holder_name: Option<Secret<String>>) -> Self {
+        self.billing_full_name = self.billing_full_name.or(card_holder_name);
+        self
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -237,8 +244,8 @@ pub struct Revolv3ApplePayDecryptedPackage {
     application_primary_account_number: Secret<String>,
     application_expiration_date: Secret<String>,
     electronic_commerce_indicator: Option<String>,
-    online_payment_cryptogram: Secret<String>,
-    device_manufacturer_identifier: Secret<String>,
+    online_payment_cryptogram: Option<Secret<String>>,
+    device_manufacturer_identifier: Option<Secret<String>>,
     card_brand: Option<Revolv3CardBrand>,
 }
 
@@ -291,6 +298,21 @@ impl Revolv3CardBrand {
             _ => None,
         }
     }
+
+    fn from_card_issuer(card_issuer: CardIssuer) -> Option<Self> {
+        match card_issuer {
+            CardIssuer::Visa => Some(Self::Visa),
+            CardIssuer::Master => Some(Self::Mastercard),
+            CardIssuer::AmericanExpress => Some(Self::Amex),
+            CardIssuer::Discover => Some(Self::Discover),
+            CardIssuer::JCB => Some(Self::Jcb),
+            CardIssuer::DinersClub => Some(Self::Diners),
+            CardIssuer::Maestro
+            | CardIssuer::CarteBlanche
+            | CardIssuer::CartesBancaires
+            | CardIssuer::UnionPay => None,
+        }
+    }
 }
 
 impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
@@ -321,17 +343,21 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
             ),
             application_expiration_date,
             electronic_commerce_indicator: decrypted_data.payment_data.eci_indicator.clone(),
-            online_payment_cryptogram: decrypted_data
-                .payment_data
-                .online_payment_cryptogram
-                .clone(),
-            device_manufacturer_identifier: decrypted_data
-                .get_device_manufacturer_identifier()
-                .change_context(IntegrationError::MissingRequiredField {
-                    field_name:
-                        "payment_method_data.wallet.apple_pay.device_manufacturer_identifier",
-                    context: Default::default(),
-                })?,
+            online_payment_cryptogram: Some(
+                decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone(),
+            ),
+            device_manufacturer_identifier: Some(
+                decrypted_data
+                    .get_device_manufacturer_identifier()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name:
+                            "payment_method_data.wallet.apple_pay.device_manufacturer_identifier",
+                        context: Default::default(),
+                    })?,
+            ),
             card_brand: Revolv3CardBrand::from_wallet_network(
                 &apple_pay_data.payment_method.network,
             ),
@@ -369,6 +395,51 @@ impl TryFrom<&GooglePayWalletData> for Revolv3GooglePayDecryptedPackage {
             electronic_commerce_indicator: decrypted_data.eci_indicator.clone(),
             online_payment_cryptogram: decrypted_data.cryptogram.clone(),
             card_brand: Revolv3CardBrand::from_wallet_network(&google_pay_data.info.card_network),
+        })
+    }
+}
+
+impl TryFrom<&DecryptedWalletTokenDetailsForNetworkTransactionId>
+    for Revolv3ApplePayDecryptedPackage
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        token: &DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_primary_account_number: Secret::new(token.decrypted_token.get_card_no()),
+            application_expiration_date: token
+                .get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
+            electronic_commerce_indicator: None,
+            online_payment_cryptogram: None,
+            device_manufacturer_identifier: None,
+            card_brand: token
+                .get_card_issuer()
+                .ok()
+                .and_then(Revolv3CardBrand::from_card_issuer),
+        })
+    }
+}
+
+impl TryFrom<&DecryptedWalletTokenDetailsForNetworkTransactionId>
+    for Revolv3GooglePayDecryptedPackage
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        token: &DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_primary_account_number: Secret::new(token.decrypted_token.get_card_no()),
+            application_expiration_date: token
+                .get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
+            electronic_commerce_indicator: None,
+            online_payment_cryptogram: None,
+            card_brand: token
+                .get_card_issuer()
+                .ok()
+                .and_then(Revolv3CardBrand::from_card_issuer),
         })
     }
 }
@@ -1363,6 +1434,43 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
             }),
         })
     }
+
+    pub fn set_wallet_token_data_for_ntid(
+        token: &DecryptedWalletTokenDetailsForNetworkTransactionId,
+        common_data: &PaymentFlowData,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let method = match token.token_source {
+            Some(TokenSource::ApplePay) => {
+                Revolv3PaymentMethodDetails::ApplePay(ApplePayPaymentMethodData {
+                    apple_pay: Revolv3ApplePayData {
+                        apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage::try_from(
+                            token,
+                        )?,
+                    },
+                })
+            }
+            Some(TokenSource::GooglePay) => {
+                Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
+                    google_pay: Revolv3GooglePayData {
+                        google_pay_payment_data_response: None,
+                        google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage::try_from(
+                            token,
+                        )?,
+                    },
+                })
+            }
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.decrypted_wallet_token.token_source",
+                context: Default::default(),
+            })?,
+        };
+
+        Ok(Self {
+            billing: Revolv3BillingDetails::from_payment_flow_data(common_data)
+                .with_fallback_full_name(token.card_holder_name.clone()),
+            method,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1406,6 +1514,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Some(Revolv3PaymentMethodData::set_credit_card_data_for_ntid(
                     card_data.clone(),
+                    &item.router_data.resource_common_data,
+                )?)
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                ref wallet_token,
+            ) => {
+                if item.router_data.resource_common_data.is_three_ds() {
+                    Err(IntegrationError::NotSupported {
+                        message: "Wallet 3DS".to_string(),
+                        connector: "revolv3",
+                        context: Default::default(),
+                    })?
+                };
+                Some(Revolv3PaymentMethodData::set_wallet_token_data_for_ntid(
+                    wallet_token,
                     &item.router_data.resource_common_data,
                 )?)
             }
