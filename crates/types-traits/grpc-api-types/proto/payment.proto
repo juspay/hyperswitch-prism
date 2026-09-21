@@ -1318,8 +1318,8 @@ message OnlineMandate {
 // scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
 // per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
-  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  optional Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
   optional int64 start_date = 3;        // Unix timestamp for start date
   optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
@@ -3202,6 +3202,18 @@ message PaymentClientAuthenticationContext {
   optional string return_url = 8;
 }
 
+enum ClientPlatform {
+  CLIENT_PLATFORM_UNSPECIFIED = 0;
+  CLIENT_PLATFORM_IOS = 1;
+  CLIENT_PLATFORM_WEB = 2;
+  CLIENT_PLATFORM_ANDROID = 3;
+}
+
+message OsBasedReturnUrl {
+  ClientPlatform os_type = 1;
+  map<string, string> return_url_map = 2;
+}
+
 // Authenticator-specific context for client authentication token creation
 message AuthenticatorClientAuthenticationContext {
   optional string return_url = 1;           // OAuth redirect URL for Link completion
@@ -3215,6 +3227,8 @@ message AuthenticatorClientAuthenticationContext {
   // hosted flow completes (e.g. an Android package name). Sent by merchants
   // integrating from a native app instead of return_url.
   optional string native_app_identifier = 7;
+
+  optional OsBasedReturnUrl os_based_return_url = 8;
 }
 
 // Response message for SDK session
@@ -3300,7 +3314,7 @@ message PaymentServiceCaptureResponse {
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -3361,6 +3375,14 @@ message PaymentServiceCreateOrderRequest {
   // Order line items. Required by some connectors (e.g. Airwallex PayLater /
   // Klarna) when creating the order/payment-intent.
   repeated OrderDetailsWithAmount order_details = 9;
+
+  // Customer Information
+  optional Customer customer =
+      10; // Customer the order is created for. Send the same customer.id as on the Authorize / SetupRecurring that uses this order.
+
+  // Future Usage
+  optional FutureUsage setup_future_usage =
+      11; // Store-for-later intent of the payment this order is created for. OFF_SESSION when the payment method will be stored for merchant-initiated charges.
 }
 
 // Response message for create order operation
@@ -3705,6 +3727,12 @@ message PaymentServiceSetupRecurringRequest {
   // that branch endpoint construction on this (e.g. Adyen's merchant-prefixed
   // live URL) default to test mode and skip live-URL substitution.
   optional bool test_mode = 41;
+
+  // Capture method for the mandate-setup authorization. Connectors that switch
+  // the authorization type on manual capture (Adyen's
+  // additionalData.authorisationType / manualCapture) need the real value;
+  // absent means the connector's default (automatic).
+  optional CaptureMethod capture_method = 42;
 }
 
 // Response message for a mandate setup operation
@@ -3722,7 +3750,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -3766,6 +3794,10 @@ message PaymentServiceSetupRecurringResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
   optional string payment_account_reference = 22;
+
+  // Network-issued link id chaining related transactions (Adyen's
+  // additionalData.transactionLinkId), carried forward on subsequent MITs.
+  optional string network_txn_link_id = 23;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -6589,7 +6621,7 @@ message PaymentMethodEligibilityResult {
 message PaymentMethodServiceEligibilityResponse {
   // Deprecated: use `results`. Mirrors `results[0].eligibility` for callers
   // that still check a single payment method.
-  EligibilityStatus eligibility = 1 [deprecated = true];
+  optional EligibilityStatus eligibility = 1 [deprecated = true];
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;

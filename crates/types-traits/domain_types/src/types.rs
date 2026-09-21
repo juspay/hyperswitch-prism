@@ -3650,6 +3650,10 @@ pub struct SetupRecurringRequest {
     /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
     /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
     pub test_mode: Option<bool>,
+    /// Capture method of the mandate-setup authorization. Connectors that switch the
+    /// authorization type on manual capture (e.g. Adyen's
+    /// `additionalData.authorisationType`/`manualCapture`) need the real value.
+    pub capture_method: Option<grpc_payment_types::CaptureMethod>,
 }
 
 /// ============================================================================
@@ -3846,6 +3850,9 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
             test_mode: req.test_mode,
+            capture_method: req
+                .capture_method
+                .and_then(|v| grpc_payment_types::CaptureMethod::try_from(v).ok()),
         }
     }
 }
@@ -3900,6 +3907,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             recipient_details: None,
             additional_connector_details: None,
             test_mode: req.test_mode,
+            capture_method: None,
         }
     }
 }
@@ -5046,7 +5054,10 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url,
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(CaptureMethod::foreign_try_from)
+                .transpose()?,
             merchant_order_id: value.merchant_order_id,
             minor_amount: Some(common_utils::types::MinorUnit::new(amount.minor_amount)),
             shipping_cost: value
@@ -6836,7 +6847,7 @@ pub fn generate_payment_method_eligibility_response(
                     None => (unknown_eligibility, None, None),
                 };
             Ok(PaymentMethodServiceEligibilityResponse {
-                eligibility: legacy_eligibility,
+                eligibility: Some(legacy_eligibility),
                 status_code: response.status_code,
                 error_info: legacy_error_info,
                 payment_method_details: legacy_payment_method_details,
@@ -6874,7 +6885,7 @@ pub fn generate_payment_method_eligibility_response(
                     )
                     .collect();
             Ok(PaymentMethodServiceEligibilityResponse {
-                eligibility: unknown_eligibility,
+                eligibility: Some(unknown_eligibility),
                 status_code: err.status_code as u32,
                 error_info: Some(error_info),
                 payment_method_details: None,
@@ -12685,7 +12696,14 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url.clone(),
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(|cm| {
+                    CaptureMethod::foreign_try_from(
+                        grpc_api_types::payments::CaptureMethod::try_from(cm).unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
             integrity_object: None,
             minor_amount: Some(amount.amount),
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
@@ -13127,7 +13145,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                     amount_data
                         .amount_money
                         .map(|amount_money| amount_money.minor_amount)
-                        .unwrap_or(amount_data.amount),
+                        .or(amount_data.amount)
+                        .unwrap_or_default(),
                 ),
                 currency: common_enums::Currency::foreign_try_from(
                     amount_data
@@ -13325,7 +13344,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
-                network_txn_link_id: _,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -13457,6 +13476,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         )
                     }),
                     payment_account_reference,
+                    network_txn_link_id,
                 }
             }
             _ => {
@@ -13521,6 +13541,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 splits: None,
                 payment_account_reference: None,
+                network_txn_link_id: None,
             }
         }
     };
@@ -13717,6 +13738,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         let payment_method_type = <Option<common_enums::PaymentMethodType>>::foreign_try_from(
             value.payment_method_type(),
         )?;
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            future_usage => Some(common_enums::FutureUsage::foreign_try_from(future_usage)?),
+        };
+        // Carried on the CreateOrder request data, not on `PaymentFlowData`, which
+        // stays `None` here so connectors reading `resource_common_data.customer_id`
+        // in their CreateOrder transformer are unaffected.
+        let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
@@ -13739,6 +13768,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             webhook_url,
             payment_method_type,
             order_details,
+            setup_future_usage,
+            customer_id,
         })
     }
 }
@@ -20386,8 +20417,9 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
-        // TokenSetupRecurringRequest has no test_mode field
+        // TokenSetupRecurringRequest has no test_mode or capture_method field
         test_mode: None,
+        capture_method: None,
     }
 }
 
@@ -20613,6 +20645,7 @@ pub fn proxied_setup_recurring_to_base(
         recipient_details: None,
         additional_connector_details: None,
         test_mode: v.test_mode,
+        capture_method: None,
     })
 }
 

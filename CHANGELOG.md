@@ -19,6 +19,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.21.1
+
+### Features
+
+- **connector:**
+  - [Shift4] recurring payments for card, Apple Pay and Google Pay ([#2303](https://github.com/juspay/connector-service/pull/2303)) ([`5090404`](https://github.com/juspay/connector-service/commit/50904048e10a8ee3312d0b65713fa72e9e770cae))
+  - [D24] add LocalBankTransfer support to Authorize ([#2294](https://github.com/juspay/connector-service/pull/2294)) ([`528e35f`](https://github.com/juspay/connector-service/commit/528e35f36127ce0098b086b964330b188d6bec2b))
+  - [Revolv3] Implement Applepay and Googlepay - pre decrypt flows ([#2285](https://github.com/juspay/connector-service/pull/2285)) ([`4018625`](https://github.com/juspay/connector-service/commit/401862581959509b5546afd005dd084960f4cc1e))
+
+### Bug Fixes
+
+- **grpc-server:** Enable http2 keepalive so half-open client connections are dropped, not held ([#2313](https://github.com/juspay/connector-service/pull/2313)) ([`7078692`](https://github.com/juspay/connector-service/commit/7078692a976d8a32abad4c0b590c544768510312))
+
+**Full Changelog:** [`2026.09.21.0...2026.09.21.1`](https://github.com/juspay/connector-service/compare/2026.09.21.0...2026.09.21.1)
+
+- - -
+
+## 2026.09.21.0
+
+### Features
+
+- Add generated connector sanity layer ([#2287](https://github.com/juspay/connector-service/pull/2287)) ([`98b7db5`](https://github.com/juspay/connector-service/commit/98b7db52374bcfd77e8acd71ae36be939672d6d5))
+
+### Bug Fixes
+
+- **proto:** Make deprecated fields optional ([#2329](https://github.com/juspay/connector-service/pull/2329)) ([`4ce7ddc`](https://github.com/juspay/connector-service/commit/4ce7ddc81f509e4fda46b93cb8d310c7a6a74680))
+- Gate raw and typed connector data ([#2333](https://github.com/juspay/connector-service/pull/2333)) ([`293d643`](https://github.com/juspay/connector-service/commit/293d6430a2611bef83a33ee356d1580418431602))
+
+**Full Changelog:** [`2026.09.18.1...2026.09.21.0`](https://github.com/juspay/connector-service/compare/2026.09.18.1...2026.09.21.0)
+
+- - -
+
+## 2026.09.18.1
+
+### Bug Fixes
+
+- **deutschebank:** Make creditor BIC optional and source payee name from payout_method_data ([#2318](https://github.com/juspay/connector-service/pull/2318)) ([`b82031b`](https://github.com/juspay/connector-service/commit/b82031b50d8fa1bdd8e5752205abf71769250ae7))
+- **proto:** SetupRecurring drops capture_method and network_txn_link_id ([#2327](https://github.com/juspay/connector-service/pull/2327)) ([`7bdd9f3`](https://github.com/juspay/connector-service/commit/7bdd9f3143fe9a201cb9414c3505b7ba796a73fc))
+
+### Miscellaneous Tasks
+
+- **grace:** Fix the 3DS leg count and replace the self-generated test oracle ([#2326](https://github.com/juspay/connector-service/pull/2326)) ([`f5b8e98`](https://github.com/juspay/connector-service/commit/f5b8e987a57d91740ed23f4e1eea36618e049616))
+
+**Full Changelog:** [`2026.09.18.0...2026.09.18.1`](https://github.com/juspay/connector-service/compare/2026.09.18.0...2026.09.18.1)
+
+- - -
+
 ## 2026.09.18.0
 
 ### Bug Fixes
