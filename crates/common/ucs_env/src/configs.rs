@@ -113,10 +113,6 @@ fn default_lineage_prefix() -> String {
     consts::LINEAGE_FIELD_PREFIX.to_string()
 }
 
-fn default_true() -> bool {
-    true
-}
-
 /// Test mode configuration for mock server integration
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct TestConfig {
@@ -216,15 +212,22 @@ impl ApiTagConfig {
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Common {
     pub environment: consts::Env,
-    #[serde(default = "default_true")]
-    pub return_raw_connector_data: bool,
+    /// Controls whether raw and typed connector request/response payloads are
+    /// included in responses returned to the client.
+    ///
+    /// Enabling this can significantly increase gRPC response size. Connector
+    /// errors carry these payloads in HTTP/2 trailers, so clients and
+    /// intermediate proxies must support a sufficiently large maximum header
+    /// list size.
+    #[serde(default)]
+    pub return_raw_and_typed_connector_data: bool,
 }
 
 impl Default for Common {
     fn default() -> Self {
         Self {
             environment: consts::Env::Development,
-            return_raw_connector_data: true,
+            return_raw_and_typed_connector_data: false,
         }
     }
 }
@@ -560,5 +563,31 @@ pub fn workspace_path() -> PathBuf {
         PathBuf::from(manifest_dir)
     } else {
         PathBuf::from(".")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Common;
+
+    #[test]
+    fn raw_and_typed_connector_data_is_disabled_by_default() {
+        let common: Common = serde_json::from_value(serde_json::json!({
+            "environment": "development"
+        }))
+        .expect("common config should deserialize");
+
+        assert!(!common.return_raw_and_typed_connector_data);
+    }
+
+    #[test]
+    fn raw_and_typed_connector_data_can_be_enabled() {
+        let common: Common = serde_json::from_value(serde_json::json!({
+            "environment": "development",
+            "return_raw_and_typed_connector_data": true
+        }))
+        .expect("common config should deserialize");
+
+        assert!(common.return_raw_and_typed_connector_data);
     }
 }
