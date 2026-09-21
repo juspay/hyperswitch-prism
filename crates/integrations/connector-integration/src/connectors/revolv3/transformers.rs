@@ -402,6 +402,22 @@ pub struct PaymentMethodSpecificRequest<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
+    fn mandate_network_data(
+        item: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Option<NetworkProcessingData> {
+        item.request
+            .is_mandate_payment()
+            .then_some(NetworkProcessingData {
+                processing_type: Some(PaymentProcessingType::InitialRecurring),
+                original_network_transaction_id: None,
+            })
+    }
+
     pub fn set_credit_card_data(
         item: &RouterDataV2<
             Authorize,
@@ -423,17 +439,9 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
                 },
             }),
         };
-        let network_data = item
-            .request
-            .is_mandate_payment()
-            .then_some(NetworkProcessingData {
-                processing_type: Some(PaymentProcessingType::InitialRecurring),
-                original_network_transaction_id: None,
-            });
-
         Ok(Self {
             payment_method_data,
-            network_data,
+            network_data: Self::mandate_network_data(item),
         })
     }
 
@@ -457,17 +465,9 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
                 },
             }),
         };
-        let network_data = item
-            .request
-            .is_mandate_payment()
-            .then_some(NetworkProcessingData {
-                processing_type: Some(PaymentProcessingType::InitialRecurring),
-                original_network_transaction_id: None,
-            });
-
         Ok(Self {
             payment_method_data,
-            network_data,
+            network_data: Self::mandate_network_data(item),
         })
     }
 
@@ -492,17 +492,9 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
                 },
             }),
         };
-        let network_data = item
-            .request
-            .is_mandate_payment()
-            .then_some(NetworkProcessingData {
-                processing_type: Some(PaymentProcessingType::InitialRecurring),
-                original_network_transaction_id: None,
-            });
-
         Ok(Self {
             payment_method_data,
-            network_data,
+            network_data: Self::mandate_network_data(item),
         })
     }
 }

@@ -1469,11 +1469,6 @@ impl ApplePayDecryptedData {
         Secret::new(format!("{month}{separator}{}", year.peek()))
     }
 
-    /// Get the device manufacturer identifier, if it is available
-    pub fn get_device_manufacturer_identifier_optional(&self) -> Option<Secret<String>> {
-        self.device_manufacturer_identifier.clone()
-    }
-
     /// Get the device manufacturer identifier, erroring out when it is absent.
     pub fn get_device_manufacturer_identifier(
         &self,
