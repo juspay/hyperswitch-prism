@@ -95,6 +95,7 @@ fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) ->
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::sync::{
