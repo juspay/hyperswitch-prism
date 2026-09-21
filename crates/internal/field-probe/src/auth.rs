@@ -790,6 +790,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             client_id: Some("probe_client_id".to_string()),
             auth_server_id: None,
+            khash_config_key: None,
             base_url: None,
         },
         ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
@@ -830,6 +831,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::ElavonPg => ConnectorSpecificConfig::ElavonPg {
+            api_key: k(),
+            key1: k(),
             base_url: None,
         },
         ConnectorEnum::GlobalpaymentsHeartland => {

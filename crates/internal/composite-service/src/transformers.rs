@@ -638,12 +638,14 @@ impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&PaymentServiceCreateOrderResponse>,
     )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
 {
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, create_order_response): (
             &CompositeAuthorizeRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&PaymentServiceCreateOrderResponse>,
         ),
     ) -> Self {
         // Resolve the access token the same way the Authorize/Capture/Refund
@@ -682,6 +684,13 @@ impl
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             test_mode: item.test_mode,
+            // Same precedence as the Authorize mapping: prefer the Order that CreateOrder
+            // just minted, then the caller-supplied one. Elavon PG's hosted payment page is
+            // opened against that Order, so taking only the request value leaves the fresh
+            // Order unreachable and PreAuthenticate fails on the missing field.
+            connector_order_id: create_order_response
+                .and_then(|r| r.connector_order_id.clone())
+                .or_else(|| item.connector_order_id.clone()),
         }
     }
 }
@@ -992,6 +1001,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentMethodServiceEligibilityRequest
 {
+    #[allow(deprecated)] // mirrors the deprecated scalar payment_method_type for back-compat
     fn foreign_from(
         (item, access_token_response): (
             &CompositePaymentMethodEligibilityRequest,
@@ -1019,6 +1029,7 @@ impl
             order_details: item.order_details.clone(),
             country: item.country,
             payment_method_type: item.payment_method_type,
+            payment_method_types: item.payment_method_types.clone(),
             description: item.description.clone(),
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
@@ -1340,12 +1351,14 @@ impl
     ForeignFrom<(
         &CompositePreAuthenticateRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&PaymentServiceCreateOrderResponse>,
     )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
 {
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, create_order_response): (
             &CompositePreAuthenticateRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&PaymentServiceCreateOrderResponse>,
         ),
     ) -> Self {
         let access_token = get_access_token(
@@ -1379,6 +1392,13 @@ impl
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             test_mode: item.test_mode,
+            // Same precedence as the Authorize mapping: prefer the Order that CreateOrder
+            // just minted, then the caller-supplied one. Elavon PG's hosted payment page is
+            // opened against that Order, so taking only the request value leaves the fresh
+            // Order unreachable and PreAuthenticate fails on the missing field.
+            connector_order_id: create_order_response
+                .and_then(|r| r.connector_order_id.clone())
+                .or_else(|| item.connector_order_id.clone()),
         }
     }
 }

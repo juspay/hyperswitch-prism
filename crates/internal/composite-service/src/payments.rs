@@ -66,6 +66,7 @@ pub trait CompositePreAuthenticatePayload {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
 }
 
@@ -132,10 +133,12 @@ impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            create_order_response,
         ))
     }
 }
@@ -146,10 +149,12 @@ impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            create_order_response,
         ))
     }
 }
@@ -656,13 +661,15 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status>
     where
         Req: CompositePreAuthenticatePayload,
     {
-        let pre_auth_payload = payload.build_pre_authenticate_request(access_token_response);
+        let pre_auth_payload =
+            payload.build_pre_authenticate_request(access_token_response, create_order_response);
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -831,6 +838,7 @@ where
                         self.pre_authenticate(
                             &payload,
                             access_token_response.as_ref(),
+                            create_order_response.as_ref(),
                             &metadata,
                             &extensions,
                         )
@@ -1011,6 +1019,9 @@ where
             .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
+                // Standalone PreAuthenticate: no CreateOrder runs in this path, so the
+                // order reference can only come from the caller's own request.
+                None,
                 &metadata,
                 &extensions,
             )

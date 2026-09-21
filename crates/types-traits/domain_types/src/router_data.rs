@@ -989,6 +989,10 @@ pub enum ConnectorSpecificConfig {
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        /// Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+        /// payment tokens are KHASH-hashed; when unset the connector falls
+        /// back to the legacy HMAC-SHA256 token.
+        khash_config_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Nsure {
@@ -1042,6 +1046,15 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Elavon Payment Gateway (EPG) — JSON REST gateway, HTTP Basic auth.
+    /// Distinct from `Elavon` (Elavon Converge, an XML API).
+    /// `api_key` = merchant alias (Basic-auth username)
+    /// `key1`    = secret API key `sk_…` (Basic-auth password)
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
         base_url: Option<String>,
     },
     Worldpayraft {
@@ -1135,6 +1148,7 @@ fn connector_patch_key(variant: &str) -> String {
         "PinelabsOnline" => "pinelabs_online",
         "TwocTwopPaco" => "twoc_twop_paco",
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        "ElavonPg" => "elavon_pg",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1536,6 +1550,7 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Paynearme { api_key, key1 },
+            ElavonPg { api_key, key1 },
             GlobalpaymentsHeartland { api_key },
             Payhere {
                 app_id,
@@ -2066,6 +2081,7 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Paynearme { api_key, key1 },
+                ElavonPg { api_key, key1 },
                 GlobalpaymentsHeartland { api_key },
                 Payhere {
                     app_id,
@@ -2704,6 +2720,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 // it validates that when it builds the script.
                 client_id: kount.client_id.filter(|id| !id.trim().is_empty()),
                 auth_server_id: kount.auth_server_id,
+                khash_config_key: kount.khash_config_key,
                 base_url: kount.base_url,
             }),
             AuthType::Nsure(nsure) => Ok(Self::Nsure {
@@ -2792,6 +2809,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: d24.key1.ok_or_else(err)?,
                 api_secret: d24.api_secret.ok_or_else(err)?,
                 base_url: d24.base_url,
+            }),
+            AuthType::ElavonPg(elavon_pg) => Ok(Self::ElavonPg {
+                api_key: elavon_pg.api_key.ok_or_else(err)?,
+                key1: elavon_pg.key1.ok_or_else(err)?,
+                base_url: elavon_pg.base_url,
             }),
             AuthType::Payhere(payhere) => Ok(Self::Payhere {
                 app_id: payhere.app_id.ok_or_else(err)?,
@@ -4047,6 +4069,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         // it without one.
                         client_id: None,
                         auth_server_id: None,
+                        khash_config_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4081,6 +4104,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::ElavonPg => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4295,6 +4326,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         client_id: None,
                         auth_server_id: None,
+                        khash_config_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
