@@ -10,6 +10,7 @@ use domain_types::{
     payouts::{
         payout_method_data::{
             Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer,
+            TedBankTransfer,
         },
         payouts_types::{
             PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -25,6 +26,9 @@ use serde::{Deserialize, Serialize};
 
 pub(super) const SANTANDER_PIX_DOCS_URL: &str =
     "https://developer.santander.com.br/api/user-guide/transfers-pix";
+
+pub(super) const SANTANDER_TED_DOCS_URL: &str =
+    "https://developer.santander.com.br/api/user-guide/ted-transfers";
 
 // ===== AUTH TYPE =====
 
@@ -180,6 +184,7 @@ pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
 fn parse_digits_i64(
     value: &str,
     field_name: &'static str,
+    doc_url: &'static str,
 ) -> Result<i64, error_stack::Report<IntegrationError>> {
     let digits: String = value.chars().filter(|ch| ch.is_ascii_digit()).collect();
 
@@ -191,7 +196,7 @@ fn parse_digits_i64(
                 suggested_action: Some(format!(
                     "Provide a non-empty numeric value for '{field_name}'"
                 )),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         }
         .into());
@@ -208,7 +213,7 @@ fn parse_digits_i64(
                 suggested_action: Some(format!(
                     "Ensure '{field_name}' contains only numeric characters"
                 )),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         })
 }
@@ -255,6 +260,42 @@ impl TryFrom<common_enums::BankType> for SantanderAccountType {
 }
 
 #[derive(Debug, Serialize)]
+pub enum SantanderTedAccountType {
+    #[serde(rename = "CC")]
+    Checking,
+    #[serde(rename = "PP")]
+    Savings,
+    #[serde(rename = "PG")]
+    Payment,
+}
+
+impl TryFrom<common_enums::BankType> for SantanderTedAccountType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank_type: common_enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            common_enums::BankType::Checking => Ok(Self::Checking),
+            common_enums::BankType::Savings => Ok(Self::Savings),
+            common_enums::BankType::Payment => Ok(Self::Payment),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "unsupported bank account type for TED transfer".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "bank_account_type {bank_type:?} is not supported by Santander TED"
+                    )),
+                    suggested_action: Some(
+                        "Use one of: Checking, Savings, or Payment bank account types for TED transfers"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub enum SantanderDocumentType {
     CPF,
     CNPJ,
@@ -277,7 +318,7 @@ pub struct SantanderBeneficiary {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderCreateRequest {
+pub struct SantanderPixPayoutCreateRequest {
     pub payment_value: StringMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dict_code: Option<Secret<String>>,
@@ -298,7 +339,7 @@ pub struct SantanderCreateRequest {
 }
 
 impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for SantanderCreateRequest
+    for SantanderPixPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -508,6 +549,211 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
     }
 }
 
+// ===== PAYOUT CREATE REQUEST ENVELOPE =====
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum SantanderPayoutCreateRequest {
+    Pix(Box<SantanderPixPayoutCreateRequest>),
+    Ted(Box<SantanderTedPayoutCreateRequest>),
+}
+
+impl
+    TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
+    for SantanderPayoutCreateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        match &req.request.payout_method_data {
+            Some(PayoutMethodData::Bank(Bank::Ted(_))) => {
+                SantanderTedPayoutCreateRequest::try_from(req).map(|r| Self::Ted(Box::new(r)))
+            }
+            _ => SantanderPixPayoutCreateRequest::try_from(req).map(|r| Self::Pix(Box::new(r))),
+        }
+    }
+}
+
+// ===== TED CREATE REQUEST =====
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderTedPayoutDestinationAccount {
+    pub bank_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ispb_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch_code: Option<String>,
+    pub account_number: Secret<String>,
+    #[serde(rename = "typeAccount")]
+    pub account_type: SantanderTedAccountType,
+    pub legal_entity_identifier: SantanderDocumentType,
+    pub document_identifier_number: Secret<String>,
+    pub name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderTedPayoutCreateRequest {
+    pub payment_value: StringMajorUnit,
+    pub destination_account: SantanderTedPayoutDestinationAccount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+}
+
+impl
+    TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
+    for SantanderTedPayoutCreateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let converter = StringMajorUnitForConnector;
+        let payment_value = converter
+            .convert(req.request.amount, req.request.source_currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert payout amount to string major unit".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Verify the payout amount and currency are valid".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
+
+        let ted = match req.request.payout_method_data.clone() {
+            Some(PayoutMethodData::Bank(Bank::Ted(ted))) => ted,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "payout method not supported for TED".to_string(),
+                    connector: "santander",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected TED bank transfer payout method data".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use TED bank transfer as the payout method".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                    },
+                }
+                .into())
+            }
+        };
+
+        let bank_code = ted.bank_code.ok_or(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.bank_code",
+            context: IntegrationErrorContext {
+                additional_context: Some("missing required field: bank_code".to_string()),
+                suggested_action: Some(
+                    "Provide the COMPE bank code in payout_method_data for TED transfers"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+            },
+        })?;
+
+        let tax_id = ted.tax_id.as_ref().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.tax_id",
+            context: IntegrationErrorContext {
+                additional_context: Some("missing required field: tax_id".to_string()),
+                suggested_action: Some(
+                    "Provide a valid CPF or CNPJ tax_id in payout_method_data".to_string(),
+                ),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+            },
+        })?;
+
+        let legal_entity_identifier = if cpf_cnpj::cpf::validate(tax_id.peek()) {
+            SantanderDocumentType::CPF
+        } else if cpf_cnpj::cnpj::validate(tax_id.peek()) {
+            SantanderDocumentType::CNPJ
+        } else {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "payout_method_data.tax_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("tax_id failed CPF and CNPJ validation".to_string()),
+                    suggested_action: Some(
+                        "Provide a valid 11-digit CPF or 14-digit CNPJ as tax_id".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            }));
+        };
+
+        let document_identifier_number = Secret::new(
+            tax_id
+                .peek()
+                .chars()
+                .filter(|ch| ch.is_ascii_digit())
+                .collect::<String>(),
+        );
+
+        let name = ted.account_holder_name.ok_or(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.account_holder_name",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "missing required field: account_holder_name".to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide the beneficiary account holder name in payout_method_data".to_string(),
+                ),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+            },
+        })?;
+
+        let account_type = ted
+            .bank_account_type
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data.bank_account_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "missing required field: bank_account_type".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Provide a valid bank_account_type (Checking, Savings, or Payment)"
+                                .to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                    },
+                })
+            })
+            .and_then(SantanderTedAccountType::try_from)?;
+
+        let ispb_code = ted.ispb.map(|ispb_raw| {
+            Secret::new(
+                ispb_raw
+                    .expose()
+                    .chars()
+                    .filter(|ch| ch.is_ascii_digit())
+                    .collect::<String>(),
+            )
+        });
+
+        Ok(Self {
+            payment_value,
+            destination_account: SantanderTedPayoutDestinationAccount {
+                bank_code,
+                ispb_code,
+                branch_code: ted.bank_branch,
+                account_number: ted.bank_account_number,
+                account_type,
+                legal_entity_identifier,
+                document_identifier_number,
+                name,
+            },
+            purpose: req.resource_common_data.description.clone(),
+        })
+    }
+}
+
 // ===== PAYOUT TRANSFER REQUEST =====
 
 #[derive(Debug, Serialize)]
@@ -573,6 +819,7 @@ impl
                 bank_account_number,
                 ..
             })) => {
+                let doc_url = SANTANDER_PIX_DOCS_URL;
                 let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "source_bank_data.bank_branch",
                     context: IntegrationErrorContext {
@@ -580,14 +827,41 @@ impl
                         suggested_action: Some(
                             "Provide the source bank branch in source_bank_data".to_string(),
                         ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                        doc_url: Some(doc_url.to_string()),
                     },
                 })?;
-                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
+                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
                 let bank_account_number = bank_account_number.expose();
-                let number =
-                    parse_digits_i64(&bank_account_number, "source_bank_data.bank_account_number")?;
-
+                let number = parse_digits_i64(
+                    &bank_account_number,
+                    "source_bank_data.bank_account_number",
+                    doc_url,
+                )?;
+                Some(SantanderDebitAccount { branch, number })
+            }
+            Some(Bank::Ted(TedBankTransfer {
+                bank_branch,
+                bank_account_number,
+                ..
+            })) => {
+                let doc_url = SANTANDER_TED_DOCS_URL;
+                let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "source_bank_data.bank_branch",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("missing required field: bank_branch".to_string()),
+                        suggested_action: Some(
+                            "Provide the source bank branch in source_bank_data".to_string(),
+                        ),
+                        doc_url: Some(doc_url.to_string()),
+                    },
+                })?;
+                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
+                let bank_account_number = bank_account_number.expose();
+                let number = parse_digits_i64(
+                    &bank_account_number,
+                    "source_bank_data.bank_account_number",
+                    doc_url,
+                )?;
                 Some(SantanderDebitAccount { branch, number })
             }
             Some(_) => {
@@ -597,9 +871,9 @@ impl
                     context: IntegrationErrorContext {
                         additional_context: Some("unsupported source bank data type".to_string()),
                         suggested_action: Some(
-                            "Use Pix bank transfer as the source bank data type".to_string(),
+                            "Use Pix or TED bank transfer as the source bank data type".to_string(),
                         ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
                     },
                 }
                 .into());

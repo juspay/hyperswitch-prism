@@ -79,6 +79,7 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    Ted(TedBankTransfer),
     OpenBanking(OpenBanking),
     Trustly(TrustlyBankTransfer),
     Payshap(PayshapBankTransfer),
@@ -180,6 +181,33 @@ pub struct PixKeyBankTransfer {
 pub struct PixEmvBankTransfer {
     /// EMV data for pix
     pub emv: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct TedBankTransfer {
+    /// Bank name
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// The bank code (COMPE code) used to identify the bank
+    pub bank_code: Option<String>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    pub ispb: Option<Secret<String>>,
+
+    /// The branch code
+    pub bank_branch: Option<String>,
+
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    pub bank_account_number: Secret<String>,
+
+    /// The bank account type
+    pub bank_account_type: Option<common_enums::BankType>,
+
+    /// Individual taxpayer identification number
+    pub tax_id: Option<Secret<String>>,
+
+    /// The account holder name
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

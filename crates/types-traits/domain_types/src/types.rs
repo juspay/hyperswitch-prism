@@ -2951,6 +2951,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::PayBright)
             }
             grpc_api_types::payments::PaymentMethodType::Pix => Ok(PaymentMethodType::Pix),
+            grpc_api_types::payments::PaymentMethodType::Ted => Ok(PaymentMethodType::Ted),
             grpc_api_types::payments::PaymentMethodType::PaySafeCard => {
                 Ok(PaymentMethodType::PaySafeCard)
             }

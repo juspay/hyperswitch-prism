@@ -1501,6 +1501,7 @@ pub enum PaymentMethodType {
     Paze,
     PhonePe,
     Pix,
+    Ted,
     PaySafeCard,
     Przelewy24,
     PromptPay,

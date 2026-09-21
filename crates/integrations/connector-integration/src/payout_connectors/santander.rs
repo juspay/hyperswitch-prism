@@ -22,13 +22,17 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payouts::payouts_types::{
-        PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
-        PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
-        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
-        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
-        PayoutVoidRequest, PayoutVoidResponse,
+    payouts::{
+        payout_method_data::{Bank, PayoutMethodData},
+        payouts_types::{
+            PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
+            PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
+            PayoutEligibilityRequest, PayoutEligibilityResponse,
+            PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse,
+            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutStageRequest,
+            PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest,
+            PayoutVoidResponse,
+        },
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -51,8 +55,9 @@ use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
-    SantanderCreateRequest, SantanderErrorResponse, SantanderPayoutResponse,
+    SantanderErrorResponse, SantanderPayoutCreateRequest, SantanderPayoutResponse,
     SantanderStatusResponse, SantanderTransferRequest, SANTANDER_PIX_DOCS_URL,
+    SANTANDER_TED_DOCS_URL,
 };
 
 pub(crate) mod headers {
@@ -152,6 +157,32 @@ impl ConnectorCommon for SantanderPayouts {
                 })
             }
         }
+    }
+}
+
+fn santander_payout_endpoint(
+    payout_method_data: &Option<PayoutMethodData>,
+) -> CustomResult<&'static str, IntegrationError> {
+    match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Ted(_))) => Ok("transfer"),
+        Some(PayoutMethodData::Bank(Bank::Pix(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => Ok("pix_payments"),
+        _ => Err(IntegrationError::NotSupported {
+            message: "unsupported payout method type for Santander".to_string(),
+            connector: "santander",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander only supports PIX (bank transfer, key, EMV) and TED payouts"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Use a PIX or TED bank transfer as the payout method".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
+        }
+        .into()),
     }
 }
 
@@ -425,8 +456,9 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = &auth.workspace_id;
+        let endpoint = santander_payout_endpoint(&req.request.payout_method_data)?;
         Ok(format!(
-            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/{endpoint}"
         ))
     }
 
@@ -443,7 +475,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
         &self,
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
-        let connector_req = SantanderCreateRequest::try_from(req)?;
+        let connector_req = SantanderPayoutCreateRequest::try_from(req)?;
         let typed = events::MaskedSerdeValue::from_masked_optional(
             &connector_req,
             "typed_connector_request",
@@ -551,6 +583,11 @@ impl
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = &auth.workspace_id;
+        let endpoint = santander_payout_endpoint(&req.request.payout_method_data)?;
+        let doc_url = match endpoint.as_str() {
+            "transfer" => SANTANDER_TED_DOCS_URL,
+            _ => SANTANDER_PIX_DOCS_URL,
+        };
         let connector_payout_id = req
             .request
             .connector_payout_id
@@ -564,11 +601,11 @@ impl
                     "Ensure the payout create step succeeded and returned a connector_payout_id"
                         .to_string(),
                 ),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         })?;
         Ok(format!(
-            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/{endpoint}/{connector_payout_id}"
         ))
     }
 
@@ -661,7 +698,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
             "payout_void",
             IntegrationErrorContext {
                 additional_context: Some(
-                    "Santander does not support voiding Pix payouts".to_string(),
+                    "Santander does not support voiding payouts".to_string(),
                 ),
                 suggested_action: Some(
                     "Contact Santander support to cancel a payout after it has been authorized"
@@ -725,11 +762,31 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                     "Ensure the payout create step succeeded and returned a connector_payout_id"
                         .to_string(),
                 ),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
             },
         })?;
+        let endpoint = match req.request.payout_method_type {
+            Some(common_enums::PaymentMethodType::Ted) => "transfer",
+            Some(common_enums::PaymentMethodType::Pix) => "pix_payments",
+            other => {
+                return Err(IntegrationError::NotSupported {
+                    message: "unsupported payout method type for Santander".to_string(),
+                    connector: "santander",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "payout_method_type {other:?} is not supported; expected Pix or Ted"
+                        )),
+                        suggested_action: Some(
+                            "Use a PIX or TED bank transfer as the payout method".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                    },
+                }
+                .into())
+            }
+        };
         Ok(format!(
-            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/{endpoint}/{connector_payout_id}"
         ))
     }
 
