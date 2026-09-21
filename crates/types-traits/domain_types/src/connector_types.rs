@@ -2204,6 +2204,19 @@ pub struct PaymentCreateOrderData {
     // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
     // at order/intent creation time.
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
+    /// Store-for-later intent of the payment this order is created for, from
+    /// `PaymentServiceCreateOrderRequest.setup_future_usage` (`None` when unset).
+    /// Connectors that fix an order's reusability at creation time read it (e.g.
+    /// PayNearMe creates a standing order for `OffSession`).
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Customer the order is created for, from
+    /// `PaymentServiceCreateOrderRequest.customer.id` (`None` when unset).
+    ///
+    /// It is carried here rather than in `PaymentFlowData.customer_id`, which
+    /// CreateOrder leaves `None`, so that connectors already reading
+    /// `PaymentFlowData.customer_id` in their CreateOrder transformer keep seeing
+    /// exactly what they saw before this field existed.
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]
