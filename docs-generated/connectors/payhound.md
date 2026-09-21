@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -130,4 +130,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payhound/payhound.py) · [TypeScript](../../examples/payhound/payhound.ts#L65) · [Kotlin](../../examples/payhound/payhound.kt#L52) · [Rust](../../examples/payhound/payhound.rs)
+**Examples:** [Python](../../examples/payhound/payhound.py) · [TypeScript](../../examples/payhound/payhound.ts#L65) · [Kotlin](../../examples/payhound/payhound.kt#L53) · [Rust](../../examples/payhound/payhound.rs)
