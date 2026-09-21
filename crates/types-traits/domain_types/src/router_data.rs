@@ -1120,6 +1120,12 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Reddot {
+        mid: Secret<String>,
+        secret: Secret<String>,
+        acquirer_cybersource: String,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1147,12 +1153,6 @@ fn connector_patch_key(variant: &str) -> String {
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
-    Reddot {
-        mid: Secret<String>,
-        secret: Secret<String>,
-        acquirer_cybersource: String,
-        base_url: Option<String>,
-    },
 }
 
 impl ConnectorSpecificConfig {
