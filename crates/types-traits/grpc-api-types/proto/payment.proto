@@ -1827,6 +1827,9 @@ message NotifyConnectorRequest {
 
   // Connector state for access token management (optional)
   optional ConnectorState state = 5;
+
+  // Connector-specific feature data, e.g. AVS/CVV verification results for notify flows.
+  optional SecretString connector_feature_data = 6;
 }
 
 
@@ -1889,6 +1892,8 @@ message FrmNotificationContent {
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
 
+  // Deprecated: use NotifyConnectorRequest.connector_feature_data.
+  optional SecretString connector_feature_data = 9 [deprecated = true];
 }
 
 // FRM payment success details

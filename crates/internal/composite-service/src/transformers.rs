@@ -26,8 +26,6 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 
-use hyperswitch_masking::Secret;
-
 use crate::utils::{
     get_access_token, get_connector_customer_id, get_payment_method_token, get_session_token,
     grpc_connector_from_connector_variant,
@@ -1474,11 +1472,7 @@ impl
     ForeignFrom<(
         &grpc_api_types::payments::CompositeNotifyRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
-    )>
-    for (
-        grpc_api_types::payments::NotifyConnectorRequest,
-        Option<Secret<String>>,
-    )
+    )> for grpc_api_types::payments::NotifyConnectorRequest
 {
     fn foreign_from(
         (item, access_token_response): (
@@ -1503,16 +1497,13 @@ impl
             connector_customer_id,
         });
 
-        // The feature data is not a proto field; it travels beside the request.
-        (
-            grpc_api_types::payments::NotifyConnectorRequest {
-                event_id: item.event_id.clone(),
-                event_type: item.event_type,
-                content: item.content.clone(),
-                timestamp: item.timestamp,
-                state: resolved_state,
-            },
-            item.connector_feature_data.clone(),
-        )
+        Self {
+            event_id: item.event_id.clone(),
+            event_type: item.event_type,
+            content: item.content.clone(),
+            timestamp: item.timestamp,
+            state: resolved_state,
+            connector_feature_data: item.connector_feature_data.clone(),
+        }
     }
 }
