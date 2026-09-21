@@ -2854,7 +2854,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 response: Ok(payments_response_data),
                 request: PaymentsSyncData {
                     integrity_object: Some(PaymentSynIntegrityObject {
-                        amount: minor_amount_captured.unwrap_or(router_data.request.amount),
+                        amount: minor_amount_captured.or(minor_amount_capturable).unwrap_or(router_data.request.amount),
                         currency: transaction_details
                             .currency_code
                             .unwrap_or(router_data.request.currency),
