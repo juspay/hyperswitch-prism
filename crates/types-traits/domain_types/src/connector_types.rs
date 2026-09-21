@@ -2482,6 +2482,8 @@ pub enum ThreeDsRequestorAuthenticationIndicator {
     MaintainCard,
     #[serde(rename = "06")]
     CardholderVerification,
+    #[serde(rename = "07")]
+    BillingAgreement,
 }
 
 /// EMVCo `messageCategory`.

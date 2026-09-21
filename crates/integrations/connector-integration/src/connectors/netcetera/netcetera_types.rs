@@ -190,6 +190,7 @@ impl From<domain_types::connector_types::ThreeDsRequestorAuthenticationIndicator
             D::AddCard => Self::AddCard,
             D::MaintainCard => Self::MaintainCard,
             D::CardholderVerification => Self::CardholderVerification,
+            D::BillingAgreement => Self::BillingAgreement,
         }
     }
 }

@@ -1143,6 +1143,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsRequestorAuthenticationIndi
             G::AddCard => Ok(Self::AddCard),
             G::MaintainCard => Ok(Self::MaintainCard),
             G::CardholderVerification => Ok(Self::CardholderVerification),
+            G::BillingAgreement => Ok(Self::BillingAgreement),
             G::Unspecified => Err(IntegrationError::InvalidDataFormat {
                 field_name: "three_ds_requestor_authentication_indicator",
                 context: IntegrationErrorContext::default(),
@@ -19227,9 +19228,8 @@ impl<
             },
             device_channel: match value.device_channel {
                 Some(raw) => Some(connector_types::DeviceChannel::foreign_try_from(
-                    grpc_api_types::payments::DeviceChannel::try_from(raw).map_err(|_| {
-                        unknown_enum_value("device_channel")
-                    })?,
+                    grpc_api_types::payments::DeviceChannel::try_from(raw)
+                        .map_err(|_| unknown_enum_value("device_channel"))?,
                 )?),
                 None => legacy_sdk_metadata.as_ref().and_then(|m| m.device_channel),
             },

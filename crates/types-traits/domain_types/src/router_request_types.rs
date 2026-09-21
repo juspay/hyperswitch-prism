@@ -203,6 +203,10 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             challenge_code_reason,
             message_extension,
             authentication_type,
+            acs_signed_content,
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         } = value;
         let created_at = created_at
             .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
@@ -276,6 +280,10 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             challenge_code_reason,
             message_extension,
             authentication_type,
+            acs_signed_content,
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         })
     }
 }

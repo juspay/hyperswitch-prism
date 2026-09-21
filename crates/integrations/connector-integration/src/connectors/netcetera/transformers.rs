@@ -395,16 +395,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .and_then(|browser| browser.ip_address);
 
         // Contract selection: exactly one transport, never mixed. See `MerchantSideObjects`.
-        let merchant_side = match super::legacy_blob_transport::legacy_merchant_side(
-            request,
-            common_data,
-        )? {
-            // DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
-            Some(legacy) => legacy,
-            None => {
-                build_merchant_side(request, common_data, &item.router_data.connector_config)
-            }
-        };
+        let merchant_side =
+            match super::legacy_blob_transport::legacy_merchant_side(request, common_data)? {
+                // DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
+                Some(legacy) => legacy,
+                None => {
+                    build_merchant_side(request, common_data, &item.router_data.connector_config)
+                }
+            };
         let MerchantSideObjects {
             acquirer,
             merchant,
@@ -541,8 +539,7 @@ pub(super) struct MerchantSideObjects {
     pub(super) merchant: Option<netcetera_types::MerchantData>,
     /// EMVCo `threeDSRequestorURL` / merchant `notificationURL` (browser CRes return URL).
     pub(super) three_ds_requestor_url: Option<url::Url>,
-    pub(super) challenge_indicator:
-        Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
+    pub(super) challenge_indicator: Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
 }
 
 /// Values come from the typed request fields, `return_url`, `webhook_url` and
@@ -770,10 +767,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
-                    acs_signed_content: response
-                        .authentication_response
-                        .acs_signed_content
-                        .clone(),
+                    acs_signed_content: response.authentication_response.acs_signed_content.clone(),
                     acs_reference_number: response
                         .authentication_response
                         .acs_reference_number

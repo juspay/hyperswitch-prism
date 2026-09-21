@@ -63,6 +63,8 @@ pub(super) fn legacy_merchant_side<T: PaymentMethodDataTypes>(
         challenge_indicator: netcetera_meta
             .force_3ds_challenge
             .filter(|force| *force)
-            .map(|_| netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate),
+            .map(|_| {
+                netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate
+            }),
     }))
 }
