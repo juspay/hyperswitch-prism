@@ -1825,6 +1825,7 @@ impl<
                                                 decrypted_data.application_expiration_year,
                                             )?,
                                             payment_data,
+                                            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier,
                                             merchant_token_identifier: decrypted_data
                                                 .merchant_token_identifier
                                                 .map(Secret::new),
