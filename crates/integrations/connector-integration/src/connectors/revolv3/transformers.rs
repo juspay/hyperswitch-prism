@@ -187,6 +187,7 @@ impl Revolv3BillingDetails {
 }
 
 #[derive(Debug, Serialize)]
+pub struct Revolv3BillingAddress {
     address_line1: Option<Secret<String>>,
     address_line2: Option<Secret<String>>,
     city: Option<Secret<String>>,
