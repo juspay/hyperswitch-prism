@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.21.3
+
+### Bug Fixes
+
+- **stripe:** Stop dropping billing, shipping, browser info and L2/L3 on wallet tokens ([#2328](https://github.com/juspay/connector-service/pull/2328)) ([`7f72f5c`](https://github.com/juspay/connector-service/commit/7f72f5c614d4e0d4d0bb7a51f8b2d5bea2a508db))
+
+**Full Changelog:** [`2026.09.21.2...2026.09.21.3`](https://github.com/juspay/connector-service/compare/2026.09.21.2...2026.09.21.3)
+
+- - -
+
 ## 2026.09.21.2
 
 ### Features
