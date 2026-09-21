@@ -3202,6 +3202,18 @@ message PaymentClientAuthenticationContext {
   optional string return_url = 8;
 }
 
+enum ClientPlatform {
+  CLIENT_PLATFORM_UNSPECIFIED = 0;
+  CLIENT_PLATFORM_IOS = 1;
+  CLIENT_PLATFORM_WEB = 2;
+  CLIENT_PLATFORM_ANDROID = 3;
+}
+
+message OsBasedReturnUrl {
+  ClientPlatform os_type = 1;
+  map<string, string> return_url_map = 2;
+}
+
 // Authenticator-specific context for client authentication token creation
 message AuthenticatorClientAuthenticationContext {
   optional string return_url = 1;           // OAuth redirect URL for Link completion
@@ -3215,6 +3227,8 @@ message AuthenticatorClientAuthenticationContext {
   // hosted flow completes (e.g. an Android package name). Sent by merchants
   // integrating from a native app instead of return_url.
   optional string native_app_identifier = 7;
+
+  optional OsBasedReturnUrl os_based_return_url = 8;
 }
 
 // Response message for SDK session
