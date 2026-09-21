@@ -4021,14 +4021,14 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
 
-  // Sandbox/test mode flag
-  optional bool test_mode = 16;
-
   // Send the connector order identifier here if an order was created before
   // pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order
   // resource URL returned by PaymentService/CreateOrder to open a payment
   // session.
-  optional string connector_order_id = 17;
+  optional string connector_order_id = 16;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 17;
 }
 
 // Response message for pre-authentication step
@@ -5723,14 +5723,14 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
-  // Kount-assigned merchant CID, rendered into the Device Data Collection
-  // script as the Kount Web SDK `clientID`. Optional here — only the DDC
-  // flow requires one, and rejects the request if it's missing.
-  optional string client_id = 3;
   // Kount-issued KHASH configuration key (Ascii85). When set, card-typed
   // payment tokens are KHASH-hashed with this salt; when unset the connector
   // falls back to the legacy HMAC-SHA256 token.
   optional SecretString khash_config_key = 4;
+  // Kount-assigned merchant CID, rendered into the Device Data Collection
+  // script as the Kount Web SDK `clientID`. Optional here — only the DDC
+  // flow requires one, and rejects the request if it's missing.
+  optional string client_id = 3;
   optional string base_url = 50;
 }
 
