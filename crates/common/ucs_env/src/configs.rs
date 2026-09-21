@@ -572,22 +572,20 @@ mod tests {
 
     #[test]
     fn raw_and_typed_connector_data_is_disabled_by_default() {
-        let common: Common = serde_json::from_value(serde_json::json!({
+        let common = serde_json::from_value::<Common>(serde_json::json!({
             "environment": "development"
-        }))
-        .expect("common config should deserialize");
+        }));
 
-        assert!(!common.return_raw_and_typed_connector_data);
+        assert!(common.is_ok_and(|config| !config.return_raw_and_typed_connector_data));
     }
 
     #[test]
     fn raw_and_typed_connector_data_can_be_enabled() {
-        let common: Common = serde_json::from_value(serde_json::json!({
+        let common = serde_json::from_value::<Common>(serde_json::json!({
             "environment": "development",
             "return_raw_and_typed_connector_data": true
-        }))
-        .expect("common config should deserialize");
+        }));
 
-        assert!(common.return_raw_and_typed_connector_data);
+        assert!(common.is_ok_and(|config| config.return_raw_and_typed_connector_data));
     }
 }
