@@ -1070,6 +1070,7 @@ enum PaymentMethodType {
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
   PAY_HERE = 137;
+  TAMARA_REDIRECT = 138;
 }
 
 // Product type enumeration
@@ -1318,8 +1319,8 @@ message OnlineMandate {
 // scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
 // per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
-  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  optional Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
   optional int64 start_date = 3;        // Unix timestamp for start date
   optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
@@ -3202,6 +3203,18 @@ message PaymentClientAuthenticationContext {
   optional string return_url = 8;
 }
 
+enum ClientPlatform {
+  CLIENT_PLATFORM_UNSPECIFIED = 0;
+  CLIENT_PLATFORM_IOS = 1;
+  CLIENT_PLATFORM_WEB = 2;
+  CLIENT_PLATFORM_ANDROID = 3;
+}
+
+message OsBasedReturnUrl {
+  ClientPlatform os_type = 1;
+  map<string, string> return_url_map = 2;
+}
+
 // Authenticator-specific context for client authentication token creation
 message AuthenticatorClientAuthenticationContext {
   optional string return_url = 1;           // OAuth redirect URL for Link completion
@@ -3215,6 +3228,8 @@ message AuthenticatorClientAuthenticationContext {
   // hosted flow completes (e.g. an Android package name). Sent by merchants
   // integrating from a native app instead of return_url.
   optional string native_app_identifier = 7;
+
+  optional OsBasedReturnUrl os_based_return_url = 8;
 }
 
 // Response message for SDK session
@@ -3300,7 +3315,7 @@ message PaymentServiceCaptureResponse {
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -3705,6 +3720,12 @@ message PaymentServiceSetupRecurringRequest {
   // that branch endpoint construction on this (e.g. Adyen's merchant-prefixed
   // live URL) default to test mode and skip live-URL substitution.
   optional bool test_mode = 41;
+
+  // Capture method for the mandate-setup authorization. Connectors that switch
+  // the authorization type on manual capture (Adyen's
+  // additionalData.authorisationType / manualCapture) need the real value;
+  // absent means the connector's default (automatic).
+  optional CaptureMethod capture_method = 42;
 }
 
 // Response message for a mandate setup operation
@@ -3722,7 +3743,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -3766,6 +3787,10 @@ message PaymentServiceSetupRecurringResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
   optional string payment_account_reference = 22;
+
+  // Network-issued link id chaining related transactions (Adyen's
+  // additionalData.transactionLinkId), carried forward on subsequent MITs.
+  optional string network_txn_link_id = 23;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -5726,6 +5751,10 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+  // payment tokens are KHASH-hashed with this salt; when unset the connector
+  // falls back to the legacy HMAC-SHA256 token.
+  optional SecretString khash_config_key = 3;
   optional string base_url = 50;
 }
 
@@ -6544,7 +6573,11 @@ message PaymentMethodServiceEligibilityRequest {
 
   // The specific payment method (e.g. a BNPL variant) eligibility is being
   // checked for, when the caller wants to scope the check.
-  optional PaymentMethodType payment_method_type = 6;
+  //
+  // Deprecated: prefer `payment_method_types` to check several payment methods
+  // for a connector in a single call. When only this scalar is set, it is treated
+  // as a one-element `payment_method_types`.
+  optional PaymentMethodType payment_method_type = 6 [deprecated = true];
 
   // Description for connector-rendered eligibility messaging.
   optional string description = 7;
@@ -6566,17 +6599,44 @@ message PaymentMethodServiceEligibilityRequest {
   // State Information (for access token), set by CompositePaymentMethodService.Eligibility
   // after bootstrapping the connector's session token.
   optional ConnectorState state = 12;
+
+  // The payment methods eligibility is being checked for. A connector that
+  // supports many payment methods can be checked for all of them in a single
+  // call, avoiding one round-trip per payment method. Preferred over the
+  // deprecated scalar `payment_method_type`.
+  repeated PaymentMethodType payment_method_types = 13;
+}
+
+// Per-payment-method eligibility verdict. One of these is returned for each
+// payment method the caller asked about (see `payment_method_types`).
+message PaymentMethodEligibilityResult {
+  // The payment method this verdict is for.
+  PaymentMethodType payment_method_type = 1;
+
+  // Eligibility verdict for this payment method.
+  EligibilityStatus eligibility = 2;
+
+  // Structured error/reason details for this payment method (e.g. why it is
+  // ineligible). Absent when the payment method is eligible.
+  optional ErrorInfo error_info = 3;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 4;
 }
 
 // Response from a pre-checkout eligibility check.
 message PaymentMethodServiceEligibilityResponse {
-  EligibilityStatus eligibility = 1;
+  // Deprecated: use `results`. Mirrors `results[0].eligibility` for callers
+  // that still check a single payment method.
+  optional EligibilityStatus eligibility = 1 [deprecated = true];
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;
 
-  // Structured error details (only present on failure).
-  optional ErrorInfo error_info = 3;
+  // Deprecated: use `results[i].error_info`. Mirrors `results[0].error_info`.
+  optional ErrorInfo error_info = 3 [deprecated = true];
 
   // Raw request sent to the connector (for debugging).
   optional SecretString raw_connector_request = 4;
@@ -6589,10 +6649,12 @@ message PaymentMethodServiceEligibilityResponse {
   // Response headers from the connector.
   map<string, string> response_headers = 6;
 
-  // Payment method details resolved as part of the eligibility check (e.g.
-  // wallet/gift-card balance and items), when the connector call that
-  // determines eligibility also returns them.
-  optional PaymentMethodDetails payment_method_details = 9;
+  // Deprecated: use `results[i].payment_method_details`. Mirrors
+  // `results[0].payment_method_details`.
+  optional PaymentMethodDetails payment_method_details = 9 [deprecated = true];
+
+  // Per-payment-method eligibility verdicts, one per requested payment method.
+  repeated PaymentMethodEligibilityResult results = 10;
 }
 
 // ============================================================================
