@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.21.1
+
+### Features
+
+- **connector:**
+  - [Shift4] recurring payments for card, Apple Pay and Google Pay ([#2303](https://github.com/juspay/connector-service/pull/2303)) ([`5090404`](https://github.com/juspay/connector-service/commit/50904048e10a8ee3312d0b65713fa72e9e770cae))
+  - [D24] add LocalBankTransfer support to Authorize ([#2294](https://github.com/juspay/connector-service/pull/2294)) ([`528e35f`](https://github.com/juspay/connector-service/commit/528e35f36127ce0098b086b964330b188d6bec2b))
+  - [Revolv3] Implement Applepay and Googlepay - pre decrypt flows ([#2285](https://github.com/juspay/connector-service/pull/2285)) ([`4018625`](https://github.com/juspay/connector-service/commit/401862581959509b5546afd005dd084960f4cc1e))
+
+### Bug Fixes
+
+- **grpc-server:** Enable http2 keepalive so half-open client connections are dropped, not held ([#2313](https://github.com/juspay/connector-service/pull/2313)) ([`7078692`](https://github.com/juspay/connector-service/commit/7078692a976d8a32abad4c0b590c544768510312))
+
+**Full Changelog:** [`2026.09.21.0...2026.09.21.1`](https://github.com/juspay/connector-service/compare/2026.09.21.0...2026.09.21.1)
+
+- - -
+
 ## 2026.09.21.0
 
 ### Features
