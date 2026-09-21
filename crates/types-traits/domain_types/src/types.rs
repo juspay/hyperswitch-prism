@@ -1829,6 +1829,7 @@ impl<
                                                 decrypted_data.application_expiration_year,
                                             )?,
                                             payment_data,
+                                            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier,
                                             merchant_token_identifier: decrypted_data
                                                 .merchant_token_identifier
                                                 .map(Secret::new),
@@ -6850,7 +6851,7 @@ pub fn generate_payment_method_eligibility_response(
                     None => (unknown_eligibility, None, None),
                 };
             Ok(PaymentMethodServiceEligibilityResponse {
-                eligibility: legacy_eligibility,
+                eligibility: Some(legacy_eligibility),
                 status_code: response.status_code,
                 error_info: legacy_error_info,
                 payment_method_details: legacy_payment_method_details,
@@ -6888,7 +6889,7 @@ pub fn generate_payment_method_eligibility_response(
                     )
                     .collect();
             Ok(PaymentMethodServiceEligibilityResponse {
-                eligibility: unknown_eligibility,
+                eligibility: Some(unknown_eligibility),
                 status_code: err.status_code as u32,
                 error_info: Some(error_info),
                 payment_method_details: None,
@@ -13148,7 +13149,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                     amount_data
                         .amount_money
                         .map(|amount_money| amount_money.minor_amount)
-                        .unwrap_or(amount_data.amount),
+                        .or(amount_data.amount)
+                        .unwrap_or_default(),
                 ),
                 currency: common_enums::Currency::foreign_try_from(
                     amount_data
