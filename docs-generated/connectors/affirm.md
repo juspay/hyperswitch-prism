@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -154,7 +154,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | ⚠ |
 | MB Way | ⚠ |
 | Satispay | ⚠ |
@@ -181,8 +181,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | ⚠ |
 | Slovakia | ⚠ |
 | UK | ⚠ |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | ⚠ |
+| WebPay | ⚠ |
 | Local | ⚠ |
 | iDEAL | ⚠ |
 | Sofort | ⚠ |
@@ -195,7 +196,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | ⚠ |
 | Bizum | ⚠ |
 | EFT | ⚠ |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
@@ -218,9 +219,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | ⚠ |
 | BECS | ⚠ |
 | SEPA Guaranteed | ⚠ |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | ⚠ |
-| Givex | x |
+| Givex | ⚠ |
 | PaySafeCard | ⚠ |
 | E-Voucher | ⚠ |
 | Boleto | ⚠ |
@@ -248,7 +249,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L103) · [Kotlin](../../examples/affirm/affirm.kt#L108) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L103) · [Kotlin](../../examples/affirm/affirm.kt#L109) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Capture
 
@@ -259,7 +260,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L112) · [Kotlin](../../examples/affirm/affirm.kt#L120) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L112) · [Kotlin](../../examples/affirm/affirm.kt#L121) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Get
 
@@ -270,7 +271,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L121) · [Kotlin](../../examples/affirm/affirm.kt#L130) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L121) · [Kotlin](../../examples/affirm/affirm.kt#L131) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Refund
 
@@ -281,7 +282,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L130) · [Kotlin](../../examples/affirm/affirm.kt#L138) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L130) · [Kotlin](../../examples/affirm/affirm.kt#L139) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Void
 
@@ -292,7 +293,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L160) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L161) · [Rust](../../examples/affirm/affirm.rs)
 
 ### Refunds
 
@@ -305,4 +306,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L139) · [Kotlin](../../examples/affirm/affirm.kt#L148) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L139) · [Kotlin](../../examples/affirm/affirm.kt#L149) · [Rust](../../examples/affirm/affirm.rs)

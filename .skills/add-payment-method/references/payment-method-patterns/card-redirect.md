@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/card_redirect/pattern_authorize_card_redirect.md

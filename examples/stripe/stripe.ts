@@ -5,9 +5,9 @@
 // Stripe — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx stripe.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "tokenize", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -93,7 +93,7 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "uri": "https://example.com/webhook",  // URI of the request.
@@ -271,25 +271,39 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
     };
 }
 
-function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
+function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecurringRequest {
     return {
-        "amount": {  // Payment Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "merchantRecurringPaymentId": "probe_tokenized_mandate_001",
+        "amount": {
+            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "address": {  // Address Information.
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},
+        "address": {
             "billingAddress": {
             }
-        }
+        },
+        "customerAcceptance": {
+            "acceptanceType": AcceptanceType.ONLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            "onlineMandateDetails": {  // Details if the acceptance was an online mandate.
+                "ipAddress": "127.0.0.1",  // IP address from which the mandate was accepted.
+                "userAgent": "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        },
+        "setupMandateDetails": {
+            "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
+                "multiUse": {  // Multi use mandate with amount details (for recurring payments).
+                    "amount": 0,  // Use amount_money instead (will be removed in a future release).
+                    "currency": Currency.USD,  // Use amount_money.currency instead (will be removed in a future release).
+                    "amountMoney": {  // Amount in Money type.
+                        "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+                        "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
+                }
+            }
+        },
+        "setupFutureUsage": FutureUsage.OFF_SESSION
     };
 }
 
@@ -552,13 +566,13 @@ async function tokenAuthorize(merchantTransactionId: string, config: types.IConn
     return tokenResponse;
 }
 
-// Flow: PaymentMethodService.Tokenize
-async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodClient = new PaymentMethodClient(config);
+// Flow: PaymentService.TokenSetupRecurring
+async function tokenSetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
 
-    const tokenizeResponse = await paymentMethodClient.tokenize(_buildTokenizeRequest());
+    const tokenResponse = await paymentClient.tokenSetupRecurring(_buildTokenSetupRecurringRequest());
 
-    return tokenizeResponse;
+    return tokenResponse;
 }
 
 // Flow: PaymentService.Void
@@ -573,7 +587,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -362,6 +362,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -532,6 +533,7 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -672,6 +674,7 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -1058,6 +1061,7 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {

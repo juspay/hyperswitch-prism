@@ -17,15 +17,15 @@ use domain_types::{
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
-        RechargeResponseData, RedirectDetailsResponse, RefreshPaymentMethodData,
-        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
-        RefundSyncData, RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PayoutWebhookDetailsResponse, RechargeRequestData, RechargeResponseData,
+        RedirectDetailsResponse, RefreshPaymentMethodData, RefreshPaymentMethodFlowData,
+        RefreshPaymentMethodResponseData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     frm::frm_types::{
@@ -160,6 +160,7 @@ pub trait FrmServiceTrait:
     + FrmPaymentOutcomeV2
     + FrmRefundProcessedV2
     + FrmChargebackReceivedV2
+    + PaymentPreAuthenticateV2<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 
@@ -249,6 +250,7 @@ pub trait ValidationTrait: ConnectorCommon {
         &self,
         _payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
     }
@@ -656,6 +658,23 @@ pub trait IncomingWebhook {
     ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         Err(WebhookError::WebhooksNotImplemented {
             operation: "process_dispute_webhook",
+        }
+        .into())
+    }
+
+    /// fn process_payout_webhook
+    ///
+    /// Maps a payout webhook to the same shape a `PayoutService.Get` would
+    /// return: the terminal status derived from the event type, the payout
+    /// identifiers, and the failure details when the payout failed.
+    fn process_payout_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_payout_webhook",
         }
         .into())
     }

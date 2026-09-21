@@ -8,11 +8,11 @@
 package examples.braintree
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.EventClient
-import payments.PaymentMethodClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CardNetwork
@@ -26,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -141,7 +141,7 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
@@ -257,32 +257,6 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }
 }
 
-// Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodClient(config)
-    val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
-        amountBuilder.apply {  // Payment Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-    }.build()
-    val response = client.tokenize(request)
-    println("Token: ${response.paymentMethodToken}")
-}
-
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -307,8 +281,7 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
-        "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, void")
     }
 }

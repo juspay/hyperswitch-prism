@@ -296,6 +296,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let connector_order_id = webhook_object.order_id.to_string();
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     connector_order_id.clone(),

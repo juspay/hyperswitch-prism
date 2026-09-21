@@ -354,6 +354,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status = trustly::get_trustly_payment_webhook_status(&details.method);
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     details.params.data.orderid.clone(),

@@ -151,6 +151,11 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
             open_banking_pis_method as fn() -> PaymentMethod,
         ),
         ("OpenBanking", open_banking_method as fn() -> PaymentMethod),
+        // Card Redirect
+        (
+            "Webpay",
+            webpay_card_redirect_method as fn() -> PaymentMethod,
+        ),
         // Bank Redirect
         (
             "LocalBankRedirect",
@@ -278,6 +283,20 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
         ("Seicomart", seicomart_method as fn() -> PaymentMethod),
         ("PayEasy", pay_easy_method as fn() -> PaymentMethod),
     ]
+}
+
+/// Connector tokenization applies to cards and wallets; other payment methods
+/// are excluded from the tokenize probe.
+pub(crate) fn is_tokenize_pm_variant(pm_name: &str) -> bool {
+    matches!(
+        pm_name,
+        "Card"
+            | "ApplePay"
+            | "ApplePayDecrypted"
+            | "ApplePayThirdPartySdk"
+            | "GooglePay"
+            | "GooglePayDecrypted"
+    )
 }
 
 /// Static variant for config filtering (same as authorize_pm_variants but usable at config load time)

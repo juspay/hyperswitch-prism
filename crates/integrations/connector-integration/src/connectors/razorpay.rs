@@ -954,6 +954,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookReferenceIdNotFound))?;
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(notif.entity.order_id)),
             status: transformers::get_razorpay_payment_webhook_status(
                 notif.entity.entity,

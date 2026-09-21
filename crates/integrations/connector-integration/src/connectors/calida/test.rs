@@ -91,7 +91,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -116,6 +117,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     authentication_data: None,
                     connector_testing_data: None,
                     currency_conversion_data: None,
@@ -173,7 +175,11 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -282,7 +288,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -307,6 +314,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     authentication_data: None,
                     connector_testing_data: None,
                     currency_conversion_data: None,
@@ -364,7 +372,11 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -459,7 +471,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -484,6 +497,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
                     connector_testing_data: None,
@@ -533,7 +547,11 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,

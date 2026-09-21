@@ -2,8 +2,9 @@ use common_enums;
 use connector_integration::types::{AuthenticatorConnectorData, ConnectorData};
 use domain_types::{connector_types::ConnectorVariant, utils::ForeignTryFrom as _};
 use grpc_api_types::payments::{
-    composite_payment_method_service_server::CompositePaymentMethodService,
-    merchant_authentication_service_server::MerchantAuthenticationService,
+    apple_wallet, composite_payment_method_service_server::CompositePaymentMethodService,
+    google_wallet, merchant_authentication_service_server::MerchantAuthenticationService,
+    payment_method::PaymentMethod as GrpcPaymentMethod,
     payment_method_service_server::PaymentMethodService, CompositePaymentMethodCreateRequest,
     CompositePaymentMethodCreateResponse, CompositePaymentMethodEligibilityRequest,
     CompositePaymentMethodEligibilityResponse, CompositePaymentMethodGetRequest,
@@ -21,6 +22,29 @@ use crate::transformers::ForeignFrom;
 use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
+
+fn is_wallet_payload_decrypted_network_token(
+    payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
+) -> bool {
+    match payment_method.and_then(|pm| pm.payment_method.as_ref()) {
+        Some(GrpcPaymentMethod::GooglePaySdk(google_wallet)) => matches!(
+            google_wallet
+                .tokenization_data
+                .as_ref()
+                .and_then(|data| data.tokenization_data.as_ref()),
+            Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(decrypted))
+                if decrypted.cryptogram.is_some()
+        ),
+        Some(GrpcPaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
+            apple_wallet
+                .payment_data
+                .as_ref()
+                .and_then(|data| data.payment_data.as_ref()),
+            Some(apple_wallet::payment_data::PaymentData::DecryptedData(_))
+        ),
+        _ => false,
+    }
+}
 
 /// Implementation of CompositeAccessTokenRequest for payment method requests.
 /// These requests don't have a specific payment_method field since payment-method-management
@@ -222,16 +246,26 @@ where
                     payload.payment_method_type(),
                 )
                 .ok();
+                let is_wallet_decrypted_network_token =
+                    is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
                 match connector {
                     ConnectorVariant::Payment(c) => ConnectorData::<
                         domain_types::payment_method_data::DefaultPCIHolder,
                     >::get_connector_by_name(c)
                     .connector
-                    .should_do_payment_method_token(payment_method, payment_method_type),
+                    .should_do_payment_method_token(
+                        payment_method,
+                        payment_method_type,
+                        is_wallet_decrypted_network_token,
+                    ),
                     ConnectorVariant::Authenticator(c) => {
                         AuthenticatorConnectorData::get_connector_by_name(c)
                             .connector
-                            .should_do_payment_method_token(payment_method, payment_method_type)
+                            .should_do_payment_method_token(
+                                payment_method,
+                                payment_method_type,
+                                is_wallet_decrypted_network_token,
+                            )
                     }
                     _ => false,
                 }

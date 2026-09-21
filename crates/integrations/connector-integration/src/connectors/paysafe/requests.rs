@@ -156,6 +156,9 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
     Skrill {
         skrill: PaysafeSkrill,
     },
+    Neteller {
+        neteller: PaysafeNeteller,
+    },
     InteracEtransfer {
         #[serde(rename = "interacEtransfer")]
         interac_etransfer: PaysafeInterac,
@@ -174,6 +177,13 @@ pub struct PaysafeSkrill {
     /// country is available).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country_code: Option<common_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeNeteller {
+    /// Neteller consumer email address.
+    pub consumer_id: common_utils::pii::Email,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -442,6 +452,8 @@ pub enum PaysafePaymentType {
     Card,
     Ach,
     Skrill,
+    #[serde(rename = "Neteller")]
+    Neteller,
     #[serde(rename = "INTERAC_ETRANSFER")]
     InteracEtransfer,
     Paysafecard,

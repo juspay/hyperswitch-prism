@@ -84,6 +84,7 @@ crates/internal/integration-tests/
 │   │   ├── stripe/
 │   │   │   ├── specs.json              # supported_suites + spec fields
 │   │   │   ├── override.json           # Scenario-level grpc_req / assert overrides
+│   │   │   ├── connector_specific_scenarios.json  # Optional: scenarios only this connector has
 │   │   │   ├── webhook_payload.json    # Optional: HandleEvent suite test payloads
 │   │   │   └── browser_automation_spec.json   # Optional: browser-driven 3DS / redirect hooks
 │   │   └── …
@@ -127,6 +128,35 @@ A template lives at `.github/test/template_creds.json`.
 
 The harness reads from the path resolved as: explicit `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` env var → `creds.json` at the workspace root. `.env.connector-tests` (sourced by `scripts/run-tests`) can also set `UCS_CREDS_PATH` — if your edits don't seem to land, **check that file first** to see which `creds.json` the harness actually loads.
 
+### `connector_specs/<connector>/connector_specific_scenarios.json`
+
+Optional. Scenarios that exist **only** for this connector, run in addition to the
+global suites its `specs.json` declares. Same `suite -> scenario` shape as
+`override.json`, but the values are whole scenario definitions.
+
+```jsonc
+{
+  "PaymentService/Authorize": {
+    "tsys_soft_decline_retry": {
+      "grpc_req": { "amount": { "minor_amount": 5205, "currency": "USD" } },
+      "assert": { "status": { "one_of": ["FAILURE"] } }
+    }
+  }
+}
+```
+
+Add one only when the case cannot exist for other connectors — a sandbox-specific
+trigger, or a production bug pinned as a permanent test. Anything shareable belongs
+in `global_suites/` so every connector gets it.
+
+Rules the harness enforces:
+
+- **Additive only.** A name that already exists in the global suite is an error, not
+  an override — use `override.json` to change a shared scenario.
+- **Same proto schema** as global scenarios.
+- **Counted separately** in the run summary (`connector_specific=N`), so private
+  coverage never reads as baseline coverage.
+
 ### `connector_specs/<connector>/specs.json`
 
 Per-connector spec. All fields except `connector` and `supported_suites` are optional.
@@ -157,6 +187,17 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
   // while Authorize uses merchant_transaction_id).
   "request_id_source_field_per_suite": {
     "PaymentMethodAuthenticationService/PreAuthenticate": "merchant_order_id"
+  },
+
+  // Scenarios this connector cannot support, as suite -> scenario -> reason.
+  // They are skipped instead of run and failed. Lives here rather than in
+  // override.json because it states a capability, not a test-data delta: what
+  // a connector cannot do is answered by this one file. The reason is the map
+  // value, so a declaration without one cannot be written.
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_upi_qr": "redsys has no UPI support"
+    }
   },
 
   // For Get / sync flows: re-poll until status reaches a terminal value

@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
+    connector_response_masking::{
+        CompiledMaskingKeys, ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+    },
     consts,
     events::{
         CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
@@ -14,7 +17,10 @@ use common_utils::{
     SuperpositionConfig,
 };
 use domain_types::{
-    connector_types::ConnectorEnum,
+    connector_types::{
+        AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
+    },
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
@@ -37,6 +43,8 @@ pub struct Config {
     pub lineage: LineageConfig,
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
+    #[serde(default)]
+    pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]
     pub test: TestConfig,
     #[serde(default)]
@@ -62,6 +70,18 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub masking_keys: Arc<CompiledMaskingKeys>,
+    /// Déjà record/replay configuration. Loadable from the `[deja]` TOML table and
+    /// `CS__DEJA__*` env vars, but deliberately excluded from the per-request
+    /// `x-config-override` surface via `#[patch(ignore)]`: a request header must never
+    /// be able to enable recording, switch modes, or redirect the sink. The generated
+    /// `ConfigPatch` is `deny_unknown_fields`, so an override mentioning `deja` is rejected.
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    #[patch(ignore)]
+    pub deja: crate::deja_config::DejaConfig,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -336,6 +356,14 @@ impl WebhookSourceVerificationCall {
     }
 }
 
+fn is_known_connector(name: &str) -> bool {
+    ConnectorEnum::from_str(name).is_ok()
+        || SurchargeConnectorEnum::from_str(name).is_ok()
+        || PayoutConnectorEnum::from_str(name).is_ok()
+        || FrmConnectorEnum::from_str(name).is_ok()
+        || AuthenticatorConnectorEnum::from_str(name).is_ok()
+}
+
 impl Config {
     /// Recompute derived / cached fields from the raw config values.
     ///
@@ -349,6 +377,9 @@ impl Config {
                 self.log.fields.enabled,
                 &self.log.fields.incoming,
                 &self.log.fields.outgoing,
+            ));
+            self.masking_keys = Arc::new(CompiledMaskingKeys::compile(
+                &self.connector_response_masking,
             ));
         }
     }
@@ -365,22 +396,24 @@ impl Config {
         let env = consts::Env::current_env();
         let config_path = Self::config_path(&env, explicit_config_path);
 
-        let config = Self::builder(&env)?
-            .add_source(config::File::from(config_path).required(false))
-            .add_source(
-                config::Environment::with_prefix(consts::ENV_PREFIX)
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("proxy.bypass_urls")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("database.tenants")
-                    .with_list_parse_key("log.kafka.brokers")
-                    .with_list_parse_key("events.brokers")
-                    .with_list_parse_key("connector_request_kafka.brokers")
-                    .with_list_parse_key("unmasked_headers.keys"),
-            )
-            .build()?;
+        let config_builder =
+            Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
+
+        let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("proxy.bypass_urls")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("database.tenants")
+            .with_list_parse_key("log.kafka.brokers")
+            .with_list_parse_key("events.brokers")
+            .with_list_parse_key("connector_request_kafka.brokers")
+            .with_list_parse_key("unmasked_headers.keys");
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+        let config = config_builder.add_source(environment_source).build()?;
 
         #[allow(clippy::print_stderr)]
         let config: Self = serde_path_to_error::deserialize(config).map_err(|error| {
@@ -397,6 +430,10 @@ impl Config {
         // Validate the environment field
         config.common.validate()?;
 
+        // Fail loud at boot on an unsafe déjà configuration (e.g. replay in production).
+        #[cfg(feature = "deja")]
+        config.deja.validate(&config.common.environment)?;
+
         // Fail fast on malformed platform CA config, using the same PEM parser as
         // runtime client construction. Iterates the hand-maintained list in
         // `Connectors::server_ca_bundles` — a new connector with a CA bundle must be
@@ -411,6 +448,16 @@ impl Config {
                     ))
                 })?;
             }
+        }
+
+        let unknown = config
+            .connector_response_masking
+            .unknown_connectors(is_known_connector);
+        if !unknown.is_empty() {
+            return Err(config::ConfigError::Message(format!(
+                "connector_response_masking.connector_keys: unknown connector(s) `{}`",
+                unknown.join("`, `")
+            )));
         }
 
         Ok(config)

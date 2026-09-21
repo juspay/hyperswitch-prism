@@ -8,6 +8,7 @@
 package examples.adyen
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
@@ -299,7 +300,7 @@ fun disputeSubmitEvidence(txnId: String, config: ConnectorConfig = _defaultConfi
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.

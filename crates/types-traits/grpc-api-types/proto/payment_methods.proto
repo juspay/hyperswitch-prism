@@ -106,6 +106,7 @@ message PaymentMethod {
 
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
+    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -253,6 +254,13 @@ message GrabpayRedirectWallet {}
 message TokenPaymentMethodType {
   // The token string representing a payment method.
   SecretString token = 1;
+  // The payment method this token was created from.
+  enum TokenPaymentMethod {
+    TOKEN_PAYMENT_METHOD_UNSPECIFIED = 0;
+    APPLE_PAY = 1;
+    GOOGLE_PAY = 2;
+  }
+  optional TokenPaymentMethod token_payment_method_type = 2;
 }
 
 // Details of a payment card where CVC is not required for the selected connector flow.
@@ -331,6 +339,7 @@ message CardRedirect {
     BENEFIT = 2;
     MOMO_ATM = 3;
     CARD_REDIRECT = 4;
+    WEBPAY = 5;
   }
   CardRedirectType type = 1;
 }
@@ -720,6 +729,11 @@ message MobilePayRedirectWallet {
 // Skrill Redirect - Digital wallet for online payments
 message SkrillRedirectWallet {
   // Fields will be added as needed for Skrill Redirect integration
+}
+
+// Neteller Redirect - Digital wallet for online payments
+message NetellerRedirectWallet {
+  // Consumer email is sourced from billing details.
 }
 
 // Paysera Redirect - European digital wallet and payment service

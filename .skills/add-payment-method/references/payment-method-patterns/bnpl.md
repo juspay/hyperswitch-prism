@@ -139,8 +139,9 @@ let status = match response.status {
     ConnectorStatus::Failed => AttemptStatus::Failure,
 };
 
+// redirection_data is Option<Box<RedirectForm>> -- the Box is mandatory.
 let redirection_data = response.redirect_url.as_ref().map(|url| {
-    RedirectForm::Uri { uri: url.clone() }
+    Box::new(RedirectForm::Uri { uri: url.clone() })
 });
 ```
 

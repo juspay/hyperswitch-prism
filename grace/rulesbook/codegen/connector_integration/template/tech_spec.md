@@ -65,7 +65,8 @@ impl ConnectorCommon for {{connector_name}} {
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS-specific error handling
     }
@@ -109,19 +110,20 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         // UCS request building
     }
     
-    fn handle_response(
+    fn handle_response_v2(
         &self,
-        data: &RouterDataV2<Flow, Request, Response>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorError> {
+        data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+        event_builder: Option<&mut events::Event>,
+        res: domain_types::router_response_types::Response,
+    ) -> CustomResult<RouterDataV2<Flow, ResourceCommonData, Req, Resp>, ConnectorError> {
         // UCS response handling
     }
     
     fn get_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS error handling
     }
@@ -389,7 +391,8 @@ impl ConnectorCommon for {{connector_name}} {
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Parse connector error response
         // Map to UCS ErrorResponse

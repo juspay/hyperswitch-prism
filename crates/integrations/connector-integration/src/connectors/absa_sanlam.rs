@@ -321,11 +321,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = absa_sanlam::AbsaSanlamAuthType::try_from(auth_type).change_context(
-            IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            },
-        )?;
+        let auth = absa_sanlam::AbsaSanlamAuthType::try_from(auth_type)?;
+
         Ok(vec![
             (
                 headers::AUTHORIZATION.to_string(),

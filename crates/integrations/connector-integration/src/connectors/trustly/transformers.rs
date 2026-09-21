@@ -283,7 +283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         field_name: "return_url",
                         context: Default::default(),
                     })?;
-                let uuid = uuid::Uuid::new_v4().to_string();
+                let uuid = common_utils::fp_utils::generate_uuid_v4();
                 let attributes = TrustlyPaymentRequestAttributes {
                     amount: item
                         .connector
@@ -498,6 +498,7 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -582,7 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let attributes = Some(TrustlyRefundAttributes {
             external_reference: item
                 .router_data

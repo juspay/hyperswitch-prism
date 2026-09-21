@@ -452,6 +452,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -583,6 +584,7 @@ impl<F, T> TryFrom<ResponseRouterData<NexinetsPaymentResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -902,7 +904,8 @@ fn get_wallet_details<
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
-        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::Skrill(_)
+        | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,
@@ -1280,6 +1283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1488,6 +1492,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
