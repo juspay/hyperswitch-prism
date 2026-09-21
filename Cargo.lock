@@ -1983,7 +1983,7 @@ dependencies = [
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
+source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -1996,7 +1996,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
+source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2004,7 +2004,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
+source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
 dependencies = [
  "serde",
  "serde_json",
@@ -2014,7 +2014,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
+source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2024,7 +2024,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
+source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -2032,6 +2032,7 @@ dependencies = [
  "deja-derive",
  "serde",
  "serde_json",
+ "siphasher 1.0.2",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3702,10 +3703,14 @@ dependencies = [
  "heck 0.5.0",
  "http 1.4.0",
  "hyperswitch_masking",
+ "prettyplease",
+ "proc-macro2",
  "prost 0.14.3",
  "prost-build",
  "prost-types",
+ "quote",
  "serde",
+ "syn 2.0.117",
  "tonic 0.14.5",
  "tonic-build",
  "tonic-prost",

@@ -169,8 +169,8 @@ Some flows have dependencies that must be implemented first:
 | CreateConnectorCustomer | - |
 | PaymentMethodToken | - |
 | PreAuthenticate | - |
-| Authenticate | PreAuthenticate |
-| PostAuthenticate | Authenticate |
+| Authenticate | - |
+| PostAuthenticate | - |
 | AcceptDispute | - |
 | SubmitEvidence | AcceptDispute |
 | DefendDispute | - |
@@ -183,6 +183,107 @@ Some flows have dependencies that must be implemented first:
 | PayoutCreateLink | PayoutCreate |
 | PayoutCreateRecipient | - |
 | PayoutEnrollDisburseAccount | PayoutCreateRecipient |
+
+**The three authentication markers have no inter-marker prerequisite.** They are always resolved
+together as the `ThreeDS` group in one invocation, and *which* of them exist is decided per
+connector by the LEG-COUNT PROCEDURE in `## FLOW-GROUP MAP (Authoritative)`. Their **runtime**
+order is decided by the connector's `next_authentication_step` override, not by this table. A
+prerequisite chain here would make the legitimate `PreAuthenticate` + `PostAuthenticate` shape
+(nexixpay, moneris, worldpay) formally unresolvable.
+
+## FLOW-GROUP MAP (Authoritative)
+
+Some industry features are carried by several markers that cannot be implemented
+independently. Those are named as a **flow group**, and the group name is a valid
+`{FLOW}` input wherever a marker name is accepted.
+
+| Flow group | Also accepted as             | Markers implemented together                                     |
+|------------|------------------------------|------------------------------------------------------------------|
+| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `Authorize`, plus whichever of `PreAuthenticate`, `Authenticate`, `PostAuthenticate` the LEG-COUNT PROCEDURE selects — which may be none of them |
+
+**A flow group is ONE agent invocation, ONE commit. Do NOT
+decompose it into one invocation per marker.** The markers in a group share
+request and response types, share connector state across legs (the
+`connector_feature_data` round-trip), and are governed by a single
+`next_authentication_step` override that decides which leg runs next. Splitting
+them forces each leg to guess at contracts a later leg will change, and pushes
+all the cross-leg wiring into whichever leg happens to run last — where it
+arrives too late for the legs that needed it.
+
+**The group is not a fixed set of three.** Of the 20 UCS connectors that implement any
+authentication marker, exactly **one** (`getnet`) reaches all three in a single payment; 8 use one
+leg and 6 use two. In Hyperswitch, ~62 of ~154 connectors need **zero** pre-payment legs, and only
+`cybersource` and its fork `barclaycard` need three. Implementing a marker the connector has no call
+for produces dead code at best and a double charge at worst. Determine the count from the
+connector's own documentation before writing any code.
+
+### LEG-COUNT PROCEDURE (Authoritative)
+
+From the connector's 3DS documentation, write down the ordered list of HTTP calls a 3DS card payment
+makes, end to end. Then:
+
+**Step 1 — find the charging call.** Exactly one call in that list moves money. Identify it by these
+signals, in order of strength: (a) it is the same endpoint and body the connector's **non-3DS**
+payment uses; (b) on success it yields the transaction id that Capture / Void / Refund / PSync later
+act on; (c) the docs describe it as payment / sale / auth / charge / settle. **If the same URL
+appears more than once in the list, the charging call is the _last_ occurrence, not the first.**
+
+**Step 2 — the charging call is `Authorize`. Always.** Not `PostAuthenticate`, not "step 3 of 3DS".
+It stays `Authorize` even when the connector's own docs number it as part of the 3DS sequence, even
+when it reuses a URL an earlier leg already used, and even when it needs a correlation id
+(`relatedTransactionId`, `operationId`, `payment_id`, …) carried forward from an earlier leg.
+
+**Step 3 — classify the calls that come BEFORE the charging call, by observable behaviour:**
+
+| The call … | Marker | Legal count |
+|---|---|---|
+| runs silently before anything is shown to the cardholder — enrolment lookup, device-data / DDC collection, session or order bootstrap; returns no ACS redirect, or only a hidden iframe/DDC form | `PreAuthenticate` | 0 or 1 |
+| **issues the cardholder challenge** — returns the ACS URL, a redirect, or a form the browser must be sent to | `Authenticate` | 0 or 1 |
+| runs **after** the browser returns and only **validates** the authentication result (CRes / PARes / a lookup of the outcome), producing CAVV/ECI, and moves **no** money | `PostAuthenticate` | 0 or 1 |
+
+A call matching none of these rows is not an authentication leg; it belongs to a different marker
+(`CreateOrder`, `PaymentMethodToken`, `CreateConnectorCustomer`) — check the marker map below.
+
+**Step 4 — implement only the markers Step 3 selected.** For every marker it did **not** select,
+leave that marker's name in the connector's `macros::macro_connector_flow_status_impls!`
+`not_implemented:` / `not_supported:` list and add no macro wiring and no marker trait. Record the
+selection and its evidence (doc section or URL per call) as a decision. **`N = 0` selected markers is
+a valid and common outcome**: 3DS then rides inside `Authorize`, which returns the redirect, plus the
+browser return.
+
+### INVARIANT — `PostAuthenticate` MUST NEVER MOVE MONEY
+
+The composite loop (`crates/internal/composite-service/src/payments.rs`, loop at `:827`) breaks out
+of three of its four arms. The `PostAuthenticate` arm (`:885`) has **no break**: when it returns,
+control unconditionally re-enters the loop, `next_authentication_step` is called again, and the only
+non-looping successor is `Authorize` — **which charges**. A `PostAuthenticate` that already charged
+therefore produces a **second, independent, full-amount charge**, and that second charge carries no
+CAVV/ECI, so the liability shift is lost too.
+
+The other two arms are different, and the difference is deliberate:
+
+- `Authenticate` (`:861`) breaks on `redirection_data.is_some() || is_terminal_payment_status(status)`
+  — and terminal **includes** `Charged` / `Authorized`. `Authenticate` **may** charge; `redsys` relies
+  on exactly this.
+- `PreAuthenticate` (`:836`) breaks only on `redirection_data.is_some() || is_failure_payment_status(status)`.
+  It may charge **only** if it always returns redirection data or a failure status; otherwise the loop
+  spins.
+
+**Worked counter-example — do not repeat this.** Nuvei REST 1.0 has two 3DS endpoints, not three:
+`/initPayment.do`, then `/payment.do` **with** a `threeD` block, then `/payment.do` **without** it.
+Mapping those three calls onto the three markers puts the settling `/payment.do` in
+`PostAuthenticate`. Step 1 says otherwise: the third call is the same endpoint the non-3DS payment
+uses and is the last occurrence of that URL, so it is the **charging** call and belongs in
+`Authorize`. The correct mapping is `PreAuthenticate` = `/initPayment.do`, `Authenticate` =
+`/payment.do` with `threeD`, **no `PostAuthenticate`**, and `Authorize` = `/payment.do` without
+`threeD`, carrying `relatedTransactionId` from the earlier leg. Hyperswitch reaches the same shape by
+another route — its `Authorize` is `/payment.do`-with-`threeD`, answered `transactionType=Auth3D` →
+`AttemptStatus::AuthenticationPending`, and the settling call is its `CompleteAuthorize`. **UCS's
+`PostAuthenticate` is not HS's `CompleteAuthorize`; HS's `CompleteAuthorize` is UCS's `Authorize`.**
+
+When `{FLOW}` names a group, run the LEG-COUNT PROCEDURE, then look up the selected markers in the
+map below, read `guides/patterns/pattern_authentication_dispatch.md` **first** and all of their
+pattern files before writing code, and implement the selected markers in one pass.
 
 ## FLOW-MARKER → PATTERN MAP (Authoritative)
 
@@ -211,9 +312,10 @@ implementing the flow.
 | `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_server_session_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section in `pattern_server_authentication_token.md`) |
 | `ServerAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
 | `ClientAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
-| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md`                    |
-| `Authenticate`                        | `guides/patterns/pattern_authenticate.md`                       |
-| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md`                   |
+| `ThreeDS` (flow group)                | `guides/patterns/pattern_authentication_dispatch.md` — **read this FIRST**, before any per-marker pattern. It is the only file that states which leg may move money and how the composite loop terminates. |
+| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
+| `Authenticate`                        | `guides/patterns/pattern_authenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
+| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
 | `Accept` / `FlowName::AcceptDispute`  | `guides/patterns/pattern_accept_dispute.md`                     |
 | `SubmitEvidence`                      | `guides/patterns/pattern_submit_evidence.md`                    |
 | `DefendDispute`                       | `guides/patterns/pattern_defend_dispute.md`                     |
@@ -285,8 +387,8 @@ FLOW_DEPENDENCIES = {
     "CreateConnectorCustomer": [],
     "PaymentMethodToken": [],
     "PreAuthenticate": [],
-    "Authenticate": ["PreAuthenticate"],
-    "PostAuthenticate": ["Authenticate"],
+    "Authenticate": [],
+    "PostAuthenticate": [],
     "AcceptDispute": [],
     "SubmitEvidence": ["AcceptDispute"],
     "DefendDispute": [],
