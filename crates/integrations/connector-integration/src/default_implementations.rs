@@ -497,7 +497,7 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
     Reddot,);
 
 // ============================================================================
@@ -737,7 +737,7 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
     Reddot,);
 
 default_impl_get_payment_method_v2!(
@@ -855,7 +855,7 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
     Reddot,);
 
 default_impl_payment_method_eligibility_v2!(
@@ -970,7 +970,7 @@ default_impl_payment_method_eligibility_v2!(
         Hyperswitch,
         Affirm,
         Maya,
-        Travelhub,,
+        Travelhub,
         Reddot
     ],
 );
@@ -1154,5 +1154,5 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
     Reddot,);
