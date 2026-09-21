@@ -4314,7 +4314,10 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        AdyenStatus::Cancelled => AttemptStatus::Voided,
+        // On an Authorize response, `Cancelled` means Adyen's risk engine reversed an
+        // issuer-approved auth (refusalReason FRAUD-CANCELLED) — a failed payment, not a
+        // merchant-initiated void. Real voids come back via the Cancel flow and webhooks.
+        AdyenStatus::Cancelled => AttemptStatus::Failure,
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
