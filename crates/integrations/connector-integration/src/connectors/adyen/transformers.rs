@@ -4314,10 +4314,7 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        // On an Authorize response, `Cancelled` means Adyen's risk engine reversed an
-        // issuer-approved auth (refusalReason FRAUD-CANCELLED) — a failed payment, not a
-        // merchant-initiated void. Real voids come back via the Cancel flow and webhooks.
-        AdyenStatus::Cancelled => AttemptStatus::Failure,
+        AdyenStatus::Cancelled => AttemptStatus::Voided,
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
@@ -4388,7 +4385,18 @@ where
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        // A response that also produced an ErrorResponse is a failed attempt, whatever the
+        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
+        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
+        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
+        // `attempt_status: None` makes the router write Failure.
+        let status = if adyen_payments_response_data.error.is_some() {
+            AttemptStatus::Failure
+        } else {
+            adyen_payments_response_data.status
+        };
+
+        let minor_amount_captured = match status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -4401,7 +4409,7 @@ where
                 Err,
             ),
             resource_common_data: PaymentFlowData {
-                status: adyen_payments_response_data.status,
+                status,
                 amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
@@ -4511,7 +4519,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        // A response that also produced an ErrorResponse is a failed attempt, whatever the
+        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
+        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
+        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
+        // `attempt_status: None` makes the router write Failure.
+        let status = if adyen_payments_response_data.error.is_some() {
+            AttemptStatus::Failure
+        } else {
+            adyen_payments_response_data.status
+        };
+
+        let minor_amount_captured = match status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -4524,7 +4543,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Err,
             ),
             resource_common_data: PaymentFlowData {
-                status: adyen_payments_response_data.status,
+                status,
                 amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
@@ -6846,7 +6865,18 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        // A response that also produced an ErrorResponse is a failed attempt, whatever the
+        // resultCode said — Adyen returns `Cancelled` with refusalReason FRAUD-CANCELLED when
+        // RevenueProtect reverses an auth the issuer already approved. Keeps `status` consistent
+        // with the `Err(..)` set below, and matches hyperswitch, where the connector's
+        // `attempt_status: None` makes the router write Failure.
+        let status = if adyen_payments_response_data.error.is_some() {
+            AttemptStatus::Failure
+        } else {
+            adyen_payments_response_data.status
+        };
+
+        let minor_amount_captured = match status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -6859,7 +6889,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 Err,
             ),
             resource_common_data: PaymentFlowData {
-                status: adyen_payments_response_data.status,
+                status,
                 amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
