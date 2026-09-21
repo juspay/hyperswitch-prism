@@ -8,6 +8,29 @@ A connector that implements the trio but does not override `next_authentication_
 
 > **CROSS-REPO DEPENDENCY — READ THIS BEFORE DEBUGGING.** UCS is only half the state machine. The Hyperswitch **router** independently gates whether it continues past each leg, via a per-connector match in `crates/router/src/core/payments/flows/authorize_flow.rs` (`should_continue_after_preauthenticate` / `should_continue_after_authenticate`) whose default is `false`. A new connector's 3DS therefore stops silently after leg 1 even with a perfect UCS override, until that router-side match is extended. That file does **not** exist in this repository (`ls crates/router` → no such directory); it is a separate deliverable in the hyperswitch repo. The dependency is documented in-tree at `crates/integrations/connector-integration/src/connectors/saferpay/transformers.rs`, in the doc comment on `fn is_three_ds_settlement`: *"the caller stops there (`should_continue_after_preauthenticate` defaults to false)"*. See [The router-side gate](#the-router-side-gate).
 
+### Before you dispatch: decide how many legs exist
+
+**Do not assume three.** This file is named in the `## FLOW-MARKER → PATTERN MAP (Authoritative)` of
+`grace/rulesbook/codegen/.gracerules_add_flow` as required reading for the `ThreeDS` group precisely
+because the leg count is a per-connector fact, not a constant. Run the **LEG-COUNT PROCEDURE** in that
+file's `## FLOW-GROUP MAP (Authoritative)` first. Of the 20 UCS connectors implementing any marker, 8
+use one leg, 6 use two, and only `getnet` reaches all three; in Hyperswitch ~62 of ~154 connectors need
+none at all.
+
+Two files already document the legitimate shapes — read them rather than re-deriving:
+
+- [`pattern_authenticate.md`](./pattern_authenticate.md) "Pattern C — Skipped": connectors that collapse
+  three legs into two, and why adding a macro wiring for a leg the connector does not need is a defect.
+- [`pattern_postauthenticate.md`](./pattern_postauthenticate.md) **Appendix A**: the per-connector leg
+  roster (three-leg, two-leg, one-leg, zero-leg), and its takeaway that in single- or zero-leg
+  connectors you register no macro wiring at all.
+
+**The charging call is always `Authorize`.** The one hard constraint this hook imposes on that decision:
+the `PostAuthenticate` arm of the composite loop has **no break**, so a `PostAuthenticate` that settles
+is followed by `Authorize`, which settles again — a second full-amount charge with no CAVV/ECI.
+`Authenticate` is different and **may** charge, because its arm breaks on a terminal status
+(`Charged`/`Authorized`); `redsys` relies on exactly that. See the loop-arm table below.
+
 ### Key Components
 - Hook: `ValidationTrait::next_authentication_step` in `crates/types-traits/interfaces/src/connector_types.rs` (`pub trait ValidationTrait`).
 - Step enum: `pub enum AuthenticationStep` — same file, four variants.

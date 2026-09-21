@@ -134,14 +134,12 @@ workflow/
 ├── 2.3b_codegen_unit.md     # S4: codegen per flow; __hs__ and __finalize__ (CI-parity gate)
 ├── 2.3_codegen.md           # Single-flow codegen (cited by 2.3a/2.3b)
 ├── 2.6a_test_env.md         # S5: UCS + Hyperswitch environment, baseline
-├── 2.6b_test_design.md      # S5: test cases
-├── 2.6c_test_requests.md    # S5: executable requests
-├── 2.6d_test_exec.md        # S5: executor + bug bucket
+├── 2.6d_test_exec.md        # S5: runs the repo harness over the committed connector_specs/, bug bucket
 ├── 2.6e_rca.md              # S5: root cause → AMEND briefs
 ├── 2.7_review.md            # S6: review
 ├── 2.8_pr_run.md            # S7: commit, push, PRs
 ├── 2.4_pr.md                # Single-flow PR agent (sections reused by 2.8)
-└── 2.5_e2e.md               # Single-flow HS → UCS → connector reference (cited by v2 files)
+└── 2.5_e2e.md               # S5: HS → UCS → connector end-to-end via Cypress (spawned as S5:e2e:<N>)
 ```
 
 ---
