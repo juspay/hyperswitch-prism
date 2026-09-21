@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token"];
+pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token", "pre_authenticate"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -20,6 +20,9 @@ fn build_client() -> ConnectorClient {
             config: Some(connector_specific_config::Config::Kount(KountConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
                 auth_server_id: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                khash_config_key: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_KHASH_CONFIG_KEY".to_string(),
+                )), // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
@@ -34,6 +37,13 @@ fn build_client() -> ConnectorClient {
 pub fn build_create_server_authentication_token_request(
 ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        ..Default::default()
+    }
+}
+
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    PaymentMethodAuthenticationServicePreAuthenticateRequest {
         ..Default::default()
     }
 }
@@ -54,6 +64,18 @@ pub async fn process_create_server_authentication_token(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+#[allow(dead_code)]
+pub async fn process_pre_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -65,11 +87,9 @@ async fn main() {
         "process_create_server_authentication_token" => {
             process_create_server_authentication_token(&client, "txn_001").await
         }
+        "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         _ => {
-            eprintln!(
-                "Unknown flow: {}. Available: process_create_server_authentication_token",
-                flow
-            );
+            eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_pre_authenticate", flow);
             return;
         }
     };

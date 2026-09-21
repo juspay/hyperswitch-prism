@@ -1,6 +1,11 @@
 use std::{env, path::PathBuf};
 
+#[path = "codegen/auto_populate.rs"]
+mod auto_populate;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
+
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
     // Create the bridge generator with string enums
@@ -45,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // PaysafePaymentMethodDetails carries several optional per-currency account
-    // maps (card, ach, apple_pay, interac, skrill, pay_safe_card). The
+    // maps (card, ach, apple_pay, interac, skrill, pay_safe_card, neteller). The
     // x-connector-config header only supplies the subset a merchant has
     // provisioned, so any omitted map must default to empty. Without this,
     // serde treats a missing (non-optional proto map) field as a hard error,
@@ -63,6 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/services.proto",
             "proto/health_check.proto",
             "proto/payment.proto",
+            "proto/events.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",
             "proto/composite_frm.proto",
@@ -73,6 +79,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/frm.proto",
         ],
         &["proto"],
+    )?;
+
+    // Second codegen pass: read back the descriptor set just written above
+    // and generate the `populate_<field>` trait impls (see
+    // `codegen/auto_populate.rs` for the field -> setter declarations).
+    let descriptor_bytes = std::fs::read(out_dir.join("connector_service_descriptor.bin"))?;
+    let descriptor_set =
+        <prost_types::FileDescriptorSet as prost::Message>::decode(descriptor_bytes.as_slice())?;
+    let auto_populate_generated = auto_populate::generate(&descriptor_set);
+    std::fs::write(
+        out_dir.join("auto_populate_generated.rs"),
+        auto_populate_generated,
     )?;
 
     // prost_build::Config::new()

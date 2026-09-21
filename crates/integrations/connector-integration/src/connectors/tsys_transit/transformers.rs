@@ -3758,6 +3758,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         surcharge_amount: None,
         email: req.email.clone(),
         customer_document_details: None,
+        customer_date_of_birth: None,
         customer_name: None,
         currency: req.currency,
         confirm: true,
@@ -3813,6 +3814,11 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
+        additional_connector_details: None,
+        customer: None,
+        business_country: None,
     }
 }
 

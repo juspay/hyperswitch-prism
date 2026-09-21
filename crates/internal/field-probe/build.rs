@@ -148,6 +148,8 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "token_authorize"
             | "proxy_setup_recurring"
             | "token_setup_recurring"
+            | "pre_authenticate"
+            | "post_authenticate"
     );
 
     // Some flows don't have a connector_feature_data field in their request type

@@ -30,8 +30,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "address": {
         "billing_address": {
@@ -100,8 +99,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "address": {
         "billing_address": {
@@ -169,8 +167,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "metadata": {
         "value": "{\"source\":\"mobile\",\"device_id\":\"test-device-123\"}"
@@ -218,8 +215,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },
@@ -261,8 +257,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },

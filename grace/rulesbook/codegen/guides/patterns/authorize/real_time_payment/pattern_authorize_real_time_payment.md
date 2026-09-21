@@ -74,7 +74,7 @@ Summary of coverage at the pinned SHA:
 `PaymentsResponseData`. RTP connectors overwhelmingly return `PaymentsResponseData::TransactionResponse` with either:
 
 1. A `redirection_data: Some(Box<RedirectForm::Form { endpoint, method, form_fields }>)` pointing at the bank app / hosted QR page (iatapay returns this for generic RTP today at `crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:388-398`), or
-2. A `connector_metadata` JSON blob containing a QR payload for client-side rendering (fiuu builds this via `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2229-2260`).
+2. A `connector_metadata` JSON blob containing a QR payload for client-side rendering (fiuu builds this via `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2631-2665`).
 
 ### Resource Common Data
 
@@ -158,8 +158,8 @@ Citations:
 - Match arm: `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:569-573`.
 - Channel enum: `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:109-111`.
 - Response type: `FiuuPaymentsResponse::QRPaymentResponse(Box<DuitNowQrCodeResponse>)` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:964` and struct at `:938-947`.
-- QR metadata builder: `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2229-2260` — decodes the QR string to a colored image and returns a `QrCodeInformation::QrColorDataUrl` serialized to a `serde_json::Value`.
-- Branding constants: `DUIT_NOW_BRAND_COLOR = "#ED2E67"` and `DUIT_NOW_BRAND_TEXT = "MALAYSIA NATIONAL QR"` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2518-2520`.
+- QR metadata builder: `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2631-2665` — decodes the QR string to a colored image and returns a `QrCodeInformation::QrColorDataUrl` serialized to a `serde_json::Value`.
+- Branding constants: `DUIT_NOW_BRAND_COLOR = "#ED2E67"` and `DUIT_NOW_BRAND_TEXT = "MALAYSIA NATIONAL QR"` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2943-2945`.
 
 **Partially implemented by**: iatapay — maps `DuitNow {}` to `CountryAlpha2::MY` in the country-resolution helper (`crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:208-209`), but the outgoing `IatapayPaymentsRequest` carries only `country` and `locale` — no DuitNow-specific field (`crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:122-136`, request assembled at `:303-322`).
 
@@ -169,7 +169,7 @@ Citations:
 
 **Partially implemented by**: iatapay — country-only mapping to `CountryAlpha2::HK` at `crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:210-211`.
 
-**Explicitly rejected by**: fiuu — `Fps {}` is in the `Err(IntegrationError::not_implemented(...))` arm at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:574-579`.
+**Explicitly rejected by**: fiuu — `Fps {}` is in the `Err(IntegrationError::not_implemented(message, context))` arm at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:574-579`.
 
 **Note on naming**: the spec brief describes `Fps` as "UK Faster Payments", but the only place in the connector-service codebase that resolves `Fps {}` to a country — iatapay — maps it to Hong Kong. The enum definition at `payment_method_data.rs:513` carries no documentation of its own; treat `Fps {}` as rail-agnostic at the type level and let the connector decide, matching iatapay's precedent, until the enum gains a doc-comment at a future SHA.
 
@@ -216,6 +216,7 @@ where
         },
         _ => Err(Report::new(IntegrationError::not_implemented(
             "Payment method not supported by Iatapay".to_string(),
+            Default::default(),
         ))),
     }
 }
@@ -238,6 +239,7 @@ PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
         | RealTimePaymentData::PromptPay {}
         | RealTimePaymentData::VietQr {} => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("fiuu"),
+            Default::default(),
         )
         .into()),
     }
@@ -285,6 +287,7 @@ PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
         | RealTimePaymentData::PromptPay {}
         | RealTimePaymentData::VietQr {} => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("fiuu"),
+            Default::default(),
         )
         .into()),
     }
@@ -310,16 +313,16 @@ pub struct DuitNowQrCodeResponse {
 ```
 
 ```rust
-// From crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2229-2260
+// From crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2631-2665
 pub fn get_qr_metadata(
     response: &DuitNowQrCodeResponse,
-) -> CustomResult<Option<Value>, ConnectorResponseTransformationError> {
+) -> CustomResult<Option<Value>, ConnectorError> {
     let image_data = QrImage::new_colored_from_data(
         response.txn_data.request_data.qr_data.peek().clone(),
         DUIT_NOW_BRAND_COLOR,
     )
     .change_context(
-        ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+        ConnectorError::response_handling_failed_http_status_unknown(),
     )?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
@@ -336,7 +339,7 @@ pub fn get_qr_metadata(
         Some(qr_code_info.encode_to_value())
             .transpose()
             .change_context(
-                ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(
+                ConnectorError::response_handling_failed_http_status_unknown(
                 ),
             )
     } else {
@@ -440,7 +443,7 @@ Stripe enumerates all four `PaymentMethodType` aliases for completeness but does
 - **Use exhaustive variant matching, never wildcards**, so the Rust compiler flags new variants at future SHAs. Fiuu's `RealTimePaymentData::Fps {} | RealTimePaymentData::PromptPay {} | RealTimePaymentData::VietQr {}` arm at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:574-576` is the reference pattern: list every unsupported variant by name even when they share an error arm.
 - **Return `IntegrationError::not_implemented` with `get_unimplemented_payment_method_error_message(<connector>)`** for unsupported variants, as fiuu does at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:576-579`. See [../../utility_functions_reference.md](../../utility_functions_reference.md) for the helper.
 - **Do not hardcode a status like `AttemptStatus::Pending` in the `TryFrom` block** for RTP responses. RTP settles within seconds but can still fail (rejected by payer's bank, expired QR). Always map from a response status field — fiuu does this via the `PaymentsResponse`/`QRPaymentResponse` discriminator; iatapay does it via `IatapayPaymentStatus` (`crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:97-119`).
-- **Model QR-returning rails distinctly from redirect-returning rails.** If the rail ends in a scannable QR (DuitNow, PromptPay QR mode, VietQr), produce `connector_metadata` with a `qr_code_url` or a serialized `QrCodeInformation` (fiuu's `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2229-2260`). If the rail ends in a bank-app deep link (Fps with proxy-ID flow), produce `redirection_data: Some(Box<RedirectForm::Form { ... }>)`. Mixing them confuses the SDK's rendering pipeline.
+- **Model QR-returning rails distinctly from redirect-returning rails.** If the rail ends in a scannable QR (DuitNow, PromptPay QR mode, VietQr), produce `connector_metadata` with a `qr_code_url` or a serialized `QrCodeInformation` (fiuu's `get_qr_metadata` at `crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:2631-2665`). If the rail ends in a bank-app deep link (Fps with proxy-ID flow), produce `redirection_data: Some(Box<RedirectForm::Form { ... }>)`. Mixing them confuses the SDK's rendering pipeline.
 - **Pair every RTP Authorize with a PSync implementation.** RTP responses are async; the terminal state does not arrive in the authorize HTTP response. Iatapay demonstrates the canonical pairing by registering both flows in `crates/integrations/connector-integration/src/connectors/iatapay.rs:237-246`.
 - **Use the connector's declared amount unit.** Iatapay uses `FloatMajorUnit` (`crates/integrations/connector-integration/src/connectors/iatapay/transformers.rs:128`); fiuu uses `StringMajorUnit` in its DuitNow response (`crates/integrations/connector-integration/src/connectors/fiuu/transformers.rs:942`). Never hand-roll unit conversions; use the macro-generated amount converter per `macros::create_amount_converter_wrapper!` as described in [../card/pattern_authorize_card.md](../card/pattern_authorize_card.md).
 

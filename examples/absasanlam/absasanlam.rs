@@ -16,7 +16,18 @@ pub const SUPPORTED_FLOWS: &[&str] = &["parse_event"];
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::AbsaSanlam(
+                AbsaSanlamConfig {
+                    api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                    merchant_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_MERCHANT_ID".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -27,7 +38,7 @@ fn build_client() -> ConnectorClient {
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()), // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()), // URI of the request.

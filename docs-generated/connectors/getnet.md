@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -137,7 +137,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L124) · [Kotlin](../../examples/getnet/getnet.kt#L116) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L124) · [Kotlin](../../examples/getnet/getnet.kt#L117) · [Rust](../../examples/getnet/getnet.rs)
 
 #### PaymentService.Get
 
@@ -148,7 +148,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L142) · [Kotlin](../../examples/getnet/getnet.kt#L136) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L142) · [Kotlin](../../examples/getnet/getnet.kt#L137) · [Rust](../../examples/getnet/getnet.rs)
 
 #### PaymentService.Refund
 
@@ -159,7 +159,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L151) · [Kotlin](../../examples/getnet/getnet.kt#L144) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L151) · [Kotlin](../../examples/getnet/getnet.kt#L145) · [Rust](../../examples/getnet/getnet.rs)
 
 #### PaymentService.Void
 
@@ -170,7 +170,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts) · [Kotlin](../../examples/getnet/getnet.kt#L173) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts) · [Kotlin](../../examples/getnet/getnet.kt#L174) · [Rust](../../examples/getnet/getnet.rs)
 
 ### Refunds
 
@@ -183,7 +183,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L160) · [Kotlin](../../examples/getnet/getnet.kt#L154) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L160) · [Kotlin](../../examples/getnet/getnet.kt#L155) · [Rust](../../examples/getnet/getnet.rs)
 
 ### Authentication
 
@@ -196,4 +196,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L133) · [Kotlin](../../examples/getnet/getnet.kt#L126) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L133) · [Kotlin](../../examples/getnet/getnet.kt#L127) · [Rust](../../examples/getnet/getnet.rs)

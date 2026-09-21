@@ -194,6 +194,21 @@ pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Card redirect
+// ---------------------------------------------------------------------------
+// Card-redirect methods carry no card data: the customer authenticates on the
+// issuer's or scheme's own hosted page, so the proto message is just the brand
+// discriminator.
+
+pub(crate) fn webpay_card_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CardRedirect(proto::CardRedirect {
+            r#type: proto::card_redirect::CardRedirectType::Webpay as i32,
+        })),
+    }
+}
+
 pub(crate) fn ideal_payment_method() -> PaymentMethod {
     PaymentMethod {
         payment_method: Some(PmVariant::Ideal(proto::Ideal { bank_name: None })),
@@ -972,6 +987,7 @@ pub(crate) fn apple_pay_method() -> PaymentMethod {
                         online_payment_cryptogram: Some(Secret::new("AAAAAA==".to_string())),
                         eci_indicator: Some("05".to_string()),
                     }),
+                    merchant_token_identifier: Some("probe_merchant_token_id".to_string()),
                 })),
             }),
             payment_method: Some(proto::apple_wallet::PaymentMethod {

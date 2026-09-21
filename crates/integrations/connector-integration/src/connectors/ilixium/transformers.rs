@@ -8,9 +8,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RawConnectorStatus,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -266,8 +267,8 @@ pub struct IlixiumCustomer {
     #[serde(rename = "firstName")]
     pub first_name: Secret<String>,
     pub surname: Secret<String>,
-    /// `ddmmyyyy`. Schema-mandatory but absent from the UCS payment model — see
-    /// [`extract_date_of_birth`] for how it is sourced and why it may be omitted.
+    /// `ddmmyyyy`. Schema-mandatory — see [`format_date_of_birth`] for how it is sourced from
+    /// `customer.date_of_birth` and why it may be omitted.
     #[serde(rename = "dateOfBirth", skip_serializing_if = "Option::is_none")]
     pub date_of_birth: Option<Secret<String>>,
     pub address: IlixiumAddress,
@@ -383,20 +384,21 @@ pub fn is_three_ds_completion<T: PaymentMethodDataTypes>(
     request.redirect_response.is_some()
 }
 
-/// `customer.dateOfBirth` is schema-mandatory (`ddmmyyyy`) but has no home in the UCS payment
-/// model (tech spec UNDECIDED #1). Rather than fabricate a placeholder date — which would be
-/// sent to the issuer and could distort Ilixium's own fraud checks — it is read from the
-/// merchant-supplied `metadata` object under `ilixium_date_of_birth` (or `date_of_birth`) and
-/// simply omitted when absent. Accounts that enforce the field will answer `VA8`, which
-/// surfaces as a normal `REJECTED` error rather than a silently wrong value.
-fn extract_date_of_birth(
-    metadata: Option<&common_utils::pii::SecretSerdeValue>,
-) -> Option<Secret<String>> {
-    let value = metadata?.clone().expose();
-    ["ilixium_date_of_birth", "date_of_birth"]
-        .iter()
-        .find_map(|key| value.get(key).and_then(|v| v.as_str()).map(String::from))
-        .map(Secret::new)
+/// `customer.dateOfBirth` is schema-mandatory and Ilixium wants it as `ddmmyyyy`, while UCS
+/// carries it as a `time::Date` on `customer.date_of_birth`. Rather than fabricate a placeholder
+/// date — which would be sent to the issuer and could distort Ilixium's own fraud checks — it is
+/// simply omitted when the caller sent none. Accounts that enforce the field will answer `VA8`,
+/// which surfaces as a normal `REJECTED` error rather than a silently wrong value.
+fn format_date_of_birth(date_of_birth: Option<Secret<time::Date>>) -> Option<Secret<String>> {
+    date_of_birth.map(|date_of_birth| {
+        let date = date_of_birth.expose();
+        Secret::new(format!(
+            "{:02}{:02}{:04}",
+            date.day(),
+            u8::from(date.month()),
+            date.year()
+        ))
+    })
 }
 
 /// Ilixium accepts only the colour depths in [`ACCEPTED_COLOR_DEPTHS`], while browsers report
@@ -530,8 +532,8 @@ pub(super) struct IlixiumAuthBodyInputs<'a, T: PaymentMethodDataTypes> {
     /// `None` on the PreAuthenticate leg — `PaymentsPreAuthenticateData` has no `customer_name`,
     /// so the billing address is the only name source there.
     pub customer_name: Option<&'a str>,
-    /// `None` on the PreAuthenticate leg — see [`extract_date_of_birth`].
-    pub metadata: Option<&'a common_utils::pii::SecretSerdeValue>,
+    /// The customer's date of birth, carried by both legs' request types.
+    pub date_of_birth: Option<Secret<time::Date>>,
     pub browser_info: Option<&'a BrowserInformation>,
     pub is_auto_capture: bool,
     pub is_three_ds: bool,
@@ -679,7 +681,7 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
             email,
             first_name,
             surname,
-            date_of_birth: extract_date_of_birth(inputs.metadata),
+            date_of_birth: format_date_of_birth(inputs.date_of_birth),
             address: IlixiumAddress {
                 address_line1: common.get_optional_billing_line1(),
                 city: common.get_optional_billing_city(),
@@ -748,7 +750,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency: request.currency,
                 email: request.email.clone(),
                 customer_name: request.customer_name.as_deref(),
-                metadata: request.metadata.as_ref(),
+                date_of_birth: request.get_optional_customer_date_of_birth(),
                 browser_info: request.browser_info.as_ref(),
                 is_auto_capture: request.is_auto_capture(),
                 is_three_ds: common.auth_type == AuthenticationType::ThreeDs,
@@ -770,9 +772,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ///   a bare `bool`.
 ///
 /// One input is unavailable on this leg: `customer_name`, so the billing address is the only
-/// name source (which [`split_customer_name`] already handles). `metadata` *is* available —
-/// `PaymentsPreAuthenticateData` carries it so `customer.dateOfBirth` resolves here exactly as
-/// it does on Authorize.
+/// name source (which [`split_customer_name`] already handles). `customer_date_of_birth` *is*
+/// available — `PaymentsPreAuthenticateData` carries it so `customer.dateOfBirth` resolves here
+/// exactly as it does on Authorize.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         IlixiumRouterData<
@@ -849,7 +851,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency,
                 email: request.email.clone(),
                 customer_name: None,
-                metadata: request.metadata.as_ref(),
+                date_of_birth: request.get_optional_customer_date_of_birth(),
                 browser_info: request.browser_info.as_ref(),
                 is_auto_capture: request.is_auto_capture()?,
                 is_three_ds: true,
@@ -1620,6 +1622,14 @@ pub struct IlixiumPaymentAttempt {
     pub operation_ref: Option<String>,
     #[serde(rename = "paymentMethodType")]
     pub payment_method_type: Option<String>,
+    /// Ilixium's reusable payment-method token: "The token can be stored and used for direct
+    /// API transactions in the future." The vendor guarantees the element is always present
+    /// but documents the value as empty when the payment method is not reusable, so an empty
+    /// string is normalised away by [`IlixiumPaymentResponse::payment_method_token`].
+    ///
+    /// Deliberately unvalidated: the spec types the request-side token as exactly 32
+    /// characters but the response-side as `maxLength: 255`, so store whatever arrives.
+    pub token: Option<Secret<String>>,
     #[serde(rename = "cardResponse")]
     pub card_response: Option<IlixiumCardResponse>,
 }
@@ -1708,6 +1718,14 @@ impl IlixiumPaymentResponse {
     pub fn card_response(&self) -> Option<&IlixiumCardResponse> {
         self.latest_attempt()
             .and_then(|attempt| attempt.card_response.as_ref())
+    }
+
+    /// The reusable card token from the latest attempt, or `None` when the payment method is
+    /// not reusable — Ilixium sends the element with an empty value in that case.
+    pub fn payment_method_token(&self) -> Option<Secret<String>> {
+        self.latest_attempt()
+            .and_then(|attempt| attempt.token.clone())
+            .filter(|token| !token.peek().is_empty())
     }
 
     pub fn gateway_ref(&self) -> Option<String> {
@@ -2268,7 +2286,16 @@ impl<T: PaymentMethodDataTypes>
                     .map(ResponseId::ConnectorTransactionId)
                     .unwrap_or(ResponseId::NoResponseId),
                 redirection_data,
-                mandate_reference: None,
+                // Ilixium returns a reusable card token on every authorisation. Surface it as
+                // the `connector_mandate_id` so it is not lost, the way finix and jpmorgan do.
+                mandate_reference: response.payment_method_token().map(|token| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(token.expose()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })
+                }),
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -2386,6 +2413,8 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumVoidResponse, Self>>
                     }),
                 ),
                 redirection_data: None,
+                // Same envelope carries the same token, but the reference belongs to the
+                // authorize that established it.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -2433,6 +2462,8 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumCaptureResponse, Self>>
                     .map(ResponseId::ConnectorTransactionId)
                     .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
                 redirection_data: None,
+                // The token is recorded at authorize; a deferred capture follows one, so
+                // re-emitting the same reference here would be noise.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -2593,7 +2624,7 @@ fn extract_history_period_start(
 fn resolve_history_window(
     feature_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Result<(OffsetDateTime, OffsetDateTime), error_stack::Report<errors::IntegrationError>> {
-    let now = OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     let max_window = Duration::hours(HISTORY_MAX_WINDOW_HOURS);
 
     let overflow = |bound: &'static str| {
@@ -2783,9 +2814,9 @@ impl IlixiumHistoryStatus {
 }
 
 /// `HistoryTransaction` — a different schema from the `transactionDetails` echoed by
-/// `paymentResponse`, and much thinner: there is no `paymentHistory` and no `cardResponse`
-/// anywhere in a history entry, so PSync can recover **no** `authCode`, `iso8583code`, 3-D Secure
-/// field or card token.
+/// `paymentResponse`, and much thinner: there is no `paymentHistory` anywhere in a history
+/// entry, so PSync can recover **no** payment-method token (it hangs off `paymentAttempt`),
+/// and no `cardResponse` either, hence no `authCode`, `iso8583code` or 3-D Secure field.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IlixiumHistoryTransaction {
     pub amount: Option<String>,
@@ -3232,6 +3263,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
                     ResponseId::ConnectorTransactionId,
                 ),
                 redirection_data: None,
+                // The History API carries no `paymentHistory`, so PSync has no token to recover.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,

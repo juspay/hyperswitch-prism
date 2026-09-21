@@ -1025,6 +1025,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
         let status = map_webhook_event_to_attempt_status(webhook_body.event)?;
 
         Ok(Self {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 webhook_body.order_id.clone(),
             )),

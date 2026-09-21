@@ -2,21 +2,22 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -35,7 +36,8 @@ use transformers::{
     DatatransPaymentsResponse, DatatransRefundRequest, DatatransRefundResponse,
     DatatransRefundSyncResponse, DatatransRepeatPaymentRequest, DatatransRepeatPaymentResponse,
     DatatransSetupMandateRequest, DatatransSetupMandateResponse, DatatransSyncResponse,
-    DatatransVoidPCRequest, DatatransVoidPCResponse, DatatransVoidRequest, DatatransVoidResponse,
+    DatatransTokenizeRequest, DatatransTokenizeResponse, DatatransVoidPCRequest,
+    DatatransVoidPCResponse, DatatransVoidRequest, DatatransVoidResponse,
 };
 
 use super::macros;
@@ -96,6 +98,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ===== PAYMENT METHOD TOKEN FLOW TRAIT IMPLEMENTATION =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentTokenV2<T> for Datatrans<T>
+{
+}
+
 macros::macro_connector_payout_implementation!(
     connector: Datatrans,
     generic_type: T,
@@ -137,6 +145,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Datatrans<T>
 {
+    /// Google Pay payments are tokenized into a Datatrans alias
+    /// (`POST /v1/aliases/tokenize`) before Authorize / SetupMandate. Charging or
+    /// registering the alias as an `ALIAS` card is the Datatrans path that supports a
+    /// native 3DS challenge for Google Pay (the raw `PAY` payload cannot be
+    /// 3DS-authenticated).
+    fn should_do_payment_method_token(
+        &self,
+        payment_method: PaymentMethod,
+        payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
+    ) -> bool {
+        matches!(
+            (payment_method, payment_method_type),
+            (PaymentMethod::Wallet, Some(PaymentMethodType::GooglePay))
+        )
+    }
 }
 
 // ===== CONNECTOR CUSTOMER TRAIT IMPLEMENTATIONS =====
@@ -201,6 +225,12 @@ macros::create_all_prerequisites!(
             request_body: DatatransRepeatPaymentRequest<T>,
             response_body: DatatransRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PaymentMethodToken,
+            request_body: DatatransTokenizeRequest,
+            response_body: DatatransTokenizeResponse,
+            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         )
     ],
     amount_converters: [],
@@ -407,7 +437,16 @@ macros::macro_connector_implementation!(
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
             let native_three_ds =
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            if req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()) {
+            // A Google Pay alias charge (produced by the PaymentMethodToken flow) is
+            // card-like: native 3DS on the alias needs the redirect-capable
+            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge.
+            let is_alias_charge = matches!(
+                req.request.payment_method_data,
+                PaymentMethodData::PaymentMethodToken(_)
+            );
+            if (req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()))
+                || (is_alias_charge && native_three_ds)
+            {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
                 Ok(format!("{base_url}/v1/transactions/authorize"))
@@ -683,6 +722,37 @@ macros::macro_connector_implementation!(
     }
 );
 
+// PaymentMethodToken (Google Pay alias tokenization) Flow — converts the Google Pay
+// wallet payload into a Datatrans alias via POST /v1/aliases/tokenize, so the
+// subsequent Authorize can charge it as an `ALIAS` card with native 3DS support.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Datatrans,
+    curl_request: Json(DatatransTokenizeRequest),
+    curl_response: DatatransTokenizeResponse,
+    flow_name: PaymentMethodToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodTokenizationData<T>,
+    flow_response: PaymentMethodTokenResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/aliases/tokenize", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Datatrans,
     generic_type: T,
@@ -694,7 +764,6 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         DefendDispute,
         SubmitEvidence,
-        PaymentMethodToken,
         ServerAuthenticationToken,
         PreAuthenticate,
         Authenticate,

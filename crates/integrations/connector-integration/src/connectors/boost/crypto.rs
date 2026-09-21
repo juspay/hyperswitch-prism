@@ -16,7 +16,7 @@ use base64::Engine;
 use domain_types::errors;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
-use openssl::{md::Md, pkey::PKey, pkey_ctx::PkeyCtx, rsa::Padding, symm::Cipher};
+use openssl::{pkey::PKey, symm::Cipher};
 use serde::Serialize;
 
 use super::transformers::BASE64_ENGINE;
@@ -145,7 +145,9 @@ pub fn encrypt_card(
         .change_context(invalid_config(
             "Boost's configured public_key is not valid base64.".to_string(),
         ))?;
-    let public_key = PKey::public_key_from_der(&der_bytes)
+    // Parsed here purely to keep the precise invalid-config error for a malformed
+    // key; the encryption below re-parses the same DER bytes itself.
+    let _ = PKey::public_key_from_der(&der_bytes)
         .change_context(invalid_config(
             "Boost's configured public_key does not decode as a DER X.509 \
              SubjectPublicKeyInfo RSA public key."
@@ -153,19 +155,24 @@ pub fn encrypt_card(
         ))
         .attach_printable("failed to parse RSA public key")?;
 
-    let mut aes_key = [0u8; AES_KEY_LEN];
-    openssl::rand::rand_bytes(&mut aes_key)
-        .change_context(encryption_failed(
-            "Failed to generate a random AES-256 key for card encryption.".to_string(),
-        ))
-        .attach_printable("RNG failure generating AES key")?;
+    // Key and IV come from the shared entropy helper — fresh per request, per the
+    // spec's requirement, drawn through the codebase's single sanctioned random
+    // source rather than a local RNG call.
+    let aes_key: [u8; AES_KEY_LEN] = domain_types::utils::generate_random_bytes(AES_KEY_LEN)
+        .try_into()
+        .map_err(|_| {
+            error_stack::report!(encryption_failed(
+                "Failed to generate a random AES-256 key for card encryption.".to_string(),
+            ))
+        })?;
 
-    let mut iv = [0u8; GCM_IV_LEN];
-    openssl::rand::rand_bytes(&mut iv)
-        .change_context(encryption_failed(
-            "Failed to generate a random GCM IV for card encryption.".to_string(),
-        ))
-        .attach_printable("RNG failure generating GCM IV")?;
+    let iv: [u8; GCM_IV_LEN] = domain_types::utils::generate_random_bytes(GCM_IV_LEN)
+        .try_into()
+        .map_err(|_| {
+            error_stack::report!(encryption_failed(
+                "Failed to generate a random GCM IV for card encryption.".to_string(),
+            ))
+        })?;
 
     let aad = format!("{merchant_id}|{reference_id}|{created_epoch_seconds}");
 
@@ -188,43 +195,15 @@ pub fn encrypt_card(
     let mut ciphertext_with_tag = aes_ciphertext;
     ciphertext_with_tag.extend_from_slice(&tag);
 
-    // RSA-OAEP with SHA-256 for both the OAEP digest and MGF1 — the
-    // high-level `Rsa::public_encrypt` API only supports SHA-1, so this
-    // requires the lower-level PkeyCtx to select SHA-256 for both.
-    let mut ctx = PkeyCtx::new(&public_key)
-        .change_context(encryption_failed(
-            "Failed to initialize the RSA encryption context.".to_string(),
-        ))
-        .attach_printable("PkeyCtx::new failed")?;
-    ctx.encrypt_init()
-        .change_context(encryption_failed(
-            "Failed to initialize RSA-OAEP encryption.".to_string(),
-        ))
-        .attach_printable("encrypt_init failed")?;
-    ctx.set_rsa_padding(Padding::PKCS1_OAEP)
-        .change_context(encryption_failed(
-            "Failed to set RSA-OAEP padding.".to_string(),
-        ))
-        .attach_printable("set_rsa_padding failed")?;
-    ctx.set_rsa_oaep_md(Md::sha256())
-        .change_context(encryption_failed(
-            "Failed to set the RSA-OAEP digest to SHA-256.".to_string(),
-        ))
-        .attach_printable("set_rsa_oaep_md failed")?;
-    ctx.set_rsa_mgf1_md(Md::sha256())
-        .change_context(encryption_failed(
-            "Failed to set the RSA-OAEP MGF1 digest to SHA-256.".to_string(),
-        ))
-        .attach_printable("set_rsa_mgf1_md failed")?;
-
-    let mut encrypted_key = Vec::new();
-    ctx.encrypt_to_vec(&aes_key, &mut encrypted_key)
+    // RSA-OAEP with SHA-256 for both the OAEP digest and MGF1, through the shared
+    // helper (identical parameters: OAEP + SHA-256 digest + MGF1 SHA-256) instead
+    // of a hand-rolled PkeyCtx block.
+    let encrypted_key = common_utils::crypto::RsaOaepSha256::encrypt(&der_bytes, &aes_key)
         .change_context(encryption_failed(
             "RSA-OAEP encryption of the AES key failed — this can indicate the \
              configured Boost public_key is stale or malformed."
                 .to_string(),
-        ))
-        .attach_printable("RSA-OAEP encryption failed")?;
+        ))?;
 
     Ok(BoostEncryptedCard {
         encrypted_key: BASE64_ENGINE.encode(encrypted_key),

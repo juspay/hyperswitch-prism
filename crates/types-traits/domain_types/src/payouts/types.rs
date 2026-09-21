@@ -50,6 +50,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1216,6 +1217,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::SourceBankData> for payouts::payout
                     payshap_proxy,
                 )?,
             )),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Trustly(trustly) => {
+                Ok(Self::Trustly(
+                    payouts::payout_method_data::TrustlyBankTransfer::foreign_try_from(trustly)?,
+                ))
+            }
         }
     }
 }
@@ -1736,6 +1742,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1779,6 +1786,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1822,6 +1830,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1865,6 +1874,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1908,6 +1918,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1951,6 +1962,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1994,6 +2006,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -2562,6 +2575,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }

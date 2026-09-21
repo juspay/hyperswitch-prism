@@ -27,6 +27,7 @@ pub struct PayoutFlowData {
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
     pub description: Option<String>,
+    pub merchant_request_id: Option<String>,
 }
 
 impl RawConnectorRequestResponse for PayoutFlowData {

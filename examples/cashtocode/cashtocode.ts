@@ -23,7 +23,7 @@ const _defaultConfig: types.IConnectorConfig = {
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "uri": "https://example.com/webhook",  // URI of the request.

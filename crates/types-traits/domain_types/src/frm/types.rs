@@ -519,6 +519,7 @@ impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number,
             customer_phone_country_code: value.phone_country_code,
             salutation: value.salutation,
+            date_of_birth: None,
         })
     }
 }

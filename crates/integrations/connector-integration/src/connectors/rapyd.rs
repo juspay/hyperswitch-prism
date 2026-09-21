@@ -26,7 +26,6 @@ use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
-use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -276,7 +275,7 @@ macros::create_all_prerequisites!(
         {
             let auth = RapydAuthType::try_from(&req.connector_config)?;
             let timestamp = common_utils::date_time::now_unix_timestamp();
-            let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+            let salt = common_utils::crypto::generate_cryptographically_secure_random_string(12);
 
             let signature = self.generate_signature(
                 &auth,
@@ -455,7 +454,7 @@ macros::macro_connector_implementation!(
     resource_common_data: PaymentFlowData,
     flow_request: PaymentVoidData,
     flow_response: PaymentsResponseData,
-    http_method: Post,
+    http_method: Delete,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -467,7 +466,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = "";
-            self.build_headers(req, "post", url_path, body)
+            self.build_headers(req, "delete", url_path, body)
         }
         fn get_url(
             &self,

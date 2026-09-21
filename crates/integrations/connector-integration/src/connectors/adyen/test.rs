@@ -103,6 +103,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -198,6 +199,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -315,6 +321,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -368,6 +375,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };

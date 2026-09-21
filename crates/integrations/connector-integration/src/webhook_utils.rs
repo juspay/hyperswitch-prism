@@ -6,7 +6,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use grpc_api_types::payments::{
     DisputeResponse, EventContent, EventServiceHandleResponse, EventServiceParseResponse,
-    PaymentServiceGetResponse, RefundResponse, WebhookEventType,
+    PaymentServiceGetResponse, PayoutServiceGetResponse, RefundResponse, WebhookEventType,
 };
 
 use crate::types::ConnectorData;
@@ -69,8 +69,15 @@ pub fn process_webhook_event<
             webhook_secrets,
             connector_config.clone(),
         )?
+    } else if event_type.is_payout_event() {
+        get_payouts_webhook_content(
+            connector_data.clone(),
+            request_details.clone(),
+            webhook_secrets,
+            connector_config.clone(),
+        )?
     } else {
-        // Default: treat as payment event (mandate, payout, recovery, misc).
+        // Default: treat as payment event (mandate, recovery, misc).
         get_payments_webhook_content(
             connector_data.clone(),
             request_details.clone(),
@@ -179,6 +186,36 @@ pub fn get_refunds_webhook_content<
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::RefundsResponse(response)),
+    })
+}
+
+pub fn get_payouts_webhook_content<
+    T: PaymentMethodDataTypes
+        + Default
+        + Eq
+        + std::fmt::Debug
+        + Send
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + Clone
+        + Sync
+        + 'static,
+>(
+    connector_data: ConnectorData<T>,
+    request_details: domain_types::connector_types::RequestDetails,
+    webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
+    connector_config: Option<ConnectorSpecificConfig>,
+) -> error_stack::Result<EventContent, WebhookError> {
+    let webhook_details = connector_data
+        .connector
+        .process_payout_webhook(request_details, webhook_secrets, connector_config)
+        .attach_printable("Failed to process payout webhook from connector")?;
+
+    let response = PayoutServiceGetResponse::foreign_try_from(webhook_details)
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+
+    Ok(EventContent {
+        content: Some(grpc_api_types::payments::event_content::Content::PayoutsResponse(response)),
     })
 }
 

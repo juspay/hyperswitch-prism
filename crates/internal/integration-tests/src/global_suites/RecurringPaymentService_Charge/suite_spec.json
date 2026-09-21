@@ -7,9 +7,12 @@
     {
       "suite": "PaymentService/SetupRecurring",
       "context_map": {
-        "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+        "connector_customer_id": "req.customer.connector_customer_id",
+        "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id",
+        "customer.id": "req.customer.id",
+        "customer.connector_customer_id": "req.customer.connector_customer_id"
       }
     }
   ],
-  "strict_dependencies": false
+  "strict_dependencies": true
 }

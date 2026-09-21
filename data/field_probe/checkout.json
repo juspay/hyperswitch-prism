@@ -87,7 +87,8 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id"
                 }
               },
               "payment_method": {
@@ -220,8 +221,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -232,8 +233,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -268,8 +269,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -397,8 +398,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -441,8 +442,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -477,12 +478,12 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -587,6 +588,10 @@
       "WeChatPayQr": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
       },
       "Wero": {
         "status": "not_implemented",

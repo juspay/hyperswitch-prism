@@ -1005,6 +1005,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let error_code = webhook_payment.error_code.clone();
         let error_message = webhook_payment.error_desc.clone();
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     webhook_payment.tran_id.clone(),

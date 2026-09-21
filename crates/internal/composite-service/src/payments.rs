@@ -1,4 +1,4 @@
-use connector_integration::types::ConnectorData;
+use connector_integration::types::{ConnectorData, ConnectorDataProvider};
 use domain_types::{
     connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
@@ -34,8 +34,8 @@ use interfaces::connector_types::AuthenticationStep;
 
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
-    connector_from_composite_authorize_metadata, is_failure_payment_status,
-    is_terminal_payment_status,
+    connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
+    is_failure_payment_status, is_terminal_payment_status,
 };
 
 /// Decoded CRes (Challenge Response) from 3DS challenge completion.
@@ -66,6 +66,7 @@ pub trait CompositePreAuthenticatePayload {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
 }
 
@@ -132,10 +133,12 @@ impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            create_order_response,
         ))
     }
 }
@@ -146,10 +149,12 @@ impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            create_order_response,
         ))
     }
 }
@@ -347,7 +352,7 @@ where
 {
     async fn create_server_authentication_token<Req: CompositeAccessTokenRequest>(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
         payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -365,12 +370,19 @@ where
                         "invalid payment_method in request payload: {err}"
                     ))
                 })?;
-            let connector_data = ConnectorData::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::get_connector_by_name(connector);
-            connector_data
-                .connector
-                .should_do_access_token(payment_method)
+            // Resolve across every family this connector might be registered under
+            // (e.g. Kount is both a payment connector and an FRM connector) — same
+            // "try each family, no hand-written match on `ConnectorVariant`"
+            // primitive used elsewhere; `should_do_access_token` isn't a
+            // `ConnectorIntegrationV2` flow, so it can't go through
+            // `resolve_connector_integration!` directly, but the pattern is the same.
+            ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::from_connector_variant(connector)
+                .map(|c| c.connector.should_do_access_token(payment_method))
+                .or_else(|| {
+                    connector_integration::types::FrmConnectorData::from_connector_variant(connector)
+                        .map(|c| c.connector.should_do_access_token(payment_method))
+                })
+                .unwrap_or(false)
         };
         let payload_access_token = payload
             .state()
@@ -380,8 +392,7 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let access_token_payload =
-                    payload.build_access_token_request(&ConnectorVariant::Payment(*connector));
+                let access_token_payload = payload.build_access_token_request(connector);
                 let mut access_token_request = tonic::Request::new(access_token_payload);
                 *access_token_request.metadata_mut() = metadata.clone();
                 *access_token_request.extensions_mut() = extensions.clone();
@@ -650,13 +661,15 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_order_response: Option<&PaymentServiceCreateOrderResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status>
     where
         Req: CompositePreAuthenticatePayload,
     {
-        let pre_auth_payload = payload.build_pre_authenticate_request(access_token_response);
+        let pre_auth_payload =
+            payload.build_pre_authenticate_request(access_token_response, create_order_response);
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -773,7 +786,12 @@ where
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
 
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let session_token_response = self
             .create_server_session_authentication_token(
@@ -820,6 +838,7 @@ where
                         self.pre_authenticate(
                             &payload,
                             access_token_response.as_ref(),
+                            create_order_response.as_ref(),
                             &metadata,
                             &extensions,
                         )
@@ -959,7 +978,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let get_response = self
             .get(
@@ -982,8 +1006,12 @@ where
     ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        // Unlike the other composite flows below, pre-authenticate can target
+        // either a payment connector (`x-connector`) or an FRM connector
+        // (`x-frm-connector`) — e.g. Kount is dual-registered as both while its
+        // FRM registration is being rolled out — so this resolves the full
+        // `ConnectorVariant` instead of requiring `x-connector`.
+        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -991,6 +1019,9 @@ where
             .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
+                // Standalone PreAuthenticate: no CreateOrder runs in this path, so the
+                // order reference can only come from the caller's own request.
+                None,
                 &metadata,
                 &extensions,
             )
@@ -1036,7 +1067,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let refund_response = self
             .refund(
@@ -1087,7 +1123,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let refund_get_response = self
             .refund_get(
@@ -1134,7 +1175,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let void_response = self
             .void(
@@ -1185,7 +1231,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let capture_response = self
             .capture(
@@ -1221,7 +1272,12 @@ where
         // (folded in by the caller from the verify-redirect response), so the token
         // steps read it through the normal channel — no per-call payload mutation.
         let access_token_response = self
-            .create_server_authentication_token(connector, payload, metadata, extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(*connector),
+                payload,
+                metadata,
+                extensions,
+            )
             .await?;
 
         let session_token_response = self

@@ -151,6 +151,11 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
             open_banking_pis_method as fn() -> PaymentMethod,
         ),
         ("OpenBanking", open_banking_method as fn() -> PaymentMethod),
+        // Card Redirect
+        (
+            "Webpay",
+            webpay_card_redirect_method as fn() -> PaymentMethod,
+        ),
         // Bank Redirect
         (
             "LocalBankRedirect",

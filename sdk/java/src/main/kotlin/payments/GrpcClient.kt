@@ -13,6 +13,7 @@ import com.sun.jna.ptr.IntByReference
 import java.io.File
 import java.nio.charset.StandardCharsets
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import types.Payouts.*
 import types.Surcharge.*

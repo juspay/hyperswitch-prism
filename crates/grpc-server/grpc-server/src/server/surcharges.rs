@@ -45,7 +45,7 @@ impl SurchargeOperationsInternal for Surcharges {
         request_data_constructor: SurchargeCalculateRequest::foreign_try_from,
         common_flow_data_constructor: SurchargeFlowData::foreign_try_from,
         generate_response_fn: generate_surcharge_calculate_response,
-        connector_data_type: SurchargeConnectorData,
+        connector_data_types: [SurchargeConnectorData],
         all_keys_required: None
     );
 }
