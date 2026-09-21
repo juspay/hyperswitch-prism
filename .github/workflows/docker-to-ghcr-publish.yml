@@ -54,9 +54,17 @@ jobs:
           - platform: linux/amd64
             tag: linux-amd64
             os: ubuntu-24.04
+          # The GitHub-hosted arm64 runner cannot complete this build: every
+          # arm64 leg since 2026.09.08.0 has failed with
+          # `ResourceExhausted: cannot allocate memory` during `cargo build`,
+          # which skips `create-manifest` and leaves the release with only a
+          # `-linux-amd64` tag and no multi-arch index. `hyperswitch-runners`
+          # is the org's self-hosted Actions fleet: native arm64 (Graviton,
+          # `kubernetes.io/arch: arm64`) with 30 GB per runner against the
+          # hosted runner's 16 GB.
           - platform: linux/arm64
             tag: linux-arm64
-            os: ubuntu-24.04-arm
+            os: hyperswitch-runners
     runs-on: ${{ matrix.os }}
     outputs:
       version: ${{ steps.set-outputs.outputs.version }}
