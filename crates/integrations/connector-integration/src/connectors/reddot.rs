@@ -360,6 +360,39 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 //
 // See crates/integrations/connector-integration/src/connectors/xendit.rs for a
 // reference implementation that follows this pattern.
+// RDP serves two host families per environment (mirrors RDP's own docs):
+//   base_url            — the Redirect/Payment family (`secure-dev` /
+//                         `secure`): /service/payment-api +
+//                         /service/Merchant_processor/query_redirection
+//   secondary_base_url  — the Merchant API family (`test` / `connect`):
+//                         /instanpanel/api/payment (refund) +
+//                         /instanpanel/api/enquiry (merchant enquiry)
+// so flows keyed to instanpanel MUST NOT be built off `base_url`.
+fn instanpanel_base_url(connectors: &Connectors) -> CustomResult<&str, IntegrationError> {
+    connectors
+        .reddot
+        .secondary_base_url
+        .as_deref()
+        .ok_or(IntegrationError::InvalidConnectorConfig {
+            config: "secondary_base_url",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "reddot Merchant API (Refund/Enquiry) lives on the instanpanel host family, distinct from the payment family"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Set reddot.secondary_base_url (e.g. https://test.reddotpayment.com for UAT, https://connect.reddotpayment.com for Prod) in connector config"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://developers.reddotpayment.com/merchant/#capture-refund-void"
+                        .to_string(),
+                ),
+            },
+        })
+        .map_err(error_stack::Report::from)
+}
+
 crate::connectors::macros::macro_connector_flow_status_impls!(
     connector: Reddot,
     generic_type: T,
@@ -495,7 +528,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/instanpanel/api/payment",
-                self.base_url(&req.resource_common_data.connectors)
+                instanpanel_base_url(&req.resource_common_data.connectors)?
             ))
         }
     }
@@ -528,8 +561,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}/service/Merchant_processor/query_redirection",
-                self.base_url(&req.resource_common_data.connectors)
+                "{}/instanpanel/api/enquiry",
+                instanpanel_base_url(&req.resource_common_data.connectors)?
             ))
         }
     }

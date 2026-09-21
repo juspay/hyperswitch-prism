@@ -806,6 +806,9 @@ impl Connectors {
             ConnectorEnum::Grabpay => {
                 patched.grabpay.apply(params_patch);
             }
+            ConnectorEnum::Reddot => {
+                patched.reddot.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {

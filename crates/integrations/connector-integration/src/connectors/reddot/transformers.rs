@@ -376,14 +376,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data.request.currency,
         )?;
         let redirect_url = router_data.request.get_router_return_url()?;
-        // TEST-ONLY (staging): post RDP's notify_url callback to a webhook.site
-        // collector so the callback body shape can be inspected and replayed
-        // into euler's /v2/pay/webhooks manually. notify_url is NOT part of
-        // RDP's payment signature, and the psync path never uses it, so this
-        // override affects webhook delivery only. The redirect_url still goes
-        // to euler — the customer 3DS redirect flow is unaffected.
-        // REVERT before production rollout.
-        let notify_url = "https://webhook.site/50c8d038-2708-4773-946c-b137efa8e502".to_string();
+        let notify_url = router_data.request.get_webhook_url()?;
         let payer_email = router_data.request.get_email()?;
         let ccy = router_data.request.currency.to_string();
         // Juspay txnUuids (19-21 chars) overflow RDP's 20-char `order_id`
