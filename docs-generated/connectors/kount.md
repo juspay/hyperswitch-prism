@@ -26,8 +26,8 @@ config = sdk_config_pb2.ConnectorConfig(
         kount=payment_pb2.KountConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             auth_server_id="YOUR_AUTH_SERVER_ID",
-            client_id="YOUR_CLIENT_ID",
             khash_config_key=payment_methods_pb2.SecretString(value="YOUR_KHASH_CONFIG_KEY"),
+            client_id="YOUR_CLIENT_ID",
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -53,8 +53,8 @@ const config = ConnectorConfig.create({
         kount: {
             apiKey: { value: 'YOUR_API_KEY' },
             authServerId: 'YOUR_AUTH_SERVER_ID',
-            clientId: 'YOUR_CLIENT_ID',
             khashConfigKey: { value: 'YOUR_KHASH_CONFIG_KEY' },
+            clientId: 'YOUR_CLIENT_ID',
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -76,8 +76,8 @@ val config = ConnectorConfig.newBuilder()
             .setKount(KountConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setAuthServerId("YOUR_AUTH_SERVER_ID")
-                .setClientId("YOUR_CLIENT_ID")
                 .setKhashConfigKey(SecretString.newBuilder().setValue("YOUR_KHASH_CONFIG_KEY").build())
+                .setClientId("YOUR_CLIENT_ID")
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -101,8 +101,8 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Kount(KountConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 auth_server_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 khash_config_key: Some(hyperswitch_masking::Secret::new("YOUR_KHASH_CONFIG_KEY".to_string())),  // Authentication credential
+                client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
