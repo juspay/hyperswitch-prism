@@ -2251,16 +2251,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let (card_token, payment_method_id) = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
-                Some(
-                    payment_method_data::TokenPaymentMethod::ApplePay
-                    | payment_method_data::TokenPaymentMethod::GooglePay,
-                ) => (Some(pmt.token.clone()), None),
-                None => (None, Some(pmt.token.clone())),
-            },
-            _ => (None, None),
-        };
+        // Stripe reads the wallet off the token itself, so `payment_method_types[0]` follows the
+        // wallet rather than the token: Apple Pay sends none, Google Pay sends `card`. Mirrors
+        // `get_stripe_payment_method_type_from_wallet_data` on the hyperswitch side.
+        let (card_token, payment_method_id, card_token_pm_type) =
+            match &item.request.payment_method_data {
+                PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
+                    Some(payment_method_data::TokenPaymentMethod::ApplePay) => {
+                        (Some(pmt.token.clone()), None, None)
+                    }
+                    Some(payment_method_data::TokenPaymentMethod::GooglePay) => (
+                        Some(pmt.token.clone()),
+                        None,
+                        Some(StripePaymentMethodType::Card),
+                    ),
+                    None => (None, Some(pmt.token.clone()), None),
+                },
+                _ => (None, None, None),
+            };
         let payment_method_token = card_token.clone().or(payment_method_id.clone());
         // Stripe's split-payment tokenize flow replaces the address blocks with the tokenized
         // payment method; every other tokenized payment still carries them. Mirrors
@@ -2295,7 +2303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })
         };
 
-        let billing_address = if payment_method_token.is_some() {
+        let billing_address = if is_tokenize_flow {
             None
         } else {
             Some(StripeBillingAddress {
@@ -2337,8 +2345,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )),
                 None,
-                StripeBillingAddress::default(),
-                Some(StripePaymentMethodType::Card),
+                billing_address.clone().unwrap_or_default(),
+                card_token_pm_type,
                 setup_future_usage,
             )
         } else if payment_method_token.is_some() {
