@@ -3001,7 +3001,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
             | common_enums::AttemptStatus::PartialCharged
             | common_enums::AttemptStatus::PartialChargedAndChargeable
             | common_enums::AttemptStatus::IntegrityFailure => {
-                item.router_data.request.amount_to_capture
+                utils::legacy_amount_as_i64(item.router_data.request.minor_amount_to_capture)
             }
         };
         let connector_payment_id: PaypalMeta = match to_connector_meta(
