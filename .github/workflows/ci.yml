@@ -352,6 +352,17 @@ jobs:
         with:
           config: ./.typos.toml
 
+  money-framework-lint:
+    name: Money framework boundary check
+    if: "!github.event.pull_request.draft"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check connector code never imports proto_boundary or declares a raw-MinorUnit wire field
+        run: python3 scripts/validation/money_framework_lint.py
+
   clippy:
     name: Clippy check
     needs: changes
@@ -1149,13 +1160,14 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
+    needs: [typos, money-framework-lint, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results
         run: |
           echo "Job results:"
           echo "  typos:         ${{ needs.typos.result }}"
+          echo "  money-framework-lint: ${{ needs.money-framework-lint.result }}"
           echo "  clippy:        ${{ needs.clippy.result }}"
           echo "  formatting:    ${{ needs.formatting.result }}"
           echo "  auto-fix:      ${{ needs.auto-fix.result }}"
@@ -1175,6 +1187,7 @@ jobs:
 
           results=(
             "${{ needs.typos.result }}"
+            "${{ needs.money-framework-lint.result }}"
             "${{ needs.clippy.result }}"
             "${{ needs.formatting.result }}"
             "${{ needs.auto-fix.result }}"
