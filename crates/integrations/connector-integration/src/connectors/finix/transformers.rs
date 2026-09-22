@@ -536,7 +536,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
                 .convert(router_data.request.amount, router_data.request.currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -813,8 +815,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             capture_amount: common_utils::MinorUnitForConnector
-                .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             idempotency_id: None,
         })
     }
@@ -1058,8 +1065,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             refund_amount: common_utils::MinorUnitForConnector
-                .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             idempotency_id: None,
         })
     }
@@ -1779,8 +1791,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(router_data.request.minor_amount, router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -2327,9 +2344,11 @@ pub(super) fn build_finix_payment_webhook_response(
         status_code: 200,
         response_headers: None,
         amount_captured: None,
-        minor_amount_captured: resource.captured_amount.and_then(|a|
-            common_utils::MinorUnitForConnector.convert_back(a, resource.currency).ok()
-        ),
+        minor_amount_captured: resource.captured_amount.and_then(|a| {
+            common_utils::MinorUnitForConnector
+                .convert_back(a, resource.currency)
+                .ok()
+        }),
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
@@ -2390,12 +2409,14 @@ pub(super) fn build_finix_dispute_webhook_response(
         dispute.amount,
         dispute.currency,
     )
-    .map_err(|_| error_stack::report!(WebhookError::WebhookAmountConversionFailed {
-        reason: format!(
-            "Failed to convert dispute amount back to MinorUnit: amount={}, currency={}",
-            dispute.amount, dispute.currency
-        ),
-    }))?;
+    .map_err(|_| {
+        error_stack::report!(WebhookError::WebhookAmountConversionFailed {
+            reason: format!(
+                "Failed to convert dispute amount back to MinorUnit: amount={}, currency={}",
+                dispute.amount, dispute.currency
+            ),
+        })
+    })?;
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
