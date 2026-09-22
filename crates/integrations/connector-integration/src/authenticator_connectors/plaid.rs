@@ -1,3 +1,4 @@
+pub mod sanity;
 #[cfg(test)]
 mod test;
 pub mod transformers;

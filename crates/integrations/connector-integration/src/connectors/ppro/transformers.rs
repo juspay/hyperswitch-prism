@@ -1,5 +1,6 @@
 use common_enums;
-use common_utils::consts;
+use common_utils::{consts, AmountConvertor};
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -110,7 +111,7 @@ pub struct PproConsumer {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: String,
-    pub value: common_utils::MinorUnit,
+    pub value: common_utils::ConnectorMinorUnit,
 }
 
 impl<F, T>
@@ -163,7 +164,14 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: router_data.request.amount,
+            value: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.amount,
+                    router_data.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
@@ -353,7 +361,7 @@ pub enum PproAgreementStatus {
 pub struct PproPaymentsResponse {
     pub id: String,
     pub status: PproPaymentStatus,
-    pub amount: Option<common_utils::MinorUnit>,
+    pub amount: Option<common_utils::ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     /// The instrument ID returned by PPRO after a successful authorization.
@@ -374,7 +382,7 @@ pub struct PproPaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct PproAuthorizationEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproAuthorizationStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_payment_charge_reference: Option<String>,
@@ -393,7 +401,7 @@ pub enum PproAuthorizationStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PproCaptureEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproCaptureStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_capture_reference: Option<String>,
@@ -444,7 +452,7 @@ pub struct PproRefundResponse {
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproRefundStatus,
 }
 
@@ -496,7 +504,7 @@ pub struct PproAuthDetailsResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproCaptureRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
 }
 
 impl<T>
@@ -517,7 +525,14 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -525,7 +540,7 @@ where
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproVoidRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
 }
 
 impl<T>
@@ -545,6 +560,7 @@ where
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let currency = item.router_data.request.currency.unwrap_or_default();
         let amount = item
             .router_data
             .request
@@ -558,14 +574,22 @@ where
                 context: Default::default(),
             })?;
 
-        Ok(Self { amount })
+        Ok(Self {
+            amount: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    amount, currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+        })
     }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub merchant_refund_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_reason: Option<PproRefundReason>,
@@ -586,7 +610,14 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -835,11 +866,12 @@ where
                     .map(|m| m.currency())
             });
 
-        let response_amount = resolved_minor_amount.map(|minor| {
-            common_utils::types::Money::from_minor_unit(
-                minor,
-                resolved_currency.unwrap_or_default(),
-            )
+        let response_amount = resolved_minor_amount.and_then(|connector_minor| {
+            let currency = resolved_currency.unwrap_or_default();
+            let minor = common_utils::MinorUnitForConnector
+                .convert_back(connector_minor, currency)
+                .ok()?;
+            Some(common_utils::types::Money::from_minor_unit(minor, currency))
         });
 
         let connector_response_reference_id = item
@@ -886,6 +918,11 @@ where
                 status,
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
                 minor_amount_captured: captured_amount
+                    .and_then(|c| {
+                        common_utils::MinorUnitForConnector
+                            .convert_back(c, resolved_currency.unwrap_or_default())
+                            .ok()
+                    })
                     .or(item.router_data.resource_common_data.minor_amount_captured),
                 ..item.router_data.resource_common_data
             },
@@ -1179,7 +1216,14 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: router_data.request.minor_amount.unwrap_or_default(),
+            value: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.minor_amount.unwrap_or_default(),
+                    router_data.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let authentication_settings =
@@ -1571,7 +1615,14 @@ where
         let router_data = item.router_data;
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: router_data.request.minor_amount,
+            value: common_utils::MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let initiator = if router_data.request.off_session.unwrap_or(true) {

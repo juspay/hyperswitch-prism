@@ -1,6 +1,9 @@
 use crate::types::ResponseRouterData;
 use common_enums::{enums::Currency, AttemptStatus, CaptureMethod};
-use common_utils::{fp_utils::when, types::{AmountConvertor, ConnectorMinorUnit}};
+use common_utils::{
+    fp_utils::when,
+    types::{AmountConvertor, ConnectorMinorUnit},
+};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -279,7 +282,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             amount: SilverflowAmount {
                 value: common_utils::types::MinorUnitForConnector
-                    .convert(router_data.request.minor_amount, router_data.request.currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        router_data.request.minor_amount,
+                        router_data.request.currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -589,7 +595,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Use the capture amount for partial capture, omit for full capture
         let amount = Some(
             common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.minor_amount_to_capture, router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.minor_amount_to_capture,
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -718,7 +727,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Use the refund amount for partial refund, omit for full refund
         let amount = Some(
             common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.minor_refund_amount, router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.minor_refund_amount,
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

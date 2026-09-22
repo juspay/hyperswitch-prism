@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct PaysafePaymentsResponse {
     pub id: String,
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
-    pub available_to_settle: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub available_to_settle: Option<ConnectorMinorUnit>,
     pub currency_code: common_enums::Currency,
     pub status: PaysafePaymentStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -101,7 +101,7 @@ pub struct PaysafePaymentHandleSyncData {
 pub struct PaysafeSettlementResponse {
     pub id: String,
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub status: PaysafeSettlementStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Error>,
@@ -123,7 +123,7 @@ pub enum PaysafeSettlementStatus {
 pub struct PaysafeVoidResponse {
     pub id: String,
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub status: PaysafeVoidStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Error>,
@@ -145,7 +145,7 @@ pub enum PaysafeVoidStatus {
 pub struct PaysafeRefundResponse {
     pub id: String,
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub status: PaysafeRefundStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settlement_id: Option<String>,

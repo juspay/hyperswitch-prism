@@ -165,7 +165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = wrapper
             .connector
             .amount_converter
-            .convert(router_data.request.minor_amount, router_data.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(router_data.request.minor_amount, router_data.request.currency))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some("Verify amount and currency values are valid".to_string()),

@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::OptionExt,
     pii,
     request::Method,
-    types::{MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -310,10 +310,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -489,6 +489,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -679,7 +680,7 @@ pub struct ResultData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponseTransactionData {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -1084,7 +1085,7 @@ pub struct NovalnetAuthorizationResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetSyncResponseTransactionData {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -1200,10 +1201,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1262,10 +1263,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1313,7 +1314,7 @@ pub struct NovalnetRefundSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
@@ -1566,7 +1567,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureTransactionData {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub capture: CaptureData,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
@@ -2236,6 +2237,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -2349,10 +2351,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2681,10 +2683,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2704,7 +2706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetIncrementalAuthTransactionData {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
     pub payment_type: Option<String>,

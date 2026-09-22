@@ -1,4 +1,5 @@
-use crate::connectors::revolut::RevolutRouterData;
+use crate::connectors::revolut::{RevolutAmountConvertor, RevolutRouterData};
+use common_utils::AmountConvertor;
 use domain_types::{
     connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, Refund},
     connector_types::{
@@ -21,7 +22,7 @@ use crate::types::ResponseRouterData;
 use common_enums::AttemptStatus;
 use common_utils::{
     custom_serde,
-    types::{MinorUnit, Money},
+    types::{ConnectorMinorUnit, Money},
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -36,7 +37,7 @@ pub struct RevolutAuthType {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RevolutOrderCreateRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub settlement_currency: Option<String>,
     pub description: Option<String>,
@@ -79,8 +80,8 @@ pub struct RevolutLineItem {
     pub name: String,
     pub r#type: RevolutLineItemType,
     pub quantity: RevolutLineItemQuantity,
-    pub unit_price_amount: MinorUnit, //integer(int64)
-    pub total_amount: MinorUnit,      //integer(int64)
+    pub unit_price_amount: ConnectorMinorUnit, //integer(int64)
+    pub total_amount: ConnectorMinorUnit,      //integer(int64)
     pub external_id: Option<String>,
     pub discounts: Option<Vec<RevolutLineItemDiscount>>,
     pub taxes: Option<Vec<RevolutLineItemTax>>,
@@ -105,13 +106,13 @@ pub struct RevolutLineItemQuantity {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevolutLineItemDiscount {
     pub name: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevolutLineItemTax {
     pub name: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[serde_with::skip_serializing_none]
@@ -180,9 +181,9 @@ pub struct RevolutOrderCreateResponse {
     pub description: Option<String>,
     pub capture_mode: Option<RevolutCaptureMode>,
     pub cancel_authorised_after: Option<String>,
-    pub amount: MinorUnit,
-    pub outstanding_amount: Option<MinorUnit>,
-    pub refunded_amount: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub outstanding_amount: Option<ConnectorMinorUnit>,
+    pub refunded_amount: Option<ConnectorMinorUnit>,
     pub currency: common_enums::Currency,
     pub settlement_currency: Option<String>,
     pub customer: Option<RevolutCustomer>,
@@ -242,9 +243,9 @@ pub struct RevolutPayment {
     #[serde(with = "custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     pub token: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
-    pub settled_amount: Option<MinorUnit>,
+    pub settled_amount: Option<ConnectorMinorUnit>,
     pub settled_currency: Option<String>,
     pub payment_method: Option<RevolutPaymentMethod>,
     pub authentication_challenge: Option<RevolutAuthenticationChallenge>,
@@ -337,7 +338,7 @@ pub enum RevolutRiskLevel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevolutFee {
     pub r#type: RevolutFeeType,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -596,7 +597,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         });
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: RevolutAmountConvertor::convert(
+                router_data.request.amount,
+                router_data.request.currency,
+            )?,
             currency: router_data.request.currency,
             settlement_currency: None,
             description: router_data.resource_common_data.description.clone(),
@@ -709,7 +713,10 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
             None => map_order_state(response.state),
         };
 
-        let amount = Some(Money::from_minor_unit(response.amount, response.currency));
+        let amount = common_utils::MinorUnitForConnector
+            .convert_back(response.amount, response.currency)
+            .ok()
+            .map(|minor| Money::from_minor_unit(minor, response.currency));
 
         let merchant_reference = response
             .merchant_order_data
@@ -754,7 +761,7 @@ fn map_order_state(state: RevolutOrderState) -> AttemptStatus {
 #[derive(Debug, Serialize)]
 pub struct RevolutCaptureRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -769,9 +776,9 @@ pub struct RevolutRefundResponse {
     pub description: Option<String>,
     pub capture_mode: Option<RevolutCaptureMode>,
     pub cancel_authorised_after: Option<String>,
-    pub amount: MinorUnit,
-    pub outstanding_amount: Option<MinorUnit>,
-    pub refunded_amount: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub outstanding_amount: Option<ConnectorMinorUnit>,
+    pub refunded_amount: Option<ConnectorMinorUnit>,
     pub currency: common_enums::Currency,
     pub settlement_currency: Option<String>,
     pub customer: Option<RevolutCustomer>,
@@ -792,7 +799,7 @@ pub struct RevolutRefundResponse {
 
 #[derive(Debug, Serialize)]
 pub struct RevolutRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant_order_data: Option<RevolutMerchantOrderData>,
     pub metadata: Option<Secret<serde_json::Value>>,
@@ -817,7 +824,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         Ok(Self {
-            amount: router_data.request.minor_refund_amount,
+            amount: RevolutAmountConvertor::convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )?,
             currency: router_data.request.currency,
             merchant_order_data: Some(RevolutMerchantOrderData {
                 reference: Some(
@@ -909,7 +919,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         // Amount is optional - if not provided, Revolut captures full authorized amount
-        let amount = Some(item.router_data.request.minor_amount_to_capture);
+        let amount = Some(RevolutAmountConvertor::convert(
+            item.router_data.request.minor_amount_to_capture,
+            item.router_data.request.currency,
+        )?);
 
         Ok(Self { amount })
     }
@@ -1053,7 +1066,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RevolutClientAuthRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -1085,7 +1098,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: RevolutAmountConvertor::convert(
+                router_data.request.amount,
+                router_data.request.currency,
+            )?,
             currency: router_data.request.currency,
         })
     }

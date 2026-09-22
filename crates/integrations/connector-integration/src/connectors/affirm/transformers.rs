@@ -365,7 +365,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 total: Some(
                     item.connector
                         .amount_converter
-                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            router_data.request.minor_amount,
+                            router_data.request.currency,
+                        ))
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -414,7 +417,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     total: item
                         .connector
                         .amount_converter
-                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            router_data.request.minor_amount,
+                            router_data.request.currency,
+                        ))
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -631,10 +637,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount: item
                 .connector
                 .amount_converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount_to_capture,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -796,10 +802,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount: item
                 .connector
                 .amount_converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_refund_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

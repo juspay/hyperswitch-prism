@@ -260,7 +260,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let valor_pagamento = converter
-            .convert(req.request.amount, req.request.source_currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

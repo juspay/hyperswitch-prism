@@ -274,10 +274,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 data.router_data.request.minor_amount,
                 data.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -365,6 +365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_) => {
@@ -728,10 +729,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data.connector.amount_converter.convert(
-            data.router_data.request.minor_amount_to_capture,
-            data.router_data.request.currency,
-        );
+        let amount =
+            data.connector
+                .amount_converter
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    data.router_data.request.minor_amount_to_capture,
+                    data.router_data.request.currency,
+                ));
         let order = NoonActionOrder {
             id: item
                 .request
@@ -843,10 +847,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let refund_amount = data.connector.amount_converter.convert(
-            data.router_data.request.minor_refund_amount,
-            data.router_data.request.currency,
-        );
+        let refund_amount =
+            data.connector
+                .amount_converter
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    data.router_data.request.minor_refund_amount,
+                    data.router_data.request.currency,
+                ));
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -1172,10 +1179,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Noon requires a non-zero amount for setup mandate.
         // The actual mandate amount comes from setup_mandate_details below.
         // This nominal amount satisfies the API requirement.
-        let amount = data.connector.amount_converter.convert(
-            data.router_data.request.minor_amount.unwrap_or_default(),
-            data.router_data.request.currency,
-        );
+        let amount =
+            data.connector
+                .amount_converter
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    data.router_data.request.minor_amount.unwrap_or_default(),
+                    data.router_data.request.currency,
+                ));
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {
@@ -1289,6 +1299,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
                         | WalletData::PaymayaRedirect(_)
+                        | WalletData::PayhereRedirect {}
                         | WalletData::QwikcilverWalletDirect(_)
                         | WalletData::Skrill(_)
                         | WalletData::Neteller(_) => {
@@ -1565,10 +1576,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

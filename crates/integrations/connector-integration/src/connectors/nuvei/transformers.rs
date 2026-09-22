@@ -1177,10 +1177,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1409,10 +1409,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1686,10 +1686,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2010,7 +2010,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(minor_amount, currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                minor_amount,
+                currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2398,7 +2401,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2691,15 +2697,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // For SetupMandate amount is optional; default to 0 if absent so that
         // Nuvei treats this as a zero-value auth verification for the mandate.
-        let minor_amount = router_data
-            .request
-            .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::default());
+        let minor_amount = router_data.request.minor_amount.unwrap_or_default();
         let currency = router_data.request.currency;
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(minor_amount, currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                minor_amount,
+                currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3155,7 +3161,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter_webhooks
-            .convert(minor_amount, currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                minor_amount,
+                currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

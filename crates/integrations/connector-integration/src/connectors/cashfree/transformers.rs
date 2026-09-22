@@ -439,10 +439,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 wrapper.router_data.request.amount,
                 wrapper.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -479,7 +479,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
-            .convert(item.request.amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -947,10 +950,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &wrapper.router_data;
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1305,10 +1308,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &wrapper.router_data;
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
