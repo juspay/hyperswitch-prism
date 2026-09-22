@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnitForConnector},
+    types::{ConnectorMinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -327,23 +327,27 @@ pub struct StripeLineItemsData {
         rename = "amount_details[shipping][amount]",
         skip_serializing_if = "Option::is_none"
     )]
-    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<ConnectorMinorUnit>,
     #[serde(
         rename = "amount_details[tax][total_tax_amount]",
         skip_serializing_if = "Option::is_none"
     )]
-    pub order_tax_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<ConnectorMinorUnit>,
     #[serde(
         rename = "amount_details[discount_amount]",
         skip_serializing_if = "Option::is_none"
     )]
-    pub discount_amount: Option<MinorUnit>,
+    pub discount_amount: Option<ConnectorMinorUnit>,
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<HashMap<String, String>>,
 }
 
-fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<StripeLineItemsData> {
-    l2_l3_data.map(|data| {
+fn create_stripe_line_items_data(
+    l2_l3_data: Option<&L2L3Data>,
+    currency: common_enums::Currency,
+) -> Result<Option<StripeLineItemsData>, error_stack::Report<IntegrationError>> {
+    l2_l3_data
+        .map(|data| {
         // Stripe takes tax either at order level or at line-item level, never both.
         let (line_items, order_tax_amount) = data.get_order_details().map_or(
             (None, data.get_order_tax_amount()),
@@ -409,19 +413,28 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
             },
         );
 
-        StripeLineItemsData {
+        Ok(StripeLineItemsData {
             customer_reference: data
                 .get_customer_id()
                 .map(|id| id.get_string_repr().to_string()),
             order_reference: data.get_merchant_order_reference_id(),
             shipping_from_postal_code: data.get_shipping_origin_zip(),
             shipping_to_postal_code: data.get_shipping_zip(),
-            shipping_amount: data.get_shipping_cost(),
-            order_tax_amount,
-            discount_amount: data.get_discount_amount(),
+            shipping_amount: data
+                .get_shipping_cost()
+                .map(|amount| StripeAmountConvertor::convert(amount, currency))
+                .transpose()?,
+            order_tax_amount: order_tax_amount
+                .map(|amount| StripeAmountConvertor::convert(amount, currency))
+                .transpose()?,
+            discount_amount: data
+                .get_discount_amount()
+                .map(|amount| StripeAmountConvertor::convert(amount, currency))
+                .transpose()?,
             line_items,
-        }
-    })
+        })
+        })
+        .transpose()
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -2612,7 +2625,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
-            ),
+                item.request.currency,
+            )?,
             moto: is_moto,
             on_behalf_of,
         })
@@ -6282,7 +6296,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
-            ),
+                item.request.currency,
+            )?,
             moto: is_moto,
             on_behalf_of,
         })
