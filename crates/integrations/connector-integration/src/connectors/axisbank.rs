@@ -46,21 +46,121 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+// Authorize (Register Intent): the response is a UPI deeplink, so any non-failure
+// outer code with a payload lands on AuthenticationPending — `handle_authorize_response`
+// never yields Charged/Authorized here. Failure outer codes short-circuit to Failure.
+// Success (deeplink built) is represented by AuthenticationPending; RequestPending
+// (no payload yet) is the canonical "still starting" path.
+// Authorize macro intentionally omitted: axisbank is UPI-collect. The Authorize
+// TryFrom only ever emits AuthenticationPending (redirect) or Pending — neither
+// is in Authorize::TERMINAL_SUCCESS_SET, so no `success:` is declareable. The
+// authorized-or-charged outcome arrives via PSync / webhook, same as absa_sanlam.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Axisbank<T>
 {
 }
 
+// PSync (Status 360): mirror of `map_transaction_status` — `Success` is
+// disambiguated by the gateway_response_code in the payload (ctx).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector:       Axisbank<T>,
+    flow:            PSync,
+    source:          crate::connectors::juspay_upi_stack::types::OuterResponseCode,
+    context:         transformers::AxisbankSyncCtx,
+    params:          [status, ctx],
+    success_status:  Success,
+    success_targets: [Charged],
+    failure_status:  Failure,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use crate::connectors::juspay_upi_stack::types::{
+            GatewayResponseCode, OuterResponseCode as Outer,
+        };
+        match status {
+            // handle_psync_response short-circuits is_failure() codes to Failure —
+            // that set includes DuplicateRequest (unlike map_transaction_status).
+            Outer::Failure
+            | Outer::RequestExpired
+            | Outer::Dropout
+            | Outer::InvalidData
+            | Outer::Unauthorized
+            | Outer::InvalidMerchant
+            | Outer::DeviceFingerprintMismatch
+            | Outer::InternalServerError
+            | Outer::InvalidTransactionId
+            | Outer::UninitiatedRequest
+            | Outer::InvalidRefundAmount
+            | Outer::DuplicateRequest
+            | Outer::BadRequest => AttemptStatus::Failure,
+            Outer::RequestNotFound
+            | Outer::RequestPending
+            | Outer::ServiceUnavailable
+            | Outer::GatewayTimeout => AttemptStatus::Pending,
+            Outer::Success => match ctx.gateway_response_code.as_deref() {
+                Some(code) => match GatewayResponseCode::parse(code) {
+                    GatewayResponseCode::Success => AttemptStatus::Charged,
+                    GatewayResponseCode::Pending
+                    | GatewayResponseCode::Deemed
+                    | GatewayResponseCode::MandatePaused
+                    | GatewayResponseCode::MandateCompleted => AttemptStatus::Pending,
+                    GatewayResponseCode::Declined
+                    | GatewayResponseCode::Expired
+                    | GatewayResponseCode::BeneAddrIncorrect
+                    | GatewayResponseCode::IntentExpired
+                    | GatewayResponseCode::ValidationError
+                    | GatewayResponseCode::MandateRevoked
+                    | GatewayResponseCode::MandateDeclined
+                    | GatewayResponseCode::MandateExpired
+                    | GatewayResponseCode::Unknown(_) => AttemptStatus::Failure,
+                },
+                None => AttemptStatus::Pending,
+            },
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Axisbank<T>
 {
 }
 
+// Refund / RSync route through the shared juspay_upi_stack handlers
+// (`handle_refund_response` / `handle_rsync_response`), which map the gateway
+// codes to the shared `juspay_upi_stack::types::RefundStatus` and then to
+// `enums::RefundStatus` (`Deemed` → Pending). The contextual refund_type
+// (UDIR vs ONLINE/OFFLINE) split lives upstream of that enum inside
+// `map_refund_status`, so the declared mapping here covers the enum →
+// `RefundStatus` leg that both flows share.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow:      Refund,
+    source:    crate::connectors::juspay_upi_stack::types::RefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+        Deemed  => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Axisbank<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow:      RSync,
+    source:    crate::connectors::juspay_upi_stack::types::RefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+        Deemed  => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Axisbank<T>
 {

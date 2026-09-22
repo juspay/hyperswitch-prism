@@ -58,36 +58,118 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+// NOTE: no impl_flow_status_mapping! for Authorize. The TryFrom never surfaces
+// a terminal-failure status — the response enum is `TransactionResponse` /
+// `ThreeDSResponse` (settled-or-enrolled), and *every* connector-declined
+// outcome arrives as a non-2xx handled by `build_error_response`, so the
+// status enum carries no terminal-failure variant to declare.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Datatrans<T>
 {
 }
 
+// Mirrors `sync_attempt_status(transaction_type, status)`: a plain `payment`
+// `authorized` stays `Authorized` (a manual capture must not read as captured),
+// while a `card_check` (zero-auth mandate) `authorized`/`settled`/`transmitted`
+// all read as `Charged` because a finished alias creation has no capture step.
+// A `credit` synced on the payment endpoint is not a payment outcome (→
+// `Failure`, refunds are tracked via RSync).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Datatrans<T>,
+    flow:            PSync,
+    source:          datatrans::DatatransPaymentStatus,
+    context:         datatrans::DatatransTransactionType,
+    params:          [status, txn_type],
+    success_status:  Settled,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use datatrans::{DatatransPaymentStatus, DatatransTransactionType};
+        match txn_type {
+            DatatransTransactionType::Payment => match status {
+                DatatransPaymentStatus::Authorized => AttemptStatus::Authorized,
+                DatatransPaymentStatus::Settled | DatatransPaymentStatus::Transmitted => {
+                    AttemptStatus::Charged
+                }
+                DatatransPaymentStatus::ChallengeOngoing
+                | DatatransPaymentStatus::ChallengeRequired => AttemptStatus::AuthenticationPending,
+                DatatransPaymentStatus::Canceled => AttemptStatus::Voided,
+                DatatransPaymentStatus::Failed => AttemptStatus::Failure,
+                DatatransPaymentStatus::Initialized | DatatransPaymentStatus::Authenticated => {
+                    AttemptStatus::Pending
+                }
+            },
+            DatatransTransactionType::CardCheck => match status {
+                DatatransPaymentStatus::Settled
+                | DatatransPaymentStatus::Transmitted
+                | DatatransPaymentStatus::Authorized => AttemptStatus::Charged,
+                DatatransPaymentStatus::ChallengeOngoing
+                | DatatransPaymentStatus::ChallengeRequired => AttemptStatus::AuthenticationPending,
+                DatatransPaymentStatus::Canceled => AttemptStatus::Voided,
+                DatatransPaymentStatus::Failed => AttemptStatus::Failure,
+                DatatransPaymentStatus::Initialized | DatatransPaymentStatus::Authenticated => {
+                    AttemptStatus::Pending
+                }
+            },
+            DatatransTransactionType::Credit => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Datatrans<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for Void. The cancel endpoint returns a
+// bare 200 with an optional `transactionId` echo and **no status field**, so
+// the TryFrom hardcodes `AttemptStatus::Voided` on a 2xx — there is no typed
+// connector status to map (same shape as adyen.rs Capture / VoidPC).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Datatrans<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for VoidPC. The reverse endpoint returns
+// 204 No Content and the TryFrom answers with
+// `PaymentsResponseData::PostCaptureVoidResponse` (status `Success`), reporting
+// no `AttemptStatus` at all — nothing to map.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Datatrans<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for Capture. The settle endpoint answers
+// with a 200 JSON body that carries only `transactionId` /
+// `acquirerAuthorizationCode` and **no status field** — the TryFrom hardcodes
+// `AttemptStatus::Charged` on a 2xx (failures arrive as non-2xx into
+// `build_error_response`). There is no typed connector status to map.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Datatrans<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for SetupMandate. Checked whether a macro is
+// derivable from the shared helper: the TryFrom calls
+// `get_authorize_status(response, true)` (a `card_check` outcome is `Charged` and a
+// zero-auth alias has no capture step), but the mapping is over the same two-variant
+// `DatatransPaymentsResponse` enum as Authorize — `TransactionResponse` /
+// `ThreeDSResponse`, which carries **no terminal-failure variant** (declines arrive as
+// non-2xx and go through `build_error_response`). The macro must declare a
+// `failure:` source variant, so it cannot be grounded in this enum.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Datatrans<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for RepeatPayment. The TryFrom calls
+// `get_authorize_status(response, is_auto_capture)` with the same two-variant
+// `DatatransPaymentsResponse` enum — a transaction is `Charged` (auto-capture) or
+// `Authorized`, and MIT declines are non-2xx through `build_error_response`. As with
+// SetupMandate, the enum has no terminal-failure variant, so the macro's mandatory
+// `failure:` source variant cannot be declared.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Datatrans<T>
 {
@@ -111,11 +193,53 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+// NOTE: no impl_refund_flow_status_mapping! for Refund. The credit endpoint
+// answers 200 with a body that carries no status field, and the TryFrom
+// hardcodes `RefundStatus::Success` — failures arrive as non-2xx into
+// `build_error_response`. There is no typed connector refund status to map
+// (same shape as Capture/Void above).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Datatrans<T>
 {
 }
 
+// Mirrors `sync_refund_status(txn_type, status)`: a refund settles under the
+// `credit` transaction type — `settled`/`transmitted` → Success,
+// challenge states → Pending, everything else on a credit leg → Failure.
+// A `payment`/`card_check` leg synced on the refund endpoint is not a refund
+// outcome (→ Failure). Context is the response's `transaction_type`, same as
+// the PSync mapping above.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Datatrans<T>,
+    flow:           RSync,
+    source:         datatrans::DatatransPaymentStatus,
+    context:        datatrans::DatatransTransactionType,
+    params:         [status, txn_type],
+    success_status: Settled,
+    failure_status: Failed,
+    {
+        use common_enums::RefundStatus;
+        use datatrans::{DatatransPaymentStatus, DatatransTransactionType};
+        match txn_type {
+            DatatransTransactionType::Credit => match status {
+                DatatransPaymentStatus::Settled | DatatransPaymentStatus::Transmitted => {
+                    RefundStatus::Success
+                }
+                DatatransPaymentStatus::ChallengeOngoing
+                | DatatransPaymentStatus::ChallengeRequired => RefundStatus::Pending,
+                DatatransPaymentStatus::Initialized
+                | DatatransPaymentStatus::Authenticated
+                | DatatransPaymentStatus::Authorized
+                | DatatransPaymentStatus::Canceled
+                | DatatransPaymentStatus::Failed => RefundStatus::Failure,
+            },
+            DatatransTransactionType::Payment | DatatransTransactionType::CardCheck => {
+                RefundStatus::Failure
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Datatrans<T>
 {

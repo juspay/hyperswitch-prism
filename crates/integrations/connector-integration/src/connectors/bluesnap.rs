@@ -54,16 +54,103 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bluesnap<T>,
+    flow:            Authorize,
+    source:          bluesnap::BluesnapProcessingStatus,
+    context:         Option<bluesnap::BluesnapTxnType>,
+    params:          [processing_status, txn_type],
+    success_status:  Success,
+    success_targets: [Authorized, Charged],
+    failure_status:  Fail,
+    failure_target:  Failure,
+    {
+        use bluesnap::BluesnapProcessingStatus as P;
+        use bluesnap::BluesnapTxnType as Tx;
+        match processing_status {
+            P::Success => match txn_type {
+                Some(Tx::AuthOnly) => common_enums::AttemptStatus::Authorized,
+                Some(Tx::AuthCapture) | Some(Tx::Capture) => common_enums::AttemptStatus::Charged,
+                Some(Tx::AuthReversal) => common_enums::AttemptStatus::Voided,
+                Some(Tx::Refund) => common_enums::AttemptStatus::Charged,
+                // ACH/ECP responses carry no transaction type — treat as charged on success
+                None => common_enums::AttemptStatus::Charged,
+            },
+            P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
+            P::Fail => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Bluesnap<T>
 {
 }
 
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bluesnap<T>,
+    flow:            PSync,
+    source:          bluesnap::BluesnapProcessingStatus,
+    context:         Option<bluesnap::BluesnapTxnType>,
+    params:          [processing_status, txn_type],
+    success_status:  Success,
+    success_targets: [Authorized, Charged, Voided],
+    failure_status:  Fail,
+    failure_target:  Failure,
+    {
+        use bluesnap::BluesnapProcessingStatus as P;
+        use bluesnap::BluesnapTxnType as Tx;
+        match processing_status {
+            P::Success => match txn_type {
+                Some(Tx::AuthOnly) => common_enums::AttemptStatus::Authorized,
+                Some(Tx::AuthCapture) | Some(Tx::Capture) => common_enums::AttemptStatus::Charged,
+                Some(Tx::AuthReversal) => common_enums::AttemptStatus::Voided,
+                Some(Tx::Refund) => common_enums::AttemptStatus::Charged,
+                // ACH/ECP responses carry no transaction type — treat as charged on success
+                None => common_enums::AttemptStatus::Charged,
+            },
+            P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
+            P::Fail => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Bluesnap<T>
 {
 }
 
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bluesnap<T>,
+    flow:            Void,
+    source:          bluesnap::BluesnapProcessingStatus,
+    context:         Option<bluesnap::BluesnapTxnType>,
+    params:          [processing_status, txn_type],
+    success_status:  Success,
+    success_targets: [Voided],
+    failure_status:  Fail,
+    failure_target:  VoidFailed,
+    {
+        use bluesnap::BluesnapProcessingStatus as P;
+        use bluesnap::BluesnapTxnType as Tx;
+        match processing_status {
+            P::Success => match txn_type {
+                // A successful reversal voids the payment
+                Some(Tx::AuthReversal) => common_enums::AttemptStatus::Voided,
+                // Any other successful transaction type means the charge already
+                // settled and cannot be voided
+                Some(Tx::AuthOnly)
+                | Some(Tx::AuthCapture)
+                | Some(Tx::Capture)
+                | Some(Tx::Refund)
+                | None => common_enums::AttemptStatus::VoidFailed,
+            },
+            P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::VoidInitiated,
+            P::Fail => common_enums::AttemptStatus::VoidFailed,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Bluesnap<T>
 {
@@ -80,17 +167,83 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bluesnap<T>,
+    flow:            Capture,
+    source:          bluesnap::BluesnapProcessingStatus,
+    context:         Option<bluesnap::BluesnapTxnType>,
+    params:          [processing_status, txn_type],
+    success_status:  Success,
+    success_targets: [Charged],
+    failure_status:  Fail,
+    failure_target:  Failure,
+    {
+        use bluesnap::BluesnapProcessingStatus as P;
+        use bluesnap::BluesnapTxnType as Tx;
+        match processing_status {
+            P::Success => match txn_type {
+                Some(Tx::AuthOnly) => common_enums::AttemptStatus::Authorized,
+                Some(Tx::AuthCapture) | Some(Tx::Capture) => common_enums::AttemptStatus::Charged,
+                // A reversal response during Capture is a capture failure
+                Some(Tx::AuthReversal) => common_enums::AttemptStatus::CaptureFailed,
+                Some(Tx::Refund) => common_enums::AttemptStatus::Charged,
+                // ACH/ECP responses carry no transaction type — treat as charged on success
+                None => common_enums::AttemptStatus::Charged,
+            },
+            P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
+            P::Fail => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Bluesnap<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+// Mirrors `From<BluesnapRefundStatus> for RefundStatus`. The enum has no
+// failure variant — BlueSnap refunds are initiated (Pending) or done
+// (Success); rejections arrive as non-2xx into `build_error_response`.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bluesnap<T>,
+    flow:      Refund,
+    source:    bluesnap::BluesnapRefundStatus,
+    success:   Success => Success,
+    failure:   Pending => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Bluesnap<T>
 {
 }
 
+// Mirrors the RSync TryFrom in transformers.rs: the refund sync response is the
+// full transaction (`BluesnapRefundSyncResponse = BluesnapPSyncResponse`), so the
+// outcome is read from `processing_info.processing_status` — Success → Success,
+// Pending/PendingMerchantReview → Pending, Fail → Failure. The
+// `card_transaction_type` (unused by the refund mapping) rides along as the
+// mapping context, matching the payment-flow declarations above.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Bluesnap<T>,
+    flow:           RSync,
+    source:         bluesnap::BluesnapProcessingStatus,
+    context:        Option<bluesnap::BluesnapTxnType>,
+    params:         [status, ctx],
+    success_status: Success,
+    failure_status: Fail,
+    {
+        let _ = ctx;
+        use bluesnap::BluesnapProcessingStatus as P;
+        match status {
+            P::Success => common_enums::RefundStatus::Success,
+            P::Pending | P::PendingMerchantReview => common_enums::RefundStatus::Pending,
+            P::Fail => common_enums::RefundStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Bluesnap<T>
 {

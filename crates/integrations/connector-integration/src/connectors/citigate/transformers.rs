@@ -63,6 +63,21 @@ const RESPONSE_CODE_REDIRECT_REQUIRED: &str = "600";
 /// the response `TransTypeID`.
 const RESPONSE_CODE_UNDOCUMENTED: &str = "999";
 
+// Documented refund-relevant response codes (Citigate response-code reference).
+/// `Issuer or switch is inoperative` — transient; the sync should be retried.
+const RESPONSE_CODE_ISSUER_INOPERATIVE: &str = "91";
+/// `Acquirer system malfunction` — transient; retry.
+const RESPONSE_CODE_ACQUIRER_MALFUNCTION: &str = "96";
+/// `Timeout at acquirer` — transient; retry.
+const RESPONSE_CODE_ACQUIRER_TIMEOUT: &str = "105";
+/// `Error looking up original transaction info` — transient lookup; retry.
+const RESPONSE_CODE_LOOKUP_ERROR: &str = "559";
+/// `Acquirer system not reachable` — transient; retry.
+const RESPONSE_CODE_ACQUIRER_UNREACHABLE: &str = "606";
+// `628` "Too old to refund" (terminal) is intentionally NOT a named constant —
+// it falls through the refund wildcard `_ => Failure` like all other terminal
+// refund rejection codes, so naming it here would be dead code.
+
 /// Response `TransTypeID` values (Transaction Key 4).
 const RESP_TRANS_TYPE_SALE: &str = "1";
 const RESP_TRANS_TYPE_AUTHORISE: &str = "2";
@@ -70,6 +85,109 @@ const RESP_TRANS_TYPE_CAPTURE: &str = "3";
 const RESP_TRANS_TYPE_CANCEL: &str = "4";
 const RESP_TRANS_TYPE_REFUND: &str = "5";
 const RESP_TRANS_TYPE_PENDING: &str = "6";
+
+/// Typed `TransTypeID` echo carried in [`CitigateFlowCtx`], so flow-status
+/// mappings match variants instead of magic strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+pub enum CitigateTransTypeId {
+    Sale,
+    Authorise,
+    Capture,
+    Cancel,
+    Refund,
+    Pending,
+    /// Any other value observed on the echo (the default).
+    #[default]
+    Other,
+}
+
+impl CitigateTransTypeId {
+    /// Parse the raw `TransTypeID` string into the typed variant.
+    pub fn from_str(raw: Option<&str>) -> Self {
+        match raw {
+            Some(RESP_TRANS_TYPE_SALE) => Self::Sale,
+            Some(RESP_TRANS_TYPE_AUTHORISE) => Self::Authorise,
+            Some(RESP_TRANS_TYPE_CAPTURE) => Self::Capture,
+            Some(RESP_TRANS_TYPE_CANCEL) => Self::Cancel,
+            Some(RESP_TRANS_TYPE_REFUND) => Self::Refund,
+            Some(RESP_TRANS_TYPE_PENDING) => Self::Pending,
+            _ => Self::Other,
+        }
+    }
+}
+
+impl CitigateFlowCtx {
+    /// Build the flow context from the raw `TransTypeID` echo.
+    pub fn from_trans_type_id(raw: Option<&str>) -> Self {
+        Self {
+            trans_type_id: CitigateTransTypeId::from_str(raw),
+        }
+    }
+}
+
+/// Typed authorisation status for the Authorize flow-status mapping: the pair
+/// (`PaymentTypeID`, `ResponseCode`) collapsed to one enum. `NotReceived`
+/// covers every `ResponseCode` outside the approved / redirect / pending set —
+/// the gateway's bank-decline (`< 500`) and gateway-rejection (`> 500`) ranges,
+/// which no longer need to be distinguished once the outcome is "failed".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigateAuthStatus {
+    /// `ResponseCode 0` (approved). The response `TransTypeID` (ctx) splits it
+    /// into sale (→ charged) vs. pre-auth (→ authorized).
+    Approved,
+    /// `ResponseCode 600` — the gateway asked for a cardholder redirect (3DS).
+    RedirectRequired,
+    /// `ResponseCode 999` with `TransTypeID 6` — the transaction is still being
+    /// processed by the bank.
+    Pending,
+    /// Everything else — a bank decline or a gateway rejection.
+    NotReceived,
+}
+
+/// Typed snapshot of a Status Check (`TransTypeID 8`) response: the pair
+/// (original-leg type, `ResponseCode`) collapsed to one enum. The leg type is
+/// what the response `TransTypeID` identifies (a payment leg `1`/`2`/`3`/`5`
+/// vs. the cancel leg `4`); `ResponseCode` decides whether the operation on
+/// that leg was approved (`0`) or not (everything else — declines, gateway
+/// rejections, and `999` + `TransTypeID 99` "MerchantRef not found").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigateSyncStatus {
+    /// A payment-leg original (not a cancel) with `ResponseCode 0`.
+    PurchaseApproved,
+    /// A payment-leg original with any other `ResponseCode`.
+    PurchaseNotApproved,
+    /// A cancel-leg original (`TransTypeID 4`) with `ResponseCode 0` — the
+    /// authorisation is voided.
+    CancelApproved,
+    /// A cancel-leg original with any other `ResponseCode`.
+    CancelNotApproved,
+}
+
+/// Typed post-authorization outcome for Capture (`TransTypeID 3`) and Void
+/// (`TransTypeID 4`): both answer with the bare `ResponseCode` (the response
+/// `TransTypeID` just echoes the operation), so the approved/not-received pair
+/// is all there is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigatePostAuthStatus {
+    /// `ResponseCode 0` — the gateway approved the capture / cancel.
+    Approved,
+    /// Everything else — a bank decline or a gateway rejection (notably `561`,
+    /// "transaction already captured / no longer open").
+    NotReceived,
+}
+
+/// Context for the Citigate flow-status mappings: the response's `TransTypeID`
+/// echo, which [`CitigateAuthStatus`] alone does not carry. On an approved
+/// Authorize it distinguishes a sale (`1`) from a pre-auth (`2`); on a Status
+/// Check it identifies the original transaction leg (a refund leg `5` still
+/// means the payment is settled, a cancel leg `4` means it was voided).
+#[derive(Debug, Clone, Default)]
+pub struct CitigateFlowCtx {
+    pub trans_type_id: CitigateTransTypeId,
+}
 
 /// `TransactionID` value Citigate returns when no transaction was created.
 const NO_TRANSACTION_ID: &str = "0";
@@ -708,20 +826,30 @@ impl CitigatePaymentsResponse {
         }
     }
 
-    /// Refund status. `605` ("Bank does not support API refunds") is a failure of
-    /// the API call even though Citigate logs a manual refund out of band; nothing
-    /// in this flow can resolve that, so it is reported as a failure verbatim.
+    /// Refund status. The wildcard stays `_ => Failure` (fail-safe for any
+    /// undocumented code), but documented *transient* gateway/issuer errors are
+    /// reported as `Pending` so the refund is retried rather than terminally
+    /// failed. `605` ("Bank does not support API refunds") and `628` ("Too old
+    /// to refund") are terminal and correctly fall through to `Failure`.
     fn refund_status(&self) -> RefundStatus {
-        if self.is_approved() {
-            RefundStatus::Success
-        } else {
-            RefundStatus::Failure
+        match self.response_code() {
+            RESPONSE_CODE_APPROVED => RefundStatus::Success,
+            // Transient infrastructure issues — retry the refund.
+            RESPONSE_CODE_ISSUER_INOPERATIVE
+            | RESPONSE_CODE_ACQUIRER_MALFUNCTION
+            | RESPONSE_CODE_ACQUIRER_TIMEOUT
+            | RESPONSE_CODE_LOOKUP_ERROR
+            | RESPONSE_CODE_ACQUIRER_UNREACHABLE => RefundStatus::Pending,
+            // Everything else: bank declines, 628 too-old-to-refund, 605 bank-no-
+            // API-refunds, and any undocumented code → fail safe.
+            _ => RefundStatus::Failure,
         }
     }
 
     /// RSync status. The Status Check reports the `TransTypeID` of the transaction
     /// the `MerchantRef` resolved to, so only a refund leg (`5`) may be reported as
-    /// a settled refund.
+    /// a settled refund. The wildcard stays `_ => Failure` (fail-safe), while
+    /// documented transient infra codes are `Pending` (retriable).
     fn refund_sync_status(&self) -> RefundStatus {
         match (self.response_code(), self.trans_type_id()) {
             (RESPONSE_CODE_APPROVED, RESP_TRANS_TYPE_REFUND) => RefundStatus::Success,
@@ -729,7 +857,15 @@ impl CitigatePaymentsResponse {
             (RESPONSE_CODE_APPROVED, _) | (RESPONSE_CODE_UNDOCUMENTED, RESP_TRANS_TYPE_PENDING) => {
                 RefundStatus::Pending
             }
-            // `999` + `TransTypeID 99` is "MerchantRef not found".
+            // Documented transient infrastructure errors — retry the sync.
+            (RESPONSE_CODE_ISSUER_INOPERATIVE, _)
+            | (RESPONSE_CODE_ACQUIRER_MALFUNCTION, _)
+            | (RESPONSE_CODE_ACQUIRER_TIMEOUT, _)
+            | (RESPONSE_CODE_LOOKUP_ERROR, _)
+            | (RESPONSE_CODE_ACQUIRER_UNREACHABLE, _) => RefundStatus::Pending,
+            // Everything else (declines, 628 too-old-to-refund, 563 already-
+            // refunded, `999` + `TransTypeID 99` "MerchantRef not found",
+            // undocumented codes) → fail safe.
             _ => RefundStatus::Failure,
         }
     }

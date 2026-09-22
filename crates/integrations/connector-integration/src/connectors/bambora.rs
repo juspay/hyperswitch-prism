@@ -118,33 +118,146 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
 
+// Authorize: mirrors the TryFrom exactly. Approved → PA: Authorized, P/PAC: Charged,
+// R/VP/VR: Pending (connector misuse, not in macro arms — see note in the mapping body).
+// Declined → Failure (auto-capture) / AuthorizationFailed (manual), hence the ctx.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bambora<T>,
+    flow:            Authorize,
+    source:          transformers::BamboraPaymentStatus,
+    context:         transformers::BamboraAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  ApprovedPreAuth,
+    success_targets: [Authorized, Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::BamboraPaymentStatus;
+        match status {
+            BamboraPaymentStatus::ApprovedPreAuth => AttemptStatus::Authorized,
+            BamboraPaymentStatus::ApprovedPayment
+            | BamboraPaymentStatus::ApprovedPreAuthCompletion => AttemptStatus::Charged,
+            // TryFrom: unexpected types for Authorize — pend.
+            BamboraPaymentStatus::ApprovedReturn
+            | BamboraPaymentStatus::ApprovedVoidPayment
+            | BamboraPaymentStatus::ApprovedVoidRefund => AttemptStatus::Pending,
+            BamboraPaymentStatus::Declined => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Failure
+                } else {
+                    AttemptStatus::AuthorizationFailed
+                }
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Bambora<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSyncV2 for Bambora<T>
-{
+// Capture: mirrors the TryFrom exactly — it looks only at `approved` (any approved
+// completion → Charged, else Failure); `payment_type` is not consulted.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bambora<T>,
+    flow:      Capture,
+    source:    transformers::BamboraApproval,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    {}
 }
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Bambora<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Bambora<T>
 {
 }
 
+// Void: mirrors the TryFrom exactly — it looks only at `approved` (approved → Voided,
+// else VoidFailed); `payment_type` is not consulted.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bambora<T>,
+    flow:      Void,
+    source:    transformers::BamboraApproval,
+    success:   Approved => Voided,
+    failure:   Declined => VoidFailed,
+    {}
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Bambora<T>
+{
+}
+
+// PSync: mirrors the TryFrom exactly. Approved → PA: Authorized, P/PAC: Charged,
+// VP/VR: Voided, R: Pending. Declined → Failure (auto) / AuthorizationFailed (manual),
+// hence the ctx.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bambora<T>,
+    flow:            PSync,
+    source:          transformers::BamboraPaymentStatus,
+    context:         transformers::BamboraAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  ApprovedPreAuth,
+    success_targets: [Authorized, Charged, Voided],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::BamboraPaymentStatus;
+        match status {
+            BamboraPaymentStatus::ApprovedPreAuth => AttemptStatus::Authorized,
+            BamboraPaymentStatus::ApprovedPayment
+            | BamboraPaymentStatus::ApprovedPreAuthCompletion => AttemptStatus::Charged,
+            BamboraPaymentStatus::ApprovedVoidPayment
+            | BamboraPaymentStatus::ApprovedVoidRefund => AttemptStatus::Voided,
+            BamboraPaymentStatus::ApprovedReturn => AttemptStatus::Pending,
+            BamboraPaymentStatus::Declined => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Failure
+                } else {
+                    AttemptStatus::AuthorizationFailed
+                }
+            }
+        }
+    }
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for Bambora<T>
+{
+}
+
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
 
+// Refund: mirrors the TryFrom exactly — it looks only at `approved` (approved → Success,
+// else Failure).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bambora<T>,
+    flow:      Refund,
+    source:    transformers::BamboraApproval,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Bambora<T>
 {
 }
 
+// RSync: mirrors the TryFrom exactly — it looks only at `approved` (approved → Success,
+// else Failure).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bambora<T>,
+    flow:      RSync,
+    source:    transformers::BamboraApproval,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Bambora<T>
 {

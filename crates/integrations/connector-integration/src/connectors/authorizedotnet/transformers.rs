@@ -2624,6 +2624,33 @@ pub enum Operation {
     Refund,
 }
 
+/// Context bundle for the `impl_flow_status_mapping_ctx!` declarations on the
+/// Authorize/Capture/RepeatPayment flows. Mirrors the non-status inputs that
+/// `get_hs_status` consults: the result code on the top-level messages and the
+/// requested capture method (which picks Authorized vs Charged for Authorize).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AuthorizedotnetPaymentCtx {
+    pub is_result_code_ok: bool,
+    pub is_manual_capture: bool,
+}
+
+/// Outcome categories for a Void (`voidTransaction`) call. authorize.net returns
+/// an **empty** `transactionResponse` on a successful void — `get_hs_status`
+/// therefore maps `ResultCode::Ok` + no transaction response to `Voided`, and any
+/// real transaction response means the void was declined/errored/held.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AuthorizedotnetVoidOutcome {
+    /// ResultCode::Ok with no transaction_response — the canonical void success.
+    #[default]
+    ApprovedEmpty,
+    /// Transaction evaluated and declined or errored.
+    Declined,
+    /// ResultCode::Error at the top level.
+    Error,
+    /// Held for review or otherwise not yet decided.
+    HeldForReview,
+}
+
 fn get_hs_status(
     response: &AuthorizedotnetPaymentsResponse,
     _http_status_code: u16,
