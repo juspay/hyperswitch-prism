@@ -615,7 +615,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     field_name: "bank_name",
                     context: IntegrationErrorContext {
                         additional_context: Some("Invalid bank name".to_owned()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Provide a valid bank name for the Pix payout method data".to_owned(),
+                        ),
+                        doc_url: None,
                     },
                 })
             })
@@ -671,10 +674,40 @@ impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
     fn foreign_try_from(
         ted: grpc_api_types::payouts::TedBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let bank_name = ted.bank_name.and_then(|bn| {
-            grpc_api_types::payouts::BankNames::from_str_name(&bn)
-                .and_then(|b| common_enums::BankNames::try_from(b.as_str_name()).ok())
-        });
+        let bank_name = ted
+            .bank_name
+            .map(|bn| {
+                grpc_api_types::payouts::BankNames::from_str_name(&bn)
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "bank_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!("Unknown bank name: {bn}")),
+                                suggested_action: Some(
+                                    "Provide a valid bank name for the TED payout method data"
+                                        .to_owned(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })
+                    .and_then(|b| {
+                        common_enums::BankNames::try_from(b.as_str_name()).change_context(
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "bank_name",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Invalid bank name".to_owned()),
+                                    suggested_action: Some(
+                                        "Provide a valid bank name for the TED payout method data"
+                                            .to_owned(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            },
+                        )
+                    })
+            })
+            .transpose()?;
         Ok(payouts::payout_method_data::TedBankTransfer {
             bank_name,
             bank_code: ted.bank_code,

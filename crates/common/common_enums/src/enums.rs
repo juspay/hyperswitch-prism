@@ -1501,7 +1501,6 @@ pub enum PaymentMethodType {
     Paze,
     PhonePe,
     Pix,
-    Ted,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -1549,6 +1548,7 @@ pub enum PaymentMethodType {
     Paysera,
     Paymaya,
     QwikcilverWallet,
+    Ted,
 }
 
 impl PaymentMethodType {
