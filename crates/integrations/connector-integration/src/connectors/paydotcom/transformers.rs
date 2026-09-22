@@ -2369,6 +2369,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
 pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
+    #[serde(default)]
     pub amount: Option<ConnectorMinorUnit>,
     #[serde(
         default,
