@@ -671,23 +671,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
     fn foreign_try_from(
         ted: grpc_api_types::payouts::TedBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let bank_name = ted
-            .bank_name
-            .map(|bn| {
-                common_enums::BankNames::try_from(
-                    grpc_api_types::payouts::BankNames::from_str_name(&bn)
-                        .map(|b| b.as_str_name())
-                        .unwrap_or_default(),
-                )
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "bank_name",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid bank name".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })
-            .transpose()?;
+        let bank_name = ted.bank_name.and_then(|bn| {
+            grpc_api_types::payouts::BankNames::from_str_name(&bn)
+                .and_then(|b| common_enums::BankNames::try_from(b.as_str_name()).ok())
+        });
         Ok(payouts::payout_method_data::TedBankTransfer {
             bank_name,
             bank_code: ted.bank_code,

@@ -1,5 +1,8 @@
 use crate::types::ResponseRouterData;
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::{
+    errors::CustomResult,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
@@ -29,6 +32,54 @@ pub(super) const SANTANDER_PIX_DOCS_URL: &str =
 
 pub(super) const SANTANDER_TED_DOCS_URL: &str =
     "https://developer.santander.com.br/api/user-guide/ted-transfers";
+
+pub(super) fn santander_doc_url_from_method_type(
+    pmt: Option<common_enums::PaymentMethodType>,
+) -> CustomResult<&'static str, IntegrationError> {
+    match pmt {
+        Some(common_enums::PaymentMethodType::Ted) => Ok(SANTANDER_TED_DOCS_URL),
+        Some(common_enums::PaymentMethodType::Pix) => Ok(SANTANDER_PIX_DOCS_URL),
+        other => Err(IntegrationError::NotSupported {
+            message: "unsupported payout method type for Santander".to_string(),
+            connector: "santander",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "payout_method_type {other:?} is not supported; expected Pix or Ted"
+                )),
+                suggested_action: Some(
+                    "Use a PIX or TED bank transfer as the payout method".to_string(),
+                ),
+                doc_url: None,
+            },
+        }
+        .into()),
+    }
+}
+
+pub(super) fn santander_doc_url(
+    payout_method_data: &Option<PayoutMethodData>,
+) -> CustomResult<&'static str, IntegrationError> {
+    match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Ted(_))) => Ok(SANTANDER_TED_DOCS_URL),
+        Some(PayoutMethodData::Bank(Bank::Pix(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => Ok(SANTANDER_PIX_DOCS_URL),
+        other => Err(IntegrationError::NotSupported {
+            message: "unsupported payout method type for Santander".to_string(),
+            connector: "santander",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "payout_method_data {other:?} is not supported; expected Pix, PixKey, PixEmv, or Ted"
+                )),
+                suggested_action: Some(
+                    "Use a PIX or TED bank transfer as the payout method".to_string(),
+                ),
+                doc_url: None,
+            },
+        }
+        .into()),
+    }
+}
 
 // ===== AUTH TYPE =====
 
@@ -525,7 +576,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     context: IntegrationErrorContext {
                         additional_context: Some("unsupported payout method type".to_string()),
                         suggested_action: Some(
-                            "Use Pix (bank transfer, pix key, or pix EMV) as the payout method"
+                            "Use Pix (bank transfer, pix key, or pix EMV) or Ted as the payout method"
                                 .to_string(),
                         ),
                         doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
@@ -571,7 +622,25 @@ impl
             Some(PayoutMethodData::Bank(Bank::Ted(_))) => {
                 SantanderTedPayoutCreateRequest::try_from(req).map(|r| Self::Ted(Box::new(r)))
             }
-            _ => SantanderPixPayoutCreateRequest::try_from(req).map(|r| Self::Pix(Box::new(r))),
+            Some(PayoutMethodData::Bank(Bank::Pix(_)))
+            | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+            | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => {
+                SantanderPixPayoutCreateRequest::try_from(req).map(|r| Self::Pix(Box::new(r)))
+            }
+            other => Err(IntegrationError::NotSupported {
+                message: "unsupported payout method type for Santander".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "payout_method_data {other:?} is not supported; expected Pix, PixKey, PixEmv, or Ted"
+                    )),
+                    suggested_action: Some(
+                        "Use a PIX or TED bank transfer as the payout method".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                },
+            }
+            .into()),
         }
     }
 }
@@ -798,6 +867,7 @@ impl
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
+        let doc_url = santander_doc_url(&req.request.payout_method_data)?;
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
             .convert(req.request.amount, req.request.source_currency)
@@ -809,7 +879,7 @@ impl
                     suggested_action: Some(
                         "Verify the payout amount and currency are valid".to_string(),
                     ),
-                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                    doc_url: Some(doc_url.to_string()),
                 },
             })?;
 
@@ -819,7 +889,6 @@ impl
                 bank_account_number,
                 ..
             })) => {
-                let doc_url = SANTANDER_PIX_DOCS_URL;
                 let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "source_bank_data.bank_branch",
                     context: IntegrationErrorContext {
@@ -844,7 +913,6 @@ impl
                 bank_account_number,
                 ..
             })) => {
-                let doc_url = SANTANDER_TED_DOCS_URL;
                 let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "source_bank_data.bank_branch",
                     context: IntegrationErrorContext {
@@ -873,7 +941,7 @@ impl
                         suggested_action: Some(
                             "Use Pix or TED bank transfer as the source bank data type".to_string(),
                         ),
-                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                        doc_url: Some(doc_url.to_string()),
                     },
                 }
                 .into());
@@ -908,12 +976,16 @@ pub enum SantanderPayoutStatus {
     PendingConfirmation,
     Payed,
     Rejected,
+    #[serde(other)]
+    Unknown,
 }
 
 impl SantanderPayoutStatus {
     pub fn get_payout_status(&self) -> common_enums::PayoutStatus {
         match self {
-            Self::Authorized | Self::PendingConfirmation => common_enums::PayoutStatus::Pending,
+            Self::Authorized | Self::PendingConfirmation | Self::Unknown => {
+                common_enums::PayoutStatus::Pending
+            }
             Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
             Self::Payed => common_enums::PayoutStatus::Success,
             Self::Rejected => common_enums::PayoutStatus::Failure,

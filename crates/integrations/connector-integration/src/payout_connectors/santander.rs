@@ -160,22 +160,19 @@ impl ConnectorCommon for SantanderPayouts {
     }
 }
 
-fn santander_payout_endpoint(
-    payout_method_data: &Option<PayoutMethodData>,
+fn santander_endpoint_from_method_type(
+    pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<&'static str, IntegrationError> {
-    match payout_method_data {
-        Some(PayoutMethodData::Bank(Bank::Ted(_))) => Ok("transfer"),
-        Some(PayoutMethodData::Bank(Bank::Pix(_)))
-        | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
-        | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => Ok("pix_payments"),
-        _ => Err(IntegrationError::NotSupported {
+    match pmt {
+        Some(common_enums::PaymentMethodType::Ted) => Ok("transfer"),
+        Some(common_enums::PaymentMethodType::Pix) => Ok("pix_payments"),
+        other => Err(IntegrationError::NotSupported {
             message: "unsupported payout method type for Santander".to_string(),
             connector: "santander",
             context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Santander only supports PIX (bank transfer, key, EMV) and TED payouts"
-                        .to_string(),
-                ),
+                additional_context: Some(format!(
+                    "payout_method_type {other:?} is not supported; expected Pix or Ted"
+                )),
                 suggested_action: Some(
                     "Use a PIX or TED bank transfer as the payout method".to_string(),
                 ),
@@ -184,6 +181,21 @@ fn santander_payout_endpoint(
         }
         .into()),
     }
+}
+
+fn santander_payout_endpoint(
+    payout_method_data: &Option<PayoutMethodData>,
+) -> CustomResult<&'static str, IntegrationError> {
+    let pmt = match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Ted(_))) => Some(common_enums::PaymentMethodType::Ted),
+        Some(PayoutMethodData::Bank(Bank::Pix(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => {
+            Some(common_enums::PaymentMethodType::Pix)
+        }
+        _ => None,
+    };
+    santander_endpoint_from_method_type(pmt)
 }
 
 fn get_api_headers(access_token: &str, client_id: &str) -> Vec<(String, Maskable<String>)> {
@@ -584,10 +596,7 @@ impl
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = &auth.workspace_id;
         let endpoint = santander_payout_endpoint(&req.request.payout_method_data)?;
-        let doc_url = match endpoint.as_str() {
-            "transfer" => SANTANDER_TED_DOCS_URL,
-            _ => SANTANDER_PIX_DOCS_URL,
-        };
+        let doc_url = transformers::santander_doc_url(&req.request.payout_method_data)?;
         let connector_payout_id = req
             .request
             .connector_payout_id
@@ -749,6 +758,8 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = &auth.workspace_id;
+        let endpoint = santander_endpoint_from_method_type(req.request.payout_method_type)?;
+        let doc_url = transformers::santander_doc_url_from_method_type(req.request.payout_method_type)?;
         let connector_payout_id = req
             .request
             .connector_payout_id
@@ -762,29 +773,9 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                     "Ensure the payout create step succeeded and returned a connector_payout_id"
                         .to_string(),
                 ),
-                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         })?;
-        let endpoint = match req.request.payout_method_type {
-            Some(common_enums::PaymentMethodType::Ted) => "transfer",
-            Some(common_enums::PaymentMethodType::Pix) => "pix_payments",
-            other => {
-                return Err(IntegrationError::NotSupported {
-                    message: "unsupported payout method type for Santander".to_string(),
-                    connector: "santander",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(format!(
-                            "payout_method_type {other:?} is not supported; expected Pix or Ted"
-                        )),
-                        suggested_action: Some(
-                            "Use a PIX or TED bank transfer as the payout method".to_string(),
-                        ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                    },
-                }
-                .into())
-            }
-        };
         Ok(format!(
             "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/{endpoint}/{connector_payout_id}"
         ))
