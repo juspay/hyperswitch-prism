@@ -299,6 +299,8 @@ enum PaymentStatus {
   PENDING = 20;    // General pending state
   FAILURE = 21;    // General failure state
   UNRESOLVED = 19; // Status could not be determined
+  CONFLICTED = 58; // Connector's response failed the server-side integrity check
+                    // (returned data disagrees with what was requested)
 }
 
 // Status of a payment authorization
