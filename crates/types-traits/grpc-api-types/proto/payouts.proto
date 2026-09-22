@@ -157,7 +157,7 @@ message PixEmvBankTransferPayout {
 
 message TedBankTransferPayout {
   // Bank name
-  optional string bank_name = 1;
+  optional BankNames bank_name = 1;
   // The bank code (COMPE code) used to identify the bank
   optional string bank_code = 2;
   // An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
