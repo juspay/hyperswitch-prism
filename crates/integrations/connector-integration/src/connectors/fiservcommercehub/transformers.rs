@@ -21,7 +21,10 @@ use domain_types::{
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        ApplePayPaymentData, CardWithNoCvc, GpayTokenizationData, PaymentMethodData,
+        PaymentMethodDataTypes, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
@@ -43,6 +46,9 @@ const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/produ
 const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
 const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Details.mdx";
+const FISERV_DECRYPTED_WALLET_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Digital-Wallets/Decrypted-Wallet/Decrypted-Wallet.mdx";
+/// Fiserv requires `encryptionTarget: MANUAL` for all DecryptedWallet submissions.
+const DECRYPTED_WALLET_ENCRYPTION_TARGET: &str = "MANUAL";
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -104,6 +110,124 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
     Ok(EncryptedCardData {
         key_id,
         encryption_block,
+        encryption_block_fields,
+    })
+}
+
+// =============================================================================
+// DECRYPTED WALLET ENCRYPTION
+// =============================================================================
+
+/// Identifies which wallet provider produced the decrypted payment data sent to Fiserv.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservcommercehubWalletType {
+    ApplePay,
+    GooglePay,
+}
+
+/// Whether the account number in the encrypted block is a Device PAN (DPAN, wallet token)
+/// or a Funding PAN (FPAN, physical card number). Wallets always yield DPAN.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservcommercehubWalletAccountType {
+    Dpan,
+    Fpan,
+}
+
+/// Encryption envelope for a DecryptedWallet source.
+/// `encryptionTarget: MANUAL` is always required for pre-decrypted wallet submissions.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubDecryptedWalletEncryptionData {
+    pub key_id: String,
+    pub encryption_type: String,
+    pub encryption_block: Secret<String>,
+    pub encryption_block_fields: String,
+    pub encryption_target: String,
+}
+
+/// Source payload shape for `sourceType: DecryptedWallet` — used when the merchant
+/// decrypts the Apple Pay / Google Pay token themselves and re-encrypts it with MUPK.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubDecryptedWalletSource {
+    pub wallet_type: FiservcommercehubWalletType,
+    pub encryption_data: FiservcommercehubDecryptedWalletEncryptionData,
+    pub account_type: FiservcommercehubWalletAccountType,
+}
+
+/// Intermediate result from encrypting the decrypted-wallet payment block.
+struct DecryptedWalletEncryptedBlock {
+    key_id: String,
+    encrypted_block: Secret<String>,
+    /// Comma-separated field descriptors, e.g. `cavv:44,card.cardData:16,...`.
+    encryption_block_fields: String,
+}
+
+/// Build and RSA-OAEP-SHA256 encrypt the plaintext block for a DecryptedWallet charge.
+///
+/// Fiserv's block format is a bare concatenation of field values in the order listed by
+/// `encryptionBlockFields`. Each descriptor records the exact character count of that
+/// field so Fiserv can parse the block back apart.
+///
+/// Field order: cavv → xid (optional, omitted when absent) → card.cardData →
+///              card.expirationMonth → card.expirationYear
+fn encrypt_decrypted_wallet_data(
+    cavv: &Secret<String>,
+    xid: Option<&str>,
+    dpan: &Secret<String>,
+    exp_month: &str,
+    exp_year: &str,
+    key_id: String,
+    public_key_der: &[u8],
+) -> Result<DecryptedWalletEncryptedBlock, error_stack::Report<errors::IntegrationError>> {
+    let cavv_str = cavv.peek();
+    let dpan_str = dpan.peek();
+
+    let mut plain_block = String::new();
+    let mut field_descriptors: Vec<String> = Vec::new();
+
+    plain_block.push_str(cavv_str);
+    field_descriptors.push(format!("cavv:{}", cavv_str.len()));
+
+    if let Some(xid_str) = xid.filter(|s| !s.is_empty()) {
+        plain_block.push_str(xid_str);
+        field_descriptors.push(format!("xid:{}", xid_str.len()));
+    }
+
+    plain_block.push_str(dpan_str);
+    field_descriptors.push(format!("card.cardData:{}", dpan_str.len()));
+
+    plain_block.push_str(exp_month);
+    field_descriptors.push(format!("card.expirationMonth:{}", exp_month.len()));
+
+    plain_block.push_str(exp_year);
+    field_descriptors.push(format!("card.expirationYear:{}", exp_year.len()));
+
+    let encryption_block_fields = field_descriptors.join(",");
+
+    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext {
+                doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                suggested_action: Some(
+                    "Ensure the MUPK RSA public key is correctly configured for wallet encryption"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
+                        .to_string(),
+                ),
+            },
+        })
+        .attach_printable("RSA OAEP-SHA256 encryption of decrypted wallet data failed")?;
+
+    let encrypted_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
+
+    Ok(DecryptedWalletEncryptedBlock {
+        key_id,
+        encrypted_block,
         encryption_block_fields,
     })
 }
@@ -170,6 +294,230 @@ fn encrypt_card_data_no_cvc(
         encryption_block,
         encryption_block_fields,
     })
+}
+
+/// Builds a `DecryptedWallet` source payload from hyperswitch's in-memory wallet data.
+///
+/// Returns the source enum variant and the `FiservcommercehubWalletType` that was used,
+/// so callers can include it in structured trace logs without re-matching.
+/// Only the pre-decrypted variants (`ApplePayPaymentData::Decrypted` and
+/// `GpayTokenizationData::Decrypted`) are supported; encrypted blobs must be handled by
+/// the normal `ApplePay` / `GooglePay` source types instead.
+fn build_decrypted_wallet_source(
+    wallet_data: &WalletData,
+    key_id: String,
+    public_key_der: &[u8],
+) -> Result<
+    (FiservcommercehubSourceData, FiservcommercehubWalletType),
+    error_stack::Report<errors::IntegrationError>,
+> {
+    match wallet_data {
+        WalletData::ApplePay(apple_pay_data) => {
+            let decrypted_apple_pay = match &apple_pay_data.payment_data {
+                ApplePayPaymentData::Decrypted(decrypted_apple_pay) => decrypted_apple_pay,
+                ApplePayPaymentData::Encrypted(_) => {
+                    return Err(error_stack::report!(
+                        errors::IntegrationError::NotImplemented(
+                            "Fiserv CommerceHub requires the pre-decrypted Apple Pay flow \
+                             (ApplePayPaymentData::Decrypted); the encrypted token variant is \
+                             not supported — decrypt the Apple Pay payload with your own \
+                             merchant certificate before submitting"
+                                .to_string(),
+                            errors::IntegrationErrorContext {
+                                doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                                suggested_action: Some(
+                                    "Enable hyperswitch Apple Pay decryption in the connector \
+                                     settings so the token is decrypted before reaching Fiserv"
+                                        .to_string(),
+                                ),
+                                additional_context: Some(
+                                    "Received ApplePayPaymentData::Encrypted; expected Decrypted"
+                                        .to_string(),
+                                ),
+                            },
+                        )
+                    ))
+                }
+            };
+
+            // Sensitive: keep as Secret until the encryption function peeks them.
+            let payment_cryptogram = decrypted_apple_pay
+                .payment_data
+                .online_payment_cryptogram
+                .clone();
+            let device_primary_account_number = Secret::new(
+                decrypted_apple_pay
+                    .application_primary_account_number
+                    .peek()
+                    .to_string(),
+            );
+            // Fiserv expects a 2-digit month; zero-pad against bare-digit wallet payloads.
+            let expiration_month = format!(
+                "{:0>2}",
+                decrypted_apple_pay.application_expiration_month.peek()
+            );
+            let expiration_year = decrypted_apple_pay
+                .get_four_digit_expiry_year()
+                .peek()
+                .to_string();
+
+            // XID is intentionally omitted for Apple Pay.
+            // Fiserv's `xid` field is a 3DS authentication cryptogram, not Apple Pay's
+            // `transaction_identifier` (which is a hex session-scoped unique ID, not a
+            // cryptographic authentication value). Sending `transaction_identifier` as XID
+            // causes Fiserv to return error code 100: "source.xid | Invalid or Missing Field Data".
+            let encrypted_block = encrypt_decrypted_wallet_data(
+                &payment_cryptogram,
+                None,
+                &device_primary_account_number,
+                &expiration_month,
+                &expiration_year,
+                key_id,
+                public_key_der,
+            )?;
+
+            let source = FiservcommercehubSourceData::DecryptedWallet(
+                FiservcommercehubDecryptedWalletSource {
+                    wallet_type: FiservcommercehubWalletType::ApplePay,
+                    encryption_data: FiservcommercehubDecryptedWalletEncryptionData {
+                        key_id: encrypted_block.key_id,
+                        encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
+                        encryption_block: encrypted_block.encrypted_block,
+                        encryption_block_fields: encrypted_block.encryption_block_fields,
+                        encryption_target: DECRYPTED_WALLET_ENCRYPTION_TARGET.to_string(),
+                    },
+                    // Apple Pay always yields a DPAN (device-specific token), not the raw FPAN.
+                    account_type: FiservcommercehubWalletAccountType::Dpan,
+                },
+            );
+
+            Ok((source, FiservcommercehubWalletType::ApplePay))
+        }
+
+        WalletData::GooglePay(gpay_data) => {
+            let decrypted_gpay = match &gpay_data.tokenization_data {
+                GpayTokenizationData::Decrypted(decrypted_gpay) => decrypted_gpay,
+                GpayTokenizationData::Encrypted(_) => {
+                    return Err(error_stack::report!(
+                        errors::IntegrationError::NotImplemented(
+                            "Fiserv CommerceHub requires the pre-decrypted Google Pay flow \
+                             (GpayTokenizationData::Decrypted); the encrypted ECv2 token \
+                             variant is not supported — decrypt the Google Pay payload with \
+                             your own merchant certificate before submitting"
+                                .to_string(),
+                            errors::IntegrationErrorContext {
+                                doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                                suggested_action: Some(
+                                    "Enable hyperswitch Google Pay decryption in the connector \
+                                     settings so the token is decrypted before reaching Fiserv"
+                                        .to_string(),
+                                ),
+                                additional_context: Some(
+                                    "Received GpayTokenizationData::Encrypted; expected Decrypted"
+                                        .to_string(),
+                                ),
+                            },
+                        )
+                    ))
+                }
+            };
+
+            // Sensitive: the cryptogram (CAVV) is required; treat it as Secret until peeked
+            // inside the encryption function.
+            let payment_cryptogram = decrypted_gpay.cryptogram.clone().ok_or_else(|| {
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                    field_name: "google_pay.cryptogram",
+                    context: errors::IntegrationErrorContext {
+                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                        suggested_action: Some(
+                            "The Google Pay decrypted payload must contain a cryptogram (CAVV) \
+                                 for Fiserv CommerceHub's DecryptedWallet flow"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "GooglePayDecryptedData.cryptogram is None; \
+                                 Fiserv requires cavv in the encrypted block"
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?;
+
+            let device_primary_account_number = Secret::new(
+                decrypted_gpay
+                    .application_primary_account_number
+                    .peek()
+                    .to_string(),
+            );
+            let expiration_month = format!("{:0>2}", decrypted_gpay.card_exp_month.peek());
+            let expiration_year = decrypted_gpay
+                .get_four_digit_expiry_year()
+                .change_context(errors::IntegrationError::InvalidDataFormat {
+                    field_name: "google_pay.card_exp_year",
+                    context: errors::IntegrationErrorContext {
+                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                        suggested_action: Some(
+                            "Expiry year from Google Pay decrypted data must be 2 or 4 digits"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "Failed to expand Google Pay card_exp_year to 4-digit format"
+                                .to_string(),
+                        ),
+                    },
+                })?
+                .peek()
+                .to_string();
+
+            // Google Pay decrypted data has no separate transaction identifier (XID).
+            let encrypted_block = encrypt_decrypted_wallet_data(
+                &payment_cryptogram,
+                None,
+                &device_primary_account_number,
+                &expiration_month,
+                &expiration_year,
+                key_id,
+                public_key_der,
+            )?;
+
+            let source = FiservcommercehubSourceData::DecryptedWallet(
+                FiservcommercehubDecryptedWalletSource {
+                    wallet_type: FiservcommercehubWalletType::GooglePay,
+                    encryption_data: FiservcommercehubDecryptedWalletEncryptionData {
+                        key_id: encrypted_block.key_id,
+                        encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
+                        encryption_block: encrypted_block.encrypted_block,
+                        encryption_block_fields: encrypted_block.encryption_block_fields,
+                        encryption_target: DECRYPTED_WALLET_ENCRYPTION_TARGET.to_string(),
+                    },
+                    // Google Pay provides a DPAN (network token), not the raw FPAN.
+                    account_type: FiservcommercehubWalletAccountType::Dpan,
+                },
+            );
+
+            Ok((source, FiservcommercehubWalletType::GooglePay))
+        }
+
+        unsupported_wallet => Err(error_stack::report!(
+            errors::IntegrationError::NotImplemented(
+                format!(
+                    "Fiserv CommerceHub DecryptedWallet flow does not support the \
+                     wallet variant '{:?}'; only ApplePay (decrypted) and GooglePay \
+                     (decrypted) are supported",
+                    std::mem::discriminant(unsupported_wallet)
+                ),
+                errors::IntegrationErrorContext {
+                    doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                    suggested_action: Some(
+                        "Use a supported wallet type (ApplePay or GooglePay) with \
+                         pre-decrypted payment data"
+                            .to_string(),
+                    ),
+                    additional_context: None,
+                },
+            )
+        )),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -366,6 +714,7 @@ pub struct FiservcommercehubPaymentTokenSource {
 pub enum FiservcommercehubSourceData {
     PaymentCard(FiservcommercehubPaymentCardSource),
     PaymentToken(FiservcommercehubPaymentTokenSource),
+    DecryptedWallet(FiservcommercehubDecryptedWalletSource),
 }
 
 #[derive(Debug, Serialize)]
@@ -741,10 +1090,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     stored_credentials,
                 )
             }
+            PaymentMethodData::Wallet(wallet_data) => {
+                let (source, wallet_type) =
+                    build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?;
+
+                let stored_credentials =
+                    if router_data.request.is_customer_initiated_mandate_payment() {
+                        Some(FiservcommercehubStoredCredentials::new_cit())
+                    } else {
+                        None
+                    };
+
+                tracing::debug!(
+                    wallet_type = ?wallet_type,
+                    "fiservcommercehub: building DecryptedWallet authorize request"
+                );
+
+                (source, stored_credentials)
+            }
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
-                        "This payment method is not implemented".to_string(),
+                        "This payment method is not implemented for Fiserv CommerceHub; \
+                         supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
+                            .to_string(),
                         Default::default()
                     )
                 ))
