@@ -5015,9 +5015,6 @@ impl<
         Ok(Self {
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             payment_method_data,
-            amount: Some(
-                common_utils::types::MinorUnit::new(amount.minor_amount).get_amount_as_i64(),
-            ),
             confirm: true,
             billing_descriptor,
             customer_acceptance: customer_acceptance
@@ -11394,10 +11391,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             connector_refund_id: None, // refund_id field is used as refund_id, not connector_refund_id
             customer_id: value.customer_id.clone(),
             currency: common_enums::Currency::foreign_try_from(refund_amount.currency())?,
-            payment_amount: value.payment_amount,
             reason: value.reason.clone(),
             webhook_url: value.webhook_url,
-            refund_amount: refund_amount.minor_amount,
             connector_feature_data: value
                 .connector_feature_data
                 .clone()
@@ -11882,7 +11877,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(connector_types::SplitSettlement::foreign_try_from)
                 .transpose()?
                 .map(Box::new),
-            amount_to_capture: amount.amount().get_amount_as_i64(),
             minor_amount_to_capture: amount.amount(),
             currency: amount.currency(),
             connector_transaction_id,
@@ -12684,7 +12678,6 @@ impl<
         Ok(Self {
             currency: amount.currency(),
             payment_method_data,
-            amount: Some(amount.amount().get_amount_as_i64()),
             confirm: true,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
                 customer_acceptance.clone(),
@@ -15975,7 +15968,6 @@ impl<
                 .transpose()?
                 .map(Box::new),
             mandate_reference: mandate_ref,
-            amount: amount.amount().get_amount_as_i64(),
             minor_amount: amount.amount(),
             currency: amount.currency(),
             merchant_order_id,

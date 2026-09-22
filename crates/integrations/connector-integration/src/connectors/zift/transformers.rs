@@ -1083,7 +1083,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.amount.unwrap_or(0) > 0 {
+        if item.router_data.request.minor_amount.unwrap_or_default()
+            > common_utils::types::MinorUnit::default()
+        {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "Zift".to_string(),
