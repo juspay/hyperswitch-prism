@@ -25,6 +25,11 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_request_types::{
+        AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentSynIntegrityObject,
+        PaymentVoidIntegrityObject, PaymentVoidPostCaptureIntegrityObject, RefundIntegrityObject,
+        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SetupMandateIntegrityObject,
+    },
     utils::split_full_name as split_domain_full_name,
 };
 use error_stack::{Report, ResultExt};
@@ -36,6 +41,7 @@ use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRou
 use crate::types::ResponseRouterData;
 
 const DEFAULT_CANCELLATION_REASON: &str = "POST_AUTH_USER_DECLINE";
+const PARTIAL_TRANSACTION_AMOUNT_PROCESSED: &str = "A0002";
 
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "UPPERCASE")]
@@ -880,6 +886,8 @@ pub struct TsysTransitCaptureResponse {
     pub transaction_id: Option<String>,
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
+    #[serde(rename = "transactionAmount", default)]
+    pub transaction_amount: Option<StringMajorUnit>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "ReturnResponse")]
@@ -892,6 +900,8 @@ pub struct TsysTransitReturnResponse {
     pub transaction_id: Option<String>,
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
+    #[serde(rename = "returnedAmount", default)]
+    pub returned_amount: Option<String>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "VoidResponse")]
@@ -953,6 +963,8 @@ pub struct TsysTransitTransactionDetails {
     pub transaction_i_d: String,
     pub transaction_type: String,
     pub transaction_status: Option<TsysTransitTransactionStatus>,
+    pub transaction_amount: Option<String>,
+    pub currency_code: Option<common_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -2456,12 +2468,12 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
         // (no capture yet; the capture flow will move the approved amount).
         (
             Some(TsysTransitStatus::Pass),
-            Some("A0002"),
+            Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED),
             TsysTransitAuthorizeResponse::SaleResponse(_),
         ) => AttemptStatus::PartialCharged,
         (
             Some(TsysTransitStatus::Pass),
-            Some("A0002"),
+            Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED),
             TsysTransitAuthorizeResponse::AuthResponse(_),
         ) => AttemptStatus::PartiallyAuthorized,
         (Some(TsysTransitStatus::Fail), _, _) => AttemptStatus::Failure,
@@ -2470,6 +2482,75 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
         // rather than Failure. Until then we conservatively fail.
         _ => AttemptStatus::Failure,
     }
+}
+
+/// TSYS only echoes a settled amount (<processedAmount> on Authorize/
+/// RepeatPayment, <transactionAmount> on Capture) when the transaction
+/// actually captured: a Sale (Charged) or a partial approval
+/// (PartialCharged). For an auth-only (Authorized) manual-capture flow
+/// nothing is captured yet — populating it there made HS record
+/// amount_received == amount at authorization, pushing later voids/captures
+/// into a wrong partially-captured state. Returns `Ok(None)` when the
+/// transaction hasn't settled or the connector omitted the amount, and
+/// surfaces a genuine parse failure instead of silently dropping it.
+fn derive_amount_captured(
+    status: AttemptStatus,
+    amount: Option<&StringMajorUnit>,
+    currency: common_enums::Currency,
+    http_status_code: u16,
+) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
+    let is_settled = matches!(
+        status,
+        AttemptStatus::Charged | AttemptStatus::PartialCharged
+    );
+    if !is_settled {
+        return Ok(None);
+    }
+
+    amount
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert_back(amount.clone(), currency)
+                .change_context(ConnectorError::ResponseDeserializationFailed {
+                    context: ResponseTransformationErrorContext {
+                        additional_context: Some(format!(
+                            "tsysTransit: failed to parse captured amount: {}",
+                            amount.get_amount_as_string()
+                        )),
+                        http_status_code: Some(http_status_code),
+                    },
+                })
+        })
+        .transpose()
+}
+
+fn derive_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<&StringMajorUnit>,
+    currency: common_enums::Currency,
+    http_status_code: u16,
+) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
+    let is_authorized = matches!(
+        status,
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
+    );
+    if !is_authorized {
+        return Ok(None);
+    }
+
+    amount
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert_back(amount.clone(), currency)
+                .change_context(ConnectorError::ResponseDeserializationFailed {
+                    context: ResponseTransformationErrorContext {
+                        additional_context: Some(format!(
+                            "tsysTransit: failed to parse capturable amount: {}",
+                            amount.get_amount_as_string()
+                        )),
+                        http_status_code: Some(http_status_code),
+                    },
+                })
+        })
+        .transpose()
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -2524,28 +2605,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        // <processedAmount> reflects settled funds, so amount_captured must be
-        // populated ONLY when the transaction actually captured: a Sale (Charged)
-        // or a partial approval (PartialCharged). For an auth-only (Authorized)
-        // manual-capture flow nothing is captured yet — populating it there made
-        // HS record amount_received == amount at authorization, pushing later
-        // voids/captures into a wrong partially-captured state.
-        let is_settled = matches!(
+        let minor_amount_captured = derive_amount_captured(
             status,
-            AttemptStatus::Charged | AttemptStatus::PartialCharged
-        );
-        let minor_amount_captured = is_settled
-            .then(|| {
-                body.processed_amount.as_ref().and_then(|amount| {
-                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
-                        amount.clone(),
-                        router_data.request.currency,
-                    )
-                    .ok()
-                })
-            })
-            .flatten();
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        let minor_amount_capturable = derive_amount_capturable(
+            status,
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
@@ -2571,9 +2643,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status,
                 amount_captured,
                 minor_amount_captured,
+                minor_amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
+            // TSYS never echoes currency and only echoes an amount
+            // (<processedAmount>) for a settled Sale/partial-approval; for an
+            // auth-only response we fall back to the request's own amount, same
+            // rationale as flywire: catches prism/UCS-side tampering between
+            // request build and response handling, not connector-side drift.
+            request: PaymentsAuthorizeData {
+                integrity_object: Some(AuthoriseIntegrityObject {
+                    amount: minor_amount_captured
+                        .or(minor_amount_capturable)
+                        .unwrap_or(router_data.request.amount),
+                    currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -2608,36 +2695,92 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl From<&TsysTransitTransactionDetails> for AttemptStatus {
-    fn from(item: &TsysTransitTransactionDetails) -> Self {
-        let transaction_type = item.transaction_type.to_lowercase();
-        if transaction_type.contains("auth") && transaction_type.contains("void") {
-            match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Voided,
-                Some(TsysTransitTransactionStatus::Decline)
-                | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::VoidFailed,
-                None => Self::Unspecified,
-            }
-        } else if transaction_type.contains("sale") {
-            match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Charged,
-                Some(TsysTransitTransactionStatus::Decline)
-                | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::Failure,
-                None => Self::Unspecified,
-            }
-        } else if transaction_type.contains("auth") {
-            match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Authorized,
-                Some(TsysTransitTransactionStatus::Decline)
-                | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::AuthorizationFailed,
-                None => Self::Unspecified,
-            }
-        } else {
-            Self::Unspecified
+fn get_payment_status_from_psync_response(
+    item: &TsysTransitTransactionDetails,
+    response_code: Option<String>,
+) -> AttemptStatus {
+    let transaction_type = item.transaction_type.to_lowercase();
+    // Using a static string instead of an enum since `transaction_status` is returned as a plain string,
+    // e.g. "Credit Card Sale Void"
+    if transaction_type.contains("auth") && transaction_type.contains("void") {
+        match item.transaction_status {
+            Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
+            Some(TsysTransitTransactionStatus::Decline)
+            | Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::VoidFailed,
+            None => AttemptStatus::Unspecified,
         }
+    } else if transaction_type.contains("sale") {
+        match item.transaction_status {
+            Some(TsysTransitTransactionStatus::Approved) => {
+                if response_code
+                    .map(|response_code_data| {
+                        response_code_data.eq(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)
+                    })
+                    .unwrap_or(false)
+                {
+                    AttemptStatus::PartialCharged
+                } else {
+                    AttemptStatus::Charged
+                }
+            }
+            Some(TsysTransitTransactionStatus::Decline)
+            | Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Failure,
+            None => AttemptStatus::Unspecified,
+        }
+    } else if transaction_type.contains("auth") {
+        match item.transaction_status {
+            Some(TsysTransitTransactionStatus::Approved) => {
+                if response_code
+                    .map(|response_code_data| {
+                        response_code_data.eq(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)
+                    })
+                    .unwrap_or(false)
+                {
+                    AttemptStatus::PartiallyAuthorized
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            Some(TsysTransitTransactionStatus::Decline)
+            | Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::AuthorizationFailed,
+            None => AttemptStatus::Unspecified,
+        }
+    } else {
+        AttemptStatus::Unspecified
+    }
+}
+
+/// TSYS's transaction-amount strings (e.g.
+/// `<transactionDetails><transactionAmount>`, only present on PSync's
+/// SearchTransactionResponse) are ambiguously formatted: sometimes a
+/// major-unit decimal string (e.g. "12.34") and sometimes an integer already
+/// expressed in minor units (e.g. "1234"). A "." is the only reliable signal
+/// to tell the two apart.
+fn parse_ambiguous_transaction_amount(
+    amount: &str,
+    currency: common_enums::Currency,
+    http_status_code: u16,
+) -> Result<MinorUnit, Report<ConnectorError>> {
+    let context = || ResponseTransformationErrorContext {
+        additional_context: Some(format!("Failed to parse transaction amount: {amount}")),
+        http_status_code: Some(http_status_code),
+    };
+
+    if amount.contains('.') {
+        let major_unit: StringMajorUnit = serde_json::from_value(serde_json::Value::String(
+            amount.to_string(),
+        ))
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
+        super::TsysTransitAmountConvertor::convert_back(major_unit, currency)
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
+    } else {
+        amount
+            .parse::<i64>()
+            .map(MinorUnit::new)
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     }
 }
 
@@ -2656,7 +2799,10 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         if let Some(transaction_details) = response.transaction_details.as_ref() {
             // Incase of failure error message is not returned in sync call
             let connector_transaction_id = transaction_details.transaction_i_d.clone();
-            let status = AttemptStatus::from(transaction_details);
+            let status = get_payment_status_from_psync_response(
+                transaction_details,
+                response.response_code.clone(),
+            );
             let payments_response_data = PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
                 redirection_data: None,
@@ -2671,12 +2817,54 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 payment_account_reference: None,
             };
 
+            let transaction_amount = transaction_details
+                .transaction_amount
+                .as_deref()
+                .map(|amount| {
+                    parse_ambiguous_transaction_amount(
+                        amount,
+                        transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.currency),
+                        item.http_code,
+                    )
+                })
+                .transpose()?;
+
+            let minor_amount_captured = matches!(
+                status,
+                AttemptStatus::Charged | AttemptStatus::PartialCharged
+            )
+            .then(|| transaction_amount)
+            .flatten();
+            let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+            let minor_amount_capturable = matches!(
+                status,
+                AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
+            )
+            .then(|| transaction_amount)
+            .flatten();
+
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    amount_captured,
+                    minor_amount_captured,
+                    minor_amount_capturable,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Ok(payments_response_data),
+                request: PaymentsSyncData {
+                    integrity_object: Some(PaymentSynIntegrityObject {
+                        amount: minor_amount_captured
+                            .or(minor_amount_capturable)
+                            .unwrap_or(router_data.request.amount),
+                        currency: transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.currency),
+                    }),
+                    ..router_data.request.clone()
+                },
                 ..router_data.clone()
             })
         } else {
@@ -2762,7 +2950,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Charged,
-        (Some(TsysTransitStatus::Pass), Some("A0002")) => AttemptStatus::PartialCharged,
+        (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => {
+            AttemptStatus::PartialCharged
+        }
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::CaptureFailed,
         _ => AttemptStatus::CaptureFailed,
     }
@@ -2825,6 +3015,14 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                 })?,
         };
 
+        let minor_amount_captured = derive_amount_captured(
+            status,
+            response.transaction_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
+        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
             redirection_data: None,
@@ -2842,9 +3040,22 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured,
+                minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
+            // TSYS echoes <transactionAmount> only for a settled Capture; fall
+            // back to the request's own amount_to_capture otherwise, same
+            // rationale as Authorize above.
+            request: PaymentsCaptureData {
+                integrity_object: Some(CaptureIntegrityObject {
+                    amount_to_capture: minor_amount_captured
+                        .unwrap_or(router_data.request.minor_amount_to_capture),
+                    currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -2899,7 +3110,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
-        (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002" | "A0014")) => RefundStatus::Success,
+        (
+            Some(TsysTransitStatus::Pass),
+            Some("A0000" | PARTIAL_TRANSACTION_AMOUNT_PROCESSED | "A0014"),
+        ) => RefundStatus::Success,
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
         _ => RefundStatus::Failure,
     }
@@ -2963,16 +3177,38 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             acquirer_reference_number: None,
         };
 
+        let refund_amount = response
+            .returned_amount
+            .as_ref()
+            .map(|amount| {
+                parse_ambiguous_transaction_amount(
+                    amount,
+                    router_data.request.currency,
+                    item.http_code,
+                )
+            })
+            .transpose()?;
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(refunds_response_data),
+            // TSYS's ReturnResponse carries no amount, so the integrity object
+            // echoes the request's own refund amount/currency.
+            request: RefundsData {
+                integrity_object: Some(RefundIntegrityObject {
+                    refund_amount: refund_amount.unwrap_or(router_data.request.minor_refund_amount),
+                    currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TsysTransitRouterData<
@@ -3071,6 +3307,23 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                         status_code: item.http_code,
                         acquirer_reference_number: None,
                     }),
+                    // The returned transaction id is genuinely comparable to the
+                    // request's connector_refund_id only when the inquiry was
+                    // actually keyed by refund id (see
+                    // TsysTransitTransactionInquiryRequest::try_from above);
+                    // when it fell back to connector_transaction_id (refund id
+                    // empty), echo the request's own (empty) value instead of
+                    // manufacturing a false-positive mismatch.
+                    request: RefundSyncData {
+                        integrity_object: Some(RefundSyncIntegrityObject {
+                            connector_transaction_id: router_data
+                                .request
+                                .connector_transaction_id
+                                .clone(),
+                            connector_refund_id: router_data.request.connector_refund_id.clone(),
+                        }),
+                        ..router_data.request.clone()
+                    },
                     ..router_data.clone()
                 })
             }
@@ -3090,6 +3343,16 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                         ..router_data.resource_common_data.clone()
                     },
                     response: Ok(refund_response),
+                    request: RefundSyncData {
+                        integrity_object: Some(RefundSyncIntegrityObject {
+                            connector_transaction_id: router_data
+                                .request
+                                .connector_transaction_id
+                                .clone(),
+                            connector_refund_id: router_data.request.connector_refund_id.clone(),
+                        }),
+                        ..router_data.request.clone()
+                    },
                     ..router_data.clone()
                 })
             }
@@ -3156,7 +3419,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn map_void_post_refund_status(response: &TsysTransitVoidPostRefundResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
-        (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002")) => RefundStatus::Success,
+        (Some(TsysTransitStatus::Pass), Some("A0000" | PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => {
+            RefundStatus::Success
+        }
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
         _ => RefundStatus::Failure,
     }
@@ -3218,11 +3483,22 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(RefundsResponseData {
-                connector_refund_id,
+                connector_refund_id: connector_refund_id.clone(),
                 refund_status: void_post_refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+            // RefundVoidPostRefundData has no connector_transaction_id field,
+            // so its GetIntegrityObject impl always derives an empty one —
+            // mirror that here; connector_refund_id echoes the id TSYS
+            // actually returned (or the request's, if TSYS omitted it).
+            request: RefundVoidPostRefundData {
+                integrity_object: Some(RefundSyncIntegrityObject {
+                    connector_transaction_id: String::new(),
+                    connector_refund_id,
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -3311,7 +3587,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn map_void_status(response: &TsysTransitVoidResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Voided,
-        (Some(TsysTransitStatus::Pass), Some("A0002")) => AttemptStatus::Voided,
+        (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => {
+            AttemptStatus::Voided
+        }
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::VoidFailed,
         _ => AttemptStatus::VoidFailed,
     }
@@ -3383,7 +3661,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
             connector_metadata: None,
             network_txn_id: None,
             network_txn_link_id: None,
-            connector_response_reference_id: Some(connector_txn_id),
+            connector_response_reference_id: Some(connector_txn_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
@@ -3396,6 +3674,15 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
+            // connector_txn_id is the id TSYS actually confirmed the void
+            // against (its own <transactionID>, falling back to the
+            // request's id only when TSYS omitted it).
+            request: PaymentVoidData {
+                integrity_object: Some(PaymentVoidIntegrityObject {
+                    connector_transaction_id: connector_txn_id,
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -3430,10 +3717,19 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
-                connector_reference_id,
+                connector_reference_id: connector_reference_id.clone(),
                 description,
                 status_code: item.http_code,
             }),
+            // connector_reference_id is TSYS's own <transactionID> when
+            // present, falling back to the request's id otherwise.
+            request: PaymentsCancelPostCaptureData {
+                integrity_object: Some(PaymentVoidPostCaptureIntegrityObject {
+                    connector_transaction_id: connector_reference_id
+                        .unwrap_or_else(|| router_data.request.connector_transaction_id.clone()),
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -3719,6 +4015,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
+            // TsysTransitCardAuthenticationResponse carries no amount, so the
+            // integrity object echoes the request's own amount/currency.
+            request: SetupMandateRequestData {
+                integrity_object: Some(SetupMandateIntegrityObject {
+                    amount: router_data.request.minor_amount,
+                    currency: router_data.request.currency,
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }
@@ -3930,6 +4235,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
+        let minor_amount_captured = derive_amount_captured(
+            status,
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
+        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+
+        let minor_amount_capturable = derive_amount_capturable(
+            status,
+            body.processed_amount.as_ref(),
+            router_data.request.currency,
+            item.http_code,
+        )?;
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
@@ -3945,12 +4265,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_account_reference: None,
         };
 
+        // Mirrors GetIntegrityObject<RepeatPaymentIntegrityObject>::get_request_integrity_object
+        // so the response side matches the shape check_integrity derives from the request.
+        let mandate_reference = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_ref) => mandate_ref
+                .get_connector_mandate_id()
+                .unwrap_or_default()
+                .to_string(),
+            MandateReferenceId::NetworkMandateId(network_mandate) => {
+                network_mandate.network_transaction_id.clone()
+            }
+            MandateReferenceId::NetworkTokenWithNTI(network_token) => {
+                network_token.network_transaction_id.clone()
+            }
+        };
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured,
+                minor_amount_captured,
+                minor_amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
+            // TSYS echoes <processedAmount> only for a settled Sale/partial
+            // approval; fall back to the request's own amount otherwise, same
+            // rationale as Authorize above.
+            request: RepeatPaymentData {
+                integrity_object: Some(RepeatPaymentIntegrityObject {
+                    amount: amount_captured.unwrap_or(router_data.request.amount),
+                    currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
+                    mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
+                }),
+                ..router_data.request.clone()
+            },
             ..router_data.clone()
         })
     }

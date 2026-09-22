@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.22.0
+
+### Bug Fixes
+
+- **connector:** [Gotyme] Serialize bank names in camelCase ([#2342](https://github.com/juspay/connector-service/pull/2342)) ([`7cb0f5d`](https://github.com/juspay/connector-service/commit/7cb0f5dba18f66cf79e8674c241595d9e1b361d3))
+- **deps:** Upgrade reqwest to 0.12 so the connection-closed retry fires ([#2336](https://github.com/juspay/connector-service/pull/2336)) ([`76c2fd3`](https://github.com/juspay/connector-service/commit/76c2fd3e5ac12b861f67e11636c0485ed0dd6a60))
+
+### Miscellaneous Tasks
+
+- **connector:** Add TwocTwopPaco VerifyRedirectResponse stub ([#2343](https://github.com/juspay/connector-service/pull/2343)) ([`1eb3769`](https://github.com/juspay/connector-service/commit/1eb376991fe78a673f4a56e7b392ca148cee7352))
+
+**Full Changelog:** [`2026.09.21.3...2026.09.22.0`](https://github.com/juspay/connector-service/compare/2026.09.21.3...2026.09.22.0)
+
+- - -
+
 ## 2026.09.21.3
 
 ### Bug Fixes
