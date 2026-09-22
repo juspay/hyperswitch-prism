@@ -15,7 +15,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
     },
-    errors::{self, IntegrationError},
+    errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -97,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _request: &RequestDetails,
         _secrets: Option<ConnectorSourceVerificationSecrets>,
-    ) -> CustomResult<bool, IntegrationError> {
+    ) -> CustomResult<bool, errors::IntegrationError> {
         Ok(false)
     }
 
@@ -105,7 +105,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _request: &RequestDetails,
         _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
-    ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
+    ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
         Ok(RedirectDetailsResponse {
             resource_id: None,
             status: None,
