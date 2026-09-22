@@ -365,7 +365,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 total: Some(
                     item.connector
                         .amount_converter
-                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .convert(
+                            router_data.request.minor_amount,
+                            router_data.request.currency,
+                        )
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -414,7 +417,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     total: item
                         .connector
                         .amount_converter
-                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .convert(
+                            router_data.request.minor_amount,
+                            router_data.request.currency,
+                        )
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,

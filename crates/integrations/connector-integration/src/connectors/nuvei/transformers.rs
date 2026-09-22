@@ -2691,10 +2691,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // For SetupMandate amount is optional; default to 0 if absent so that
         // Nuvei treats this as a zero-value auth verification for the mandate.
-        let minor_amount = router_data
-            .request
-            .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::default());
+        let minor_amount = router_data.request.minor_amount.unwrap_or_default();
         let currency = router_data.request.currency;
         let amount = item
             .connector

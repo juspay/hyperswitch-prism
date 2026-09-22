@@ -1,6 +1,9 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{pii::Email, types::{AmountConvertor, ConnectorMinorUnit}};
+use common_utils::{
+    pii::Email,
+    types::{AmountConvertor, ConnectorMinorUnit},
+};
 use domain_types::errors::ConnectorError;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},

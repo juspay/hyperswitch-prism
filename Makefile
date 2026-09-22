@@ -212,7 +212,7 @@ test-connector:
 	 [ -f .env.connector-tests ] && export $$(grep -v '^#' .env.connector-tests | xargs) 2>/dev/null || true; \
 	 cargo run -p integration-tests --bin test_ucs -- \
 	   --connector $(connector) \
-	   --endpoint localhost:8000 \
+	   --endpoint localhost:$(GRPC_PORT) \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE
@@ -220,12 +220,12 @@ test-connector:
 ## Run a specific scenario (non-interactive).
 ## Automatically starts the gRPC server before the run and stops it after.
 ##
-##   make test-scenario connector=stripe suite=authorize scenario=no3ds_auto_capture_credit_card
-##   make test-scenario connector=stripe suite=authorize scenario=no3ds_auto_capture_google_pay_encrypted
+##   make test-scenario connector=stripe suite=PaymentService/Authorize scenario=no3ds_auto_capture_credit_card
+##   make test-scenario connector=stripe suite=PaymentService/Authorize scenario=no3ds_auto_capture_google_pay_encrypted
 test-scenario:
 	@if [ -z "$(connector)" ] || [ -z "$(suite)" ] || [ -z "$(scenario)" ]; then \
 	  echo "Error: connector, suite, and scenario are all required."; \
-	  echo "Usage: make test-scenario connector=stripe suite=authorize scenario=no3ds_auto_capture_credit_card"; \
+	  echo "Usage: make test-scenario connector=stripe suite=PaymentService/Authorize scenario=no3ds_auto_capture_credit_card"; \
 	  exit 1; \
 	fi
 	@echo "▶ Running $(connector)/$(suite)/$(scenario) (interface=$(interface))…"
@@ -236,7 +236,7 @@ test-scenario:
 	   --connector $(connector) \
 	   --suite $(suite) \
 	   --scenario $(scenario) \
-	   --endpoint localhost:8000 \
+	   --endpoint localhost:$(GRPC_PORT) \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE
@@ -485,8 +485,8 @@ help:
 	@echo "  test-scenario connector=<name> suite=<suite> scenario=<scenario> [interface=grpc|sdk]"
 	@echo "    Run a single scenario, non-interactively."
 	@echo "    Starts + stops the gRPC server automatically."
-	@echo "    Example: make test-scenario connector=stripe suite=authorize scenario=no3ds_auto_capture_credit_card"
-	@echo "             make test-scenario connector=stripe suite=authorize scenario=no3ds_auto_capture_google_pay_encrypted"
+	@echo "    Example: make test-scenario connector=stripe suite=PaymentService/Authorize scenario=no3ds_auto_capture_credit_card"
+	@echo "             make test-scenario connector=stripe suite=PaymentService/Authorize scenario=no3ds_auto_capture_google_pay_encrypted"
 	@echo ""
 	@echo "  cargo ARGS=\"<cargo-args>\""
 	@echo "    Run cargo commands with .env.connector-tests auto-loaded (GPAY_HOSTED_URL, etc)."

@@ -913,6 +913,7 @@ fn get_wallet_details<
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)
         | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(

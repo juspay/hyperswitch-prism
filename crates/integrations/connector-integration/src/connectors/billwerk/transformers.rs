@@ -4,7 +4,7 @@ pub type RefundsResponseRouterData<F, T> =
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     pii::Email,
-    types::{ConnectorMinorUnit, MinorUnit},
+    types::ConnectorMinorUnit,
     AmountConvertor,
 };
 
@@ -314,7 +314,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.router_data.request.amount, item.router_data.request.currency)
+                .convert(
+                    item.router_data.request.amount,
+                    item.router_data.request.currency,
+                )
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -628,10 +631,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let amount = common_utils::types::MinorUnitForConnector
             .convert(
-                item.router_data
-                    .request
-                    .minor_amount
-                    .unwrap_or(MinorUnit::default()),
+                item.router_data.request.minor_amount.unwrap_or_default(),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -737,7 +737,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             amount: common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.minor_amount, router_data.request.currency)
+                .convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

@@ -341,6 +341,73 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     pub fn get_optional_cardholder_name(&self) -> Option<Secret<String>> {
         self.card_holder_name.clone()
     }
+
+    /// Expiry month as an integer, validated to the 1..=12 range.
+    ///
+    /// Unlike [`Self::get_expiry_month_as_i8`] this rejects an out-of-range month
+    /// rather than only a non-numeric one, for connectors whose API types the field
+    /// as a bounded integer.
+    pub fn get_expiry_month_as_u8(&self) -> Result<u8, Error> {
+        self.card_exp_month
+            .peek()
+            .trim()
+            .parse::<u8>()
+            .ok()
+            .filter(|month| (1..=12).contains(month))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_data.card.card_exp_month",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected an integer between 1 and 12".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })
+    }
+
+    /// Expiry year expanded to four digits and parsed, validated to 2000..=2099.
+    ///
+    /// Combines [`Self::get_expiry_year_4_digit`] with the parse and range check that
+    /// connectors typing the field as a four-digit integer would otherwise repeat.
+    pub fn get_expiry_year_4_digit_as_u16(&self) -> Result<u16, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .trim()
+            .parse::<u16>()
+            .ok()
+            .filter(|year| (2000..=2099).contains(year))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_data.card.card_exp_year",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected a four-digit year between 2000 and 2099".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })
+    }
+
+    /// The card security code, rejecting an absent or blank value.
+    ///
+    /// `card_cvc` is not optional in the type, so a caller that omits it arrives here
+    /// as an empty string. Connectors whose API declares the field required should use
+    /// this rather than forwarding a blank CVC and taking a processor-side decline.
+    pub fn get_card_cvc_required(&self) -> Result<Secret<String>, Error> {
+        if self.card_cvc.peek().trim().is_empty() {
+            Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_data.card.card_cvc",
+                    context: IntegrationErrorContext::default(),
+                }
+            ))
+        } else {
+            Ok(self.card_cvc.clone())
+        }
+    }
 }
 
 impl Card<DefaultPCIHolder> {
@@ -861,6 +928,7 @@ pub enum WalletData {
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
     PaymayaRedirect(PaymayaRedirection),
+    PayhereRedirect {},
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
@@ -1290,6 +1358,11 @@ pub struct ApplePayDecryptedData {
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+    /// Apple Pay merchant token identifier — present for merchant-provisioned
+    /// tokens (MPAN) only; stable per card x device x merchant
+    pub merchant_token_identifier: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1394,6 +1467,17 @@ impl ApplePayDecryptedData {
         let year = self.get_four_digit_expiry_year();
         let month = self.application_expiration_month.clone().expose();
         Secret::new(format!("{month}{separator}{}", year.peek()))
+    }
+
+    /// Get the device manufacturer identifier, erroring out when it is absent.
+    pub fn get_device_manufacturer_identifier(
+        &self,
+    ) -> error_stack::Result<Secret<String>, ValidationError> {
+        self.device_manufacturer_identifier.clone().ok_or_else(|| {
+            error_stack::report!(ValidationError::MissingRequiredField {
+                field_name: "device_manufacturer_identifier".to_string(),
+            })
+        })
     }
 }
 
