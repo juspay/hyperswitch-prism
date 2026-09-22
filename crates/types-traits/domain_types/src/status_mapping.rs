@@ -510,6 +510,7 @@ macro_rules! impl_refund_flow_status_mapping {
 
         impl<$($generic)*> $crate::flow_status::ConnectorRefundTerminalMapping<$flow> for $connector {
             type ConnectorStatus = $source;
+            type MappingContext = ();
 
             fn success_connector_status() -> $source {
                 <$source>::$success_variant
@@ -519,7 +520,10 @@ macro_rules! impl_refund_flow_status_mapping {
                 <$source>::$failure_variant
             }
 
-            fn map_refund_status(status: $source) -> common_enums::RefundStatus {
+            fn map_refund_status(
+                status: $source,
+                _ctx: (),
+            ) -> common_enums::RefundStatus {
                 match status {
                     <$source>::$success_variant => common_enums::RefundStatus::$success_target,
                     <$source>::$failure_variant => common_enums::RefundStatus::$failure_target,
@@ -527,6 +531,97 @@ macro_rules! impl_refund_flow_status_mapping {
                         <$source>::$variant => common_enums::RefundStatus::$target,
                     )*
                 }
+            }
+        }
+    };
+}
+
+/// Context-aware variant of `impl_refund_flow_status_mapping!`.
+///
+/// Parallel to `impl_flow_status_mapping_ctx!` for payment flows.  Use when the
+/// refund mapping depends on more than the connector status alone — or when the
+/// source enum has data-carrying variants (e.g. `Unknown(String)`) that the
+/// declarative `variant => target` body cannot express.  Pass `()` as the context
+/// when the match just needs a free-form body but no real context.
+#[macro_export]
+macro_rules! impl_refund_flow_status_mapping_ctx {
+    // ── with explicit generics ────────────────────────────────────────────
+    (
+        generics:        [ $($generic:tt)* ],
+        connector:       $connector:ty,
+        flow:            $flow:ty,
+        source:          $source:ty,
+        context:         $ctx:ty,
+
+        params:          [$status_name:ident, $ctx_name:ident],
+
+        success_status:  $success_variant:ident,
+        failure_status:  $failure_variant:ident,
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping_ctx!(
+            @emit
+            [$($generic)*],
+            $connector, $flow, $source, $ctx,
+            $status_name, $ctx_name,
+            $success_variant, $failure_variant,
+            $body
+        );
+    };
+
+    // ── without generics ─────────────────────────────────────────────────
+    (
+        connector:       $connector:ty,
+        flow:            $flow:ty,
+        source:          $source:ty,
+        context:         $ctx:ty,
+
+        params:          [$status_name:ident, $ctx_name:ident],
+
+        success_status:  $success_variant:ident,
+        failure_status:  $failure_variant:ident,
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping_ctx!(
+            @emit
+            [],
+            $connector, $flow, $source, $ctx,
+            $status_name, $ctx_name,
+            $success_variant, $failure_variant,
+            $body
+        );
+    };
+
+    // ── internal emitter ─────────────────────────────────────────────────
+    (
+        @emit
+        [$($generic:tt)*],
+        $connector:ty, $flow:ty, $source:ty, $ctx:ty,
+        $status_name:ident, $ctx_name:ident,
+        $success_variant:ident, $failure_variant:ident,
+        $body:block
+    ) => {
+        impl<$($generic)*> $crate::flow_status::ConnectorRefundTerminalMapping<$flow> for $connector {
+            type ConnectorStatus = $source;
+            type MappingContext = $ctx;
+
+            fn success_connector_status() -> $source {
+                <$source>::$success_variant
+            }
+
+            fn failure_connector_status() -> $source {
+                <$source>::$failure_variant
+            }
+
+            // $status_name and $ctx_name are captured identifiers from the call
+            // site, sharing hygiene context with $body — no hygiene mismatch.
+            fn map_refund_status(
+                $status_name: $source,
+                $ctx_name: $ctx,
+            ) -> common_enums::RefundStatus {
+                $body
             }
         }
     };

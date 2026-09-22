@@ -497,10 +497,18 @@ impl PayoutFlowStatusRules for connector_flow::PayoutEligibility {
 pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
     type ConnectorStatus;
 
+    /// Extra context for refund mappings that depend on more than the connector
+    /// status alone (e.g. a response-code / trans-type pair). Set to `()` for the
+    /// common context-free case.
+    type MappingContext;
+
     fn success_connector_status() -> Self::ConnectorStatus;
     fn failure_connector_status() -> Self::ConnectorStatus;
 
-    fn map_refund_status(status: Self::ConnectorStatus) -> RefundStatus;
+    fn map_refund_status(
+        status: Self::ConnectorStatus,
+        ctx: Self::MappingContext,
+    ) -> RefundStatus;
 }
 
 pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
