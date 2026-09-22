@@ -9,5 +9,11 @@ utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order
 strum = { version = "0.26", features = ["derive"] }
 thiserror = { workspace = true }
 
+[features]
+default = []
+# Déjà record/replay: adds serde derives on the error enums so a recorded connector
+# failure replays as the same typed error. Dependency-free (only gates derives).
+deja = []
+
 [lints]
 workspace = true

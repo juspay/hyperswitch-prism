@@ -142,13 +142,13 @@ macros::macro_connector_implementation!(
 ### 4. SourceVerification Implementation
 
 ```rust
+// SourceVerification is NON-GENERIC: exactly ONE impl per connector, never one per flow.
+// (`interfaces::verification::SourceVerification` takes no type parameters — a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.)
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+// If the connector already has one, do NOT add a second one for RepeatPayment.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::verification::SourceVerification<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData,
-        PaymentsResponseData,
-    > for ConnectorName<T>
+    interfaces::verification::SourceVerification for ConnectorName<T>
 {
 }
 ```
@@ -192,7 +192,7 @@ PaymentsAuthorizeResponse as RepeatPaymentResponse,
 ```rust
 fn get_headers(&self, req: &RouterDataV2<RepeatPayment, ...>) {
     let mut header = vec![(CONTENT_TYPE, self.common_get_content_type())];
-    let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+    let mut api_key = self.get_auth_header(&req.connector_config)?;
     header.append(&mut api_key);
 
     // Split payment handling for Stripe Connect
@@ -249,18 +249,19 @@ pub fn extract_mandate_id(
                 .get_connector_mandate_id()
                 .ok_or_else(|| error_stack::report!(
                     errors::IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id"
-                    , context: Default::default() }
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    }
                 ))
         }
         MandateReferenceId::NetworkMandateId(_) => {
             Err(error_stack::report!(errors::IntegrationError::NotImplemented(
-                "Network mandate ID not supported for repeat payments in aci".to_string(, Default::default()),
+                "Network mandate ID not supported for repeat payments in aci".to_string(), Default::default(),
             )))
         }
         MandateReferenceId::NetworkTokenWithNTI(_) => {
             Err(error_stack::report!(errors::IntegrationError::NotImplemented(
-                "Network token with NTI not supported for aci".to_string(, Default::default()),
+                "Network token with NTI not supported for aci".to_string(), Default::default(),
             )))
         }
     }
@@ -384,14 +385,13 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Step 4: Implement SourceVerification
+// Step 4: Implement SourceVerification (once per connector, non-generic)
+// SourceVerification is NON-GENERIC: exactly ONE impl per connector, never one per flow.
+// (`interfaces::verification::SourceVerification` takes no type parameters — a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.)
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::verification::SourceVerification<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData,
-        PaymentsResponseData,
-    > for MyConnector<T>
+    interfaces::verification::SourceVerification for MyConnector<T>
 {
 }
 ```
@@ -436,8 +436,9 @@ fn extract_mandate_token(mandate_ref: &MandateReferenceId) -> Result<String, err
                 .get_connector_mandate_id()
                 .ok_or_else(|| {
                     error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id"
-                    , context: Default::default() })
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    })
                 })
         }
         MandateReferenceId::NetworkMandateId(network_mandate_ref) => {
@@ -445,7 +446,7 @@ fn extract_mandate_token(mandate_ref: &MandateReferenceId) -> Result<String, err
         }
         MandateReferenceId::NetworkTokenWithNTI(_) => {
             Err(error_stack::report!(errors::IntegrationError::NotImplemented(
-                "Network token with NTI not supported".to_string(, Default::default()),
+                "Network token with NTI not supported".to_string(), Default::default(),
             )))
         }
     }
@@ -570,7 +571,7 @@ connectors/
 3. ConnectorCommon implementation
 4. macro_connector_implementation! for each flow
 5. Empty trait implementations (stubs)
-6. SourceVerification implementations
+6. `SourceVerification` / `BodyDecoding` implementations (one non-generic impl each, per connector)
 
 ### 2. Error Handling
 
@@ -578,11 +579,16 @@ connectors/
 
 ```rust
 MandateReferenceId::NetworkMandateId(_) => {
+    // `IntegrationError::NotImplemented` is a TUPLE variant with TWO fields:
+    // `NotImplemented(String, IntegrationErrorContext)` (domain_types/src/errors.rs:171).
+    // The helper `IntegrationError::not_implemented(msg, ctx)` (errors.rs:248) also takes the
+    // context explicitly — pass `IntegrationErrorContext::default()` when you have no guidance.
     Err(error_stack::report!(errors::IntegrationError::NotImplemented(
         format!(
             "Network mandate ID not supported for repeat payments in {}",
-            self.id(, Default::default())
-        )
+            self.id()
+        ),
+        Default::default(),
     )))
 }
 ```
@@ -657,7 +663,7 @@ impl<T> TryFrom<&RouterDataV2<RepeatPayment, ...>> for ConnectorRepeatPaymentReq
 
 **Step 5**: Implement macro_connector_implementation!
 
-**Step 6**: Add SourceVerification implementation
+**Step 6**: Add the connector's single non-generic `SourceVerification` implementation (skip if it already exists)
 
 **Step 7**: Test with different mandate types
 
@@ -674,8 +680,9 @@ impl<T> TryFrom<&RouterDataV2<RepeatPayment, ...>> for ConnectorRepeatPaymentReq
 connector_mandate_ref
     .get_connector_mandate_id()
     .ok_or_else(|| report!(errors::IntegrationError::MissingRequiredField {
-        field_name: "connector_mandate_id"
-    , context: Default::default() }))
+        field_name: "connector_mandate_id",
+        context: Default::default(),
+    }))
 ```
 
 ### Issue 2: Unsupported Mandate Type
@@ -686,7 +693,7 @@ connector_mandate_ref
 ```rust
 MandateReferenceId::NetworkMandateId(_) => {
     Err(report!(errors::IntegrationError::NotImplemented(
-        "Network mandate not supported".to_string(, Default::default())
+        "Network mandate not supported".to_string(), Default::default()
     )))
 }
 ```

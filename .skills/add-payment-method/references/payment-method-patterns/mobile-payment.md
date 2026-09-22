@@ -27,7 +27,8 @@ Most connectors return `NotImplemented`. No primary reference implementation exi
 // For unsupported connectors (most common):
 PaymentMethodData::MobilePayment(_) => {
     Err(IntegrationError::NotImplemented(
-        "Direct Carrier Billing is not supported by ConnectorName".to_string(, Default::default())
+        "Direct Carrier Billing is not supported by ConnectorName".to_string(),
+        Default::default(),
     ))?
 }
 
@@ -56,7 +57,9 @@ PaymentMethodData::MobilePayment(ref mobile_data) => {
 ```rust
 #[derive(Debug, Serialize)]
 pub struct MobilePaymentAuthorizeRequest {
-    pub amount: StringMinorUnit,          // or MinorUnit
+    pub amount: StringMinorUnit,          // whatever the vendor spec's wire format is:
+                                          // MinorUnit | StringMinorUnit | StringMajorUnit
+                                          // | FloatMajorUnit | StringTwoDecimalUnit
     pub currency: String,
     pub reference: String,
     pub msisdn: String,                   // E.164 phone number
@@ -70,16 +73,27 @@ pub struct MobilePaymentAuthorizeRequest {
 ## MSISDN Validation
 
 ```rust
-fn validate_msisdn(msisdn: &str) -> Result<(), IntegrationError> {
-    if !msisdn.starts_with('+') || !msisdn[1..].chars().all(|c| c.is_ascii_digit()) {
-        return Err(IntegrationError::InvalidRequestData {
-            message: format!("Invalid MSISDN format: {}", msisdn),
-        });
-    }
-    if msisdn.len() < 8 || msisdn.len() > 16 {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "MSISDN length must be 8-16 characters including +".to_string(),
-        });
+// `IntegrationError` has no `InvalidRequestData` variant -- that one belongs to
+// `ApiErrorResponse` and is not reachable from a connector transformer. The
+// request-side "this value is malformed" variant is `InvalidDataFormat`, whose
+// `field_name` is a `&'static str` and whose `context` carries the operator-facing
+// remediation string (see crates/types-traits/domain_types/src/errors.rs).
+fn validate_msisdn(msisdn: &str) -> Result<(), error_stack::Report<IntegrationError>> {
+    let valid_shape = msisdn.starts_with('+')
+        && msisdn[1..].chars().all(|c| c.is_ascii_digit())
+        && (8..=16).contains(&msisdn.len());
+    if !valid_shape {
+        Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Pass the MSISDN in E.164 form: '+' followed by 7-15 digits."
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: None,
+            },
+        })?
     }
     Ok(())
 }
@@ -103,16 +117,24 @@ impl From<ConnectorMobilePaymentStatus> for AttemptStatus {
 ## Response Pattern
 
 ```rust
-// DCB typically does not require redirect
+// DCB typically does not require redirect.
+// TransactionResponse is an enum struct-variant, so functional-update syntax is
+// unavailable: all 11 fields must appear or you get E0063.
 let payments_response_data = PaymentsResponseData::TransactionResponse {
     resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
     redirection_data: None,
-    mandate_reference: None,
     connector_metadata: Some(serde_json::json!({
         "phone_number": response.phone_number,
         "carrier": response.carrier_name.clone(),
     })),
-    ...
+    mandate_reference: None,
+    network_txn_id: None,
+    network_txn_link_id: None,
+    connector_response_reference_id: Some(response.transaction_id),
+    incremental_authorization_allowed: None,
+    splits: None,
+    status_code: item.http_code,
+    payment_account_reference: None,
 };
 ```
 

@@ -307,7 +307,10 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(req.request.amount, req.request.source_currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -554,7 +557,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(req.request.amount, req.request.source_currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

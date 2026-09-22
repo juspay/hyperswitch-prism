@@ -129,6 +129,8 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
 }
 
+macros::create_amount_converter_wrapper!(connector_name: Truelayer, amount_type: MinorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: Truelayer,
     generic_type: T,
@@ -167,7 +169,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: MinorUnit],
     member_functions: {
         fn normalize_path(self, path: &str) -> &str {
             path.trim_end_matches('/')

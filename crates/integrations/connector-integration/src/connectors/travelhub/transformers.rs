@@ -1,7 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector};
+use common_utils::{AmountConvertor, ConnectorMinorUnit, MinorUnitForConnector};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -284,11 +284,33 @@ pub struct TravelhubPaymentMethod {
     pub code: String,
 }
 
+/// TravelHub `payment.billingAddress`. Live preprod evidence (direct curl against
+/// Worldline preprod): authorizing without at least `billingAddress.country` is
+/// rejected as INVALID with error code BILLING_ADDRESS_COUNTRY_CODE_IS_REQUIRED.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubPayment<T: PaymentMethodDataTypes> {
     pub payment_method: TravelhubPaymentMethod,
     pub payment_card: TravelhubPaymentCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<TravelhubBillingAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -296,7 +318,7 @@ pub struct TravelhubPayment<T: PaymentMethodDataTypes> {
 pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub capture: bool,
     pub payment: TravelhubPayment<T>,
@@ -372,6 +394,7 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         let payment_method_data = &item.request.payment_method_data;
@@ -437,7 +460,14 @@ impl<T: PaymentMethodDataTypes>
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount,
+            amount: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -453,6 +483,18 @@ impl<T: PaymentMethodDataTypes>
                     request3ds,
                     authentication,
                 },
+                billing_address: item
+                    .resource_common_data
+                    .get_billing_address()
+                    .ok()
+                    .map(|_| TravelhubBillingAddress {
+                        number: None,
+                        street: item.resource_common_data.get_optional_billing_line1(),
+                        city: item.resource_common_data.get_optional_billing_city(),
+                        state: item.resource_common_data.get_optional_billing_state(),
+                        postal_code: item.resource_common_data.get_optional_billing_zip(),
+                        country: item.resource_common_data.get_optional_billing_country(),
+                    }),
             },
         })
     }
@@ -517,7 +559,7 @@ pub struct TravelhubPaymentsResponse {
     #[serde(rename = "transactionId", default)]
     pub transaction_id: Option<String>,
     #[serde(default)]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(default)]
     pub currency: Option<Currency>,
     #[serde(default)]
@@ -594,6 +636,15 @@ fn travelhub_result_code(result: &TravelhubResult) -> &'static str {
     }
 }
 
+/// True when TravelHub reports an HTTP-200 business failure. Drives the citigate-style
+/// early-return that converts such a response into `Err(ErrorResponse)`.
+fn travelhub_is_failure(result: &TravelhubResult) -> bool {
+    matches!(
+        result,
+        TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+    )
+}
+
 /// Builds the `Err(ErrorResponse)` for an HTTP-200 business failure (DECLINED / ERROR /
 /// INVALID), citigate-style: failures are surfaced as `Err` rather than as an
 /// Ok-with-Failure response, so the merchant receives an actual error payload instead of an
@@ -638,10 +689,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -725,7 +773,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
 pub struct TravelhubCaptureRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -737,6 +785,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
     fn try_from(
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         Ok(Self {
@@ -745,7 +794,14 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount_to_capture,
+            amount: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount_to_capture,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
         })
     }
@@ -767,10 +823,7 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             // CaptureFailed, not Failure: the capture leg failed, but the authorization is
             // still live at TravelHub — the merchant may retry the capture. citigate models
             // the same at citigate/transformers.rs:695.
@@ -870,10 +923,7 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             // VoidFailed, not Failure: the cancel was declined, but the payment remains
             // authorized and capturable. citigate models the same at
             // citigate/transformers.rs:706.
@@ -972,10 +1022,7 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -1081,7 +1128,7 @@ fn resolve_original_order_id(
 pub struct TravelhubRefundRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -1093,12 +1140,20 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
-            amount: item.request.minor_refund_amount,
+            amount: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_refund_amount,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
         })
     }
@@ -1120,10 +1175,7 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -1198,10 +1250,7 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
