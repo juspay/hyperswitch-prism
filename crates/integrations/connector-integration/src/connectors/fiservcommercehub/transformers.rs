@@ -742,6 +742,11 @@ pub struct FiservcommercehubTransactionDetailsReq {
     pub merchant_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_invoice_number: Option<String>,
+    /// Instructs Commerce Hub to create a TRANSARMOR token inline with this charge.
+    /// Required for CIT (Customer Initiated Transaction) mandate payments so that a
+    /// reusable token is returned in `paymentTokens` for subsequent MIT charges.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub create_token: Option<bool>,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -1133,6 +1138,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
 
+        // Request inline TRANSARMOR tokenization whenever this is a CIT mandate payment so
+        // that the TRANSARMOR token returned in `paymentTokens` can be stored as a mandate
+        // reference and used for subsequent MIT (RepeatPayment) charges.
+        let create_token = router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+            .then_some(true);
+
         let request = Self {
             amount: FiservcommercehubAuthorizeAmount {
                 currency: router_data.request.currency,
@@ -1151,6 +1164,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
                 merchant_invoice_number: connector_metadata.merchant_invoice_id,
+                create_token,
             },
             stored_credentials,
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
@@ -2079,6 +2093,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
                 merchant_invoice_number: connector_metadata.merchant_invoice_id,
+                create_token: None,
             },
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
@@ -2281,6 +2296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
                 merchant_invoice_number: connector_metadata.merchant_invoice_id,
+                create_token: None,
             },
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
                 origin,
