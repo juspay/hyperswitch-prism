@@ -1588,7 +1588,9 @@ impl ConnectorSpecificConfig {
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
-            Netcetera { base_url },
+            // The field list is ignored by the macro, which matches on `..`; only the
+            // variant name is used. Netcetera authenticates with mTLS, not an api_key.
+            Netcetera {},
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -2126,7 +2128,8 @@ impl ConnectorSpecificConfig {
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
-                Netcetera { base_url },
+                // Field list ignored by the macro; see `base_url_override`.
+                Netcetera {},
                 TwocTwopPaco {
                     access_token,
                     office_id,
