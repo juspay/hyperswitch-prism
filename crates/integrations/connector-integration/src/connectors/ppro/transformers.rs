@@ -1,5 +1,6 @@
 use common_enums;
 use common_utils::{consts, AmountConvertor};
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -165,7 +166,9 @@ where
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
                 .convert(router_data.request.amount, router_data.request.currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
@@ -520,8 +523,13 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -549,11 +557,7 @@ where
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let currency = item
-            .router_data
-            .request
-            .currency
-            .unwrap_or_default();
+        let currency = item.router_data.request.currency.unwrap_or_default();
         let amount = item
             .router_data
             .request
@@ -570,7 +574,9 @@ where
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
                 .convert(amount, currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -600,8 +606,13 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -902,7 +913,11 @@ where
                 status,
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
                 minor_amount_captured: captured_amount
-                    .and_then(|c| common_utils::MinorUnitForConnector.convert_back(c, resolved_currency.unwrap_or_default()).ok())
+                    .and_then(|c| {
+                        common_utils::MinorUnitForConnector
+                            .convert_back(c, resolved_currency.unwrap_or_default())
+                            .ok()
+                    })
                     .or(item.router_data.resource_common_data.minor_amount_captured),
                 ..item.router_data.resource_common_data
             },
@@ -1197,8 +1212,13 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
-                .convert(router_data.request.minor_amount.unwrap_or_default(), router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    router_data.request.minor_amount.unwrap_or_default(),
+                    router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let authentication_settings =
@@ -1591,8 +1611,13 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
-                .convert(router_data.request.minor_amount, router_data.request.currency)
-                .unwrap_or_default(),
+                .convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         };
 
         let initiator = if router_data.request.off_session.unwrap_or(true) {
