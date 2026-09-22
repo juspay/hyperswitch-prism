@@ -233,6 +233,7 @@ macro_rules! res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                &tracing::Span::current(),
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -441,6 +442,7 @@ macro_rules! payout_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                &tracing::Span::current(),
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -649,6 +651,7 @@ macro_rules! surcharge_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                &tracing::Span::current(),
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -833,6 +836,7 @@ macro_rules! frm_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                &tracing::Span::current(),
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))

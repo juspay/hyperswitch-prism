@@ -443,6 +443,57 @@ fn capture_connector_reply<E>(
     })
 }
 
+/// Like `common_utils::events::record_json_fields_on_span`, but writes into the
+/// storage of an explicit `span` instead of `tracing::Span::current()`.
+///
+/// `Span::in_scope` cannot be used to redirect the write: the registry's
+/// thread-local span stack flags a re-entered ancestor as a duplicate and
+/// `current()` skips duplicates, so the current span stays the child.
+/// Addressing the span by id through the registry is the only reliable way to
+/// reach a parent's storage from inside a child span.
+///
+/// Reserved-key filtering and the per-field info event happen **before** the
+/// span lock is taken, for the same deadlock reason as the original helper.
+fn record_json_fields_on_target_span(
+    span: &tracing::Span,
+    fields: Vec<(&'static str, serde_json::Value)>,
+) {
+    use tracing_subscriber::{registry::LookupSpan, Registry};
+
+    let fields: Vec<_> = fields
+        .into_iter()
+        .filter(|(key, value)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Span field `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                tracing::info!(%value, "{key}");
+                true
+            }
+        })
+        .collect();
+    if fields.is_empty() {
+        return;
+    }
+
+    span.with_subscriber(|(id, dispatch)| {
+        let Some(registry) = dispatch.downcast_ref::<Registry>() else {
+            return;
+        };
+        let Some(span_ref) = registry.span(id) else {
+            return;
+        };
+        let mut extensions = span_ref.extensions_mut();
+        if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
+            for (key, value) in fields {
+                storage.record_value(key, value);
+            }
+        }
+    });
+}
+
 /// Handles the connector response, processing both successful and error responses
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
@@ -469,6 +520,12 @@ pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     method: &str,
     url: String,
     event_params: Option<&EventProcessingParams<'_>>,
+    // The `execute_connector_processing_step` span that emits the outgoing
+    // golden log line. With the `deja` feature on, this function runs inside
+    // its own `ucs::handle_response` child span, and span storage only flows
+    // parent -> child. Golden-line fields (`res_code`, `response.*`) must
+    // therefore be written to this span explicitly, not to `Span::current()`.
+    golden_span: &tracing::Span,
 ) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
 where
     F: Clone + 'static,
@@ -483,9 +540,11 @@ where
             let response = match body {
                 Ok(body) => {
                     let status_code = body.status_code;
+                    // `status_code` stays on the current (déjà) span for the tape;
+                    // `res_code` is a golden-line field.
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
-                    tracing::Span::current().record("res_code", u64::from(status_code));
+                    golden_span.record("res_code", u64::from(status_code));
 
                     if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
@@ -520,7 +579,7 @@ where
                         }
 
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_target_span(golden_span, json_fields);
                         }
                     }
 
@@ -616,19 +675,18 @@ where
                             json_fields.push(("response.headers", headers_json));
                         }
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_target_span(golden_span, json_fields);
                         }
                     }
-                    tracing::Span::current().record(
+                    golden_span.record(
                         "response.error_message",
                         tracing::field::display(&error_response.message),
                     );
-                    tracing::Span::current().record(
+                    golden_span.record(
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
-                    tracing::Span::current()
-                        .record("res_code", u64::from(error_response.status_code));
+                    golden_span.record("res_code", u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -791,6 +849,9 @@ where
         + GetFlowStatus
         + SetIntegrityFailureStatus,
 {
+    // Handle to this function's own span (the outgoing golden log line). Captured
+    // before any déjà child span is entered so it can be handed down explicitly.
+    let golden_span = tracing::Span::current();
     let start = tokio::time::Instant::now();
     tracing::Span::current().record(
         "api_tag",
@@ -1157,6 +1218,7 @@ where
                             &method.to_string(),
                             url,
                             Some(&event_params),
+                            &golden_span,
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(transport_err) => Err(transport_err),
@@ -1278,6 +1340,7 @@ where
                             "PUBLISH",
                             topic,
                             Some(&event_params),
+                            &golden_span,
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(publish_err) => Err(publish_err),
