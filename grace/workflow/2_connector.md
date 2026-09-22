@@ -19,6 +19,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 | `{CONNECTOR}` | Connector name, exact casing | `Braintree` |
 | `{FLOWS}` | Comma list or JSON array of units: flow marker (`crates/types-traits/domain_types/src/connector_flow.rs`), flow group, `IncomingWebhook`, or `Marker/PaymentMethod`. A single `{FLOW}` is a one-element list | `Refund,RSync,3DS,Authorize/Wallet` |
 | `{HS_REPO_PATH}` | Hyperswitch checkout; empty → HS surfaces `E2E_SKIPPED` | `/home/dev/hyperswitch` |
+| `{CREDS}` | Optional credentials from the operator: a JSON object, `key value` / `key=value` lines, or a path to either. Merged into the creds file by `2.0_preflight.md` Phase 2, never echoed. Absent **and** no entry in the creds file → the run is **alpha** (mock, below) | `api_key 8068…` |
 | `{RUN_ID}` | Optional: resume `grace/runs/{RUN_ID}/` (see Resume) | `braintree-a1b2c3` |
 | `{MAX_RUN_HOURS}` | R9 time budget; default 12 | `12` |
 | `{MIN_FREE_GB}` | S0 disk threshold; empty = `2.0_preflight.md` default | `80` |
@@ -48,8 +49,8 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 ## RULES
 
 - R1 **Stamp before spawn**: write the `run.json` row `{running, attempt, started_at}` and a SPAWN line to `events.log` in the message *before* the Task call. After the agent returns, record `ended_at`, status and output.
-- R2 **Fan-out only for independent work**: several Task calls in one message only for the S1 wave (≤6 per message). Background agents only for: warm builds, test_env BASELINE, the test lane (2.6b→2.6c), HS router build.
-- R3 **The UCS working tree is sequential**: S1m, codegen units, AMENDs, `__finalize__`, `__promote__` and 2.8 run one at a time; test exec never overlaps a tree writer or a cargo build. Background agents write only the run dir or `hs-wt`.
+- R2 **Fan-out only for independent work**: several Task calls in one message only for the S1 wave (≤6 per message). Background agents only for: warm builds, test_env BASELINE, HS router build.
+- R3 **The UCS working tree is sequential**: S1m, codegen units, AMENDs, `__finalize__` and 2.8 run one at a time; test exec never overlaps a tree writer or a cargo build. Background agents write only the run dir or `hs-wt`.
 - R4 **No commits or pushes before S7** in either repo; no stash/reset/checkout -f/clean/restore.
 - R5 **Never poll or re-message a finished agent**. A completion notification is handled once; if the row is already `done`, make no tool call. No TaskOutput/SendMessage on done rows, and no progress checks on running agents.
 - R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
@@ -117,21 +118,21 @@ Tree-writing stages append `claimed.tsv`.
 `ended_at` as active):
 
 ```
-{schema: 1, run_id, connector, connector_lc, units[], inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
+{schema: 1, run_id, connector, connector_lc, units[], mode (null until S0 | live | alpha), inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
  min_free_gb_runtime, parallel_hs_build}, started_at, deadline_at, ended_at, status (null | SUCCESS | FAILED | SKIPPED), stopped (null | cause),
  workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref, caps{<key>: n},
  counters{nn, exec_round, rca_rounds, status_update, review_rounds, amend_links, amend_techspec, amend_plan, amend_hs,
-          amend_codegen{<unit>}, inner_input{<case_id>}, inner_request{<case_id>}, env_repairs, missing{<file>},
+          amend_codegen{<unit>}, e2e, env_repairs, missing{<file>},
           crash{<unit_fs>}},
- flags[] (TEST_ENV_FAILED | TEST_DESIGN_FAILED | TEST_REQUESTS_FAILED | SECRET_LEAK | TREE_MODIFIED), blocking_open[],
+ flags[] (TEST_ENV_FAILED | SECRET_LEAK | TREE_MODIFIED), blocking_open[],
  plan_order[{seq, unit, status}],
  rows[{id, status: pending|running|done|failed|skipped|blocked|invalidated, result, attempt, bg, started_at, ended_at,
        output, mode, brief, units[]}],
  bugs{<bug_id>: {origins[], briefs[], reappeared, escalated}}}
 ```
 
-Row ids: `S0`, `S1:links:<unit_fs|common>`, `S1:hs_scout`, `S1m:<k>`, `S2:<k>`, `BASELINE`, `S3:<k>`, `T:design:<k>`,
-`T:requests:<k>`, `S4:<NN>:<unit_fs>`, `S5:env:<N>:<k>`, `S5:exec:<N>`, `S5:rca:<N>`, `S5:probe:<bug_id>`,
+Row ids: `S0`, `S1:links:<unit_fs|common>`, `S1:hs_scout`, `S1m:<k>`, `S2:<k>`, `BASELINE`, `S3:<k>`,
+`S4:<NN>:<unit_fs>`, `S5:env:<N>:<k>`, `S5:exec:<N>`, `S5:rca:<N>`, `S5:e2e:<N>`,
 `S6:review:<FULL|INCREMENTAL>`, `S7`, `DISK:<tag>`, `S4:pending:<unit_fs>` (`<k>` = 1 + earlier rows with that
 prefix). A crash (no return block, or `DONE` without its OUTPUT file) re-spawns the same id, `attempt + 1`, only while
 `attempt ≤ caps.crash_respawn_per_stage`; over → row `failed`, `SKIP <id> reason=cap:crash_respawn_per_stage`, then
@@ -180,17 +181,17 @@ prev_origin() {  # bug_ids_csv → {"<bug_id>": "<last origin>"} for first reapp
     and (.value.escalated | not) and (.value.origins | length) > 0) | {(.key): .value.origins[-1]}] | add // {}' "$R/run.json"
   rj --arg ids "$1" 'reduce ($ids | split(",")[]) as $b (.; if .bugs[$b].reappeared == 1 and (.bugs[$b].origins | length) > 0
     then .bugs[$b].escalated = true else . end)'; }
-select_cases() {  # N bug_ids_csv changed_units_csv → test/select/r<N>.json = (R1 ∪ R2 ∪ R3 ∪ R4) − withdrawn units
-  jq -n --arg b "$2" --arg u "$3" --slurpfile c "$R/test/cases.json" --slurpfile g "$R/test/bugs.json" --slurpfile p "$R/plan/plan.json" '
-    ($b | split(",")) as $B | ($u | split(",")) as $U | $c[0].cases as $K
-    | ([$g[0].bugs[] | select(.bug_id | IN($B[])) | .cases[]] + [$K[] | select(any(.regression_for[]?; IN($B[]))) | .case_id]) as $r1
-    | [$K[] | select(.unit | IN($U[])) | .case_id] as $r2
-    | def deps($s): ([$K[] | select(any(.depends_on[]?; .case_id | IN($s[]))) | .case_id] + $s | unique);
-      ($r1 + $r2 | unique | until(deps(.) == .; deps(.))) as $r3
-    | [$K[] | select((.unit | IN($U[]) | not) and (.surface | IN("ucs_grpc", "static"))) | .case_id] as $r4
+select_checks() {  # N bug_ids_csv changed_units_csv → test/select/r<N>.json = (R1 ∪ R2) − withdrawn units
+  jq -n --arg b "$2" --arg u "$3" --slurpfile f "$R/test/final.json" --slurpfile g "$R/test/bugs.json" --slurpfile p "$R/plan/plan.json" '
+    ($b | split(",")) as $B | ($u | split(",")) as $U | $f[0].checks as $K
+    | [$g[0].bugs[] | select(.bug_id | IN($B[])) | .checks[]] as $r1
+    | [$K | to_entries[] | select(.value.unit | IN($U[])) | .key] as $r2
     | [$p[0].order[] | select(.status == "withdrawn") | .unit] as $W
-    | ($r3 + $r4 | unique) - [$K[] | select(.unit | IN($W[])) | .case_id]' > "$R/test/select/r$1.json.tmp" \
+    | ($r1 + $r2 | unique) - [$K | to_entries[] | select(.value.unit | IN($W[])) | .key]' > "$R/test/select/r$1.json.tmp" \
   && mv "$R/test/select/r$1.json.tmp" "$R/test/select/r$1.json"; }
+# R3 (transitive dependents) and R4 (fast replay) are gone. The harness resolves and executes each scenario's
+# `depends_on` itself, so a selected scenario always brings its own prerequisites; and a full sweep is one
+# command, so there is nothing a "fast replay" subset saves.
 kill_warm() {  # [ucs|hs …] (default both) — R12 carve-out: the setsid bash wrapper leads its process group
   local n p; for n in ${@:-ucs hs}; do p=$(cat "$R/warm/$n.pid" 2>/dev/null) || continue
     case "$(readlink "/proc/$p/exe" 2>/dev/null)" in */bash) ;; *) continue;; esac
@@ -199,7 +200,7 @@ kill_warm() {  # [ucs|hs …] (default both) — R12 carve-out: the setsid bash 
 
 `snapshots.tsv` = `seq ref stage unit commit tree utc`. Snapshot after every UCS tree-writing return: S1m (`s1m`), each
 UCS-unit S4 spawn with non-empty `CHANGED_UNITS` (`<NN>-<unit_fs>`), S4z and every later `__finalize__`
-(`<NN>-finalize`), `__promote__` (`<NN>-promote`), and before S6 when `snap_tree` ≠ the
+(`<NN>-finalize`), and before S6 when `snap_tree` ≠ the
 last row's tree (`review`).
 
 ## Spawning and joins
@@ -229,7 +230,7 @@ origin, finding, evidence, required_change, fix: [], do_not_touch: [], upstream_
 `amend_targets` and `withdraw: false`. `units` is always a JSON array of unit ids (every reader iterates it), never a
 comma-joined string. **Derived briefs** `rca/briefs/<brief_id>.<nc|u|wd>.json` copy a brief with
 `upstream_no_change: true` (`nc`); extended `units`, `fix: []`, `withdraw: false` and `required_change` "reconcile to plan rev <rev>
-(`plan/plan.rev<rev-1>.json` → `plan/plan.json`): §4 for 2.3b, §8 test hooks for 2.6b" (`u`; 2.3b applies a non-empty
+(`plan/plan.rev<rev-1>.json` → `plan/plan.json`): §4 for 2.3b, §8 test spec for 2.3b Phase 2t" (`u`; 2.3b applies a non-empty
 `fix[]` only, so units outside the original brief get this one); or `withdraw: true` and `fix: []` (`wd`; 2.3a and
 2.3b key their withdraw procedure on `withdraw == true`).
 
@@ -244,7 +245,7 @@ comma-joined string. **Derived briefs** `rca/briefs/<brief_id>.<nc|u|wd>.json` c
 4. A capped join's timer starts the first time a stage waits on it unsatisfied (BASELINE: as stated in its row); on
    `TIMER`: row `failed`, `JOIN <what> timeout`, `mkdir -p "$R/cancelled" && : > "$R/cancelled/<row id>"` for each
    cut row; its late completion notification is ignored (rule 2); then the row's timeout action. **Cancel marker**:
-   BASELINE, `T:design`, `T:requests` and `__hs__` spawns carry `ROW_ID: <row id>`; the agent runs
+   BASELINE, `S5:e2e` and `__hs__` spawns carry `ROW_ID: <row id>`; the agent runs
    `test -e {RUN_DIR}cancelled/{ROW_ID}` before every final `mv` (2.6a also before a server start or stop; 2.3b also
    before each edit batch and gate launch) and, when present, returns `FAILED`, REASON `CANCELLED`, writing nothing more (no task-stop tool needed; use one too if the
    harness has it).
@@ -253,16 +254,20 @@ comma-joined string. **Derived briefs** `rca/briefs/<brief_id>.<nc|u|wd>.json` c
 |---|---|---|---|
 | warm UCS build | BASELINE spawn | `warm/ucs_build.exit` (`2.0_preflight.md` "Phase 9: Background warm builds") | `warm_build_wait_min` → `kill_warm ucs`, spawn BASELINE anyway |
 | BASELINE | S3, first S4 spawn | `BASELINE` row terminal | `baseline_join_min` from the later of S2's return and BASELINE's spawn → join rule 4 |
-| test lane | S4z Spec-gap round and code audit, S5 | `test/requests/index.json` exists (2.6c moves it last) and no `T:*` row `running`, or flag `TEST_DESIGN_FAILED`/`TEST_REQUESTS_FAILED` | `test_lane_join_min` → flag `TEST_DESIGN_FAILED` (`T:design` running) else `TEST_REQUESTS_FAILED` |
+| e2e | S5 step 5 (stop-early) and S6 | every `S5:e2e:*` row terminal; **or** `env/env.json .hs.available` not true → satisfied at once, `ev JOIN e2e skipped`, no timer | `e2e_join_min` → the units with no `e2e/<N>.json` get `e2e_status: FAILED` (`NO_E2E_RUN`); S5 continues |
 | `__hs__` | S5 | its `S4:<NN>:__hs__` row terminal; **or** no `S4:*:__hs__` row and (`run.json .hs_mode` ≠ `worktree` or no `__hs__` entry in `plan_order`) → satisfied at once, `ev JOIN __hs__ present`, no timer | `hs_join_min` → `plan.json .hs_changes` stay unresolved; S5 continues |
 
 ## Pipeline
 
 ```
-init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m ─ S2 ─ S3 ─ S4 U0…Un ─ S4z ─ S5 ─ promote ─ S6 ─ S7
+init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m ─ S2 ─ S3 ─ S4 U0…Un ─ S4z ─ S5 ─ S6 ─ S7
            │                                                              └ bg __hs__ (after U0)
            ├─ waiter warm/ucs_build.exit ─ bg BASELINE ──────────── joined by S3 and S4
-           └─ bg test lane after S3: 2.6b CREATE → 2.6c CREATE ──── joined by S4z audit and S5
+           └─ S5 spawns 2.5_e2e.md per unit group ───────────────── joined by S5 step 5 and S6
+
+There is no test lane. Test *data* is written by S4 itself (`2.3b_codegen_unit.md` Phase 2t) into the
+connector's committed `connector_specs/` JSON, from plan §8. Nothing in this run designs a case, renders a
+request or stages a harness root — the repo's harness owns all three, and the data it runs is in the diff.
 ```
 
 ### S0 — `2.0_preflight.md` (foreground)
@@ -280,10 +285,19 @@ init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m 
   PARALLEL_HS_BUILD: {PARALLEL_HS_BUILD}
 ```
 
-`ABORT_CREDS` → stop → SKIPPED. Other `ABORT_*` or `FAILED` → stop → FAILED. No PR either way. `DONE` → `rj` these
-five from `preflight.json` into `run.json`: `branch`, `base_sha`, `ports`, `workflow_dir` (= its
-`.workflow.dir`, fallback `grace/workflow`) and `hs_mode` (= its `.hs.mode`); start the
-warm-build waiter (cap `warm_build_wait_min`); → S1.
+`ABORT_CREDS` → stop → SKIPPED (it means a creds file that exists but is unusable — unreadable, not JSON, or the
+rejected legacy shape; *missing* credentials are not an abort, see below). Other `ABORT_*` or `FAILED` → stop →
+FAILED. No PR either way. `DONE` → `rj` these six from `preflight.json` into `run.json`: `branch`, `base_sha`,
+`ports`, `workflow_dir` (= its `.workflow.dir`, fallback `grace/workflow`), `hs_mode` (= its `.hs.mode`) and
+`mode` (= its `.mode`, `live` or `alpha`); start the warm-build waiter (cap `warm_build_wait_min`); → S1.
+
+**`mode: alpha`** — no credentials exist for this connector, so `2.0` synthesized placeholders and the run tests
+against a mock of the connector's own API built from its documentation (`2.6a_test_env.md` owns the process,
+`2.3b_codegen_unit.md` writes `{RUN_DIR}mock/mappings.json` from plan §8, `grace/rulesbook/codegen/tools/mock_connector.py`
+serves it). The pipeline is unchanged — same stages, same gates, same PR. What changes is the claim: every unit can
+reach only `DELIVERED_MOCK_ONLY`, and 2.8 registers the connector in `alpha_connectors.json` and says on the PR what
+a mock does and does not prove. Carry `mode` in every stage's context; a stage that reports a live result from an
+alpha run has mislabelled it.
 
 ### S1 wave — `2.1_links.md` × (common + each unit), `2.1a_hs_scout.md` (foreground)
 
@@ -368,7 +382,7 @@ Any return satisfies the join; only a `done` BASELINE is ingested in round 1.
 **Deferred capability probe.** BASELINE races S2, so 5e often runs before `{TECHSPEC_PATH}` exists. After the join
 **and** S2's return, before S3: any `test/capabilities.json` entry whose `.probe` starts with `deferred:`
 → one foreground 2.6a spawn (`S5:env:0:<k>`), the same template with `PROBE_ONLY: 1`, so
-the entries become `provisioned`/`not_provisioned` before 2.6b reads them (without it no case can ever be
+the entries become `provisioned`/`not_provisioned` before 2.6d reads them (without it no check can ever be
 `sandbox_blocked`, and a provisioning refusal classifies as `PRODUCT_BUG`). `FAILED` → `SKIP`, entries stay `error`.
 
 ### S3 — `2.3a_plan.md` (foreground, after S2 and the BASELINE join)
@@ -388,39 +402,6 @@ Record `plan_order` = `plan/plan.json .order[]` as `{seq, unit, status}`; pre-cr
 "answer <topic> in the spec") → links per unit (FOCUS = topic) → S1m → S2 `AMEND` → S3 `AMEND` (same brief) → test
 lane → S4; units still `spec_gap` are not implemented. `BLOCKED` → S7 gate. `FAILED` → stop → FAILED, no PR.
 
-### Test lane — `2.6b_test_design.md` → `2.6c_test_requests.md` (background after S3; foreground for later AMENDs)
-
-```
-T:design:    CONNECTOR: <connector_lc>
-             UNITS: <units csv>
-             RUN_DIR: {RUN_DIR}
-             TECHSPEC_PATH: {TECHSPEC_PATH}
-             MODE: CREATE | AMEND
-             AMEND_BRIEF: <brief>  |  AMEND_CASES: <ids | __code_audit__>          (AMEND only, one of them)
-             ROW_ID: <row id>
-T:requests:  CONNECTOR: <connector_lc>
-             RUN_DIR: {RUN_DIR}
-             MODE: CREATE | AMEND | PROBE
-             AMEND_BRIEF: <brief>  |  AMEND_CASES: <ids | __cases_rev__>           (AMEND only, one of them)
-             PROBE_BUG_ID: <bug_id>                                                (PROBE only)
-             ROW_ID: <row id>
-```
-
-`T:design` `CREATE` `DONE`/`SPEC_GAP` → `T:requests` `CREATE` (cases of open gaps are skipped; S4z's **Spec-gap
-round** answers them). Every `T:design` `AMEND` `DONE` → `T:requests` `AMEND_CASES: __cases_rev__` (`NO_CHANGE` → none).
-`T:requests` `CREATE` `DONE`/`PARTIAL` → lane done. `BLOCKED`/`FAILED` → one re-spawn; still: a `CREATE` → flag
-`TEST_DESIGN_FAILED` (`T:design`) or `TEST_REQUESTS_FAILED` (`T:requests`), either of which skips the S4z rounds and S5
-(→ S6). An `AMEND` or `PROBE` never sets a flag; the run continues: in a loop-back, Loop-back rule 4 (brief chain
-dropped, its bugs `unresolved`); in the inner loop, its case ids join `test/select/not_run.json` (JSON array, `.tmp` +
-`mv`; 2.6d runs them as `NOT_RUN` with a decision row); elsewhere (S4z rounds, code audits, probes) that step ends.
-The entry is per-failure, not permanent: every later `T:design`/`T:requests` spawn returning `DONE` first rewrites
-`test/select/not_run.json` (`.tmp` + `mv`) without the case ids it re-rendered (its `CHANGED_UNITS`' cases, or
-`test/requests/index.json .requests[]` for a `__cases_rev__`), so a transient test-agent failure cannot sink a case
-for the rest of the run.
-
-**Code audit**, unless a `TEST_*_FAILED` flag: after every `__finalize__` except the promotion's, and after every round
-of 2.3b AMENDs (loop-back rank 5, S5 build fix) → `T:design` `AMEND_CASES: __code_audit__`.
-
 ### S4 — `2.3b_codegen_unit.md`, one unit per message in `plan_order` (foreground)
 
 Before the first spawn: BASELINE join, R10 (`DISK_TAG: pre-S4`). Spawn only `plan_order` entries with
@@ -430,7 +411,7 @@ AMEND, from S4, S4z, S5, loop-back or promotion) uses this template with a fresh
 
 ```
   CONNECTOR: <connector_lc>
-  UNIT: <unit | __hs__ | __finalize__ | __promote__>
+  UNIT: <unit | __hs__ | __finalize__>
   RUN_DIR: {RUN_DIR}
   MODE: NEW | AMEND
   AMEND_BRIEF: <brief>                         (AMEND only)
@@ -453,7 +434,7 @@ R10 spawn `DISK:<tag>` (`2.0_preflight.md`): `CONNECTOR`, `UNITS` (JSON array), 
 | STATUS | Action |
 |---|---|
 | `DONE`, `NO_CHANGE` | next unit |
-| `FAILED`, REASON `foundation smoke: …` | AMEND with `rca/briefs/o-smoke-<NN>.json` (`required_change` "make the foundation smoke pass: <REASON>", evidence `code/<NN>-<unit_fs>.smoke.*`) and `SMOKE: 1`, so `DONE` means the smoke re-ran green. That AMEND `NO_CHANGE`, or at cap `amend_codegen_per_unit` → `SKIP cap:amend_codegen_per_unit`, next unit; round 1 `FULL_RUN` re-runs the unit's `ucs_grpc` happy case, which files the bug for RCA |
+| `FAILED`, REASON `foundation smoke: …` | AMEND with `rca/briefs/o-smoke-<NN>.json` (`required_change` "make the foundation smoke pass: <REASON>", evidence `code/<NN>-<unit_fs>.smoke.*`) and `SMOKE: 1`, so `DONE` means the smoke re-ran green. That AMEND `NO_CHANGE`, or at cap `amend_codegen_per_unit` → `SKIP cap:amend_codegen_per_unit`, next unit; round 1 `FULL_RUN` re-runs the unit's suites, which files the bug for RCA |
 | `FAILED` (other) | AMEND with `rca/briefs/o-gate-<NN>.json` (`required_change` "finish plan §4[<unit>]: <REASON>"); at cap → withdraw |
 | `PLAN_CONFLICT` | S3 `AMEND` with `rca/briefs/o-pc-<NN>.json` (`origin: PLANNER`, `required_change` "resolve: <REASON>") → S3 follow-up; conflict again at cap → withdraw |
 | `SPEC_GAP` | `rca/briefs/o-sg-<NN>.json` → links for the unit (FOCUS = REASON topic) → S1m → S2 `AMEND` → S3 `AMEND` → S3 follow-up; at cap → withdraw |
@@ -464,40 +445,39 @@ Withdraw = `rca/briefs/o-wd-<unit_fs>.json` (`withdraw: true`, `fix: []`, `requi
 `withdrawn: true` (`2.3a_plan.md` "Phase 12: AMEND" step 3), so no HS PR is raised for a flow UCS no longer
 implements; an `hs-wt` commit already made for such an item is simply never pushed. **S3 follow-up** of an S3 `AMEND` on brief `B` (here and in Loop-back rules 2 and 4): 2.3b `AMEND`
 of `B`'s units (its 2.3b `amend_targets[].scope.units`, else `units`) with `B` (S3 `NO_CHANGE` → `B.nc`),
-then of every other unit of that S3 `AMEND`'s `CHANGED_UNITS` with an `S4:*` row started before it, with `B.u`. §8 hook changes
-from these S3 `AMEND`s (`test_hooks_changed`) reach 2.6b in S4z's hooks round.
+then of every other unit of that S3 `AMEND`'s `CHANGED_UNITS` with an `S4:*` row started before it, with `B.u`. §8 changes
+from these S3 `AMEND`s (`test_hooks_changed`) reach 2.3b Phase 2t in S4z's hooks round.
 
 ### S4z — `__finalize__` (foreground)
 
 After the last UCS unit: R10 (`pre-S4z-<k>`), S4 template with `UNIT: __finalize__`, `MODE: NEW`; `guard`, snapshot.
-`DONE` or `FAILED` → continue (S7 gates again). Join the test lane; unless a `TEST_*_FAILED` flag is set: the
-hooks round, the Spec-gap round, then the code audit.
+`DONE` or `FAILED` → continue (S7 gates again), then the hooks round.
 
 **Hooks round** — `H=$(jq -c '[.amendments[]?.test_hooks_changed[]?] | unique' "$R/plan/plan.json")`
 `!= '[]'` and no `rca/briefs/o-hooks.json` yet → write it (`origin: PLANNER`, `units` = `H`, evidence
-[`plan/plan.json`], `required_change` "reconcile cases to plan §8 test hooks of these units (plan rev <rev>)") →
-`T:design` `AMEND_BRIEF` = it → `__cases_rev__`.
+[`plan/plan.json`], `required_change` "reconcile `connector_specs/` to plan §8 for these units (plan rev <rev>)")
+→ 2.3b `AMEND` per unit in `H` with it (cap `amend_codegen_per_unit`) → `__finalize__` again, whose schema
+validators and `test_author_gate.py` run because `connector_specs` changed.
 
-**Spec-gap round** — only `test/cases.json` `spec_gaps[]` entries with `status: "open"` count:
-at least one, and no `rca/briefs/o-tgap.json` yet →
-within caps (`amend_links`, `amend_techspec`): `rca/briefs/o-tgap.json` (`origin: LINKS`, `units` = the open gaps'
-units, `finding` = their `question`s, evidence [`test/cases.json`], `required_change` "answer in <section>: <question>"
-per gap) → links per gap unit (FOCUS = its questions) → S1m → S2 `AMEND` → `T:design` `AMEND_BRIEF` (same brief)
-→ `__cases_rev__`. A target `FAILED` ends the round. Gaps still open are ingested in round 1 and RCA routes them once.
+There is no Spec-gap round and no code audit. A spec gap is a question the *plan's* oracle could not answer,
+and plan §8's validators now refuse a hook with no `oracle_ref` — so the gap is caught at S3, one stage before
+any code exists, instead of being discovered by a case designer reading the code. The code audit was the test
+designer re-reading generated code to adjust its cases, which is exactly the self-grading loop this workflow
+removed; nothing replaces it, because nothing should.
 
 ### S5 — test loop
 
 Every `2.6d_test_exec.md` spawn, in this order: `N=$(bump exec_round)`; for `MODE: ROUND` write its selection to
-`test/select/r$N.json` (`select_cases $N …` for a retest; otherwise a JSON array of case ids via `.tmp` + `mv`, "same
-selection" = a copy of the previous file); stamp `S5:exec:$N`; spawn with `ROUND: $N`. `ONLY_CASES: none` is a
-bookkeeping call that writes no `test/results/r<N>.json`.
+`test/select/r$N.json` (`select_checks $N …` for a retest; otherwise a JSON array of check ids via `.tmp` + `mv`,
+"same selection" = a copy of the previous file); stamp `S5:exec:$N`; spawn with `ROUND: $N`. `ONLY_CHECKS: none`
+is a bookkeeping call that writes no `test/results/r<N>.json`.
 
 **ENV repairs**: every `REPAIR` spawn first `bump env_repairs`; over `caps.env_repairs_per_round` →
 `SKIP cap:env_repairs_per_round`, no spawn: in step 3 its `env` issues go on to RCA, elsewhere flag `TEST_ENV_FAILED`
 → S6. `bump rca_rounds` also runs `rj '.counters.env_repairs = 0'`.
 
 **1. Env** — before the first exec and after every loop-back round that changed code, `hs-wt` or the env: R10
-(`pre-r<N>`), join the test lane (a `TEST_*_FAILED` flag → skip S5 → S6) and `__hs__`, then `2.6a_test_env.md`
+(`pre-r<N>`), join `__hs__` (a `TEST_ENV_FAILED` flag → skip S5 → S6), then `2.6a_test_env.md`
 (`S5:env:<N>:<k>`):
 
 ```
@@ -529,36 +509,48 @@ at cap, `SECRET_LEAK` or `TREE_MODIFIED` → flag `TEST_ENV_FAILED` (+ that toke
   RUN_DIR: {RUN_DIR}
   ROUND: <N>
   MODE: FULL_RUN | ROUND
-  ONLY_CASES: {RUN_DIR}test/select/r<N>.json   (ROUND only; omitted for FULL_RUN — `none` is the bookkeeping sentinel of the S7 prelude, never a FULL_RUN value)
-  INGEST: <baseline,spec_gaps | review>
+  ONLY_CHECKS: {RUN_DIR}test/select/r<N>.json  (ROUND only; omitted for FULL_RUN — `none` is the bookkeeping sentinel of the S7 prelude, never a FULL_RUN value)
+  INGEST: <baseline | review>
   STATUS_UPDATES: {RUN_DIR}test/status_updates/u<k>.json
 ```
 
-Round 1 is `FULL_RUN` with `INGEST` = `baseline` (BASELINE `done` and `test/baseline_bugs.json` exists) + `spec_gaps`
-(`test/cases.json` has a `spec_gaps[]` entry with `status: "open"`). Every `DONE`/`PARTIAL` that wrote `test/results/r<N>.json` → `note_exec <N>`. `DONE` → 3. `PARTIAL` → `REPAIR` (`RESULTS`) → `ROUND` over its
-`NOT_RUN` cases. `BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → same selection. `FAILED` `ROUND_EXISTS` →
+Round 1 is `FULL_RUN` with `INGEST` = `baseline` (BASELINE `done` and `test/baseline_bugs.json` exists). Every `DONE`/`PARTIAL` that wrote `test/results/r<N>.json` → `note_exec <N>`. `DONE` → 3. `PARTIAL` → `REPAIR` (`RESULTS`) → `ROUND` over its
+`NOT_RUN` and `NO_ROW` checks. `BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → same selection. `FAILED` `ROUND_EXISTS` →
 same spawn, next `N`. `FAILED` `SECRET_LEAK` → flag `TEST_ENV_FAILED` + `SECRET_LEAK` → S6 (as the env path at step 1:
 `TEST_ENV_FAILED` is what makes `exec_ready` false, so the S7 prelude does not re-enter the same security gate, and
 what 2.8 keys `INCOMPLETE` on). `FAILED` `MISSING <file>` → once per file
-(`bump missing <file>` = 1) its owner, then the same spawn with the next `N`: `env/env.json` → Env `POST_CODEGEN`;
-`test/cases.json` → `T:design` `CREATE` (→ `T:requests` `CREATE`); `test/requests/index.json` → `T:requests` `CREATE`.
-Again, or `MISSING creds` (no owning stage) → flag `TEST_ENV_FAILED` → S6.
+(`bump missing <file>` = 1) its owner, then the same spawn with the next `N`: `env/env.json` → Env `POST_CODEGEN`.
+`plan/plan.json`, `MISSING creds` and `MISSING binary` have no owning stage that S5 may re-enter → flag
+`TEST_ENV_FAILED` → S6.
 
-**3. Inner loop** — `jq '{env: .env_issues, design: .test_suspect.design, request: .test_suspect.request, stale: .test_suspect.stale_root}' "$R/test/results/r<N>.json"`;
-`stale` (uncapped) → one `T:requests` `AMEND_CASES: __cases_rev__` (2.6c re-stages the stale roots; no counter bump; a
-case stale again in the next `ROUND` counts as `request`). Only cases under cap (`inner_request_per_case`, `inner_input_per_case`, ENV repairs): `request` →
-`T:requests` `AMEND_CASES`; `design` (+ `test/requests/index.json .unrenderable`) → `T:design` `AMEND_CASES` →
-`T:requests` `__cases_rev__`; `env` → `REPAIR` (`RESULTS`). Each capped AMEND bumps `inner_request`/`inner_input` per case id;
-one returning `NO_CHANGE` sets its cases' counters to the cap (still `BLOCKED`/`FAILED` after its re-spawn: Test lane). Then one `ROUND` over those ids (`stale` included) plus the suspects
-already at cap (its own `test/select/r$N.json`): 2.6d compares `run.json .counters.inner_input{<case_id>}` /
-`inner_request{<case_id>}` with `.caps` and files an at-cap suspect as a bug (design → `spec_gap`, request →
-`request_unrenderable`). Repeat while suspects under cap remain; when only at-cap suspects remain, that one `ROUND`, then 4.
+**3. Triage** — `jq '{env: [.env_issues[] | select(.class == "ENV")], hs_config: [.env_issues[] | select(.class == "HS_CONFIG")], scenario_data: [.checks[] | select(.class == "SCENARIO_DATA") | .check_id]}' "$R/test/results/r<N>.json"`.
+
+2.6d has already classified every failure into exactly one of `ENV | HS_CONFIG | SCENARIO_DATA | SANDBOX_BLOCKED |
+PRODUCT_BUG` (`2.6d_test_exec.md` "## Phase 5: Triage each failure"). Route the first two and the third; the last
+two need no orchestration (one is not a bug, the other goes to RCA in step 4).
+
+- `env` → `2.6a_test_env.md` `REPAIR` (`RESULTS`), under `env_repairs_per_round`.
+- `hs_config` → `2.6a_test_env.md` `REPAIR` likewise; a second one in the same round is not a repair, it is a
+  finding — let it reach RCA.
+- `scenario_data` → **2.3b `AMEND`** per affected unit, brief `rca/briefs/o-scen-r<N>-<unit_fs>.json`
+  (`origin: SCENARIO_DATA`, `units: [<unit>]`, evidence the failing checks' transcripts, `required_change`
+  "correct the scenario data for <check ids> against plan §8's oracle; do not weaken an assertion"), under
+  `amend_codegen_per_unit` → `__finalize__` (the gates re-run over the edited `connector_specs/`).
+
+Then one `ROUND` over the routed check ids plus the ids of every unit an AMEND changed. Repeat while routable
+failures under cap remain; when only at-cap ones remain, that one `ROUND`, then 4.
+
+**There is no inner loop any more.** The old one existed because two agents could rewrite a case until it passed,
+and both are gone: the scenario is committed data, codegen owns it, and every edit goes back through
+`test_author_gate.py`, which forbids weakening an assertion or waiving a scenario that passed in an earlier round.
+That is why `SCENARIO_DATA` shares the ordinary codegen amend cap instead of a private per-case one — the run gets
+the same small number of attempts to fix the data as it gets to fix the code, and no separate budget for
+convincing the oracle.
 
 **4. RCA** — `2.6e_rca.md` (`S5:rca:<N>`, `N` = latest exec round with `test/results/r<N>.json` and no `rca/r<N>.json`).
 `BUG_IDS` = in-scope bugs whose `flows[]` are not all markers of withdrawn units, with status `open`
 (or `rca` after `needs_probe`), `duplicate_of` null, `attempts` <
-`fix_attempts_per_bug` (`source: spec_gap`: `attempts` < 1 — one RCA round; its gap cases stay unexecuted until
-the retest), `run.json .bugs[].reappeared` ≤ 1. Over the fix cap → `unresolved`;
+`fix_attempts_per_bug`, `run.json .bugs[].reappeared` ≤ 1. Over the fix cap → `unresolved`;
 reappeared twice → `unresolved` + withdraw brief for its units. No ids left, or `rca_rounds` at cap → 6.
 
 ```
@@ -568,13 +560,18 @@ reappeared twice → `unresolved` + withdraw brief for its units. No ids left, o
   PREVIOUS_ORIGIN: <prev_origin <BUG_IDS>; omit when {}>
 ```
 
-`DONE`/`PARTIAL` → `bump rca_rounds`, `note_rca <N>`. `PARTIAL` with `NEXT` `2.6c_test_requests.md PROBE <bug_id>` →
-per bug `S5:probe:<bug_id>` (`T:requests` `MODE: PROBE`, `PROBE_BUG_ID: <bug_id>`), then RCA again with those bugs: in
-the retest's RCA (their ids join `select_cases`' bug ids), or, when this RCA wrote no brief, after a `ROUND` over their cases.
+`DONE`/`PARTIAL` → `bump rca_rounds`, `note_rca <N>`. `PARTIAL` with `NEXT` `needs a sandbox example for <bug_id>`
+→ those bugs get no brief this round; they re-enter the next RCA round on the same evidence, and at
+`fix_attempts_per_bug` they become `unresolved`. There is no PROBE stage to spawn: RCA runs its own probes now,
+as a targeted `test_ucs --suite --scenario` re-run or a direct sandbox call (`2.6e_rca.md` Phase 0b), neither of
+which needs an agent or a request file.
 `BLOCKED` (`ENV`) → `REPAIR` → same RCA spawn. `FAILED` → one re-spawn, still → 6. Briefs → **Loop-back protocol** →
-retest `ROUND` (`N=$(bump exec_round); select_cases $N <routed bug ids> <changed units>`, spawn with `ROUND: $N`) → 3.
+retest `ROUND` (`N=$(bump exec_round); select_checks $N <routed bug ids> <changed units>`, spawn with `ROUND: $N`) → 3.
 
-**5. Stop early** — after each retest (withdrawn units' bugs excluded, as in 2.8's `pr/blocking_bugs.json`):
+**5. E2E, then stop early** — before the first stop-early evaluation, spawn the **E2E stage** below and join it
+(`e2e_join_min`); its records are what `e2e_status` is derived from, and a unit with no record fails closed.
+
+Then, after each retest (withdrawn units' bugs excluded, as in 2.8's `pr/blocking_bugs.json`):
 
 ```bash
 jq --slurpfile p "$R/plan/plan.json" '([$p[0].order[] | select(.status == "withdrawn") | .unit] as $w
@@ -588,14 +585,36 @@ jq --slurpfile p "$R/plan/plan.json" '([$p[0].order[] | select(.status == "withd
 **6. Converged** → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`. New blocking bugs, `rca_rounds`
 under cap and no stop-early → 4, then retests only (no second full run). Otherwise → 7.
 
-**7. Promotion** (before S6) —
-`jq --slurpfile f "$R/test/final.json" '[.promotions[]? | select($f[0].cases[.case_id].outcome == "PASS")]' "$R/test/requests/index.json"`;
-empty or a file absent → S6. Else write `rca/briefs/o-promote.json` (`origin: REQUEST_GEN`, `units: ["__promote__"]`,
-`finding` "staged connector_specs deltas whose cases PASS", evidence [`test/requests/index.json`, `test/final.json`],
-`required_change` "apply promotions[] to crates/internal/integration-tests/src/connector_specs/<connector_lc>/",
-`promotions` = that list) → 2.3b `UNIT: __promote__`, `MODE: AMEND`, `AMEND_BRIEF` = it (2.3b applies the staged deltas
-and claims them); `guard`, snapshot → `__finalize__` again (its schema validators run because `connector_specs`
-changed); `guard`, snapshot → S6. `FAILED` from either → recorded, S6.
+**7. Hand off** — nothing left to route, and every `S5:e2e:*` row terminal → S6.
+
+### E2E stage — `2.5_e2e.md` (`S5:e2e:<N>`, background, one spawn per flow group)
+
+`env/env.json .hs.available` not true → no spawn at all: `rj` a row `{id: "S5:e2e:00", status: "skipped"}`,
+`ev SKIP S5:e2e reason=hs:<unavailable_reason>`. 2.6d then derives `E2E_SKIPPED` only for `NO_CHECKOUT` and
+`FAILED` otherwise, which is the fail-closed half of the rule and must not be softened here.
+
+Otherwise one spawn per flow group of the non-withdrawn units (a group = the units 2.5's spec table maps to the
+same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(bump e2e)`:
+
+```
+  RUN_DIR: {RUN_DIR}
+  E2E_ID: <N>
+  CONNECTOR: <connector_lc>
+  FLOW: <flow marker or group>
+  UNITS: <units csv>
+  PAYMENT_METHOD: <pm | "">
+  HS_REPO_PATH: {HS_REPO_PATH}
+  BRANCH: <run.json .branch>
+  ROW_ID: <row id>
+```
+
+`DONE`/`PARTIAL` → its `e2e/<N>.json` is read by the next 2.6d spawn. `FAILED`/`BLOCKED` → one re-spawn; still →
+the row stays terminal and its units have no record, which 2.6d turns into `e2e_status: FAILED` with reason
+`NO_E2E_RUN`. **Do not convert that into a skip.** `HS_PR` from any record is carried to 2.8.
+
+A 2.5 spawn may edit the HS worktree (its Phase 5, including the Cypress harness defects). Those edits are
+`__hs__`'s territory in every other stage, so a 2.5 spawn runs only when no `S4:*:__hs__` row is `running`, and
+2.8 commits them on the same HS branch.
 
 ### S6 — `2.7_review.md` (foreground)
 
@@ -609,19 +628,19 @@ changed); `guard`, snapshot → S6. `FAILED` from either → recorded, S6.
 
 Take the `review` snapshot first; stamping the `FULL` spawn also sets `review_ref` = its `SNAPSHOT_REF`. `FULL` `DONE`
 with S0/S1 findings (`review/findings.json` entries whose `.sev` is `S0` or `S1`), time left,
-`exec_ready` and `bump review_rounds` ≤ `caps.review_remediation_rounds` → exec `ROUND`, `INGEST: review`, `ONLY_CASES` = `P0` cases of the findings'
+`exec_ready` and `bump review_rounds` ≤ `caps.review_remediation_rounds` → exec `ROUND`, `INGEST: review`, `ONLY_CHECKS` = the checks of the findings'
 units (all units when none) → RCA (step 4) → loop-back → retest → `INCREMENTAL`. No S0/S1 → S7. `FAILED` → one
 re-spawn; still → S7.
 
-**`exec_ready`** (guards every 2.6d spawn from S6 on): no `TEST_*_FAILED` flag is set and `test/cases.json`,
-`test/requests/index.json` and `env/env.json` all exist — without them 2.6d returns `FAILED  MISSING <file|creds>`
+**`exec_ready`** (guards every 2.6d spawn from S6 on): no `TEST_ENV_FAILED` flag is set and `plan/plan.json` and
+`env/env.json` both exist — without them 2.6d returns `FAILED  MISSING <file|creds|binary>`
 (`2.6d_test_exec.md` "Inputs"), and the `FAILED` routing of the stage that just failed would re-spawn it. Not
-`exec_ready` → no remediation round and no prelude exec: `ev SKIP S5:exec:<N> reason=flag:<TEST_*_FAILED>` (or
+`exec_ready` → no remediation round and no prelude exec: `ev SKIP S5:exec:<N> reason=flag:TEST_ENV_FAILED` (or
 `reason=missing:<file>`) → S7. Skipping is fail-closed: the bugs keep their non-terminal status, which 2.8's
 `pr/blocking_bugs.json` query already treats as blocking, and unfixed S0/S1 review findings block there too
 (`2.8_pr_run.md` "Phase 1: Status → `pr/status.json`").
 
-**S7 prelude** (`exec_ready` only): bookkeeping execs (`ONLY_CASES: none`, no `r<N>.json`): after every S6 return that
+**S7 prelude** (`exec_ready` only): bookkeeping execs (`ONLY_CHECKS: none`, no `r<N>.json`): after every S6 return that
 wrote `review/findings.json` — `FULL` without remediation included — first one with `INGEST: review` only; then one
 whose `STATUS_UPDATES`, built from the resulting `test/bugs.json`, move every non-terminal, non-`fixed` bug to
 `unresolved`. `test/bugs.json` and `test/final.json` are then final.
@@ -644,22 +663,29 @@ from `pr/commits.tsv`); still, or `ABORT_*` → Final with that reason.
 Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's orchestrator withdraw briefs.
 
 1. **Group by earliest origin, run upstream first.** A brief's chain = its `amend_targets[]`, plus S1m after links,
-   `__finalize__` after codegen, and a `T:design` AMEND for every brief (each adds regression cases). Spawn by rank
-   across all briefs (briefs ordered by earliest origin), one spawn at a time: 1 `2.1_links.md` → 2 S1m →
-   3 `2.2_techspec.md` → 4 `2.3a_plan.md` → 5 `2.3b_codegen_unit.md` (`plan_order`, `__hs__` last, foreground) →
-   6 `__finalize__` → 7 `2.6b_test_design.md` (each `DONE` followed by `T:requests` `__cases_rev__`; after any rank-5
-   spawn also `__code_audit__`) → 8 `2.6c_test_requests.md` → 9 `2.6a_test_env.md` `REPAIR` → 10 Env `POST_CODEGEN`
-   (**one rebuild per round**). Log `LOOPBACK <brief_id> origin= targets= units= round=` before a brief's first spawn.
+   `__finalize__` after codegen, and — because every brief adds a regression scenario (`retest.add_checks`) — a
+   2.3b AMEND for the units those scenarios belong to. Spawn by rank across all briefs (briefs ordered by earliest
+   origin), one spawn at a time: 1 `2.1_links.md` → 2 S1m → 3 `2.2_techspec.md` → 4 `2.3a_plan.md` →
+   5 `2.3b_codegen_unit.md` (`plan_order`, `__hs__` last, foreground; code *and* its `connector_specs/` data) →
+   6 `__finalize__` → 7 `2.6a_test_env.md` `REPAIR` → 8 Env `POST_CODEGEN` (**one rebuild per round**). Log `LOOPBACK <brief_id> origin= targets= units= round=` before a brief's first spawn.
 2. **Scoped to affected units only.** Links: one spawn per `scope.units` entry (`links/common.json` when none), FOCUS =
    `scope.sections`, `AMEND_BRIEF`. 2.2 and 2.3a: one spawn per brief. 2.3b: after a 2.3a AMEND its S3 follow-up (S4),
-   else `scope.units` with the brief. 2.6b: brief units ∪ the 2.3a AMEND's `test_hooks_changed` (`u` brief).
+   else `scope.units` with the brief, ∪ the 2.3a AMEND's `test_hooks_changed` (`u` brief) and the units of the
+   brief's `retest.add_checks[]`.
+   **Do not spawn a unit the amended plan gives nothing to do.** After the plan AMEND returns, a unit of that set
+   whose plan revision carries no new or changed item — and whose work another unit's shared code already covers —
+   gets `ev SKIP S4:<NN>:<unit_fs> reason=unit:no_items` and no spawn. The spawn is not free: it reloads the plan and
+   the connector module to conclude `NO_CHANGE`. When the brief carries per-unit `fix[]` entries, "nothing to do" is
+   "no `fix[]` entry names this unit"; when it does not, the plan revision's own `amendments[].units` decides.
+   Several plan AMENDs may also be **one** spawn: briefs from the same RCA round that the planner must reconcile
+   against each other are cheaper and more coherent amended together, with each sub-brief cited and left
+   authoritative for its own bugs, than as one 2.3a spawn per brief against `amend_plan`.
 3. **NO_CHANGE propagation**: a target returning `NO_CHANGE` hands the `nc` brief (`upstream_no_change: true`) to the
    brief's later targets; live evidence decides.
-4. **Caps before each spawn** (R8): at cap, or an `amend_targets[]` stage returning `FAILED` (a `T:*` target:
-   `BLOCKED`/`FAILED` after its re-spawn) → **drop**: `SKIP cap:<key>`, the brief's remaining targets dropped, its bugs
-   → `unresolved`; the run continues. Recorded, chain continues: `__finalize__` `FAILED` (S7 gates again, as in S4z);
-   the added regression `T:design` (not in `amend_targets[]`) or its `__cases_rev__` failing (the bugs' own cases still
-   retest). Escalations (`<N>` = this RCA round) run at once, within caps, once per brief; the same escalation again,
+4. **Caps before each spawn** (R8): at cap, or an `amend_targets[]` stage returning `FAILED` → **drop**:
+   `SKIP cap:<key>`, the brief's remaining targets dropped, its bugs → `unresolved`; the run continues. Recorded,
+   chain continues: `__finalize__` `FAILED` (S7 gates again, as in S4z); the regression-scenario 2.3b AMEND (not in
+   `amend_targets[]`) failing — the bugs' own checks still retest. Escalations (`<N>` = this RCA round) run at once, within caps, once per brief; the same escalation again,
    or an escalation spawn `FAILED`/`BLOCKED`/`SPEC_GAP`/`PLAN_CONFLICT` → drop:
    - 2.3a or 2.3b `SPEC_GAP` → `rca/briefs/o-lb-sg-<N>-<brief_id>.json` (`origin: LINKS`, `units` = the escalating units,
      `required_change` "answer <REASON topic> in the spec") → links per unit (FOCUS = REASON topic, `amend_links`) → S1m
@@ -671,8 +697,8 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    - 2.3a `BLOCKED` → drop. 2.3b `BLOCKED` → drop, plus a withdraw brief (rule 5) for a code unit unless REASON is
      `withdraw: shared code`.
 5. **Withdraw**: a brief with `withdraw: true` → `wd` brief to 2.3a and 2.3b; 2.3b `BLOCKED` (shared code) → bugs
-   `unresolved`, nothing withdrawn. Withdrawn units leave every retest (`select_cases`) **and every `FULL_RUN`**
-   (`2.6d_test_exec.md` "Phase 2: Select cases and build chains" item 1), and their bugs count in neither step 4's
+   `unresolved`, nothing withdrawn. Withdrawn units leave every retest (`select_checks`) **and every `FULL_RUN`**
+   (`2.6d_test_exec.md` "Phase 2: Build the expected-check set" item 4), and their bugs count in neither step 4's
    `BUG_IDS` nor step 5's blocking count — otherwise step 6's convergence run re-executes a flow that is now
    `not_implemented`, files fresh bugs and routes RCA into re-implementing it.
 6. **Reappearing fingerprint** (`r<N>.json .bugs.reappeared`): first time → RCA with `PREVIOUS_ORIGIN`, which moves the
@@ -682,9 +708,14 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    `2.6d_test_exec.md` "Phase 1: Bookkeeping (INGEST, STATUS_UPDATES)"): per bug of `rca/r<N>.json` `open→rca`,
    `rca→<proposed_status>`, then `fixing→retest` (chain completed) or `fixing→unresolved` (dropped); plus the
    `unresolved` moves of 4–6. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
-8. **Re-test** (`select_cases`): **R1** the bugs' cases + their regression cases; **R2** all cases of changed units
-   (`CHANGED_UNITS` of every AMEND this round); **R3** transitive `depends_on` dependents; **R4** fast replay of
-   `ucs_grpc`/`static` cases in untouched units (their HS surfaces run only in the final full run).
+   An entry's `proposed_status` is **either a single status for all of its `bug_ids[]`, or an object keyed by bug id**
+   (2.6e writes the object form when one entry clusters bugs that end differently) — read it as
+   `(if (.proposed_status|type)=="object" then .proposed_status[$b] else .proposed_status end)`, or the file is
+   written with an object as a status and 2.6d rejects every update in it. A bug that no check can observe
+   (log masking, a refusal only a direct caller can reach) never reaches `fixed` through a retest: move it
+   yourself with the evidence in `note`, and say which round's scan or transcript is that evidence.
+8. **Re-test** (`select_checks`): **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of
+   every AMEND this round). That is the whole rule.
 
 ## Caps
 
@@ -692,15 +723,15 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
-| RCA rounds / fix attempts per bug | 3 / 2 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 2 / 2 / 3 / 3 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
 | Gate iterations per codegen spawn / finalize | 5 / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
-| Test inner loops per case (input / request) / ENV repairs per RCA round | 2 / 2 / 2 | `inner_input_per_case` / `inner_request_per_case` / `env_repairs_per_round` |
+| ENV repairs per RCA round | 2 | `env_repairs_per_round` |
 | Review remediation rounds / crash re-spawn per stage | 1 / 1 | `review_remediation_rounds` / `crash_respawn_per_stage` |
 | Stop early | a round where the blocking open count doesn't fall | `stop_early` |
 | Warm UCS build wait / BASELINE join wait (minutes) | 120 / 180 | `warm_build_wait_min` / `baseline_join_min` |
-| Test lane join wait / `__hs__` join wait (minutes) | 120 / 120 | `test_lane_join_min` / `hs_join_min` |
+| E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
 | Detached job wait per launch (minutes) | 120 | `detached_wait_min` |
 
@@ -716,7 +747,7 @@ At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV
 2. S0 not `done` → re-spawn S0. S7 spawned → re-spawn S7 (2.8 resumes; no `guard`). Otherwise `guard` must pass, else
    stop: the operator restores branch/HEAD/stash (never `checkout -f`).
 3. Output present = `[ <output> -nt "$R/.stamp/<id>" ]` (an older file is an earlier spawn's). Rows other than `S4:*`:
-   `done` with output, or with result `NO_CHANGE` (2.6b/2.6c `NO_CHANGE` rewrites nothing) → skip; `done` otherwise →
+   `done` with output, or with result `NO_CHANGE` (nothing was rewritten) → skip; `done` otherwise →
    `invalidated`, re-spawn; `running` without `ended_at` → output
    present → `done` with result `DONE`, except `preflight.json`/`disk/*.json` `.abort` non-null (→ `failed`, result =
    that abort); else re-spawn `attempt + 1` within `crash_respawn_per_stage`, over → `failed`. Background rows died with
@@ -750,10 +781,9 @@ At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV
      the RCA row's stamp) and the retest.
 
    Any other `snap_tree` ≠ the last tree → snapshot now. Never restore.
-5. Re-derive spawns whose trigger died with the session: latest `T:design:*` result `DONE`/`SPEC_GAP` and no
-   `T:requests:*` row started after it → its `T:requests` follow-up (`CREATE` after `CREATE`, `__cases_rev__` after
-   `AMEND`); S3 `done` and no `T:design:*` row → the test lane; U0 `done`, `__hs__` `planned`, `hs_mode = worktree`, no
-   `S4:*:__hs__` row → `__hs__`; S0 `done` and no `BASELINE` row → the warm-build waiter.
+5. Re-derive spawns whose trigger died with the session: U0 `done`, `__hs__` `planned`, `hs_mode = worktree`, no
+   `S4:*:__hs__` row → `__hs__`; S0 `done` and no `BASELINE` row → the warm-build waiter; an `S5:exec:*` row `done`
+   with no `S5:e2e:*` row and `env/env.json .hs.available` true → the E2E stage.
 6. Re-create the waiter or timer of every unsatisfied join (timers with the remaining minutes).
 7. The next exec `N` = `counters.exec_round + 1` (bookkeeping rounds write no `r<N>.json`). `deadline_at` is kept.
 
@@ -771,7 +801,7 @@ the `run.json` rows (id, result, attempt, started, ended), the `events.log` `SKI
 | Condition | STATUS |
 |---|---|
 | `pr/result.json .prStatus` `READY` or `PARTIAL` | `SUCCESS` |
-| S0 `ABORT_CREDS`; every unit `no_op` | `SKIPPED` |
+| S0 `ABORT_CREDS` (unusable creds file); every unit `no_op` | `SKIPPED` |
 | anything else (`INCOMPLETE`, `FAILED`, S7 `ABORT_*`, any stop) | `FAILED` |
 
 **`no_op` restore** (R4 carve-out): on `SKIPPED` because every unit is `no_op`, when `claimed_ucs` lists only
@@ -790,7 +820,8 @@ HS_PR: <pr/result.json .hsPrUrl | none required (HS_CHANGES_REQUIRED none) | not
 HS_CHANGES_REQUIRED: <.what of plan.json .hs_changes[] with withdrawn != true, joined with "; " | none | not assessed (plan.json .hs_changes is null)>
 REASON: <PR_STATUS and pr/status.json .reasons | stop cause | NO_TASK_TOOL>
 RUN_DIR: {RUN_DIR} | none
-UNITS: <unit>=<FLOW_STATUS>, …              (pr/status.json; no PR → UNRESOLVED, no_op units → no_op)
+UNITS: <unit>=<FLOW_STATUS>, …              (pr/status.json; no PR → UNRESOLVED, no_op units → no_op; alpha run → every unit DELIVERED_MOCK_ONLY)
+MODE: live | alpha                          (alpha: no credentials; answered by the documented-example mock, nothing proven against the live API)
 OPEN_BUGS: <bug_id>(<severity>,<status>), … | none
 ```
 
@@ -805,10 +836,9 @@ OPEN_BUGS: <bug_id>(<severity>,<status>), … | none
 | `S3:*` | `2.3a_plan.md` | `S3` | `plan/plan.md` | `NEW`, `AMEND` |
 | `S4:*` | `2.3b_codegen_unit.md` | `S4`, `S4z` | `code/<NN>-<unit_fs>.json`, `gate/ci_parity.json` | `NEW`, `AMEND` |
 | `BASELINE`, `S5:env:*` | `2.6a_test_env.md` | `test_env` | `test/baseline.json`, `env/env.json` | `BASELINE`, `POST_CODEGEN`, `REPAIR` |
-| `T:design:*` | `2.6b_test_design.md` | `test_design` | `test/cases.json` | `CREATE`, `AMEND` |
-| `T:requests:*`, `S5:probe:*` | `2.6c_test_requests.md` | `test_requests` | `test/requests/index.json` | `CREATE`, `AMEND`, `PROBE` |
 | `S5:exec:*` | `2.6d_test_exec.md` | `test_exec` | `test/results/r<N>.json` | `FULL_RUN`, `ROUND` |
 | `S5:rca:*` | `2.6e_rca.md` | `rca` | `rca/r<N>.json` | — |
+| `S5:e2e:*` | `2.5_e2e.md` | `e2e` | `e2e/<N>.json` | — |
 | `S6:review:*` | `2.7_review.md` | `S6` | `review/findings.json` | `FULL`, `INCREMENTAL` |
 | `S7` | `2.8_pr_run.md` | `S7` | `pr/result.json` | — |
 

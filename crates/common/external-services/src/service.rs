@@ -477,7 +477,7 @@ where
     ResourceCommonData:
         Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
-    let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
+    let return_connector_data = event_params.is_none_or(|p| p.return_raw_and_typed_connector_data);
     match response {
         Ok(body) => {
             let response = match body {
@@ -487,7 +487,7 @@ where
                         .record("status_code", tracing::field::display(status_code));
                     tracing::Span::current().record("res_code", u64::from(status_code));
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -528,10 +528,22 @@ where
                     // Headers always reach response transformers; they stay on the
                     // response only when the deployment returns raw connector data,
                     // matching the exposure before headers were always captured.
-                    if !(all_keys_required.unwrap_or(true) && return_raw) {
+                    if !(all_keys_required.unwrap_or(true) && return_connector_data) {
                         handled_router_data
                             .resource_common_data
                             .set_connector_response_headers(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_request(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_request(None);
                     }
                     handled_router_data
                 }
@@ -560,7 +572,7 @@ where
                         );
                     }
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -635,15 +647,22 @@ where
                         );
                     }
                     {
-                        error_response.raw_connector_response = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_response();
-                        error_response.raw_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_request();
-                        error_response.typed_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_typed_connector_request();
+                        if return_connector_data {
+                            error_response.raw_connector_response = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_response();
+                            error_response.raw_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_request();
+                            error_response.typed_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_typed_connector_request();
+                        } else {
+                            error_response.raw_connector_response = None;
+                            error_response.raw_connector_request = None;
+                            error_response.typed_connector_response = None;
+                            error_response.typed_connector_request = None;
+                        }
                     }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(Box::new(error_response))
@@ -714,7 +733,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub org_id: &'a str,
-    pub return_raw_connector_data: bool,
+    pub return_raw_and_typed_connector_data: bool,
     pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
@@ -814,7 +833,7 @@ where
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
-                Some(request) if event_params.return_raw_connector_data => {
+                Some(request) if event_params.return_raw_and_typed_connector_data => {
                     updated_router_data
                         .resource_common_data
                         .set_raw_connector_request(Some(
