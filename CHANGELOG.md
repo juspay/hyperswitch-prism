@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.22.1
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add integrity checks, map the amount captured and fix psync status handling ([#2270](https://github.com/juspay/connector-service/pull/2270)) ([`e9d3b3d`](https://github.com/juspay/connector-service/commit/e9d3b3d6d19abe1c568b70e20f7259beba41f402))
+
+**Full Changelog:** [`2026.09.22.0...2026.09.22.1`](https://github.com/juspay/connector-service/compare/2026.09.22.0...2026.09.22.1)
+
+- - -
+
 ## 2026.09.22.0
 
 ### Bug Fixes
