@@ -631,10 +631,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let amount = common_utils::types::MinorUnitForConnector
             .convert(
-                item.router_data
-                    .request
-                    .minor_amount
-                    .unwrap_or_default(),
+                item.router_data.request.minor_amount.unwrap_or_default(),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

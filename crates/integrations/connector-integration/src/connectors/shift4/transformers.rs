@@ -2009,7 +2009,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// can never settle the full authorization.
 #[derive(Debug, Serialize)]
 pub struct Shift4CaptureRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2069,7 +2069,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         Ok(Self {
-            amount: request.minor_amount_to_capture,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(request.minor_amount_to_capture, request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
