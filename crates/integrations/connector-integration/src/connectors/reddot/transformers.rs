@@ -42,20 +42,15 @@ const RDP_ORDER_ID_GENERATED_LEN: usize = 16;
 /// persisted order_id lives between authorize and refund.
 pub(crate) const RDP_ORDER_ID_BLOB_KEY: &str = "reddot_order_id";
 
-/// Normalize the raw order-id bytes to 16 lowercase hex characters.
-fn normalize_reddot_order_id(bytes: [u8; 8]) -> String {
-    let oid = hex::encode(bytes);
-    // 8 bytes always hex-encode to 16 chars; keep the assertion so the
-    // constant stays load-bearing in the normalizer, not only in tests.
-    debug_assert_eq!(oid.len(), RDP_ORDER_ID_GENERATED_LEN);
-    oid
-}
-
 /// Mint a random order_id: 16 lowercase hex chars (= 8 random bytes);
 /// RDP's enforced ceiling is 20 (it rejects 22 with `-1014`), so 16 sits
 /// comfortably underneath.
 fn gen_reddot_order_id() -> String {
-    normalize_reddot_order_id(rand::random())
+    let oid = hex::encode(rand::random::<[u8; 8]>());
+    // 8 bytes always hex-encode to 16 chars; keep the assertion so the
+    // constant stays load-bearing at the generator, not only in tests.
+    debug_assert_eq!(oid.len(), RDP_ORDER_ID_GENERATED_LEN);
+    oid
 }
 
 /// Read the persisted order_id back on the refund path from the
@@ -1396,11 +1391,11 @@ mod tests {
         Secret::new(serde_json::json!({ RDP_ORDER_ID_BLOB_KEY: order_id }))
     }
 
-    // ── order-id normalization ─────────────────────────────────────────
+    // ── gen_reddot_order_id ────────────────────────────────────────────
 
     #[test]
     fn order_id_is_16_lowercase_hex() {
-        let oid = normalize_reddot_order_id([0xab; 8]);
+        let oid = gen_reddot_order_id();
         assert_eq!(oid.len(), RDP_ORDER_ID_GENERATED_LEN);
         assert!(oid
             .chars()
@@ -1408,10 +1403,9 @@ mod tests {
     }
 
     #[test]
-    fn distinct_order_id_inputs_remain_distinct() {
-        let first = normalize_reddot_order_id([0x00; 8]);
-        let second = normalize_reddot_order_id([0xff; 8]);
-        assert_ne!(first, second);
+    fn order_id_two_draws_differ() {
+        // Birthday-paradox-level assertion of functioning RNG (not statistical)
+        assert_ne!(gen_reddot_order_id(), gen_reddot_order_id());
     }
 
     // ── reddot_order_id_from_blob (refund read path) ────────────────────
