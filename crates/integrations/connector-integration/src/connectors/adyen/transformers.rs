@@ -1351,22 +1351,6 @@ pub struct AdyenVoidRequest {
     reference: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct AdyenRouterData1<T> {
-    pub amount: MinorUnit,
-    pub router_data: T,
-}
-
-impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData1<T> {
-    type Error = IntegrationError;
-    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount,
-            router_data: item,
-        })
-    }
-}
-
 fn get_amount_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
