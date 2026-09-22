@@ -2267,6 +2267,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         _ => None,
                     }
                 }
+                domain_types::types::AdditionalPaymentData::Wallet {
+                    apple_pay,
+                    google_pay,
+                } => {
+                    // Prefer Apple Pay expiry, fall back to Google Pay
+                    apple_pay
+                        .as_ref()
+                        .and_then(|apple_pay_info| {
+                            match (
+                                &apple_pay_info.card_exp_month,
+                                &apple_pay_info.card_exp_year,
+                            ) {
+                                (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {
+                                    expiration_month: month.clone(),
+                                    expiration_year: utils::expand_expiry_year_to_four_digits(year),
+                                }),
+                                _ => None,
+                            }
+                        })
+                        .or_else(|| {
+                            google_pay.as_ref().and_then(|google_pay_info| {
+                                match (
+                                    &google_pay_info.card_exp_month,
+                                    &google_pay_info.card_exp_year,
+                                ) {
+                                    (Some(month), Some(year)) => {
+                                        Some(FiservcommercehubTokenCardInfo {
+                                            expiration_month: month.clone(),
+                                            expiration_year:
+                                                utils::expand_expiry_year_to_four_digits(year),
+                                        })
+                                    }
+                                    _ => None,
+                                }
+                            })
+                        })
+                }
             });
 
         let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
