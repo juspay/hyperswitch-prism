@@ -307,7 +307,8 @@ message SourceBankData {
     PixEmvBankTransferPayout pix_emv = 6;
     PayshapBankTransferPayout payshap = 7;
     PayshapProxyBankTransferPayout payshap_proxy = 8;
-    TedBankTransferPayout ted = 9;
+    TrustlyBankTransferPayout trustly = 9;
+    TedBankTransferPayout ted = 10;
  }
 }
 // ============================================================================

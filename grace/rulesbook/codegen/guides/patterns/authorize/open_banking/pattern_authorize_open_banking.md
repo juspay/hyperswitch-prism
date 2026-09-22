@@ -53,7 +53,7 @@ The `OpenBankingData` enum at the pinned SHA contains a single variant. The revi
 
 | Variant | Data Shape | Citation | Used By (connectors) |
 |---------|-----------|----------|----------------------|
-| `OpenBankingPIS {}` | Unit-struct marker variant, no fields. Signals a PSD2/UK Open Banking Payment Initiation request. | `crates/types-traits/domain_types/src/payment_method_data.rs:291` | (none) — no connector at the pinned SHA matches `PaymentMethodData::OpenBanking(_)` as a success path; every connector listed in the "Grep OpenBanking(_)" sweep below maps this arm to `IntegrationError::not_implemented(...)`. PIS flows that do succeed (truelayer, volt) route through `BankRedirectData`, see below. |
+| `OpenBankingPIS {}` | Unit-struct marker variant, no fields. Signals a PSD2/UK Open Banking Payment Initiation request. | `crates/types-traits/domain_types/src/payment_method_data.rs:291` | (none) — no connector at the pinned SHA matches `PaymentMethodData::OpenBanking(_)` as a success path; every connector listed in the "Grep OpenBanking(_)" sweep below maps this arm to `IntegrationError::not_implemented(message, context)`. PIS flows that do succeed (truelayer, volt) route through `BankRedirectData`, see below. |
 
 **Parent arm.** The enum is wrapped in `PaymentMethodData::OpenBanking(OpenBankingData)` at `crates/types-traits/domain_types/src/payment_method_data.rs:268`.
 
@@ -100,13 +100,14 @@ match &item.router_data.request.payment_method_data {
         // If a future connector wires this, build the PIS create-payment request here.
         Err(IntegrationError::not_implemented(
             domain_types::utils::get_unimplemented_payment_method_error_message("<connector>"),
+            Default::default(),
         )
         .into())
     }
     // --- The actual PIS success paths at the pinned SHA ---
     PaymentMethodData::BankRedirect(BankRedirectData::OpenBankingUk { .. }) => { /* ... */ }
     PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking {}) => { /* ... */ }
-    _ => Err(IntegrationError::not_implemented(...).into()),
+    _ => Err(IntegrationError::not_implemented(..., Default::default()).into()),
 }
 ```
 
@@ -114,7 +115,7 @@ match &item.router_data.request.payment_method_data {
 
 ## Connectors with Full Implementation
 
-At the pinned SHA, **no connector implements `PaymentMethodData::OpenBanking(_)` as a success path**. A file-by-file grep of `crates/integrations/connector-integration/src/connectors/` for the pattern `PaymentMethodData::OpenBanking(_)` returns only rejection arms, all returning `IntegrationError::not_implemented(...)` or the helper `get_unimplemented_payment_method_error_message(...)`.
+At the pinned SHA, **no connector implements `PaymentMethodData::OpenBanking(_)` as a success path**. A file-by-file grep of `crates/integrations/connector-integration/src/connectors/` for the pattern `PaymentMethodData::OpenBanking(_)` returns only rejection arms, all returning `IntegrationError::not_implemented(message, context)` or the helper `get_unimplemented_payment_method_error_message(...)`.
 
 For completeness and to keep the table non-empty, we list below the connectors that serve the regulatory-equivalent PIS flow through `PaymentMethodData::BankRedirect(_)`. These rows are informational only; the spec-mandated table header is preserved.
 
@@ -195,7 +196,7 @@ match &item.router_data.request.payment_method_data {
         // Build PIS create-payment request against the connector's EU endpoint,
         // picking UK vs EU by currency.
     }
-    _ => Err(IntegrationError::not_implemented(...).into()),
+    _ => Err(IntegrationError::not_implemented(..., Default::default()).into()),
 }
 ```
 
@@ -209,6 +210,7 @@ All other connectors in the grep list above. The idiomatic rejection is:
 // From crates/integrations/connector-integration/src/connectors/bankofamerica/transformers.rs:613
 PaymentMethodData::OpenBanking(_) => Err(IntegrationError::not_implemented(
     domain_types::utils::get_unimplemented_payment_method_error_message("Bank of America"),
+    Default::default(),
 ).into()),
 ```
 
@@ -307,6 +309,7 @@ match &item.router_data.request.payment_method_data {
     }
     _ => Err(IntegrationError::not_implemented(
         utils::get_unimplemented_payment_method_error_message("Truelayer"),
+        Default::default(),
     ).into()),
 }
 ```
@@ -350,6 +353,7 @@ let (payment_system, open_banking_u_k, open_banking_e_u) = match bank_redirect {
 // ... other unsupported arms ...
 => Err(IntegrationError::not_implemented(
     domain_types::utils::get_unimplemented_payment_method_error_message("Bank of America"),
+    Default::default(),
 ).into())
 ```
 
@@ -359,7 +363,7 @@ let (payment_system, open_banking_u_k, open_banking_e_u) = match bank_redirect {
 // From crates/integrations/connector-integration/src/connectors/volt/transformers.rs:294
 | PaymentMethodData::OpenBanking(_)
 // ...
-=> Err(IntegrationError::not_implemented(...).into())
+=> Err(IntegrationError::not_implemented(..., Default::default()).into())
 ```
 
 This is the load-bearing confirmation that `OpenBankingData::OpenBankingPIS {}` has no consumer at the pinned SHA: even the connector whose whole identity is PIS (`volt`) rejects this arm and expects callers to use `BankRedirectData` instead.

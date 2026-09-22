@@ -1310,6 +1310,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::SourceBankData> for payouts::payout
                     payshap_proxy,
                 )?,
             )),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Trustly(trustly) => {
+                Ok(Self::Trustly(
+                    payouts::payout_method_data::TrustlyBankTransfer::foreign_try_from(trustly)?,
+                ))
+            }
             grpc_api_types::payouts::source_bank_data::SourceBankData::Ted(ted) => Ok(Self::Ted(
                 payouts::payout_method_data::TedBankTransfer::foreign_try_from(ted)?,
             )),

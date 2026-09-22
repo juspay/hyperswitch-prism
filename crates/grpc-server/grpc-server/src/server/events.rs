@@ -476,6 +476,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -511,7 +512,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -596,6 +597,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -631,7 +633,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -716,6 +718,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -751,7 +754,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -833,6 +836,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -868,7 +872,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -950,6 +954,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -985,7 +990,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -1034,6 +1039,7 @@ async fn verify_webhook_source_external(
         connector_config,
         metadata_payload.environment.as_deref(),
     )
+    .await
     .to_grpc_error()?;
 
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {
@@ -1096,7 +1102,7 @@ async fn verify_webhook_source_external(
         tenant_id: &metadata_payload.tenant_id,
         merchant_id: metadata_payload.merchant_id.as_str(),
         org_id: metadata_payload.org_id.as_str(),
-        return_raw_connector_data: config.common.return_raw_connector_data,
+        return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
         masking_keys: &config.masking_keys,
         connector_latency: metadata_payload.connector_latency.clone(),
         log_fields_enabled: config.log_fields.enabled,

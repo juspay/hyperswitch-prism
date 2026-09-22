@@ -26,7 +26,10 @@ To implement a new connector SetupMandate flow using these patterns:
 {AmountType} → MinorUnit (if API expects 0 for $0.00 verification)
 {content_type} → "application/json" (if API uses JSON)
 {mandate_endpoint} → "v1/setup_intents" (your mandate setup API endpoint)
-{auth_type} → HeaderKey (if using Bearer token auth)
+{auth_type} → your connector's own `ConnectorSpecificConfig` variant
+#   (domain_types/src/router_data.rs:301). There are no generic HeaderKey /
+#   BodyKey / SignatureKey variants — e.g. `ConnectorSpecificConfig::Airwallex
+#   { api_key, client_id, base_url }` (router_data.rs:406).
 ```
 
 **✅ Result**: Complete, production-ready connector SetupMandate flow implementation in ~30-45 minutes
@@ -213,16 +216,19 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
+// The event type is `common_utils::events::Event`; `interfaces::events::connector_api_logs::ConnectorEvent`
+// is not the type the connector traits take. Import the module and write `events::Event`,
+// exactly as connectors/travelhub.rs:6 does.
+use common_utils::events;
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, events::connector_api_logs::ConnectorEvent,
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
 };
 use serde::Serialize;
 use transformers::{
@@ -272,7 +278,11 @@ macros::create_all_prerequisites!(
         // Add other flows as needed...
     ],
     amount_converters: [
-        amount_converter: {AmountUnit} // Choose: MinorUnit, StringMinorUnit, StringMajorUnit
+        // Pick the unit that matches the vendor's documented wire format. FIVE exist in
+        // common_utils/src/types.rs: MinorUnit(:170), StringMinorUnit(:305), FloatMajorUnit(:336),
+        // StringMajorUnit(:374), StringTwoDecimalUnit(:443). Do NOT default to StringMinorUnit —
+        // on HEAD the split is StringMajorUnit 24 / FloatMajorUnit 22 / MinorUnit 11 / StringMinorUnit 8.
+        amount_converter: {AmountUnit}
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -283,7 +293,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(), // "application/json", "application/x-www-form-urlencoded"
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -315,7 +325,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -329,26 +339,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+        // (definition: crates/integrations/connector-integration/src/utils.rs:61). It expands to
+        // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+        // `set_error_response_body` method on `events::Event`.
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+            // (crates/common/common_utils/src/consts.rs:154-156). Import them:
+            //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+            // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+            // an empty string in a log is indistinguishable from "the connector sent nothing".
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -395,14 +411,15 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stubs
 use interfaces::verification::SourceVerification;
 
+// SourceVerification is NON-GENERIC: exactly ONE impl per connector, never one per flow.
+// (`interfaces::verification::SourceVerification` takes no type parameters — a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.)
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
-    for {ConnectorName}<T>
+    SourceVerification for {ConnectorName}<T>
 {
-    // Stub implementation
 }
 ```
 
@@ -414,7 +431,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 use std::collections::HashMap;
 use common_utils::{
     ext_traits::OptionExt, pii, request::Method,
-    types::{MinorUnit, StringMinorUnit, StringMajorUnit}
+    // Import only the unit(s) this connector actually uses; all five live in common_utils::types.
+    types::{MinorUnit, StringMinorUnit, StringMajorUnit, FloatMajorUnit, StringTwoDecimalUnit}
 };
 use domain_types::{
     connector_flow::{Authorize, SetupMandate},
@@ -426,7 +444,7 @@ use domain_types::{
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, Card,
     },
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -441,12 +459,18 @@ pub struct {ConnectorName}AuthType {
     pub api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+// Auth is read from `ConnectorSpecificConfig`, NOT from a `connector_auth_type` field —
+// `RouterDataV2` lost `connector_auth_type` on 2026-03-14 (a7a696c3a); the field is now
+// `req.connector_config: ConnectorSpecificConfig` (domain_types/src/router_data_v2.rs:14).
+// `ConnectorSpecificConfig` has ONE struct variant PER CONNECTOR (domain_types/src/router_data.rs:301),
+// not generic HeaderKey/BodyKey/SignatureKey variants — add your connector's variant there and
+// match on it. Exemplar: connectors/travelhub/transformers.rs:46 and connectors/volt/transformers.rs:402.
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = IntegrationError;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
@@ -629,7 +653,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(), Default::default()).into()),
         };
 
         Ok(Self {
@@ -668,7 +692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(), Default::default()).into()),
         };
 
         // Build shopper reference from customer_id
@@ -728,7 +752,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(), Default::default()).into()),
         };
 
         // Build subscription data from mandate details
@@ -823,14 +847,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
         // Build payment response data
         let payments_response_data = PaymentsResponseData::TransactionResponse {
+            // `PaymentsResponseData::TransactionResponse` is an ENUM struct-variant
+            // (connector_types.rs:2009): there is no functional-update (`..`) syntax for
+            // enum variants, so every one of its 11 fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,  // Add if connector requires 3DS for mandate setup
-            mandate_reference,
             connector_metadata: None,
+            mandate_reference,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.id.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1166,8 +1196,8 @@ These five connectors were added between commits `846fc79da` and `92ebf92a0`. Ea
 - **Request struct**: `NmiSetupMandateRequest<T>` with `customer_vault: CustomerAction` set to AddCustomer, payment method enum supporting `Card` + `Ach` variants — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1543`.
 - **Response struct**: `NmiSetupMandateResponse` returns `customer_vault_id: Option<Secret<String>>` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1606`.
 - **Mandate id extraction**: `customer_vault_id.expose()` becomes `connector_mandate_id` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1738`.
-- **Amount constraint**: zero-amount only; non-zero rejected with `IntegrationError::NotSupported { message: "Setup Mandate with non zero amount" }` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1647`.
-- **MIT coupling**: `pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1807`.
+- **Amount constraint**: zero-amount only; non-zero rejected with `IntegrationError::NotSupported { message: "Setup Mandate with non zero amount".to_string(), connector: "NMI", context: Default::default() }` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1707`.
+- **MIT coupling**: `pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1915`.
 
 ### TrustPay (PR #1063, commit `a7959c3ac`)
 
@@ -1177,7 +1207,7 @@ These five connectors were added between commits `846fc79da` and `92ebf92a0`. Ea
 - **URL**: `format!("{}{}", self.connector_base_url_payments(req), "api/v1/purchase")` — same card API endpoint as Authorize (zero-auth validation) — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1078`.
 - **Request struct**: `TrustpaySetupMandateRequest<T>` carrying full browser fingerprint fields and `PaymentType: "RecurringInitial"` — `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1230`.
 - **Response alias**: `pub type TrustpaySetupMandateResponse = PaymentsResponseCards` — `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1313`.
-- **MIT coupling**: `TrustpayRepeatPaymentRequest` targets the same `api/v1/purchase` URL and references the stored `InstanceId` with `PaymentType=Recurring` — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1112`.
+- **MIT coupling**: `TrustpayRepeatPaymentRequest` targets the same `api/v1/purchase` URL and references the stored `InstanceId` with `PaymentType=Recurring` — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1028`.
 
 ### dlocal (PR #1064, commit `92ebf92a0`)
 
@@ -1209,35 +1239,42 @@ impl ConnectorCommon for {ConnectorName} {
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        with_error_response_body!(event_builder, response);
 
         // Map mandate-specific error codes
+        // `ErrorResponse.attempt_status` is `Option<FlowStatus>` (router_data.rs:4233),
+        // NOT `Option<AttemptStatus>`. Map only codes the connector documents as terminal;
+        // an unrecognised code stays `None` so the framework does not report an unknown
+        // failure — or a charged payment — as FAILURE. Exemplars: connectors/noon.rs:498
+        // (minimal) and connectors/flywire.rs:355 (flow-aware, picks Refund vs Payment).
         let attempt_status = match response.error_code.as_deref() {
-            Some("customer_not_found") => Some(common_enums::AttemptStatus::Failure),
+            Some("customer_not_found") | Some("mandate_not_supported") => {
+                Some(common_enums::AttemptStatus::Failure)
+            }
             Some("invalid_payment_method") => Some(common_enums::AttemptStatus::PaymentMethodAwaited),
             Some("authentication_required") => Some(common_enums::AttemptStatus::AuthenticationPending),
-            Some("mandate_not_supported") => Some(common_enums::AttemptStatus::Failure),
-            _ => Some(common_enums::AttemptStatus::Failure),
+            _ => None,
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status,
+            // `FlowStatus` is `domain_types::router_data::FlowStatus` (router_data.rs:4186):
+            //     use domain_types::router_data::FlowStatus;
+            // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+            // Payout(PayoutStatus). Pick the one matching THIS flow.
+            attempt_status: attempt_status.map(FlowStatus::Payment),
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -1284,7 +1321,7 @@ mod tests {
         let router_data = create_test_setup_mandate_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -1475,8 +1512,8 @@ mod integration_tests {
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Adyen`, `Noon` | **Always required** |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `adyen`, `noon` | **Always required** |
-| `{AmountType}` | Amount type for mandate | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Choose based on API** |
-| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit` | **Must match {AmountType}** |
+| `{AmountType}` | Amount type for mandate | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Read the vendor spec and match its wire format** — no safe default |
+| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Must match {AmountType}** |
 | `{content_type}` | Request content type | `"application/json"`, `"application/x-www-form-urlencoded"` | **Based on API format** |
 | `{mandate_endpoint}` | Mandate API endpoint | `"setup_intents"`, `"payments"`, `"customers/{id}/payment_methods"` | **From API docs** |
 | `{Major\|Minor}` | Currency unit choice | `Major` or `Minor` | **Choose one** |

@@ -923,12 +923,28 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    /// Google Pay FPAN, see [`AdyenPaymentDataSource`].
+    #[serde(flatten)]
+    paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
+}
+
+/// `additionalData.paymentdatasource.*`, sent for a decrypted Google Pay token that carries a
+/// raw PAN and no cryptogram (FPAN / PAN_ONLY). Both the brand `googlepay` and a network token
+/// reach Adyen as `paymentMethod.type = scheme`, so without this pair Adyen assumes a network
+/// token, expects `mpiData`, and declines the payment with error 158
+/// ("Required field 'MpiData' is not provided."). Mirrors the Hyperswitch Adyen connector.
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+struct AdyenPaymentDataSource {
+    #[serde(rename = "paymentdatasource.type")]
+    data_type: String,
+    #[serde(rename = "paymentdatasource.tokenized")]
+    tokenized: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1564,6 +1580,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::GrabpayRedirect { .. }
             | WalletData::Skrill(_)
@@ -2468,6 +2485,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+        // Platform merchants settle wallet payments through the same store/splits as cards, so
+        // resolve them exactly like the Card arm does. Leaving them out makes Adyen reject the
+        // payment with 905_1/905_2 ("could not find an acquirer account ...").
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let mpi_data = match wallet_data {
             WalletData::ApplePay(apple_data) => {
                 if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
@@ -2567,8 +2593,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|descriptor| descriptor.statement_descriptor),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
-            store: None,
-            splits: None,
+            store,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -5936,6 +5962,32 @@ fn get_application_info(
     })
 }
 
+/// A decrypted Google Pay token reaches Adyen as `paymentMethod.type = scheme` with
+/// `brand = googlepay` whether it carries a raw PAN or a network token, so Adyen can only tell
+/// the two apart from `additionalData.paymentdatasource.*`. Send the pair when there is no
+/// cryptogram (FPAN / PAN_ONLY); tokens that do carry one send `mpiData` instead, which is what
+/// Adyen documents for DPAN and what the Hyperswitch Adyen connector branches on.
+fn get_google_pay_payment_data_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Option<AdyenPaymentDataSource> {
+    match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => match &google_pay_data
+            .tokenization_data
+        {
+            GpayTokenizationData::Decrypted(decrypt_data) if decrypt_data.cryptogram.is_none() => {
+                Some(AdyenPaymentDataSource {
+                    data_type: GOOGLE_PAY_BRAND.to_string(),
+                    tokenized: "false".to_string(),
+                })
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn get_additional_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -5967,6 +6019,8 @@ fn get_additional_data<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5976,6 +6030,7 @@ fn get_additional_data<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: item.request.authentication_data.as_ref().and_then(|data| {
             data.exemption_indicator
@@ -6938,6 +6993,8 @@ fn get_additional_data_for_setup_mandate<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -6947,6 +7004,7 @@ fn get_additional_data_for_setup_mandate<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: None,
         ..AdditionalData::default()
