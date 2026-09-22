@@ -9,6 +9,7 @@
 use crate::connectors::juspay_upi_stack::{constants::*, crypto::sign_jws, types::*};
 use common_enums as enums;
 use common_utils::errors::CustomResult;
+use common_utils::types::{AmountConvertor, MinorUnitForConnector};
 use common_utils::SecretSerdeValue;
 use domain_types::{
     connector_types::{
@@ -424,8 +425,17 @@ pub fn build_refund_request(
         (None, None)
     };
 
-    // Convert minor units (paise) to rupees with 2 decimal places using integer arithmetic
-    let amount_minor = refunds_data.minor_refund_amount.get_amount_as_i64();
+    // Convert minor units (paise) to rupees with 2 decimal places via amount converter
+    let connector_amount = MinorUnitForConnector
+        .convert(refunds_data.minor_refund_amount, refunds_data.currency)
+        .map_err(|_| IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })?;
+    let amount_minor: i64 = connector_amount.to_string().parse().map_err(|_| {
+        IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        }
+    })?;
     let refund_amount = minor_to_major_amount(amount_minor);
 
     let refund_request = Refund360Request {
@@ -475,7 +485,11 @@ pub fn build_rsync_request(
     let amount_str = refund_sync_data
         .refund_money
         .as_ref()
-        .map(|m| minor_to_major_amount(m.amount.get_amount_as_i64()))
+        .map(|m| {
+            m.convert(&common_utils::types::StringMajorUnitForConnector)
+                .map(|s| s.get_amount_as_string())
+                .unwrap_or_else(|_| String::from("0.00"))
+        })
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "refund_money",
             context: IntegrationErrorContext {

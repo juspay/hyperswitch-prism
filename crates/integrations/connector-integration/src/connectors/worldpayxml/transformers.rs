@@ -1357,7 +1357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if router_data
             .request
             .minor_amount
-            .is_some_and(|amount| amount.get_amount_as_i64() > 0)
+            .is_some_and(|amount| amount.is_positive())
         {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "SetupMandate with a non-zero amount".to_string(),
@@ -1418,10 +1418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data
-                .request
-                .minor_amount
-                .unwrap_or_else(common_utils::types::MinorUnit::zero),
+            router_data.request.minor_amount.unwrap_or_default(),
             router_data.request.currency,
         )?;
 

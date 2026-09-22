@@ -1,5 +1,5 @@
 use common_enums::Currency;
-use common_utils::{ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{ext_traits::ByteSliceExt, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::RepeatPayment,
     connector_types::{
@@ -85,7 +85,7 @@ pub struct HyperswitchPaymentMethodIdRecurringDetails {
 
 #[derive(Debug, Serialize)]
 pub struct HyperswitchRepeatPaymentRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub confirm: bool,
     pub off_session: bool,

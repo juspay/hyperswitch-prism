@@ -1191,7 +1191,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             })
                     })
                     .transpose()?
-                    .unwrap_or(common_utils::types::MinorUnit::new(0));
+                    .unwrap_or(common_utils::ConnectorMinorUnit::default());
 
                 let recurring = requests::JpmorganRecurring {
                     recurring_sequence: requests::JpmorganRecurringSequence::First,

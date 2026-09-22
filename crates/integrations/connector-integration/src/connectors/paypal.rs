@@ -7,7 +7,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    StringMajorUnit,
 };
 #[allow(unused_imports)]
 use domain_types::{

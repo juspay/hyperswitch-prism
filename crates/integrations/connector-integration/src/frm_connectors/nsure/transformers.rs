@@ -14,6 +14,7 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -725,7 +726,7 @@ impl<
             })
         })?;
 
-        let currency = req.amount.currency;
+        let currency = req.amount.currency();
         let feature_data = NsureFeatureData::parse(req.connector_feature_data.as_ref());
 
         // sessionInfo carries the SDK device id plus the browser signals prism
@@ -758,7 +759,13 @@ impl<
         };
 
         let paid_amount = NsureAmount {
-            value_in_currency: super::NsureAmountConvertor::convert(req.amount.amount, currency)?,
+            value_in_currency: req
+                .amount
+                .convert(&common_utils::types::FloatMajorUnitForConnector)
+                .change_context(errors::IntegrationError::InvalidDataFormat {
+                    field_name: "amount",
+                    context: Default::default(),
+                })?,
             currency,
         };
         let cart = nsure_cart(req.order_details.as_ref(), &paid_amount, &feature_data)?;

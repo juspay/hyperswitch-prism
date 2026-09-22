@@ -308,19 +308,18 @@ fn build_amount(
     minor_amount: MinorUnit,
     currency: Currency,
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
-    let minor = minor_amount.get_amount_as_i64();
     let amount = StringTwoDecimalUnitForConnector
         .convert(minor_amount, currency)
         .map_err(|_| {
             invalid_amount(format!(
-                "{currency} has more than two decimal places, so {minor} minor units cannot be \
-                 expressed in the two decimals order.amount implies"
+                "{currency} has more than two decimal places, so {minor_amount:?} minor units \
+                 cannot be expressed in the two decimals order.amount implies"
             ))
         })?;
     let amount = amount.validate_unsigned("order.amount").map_err(|_| {
         invalid_amount(format!(
-            "order.amount is unsigned at Orbital, but {minor} minor units of {currency} is \
-             negative"
+            "order.amount is unsigned at Orbital, but {minor_amount:?} minor units of \
+             {currency} is negative"
         ))
     })?;
     // `validate_max_len` consumes the amount, so keep the encoded form for the message.
@@ -329,8 +328,8 @@ fn build_amount(
         .validate_max_len(MAX_AMOUNT_LEN, "order.amount")
         .map_err(|_| {
             invalid_amount(format!(
-                "order.amount holds at most {MAX_AMOUNT_LEN} characters, but {minor} minor \
-                 units of {currency} encodes to `{encoded}` ({} characters)",
+                "order.amount holds at most {MAX_AMOUNT_LEN} characters, but {minor_amount:?} \
+                 minor units of {currency} encodes to `{encoded}` ({} characters)",
                 encoded.len()
             ))
         })

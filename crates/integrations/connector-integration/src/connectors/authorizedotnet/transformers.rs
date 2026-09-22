@@ -1061,7 +1061,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }))
             }
         };
-
         let transaction_request = AuthorizedotnetRepeatPaymentTransactionRequest {
             transaction_type,
             amount: item

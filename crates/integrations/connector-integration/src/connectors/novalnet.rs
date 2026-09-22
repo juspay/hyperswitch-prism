@@ -9,7 +9,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -627,8 +626,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
         let amount = amount
-            .map(|amount| amount.to_string())
-            .unwrap_or("".to_string());
+            .and_then(|amount| {
+                common_utils::AmountConvertor::convert(
+                    &common_utils::MinorUnitForConnector,
+                    amount,
+                    currency.unwrap_or_default(),
+                )
+                .ok()
+                .map(|a| a.to_string())
+            })
+            .unwrap_or_default();
         let currency = currency
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());

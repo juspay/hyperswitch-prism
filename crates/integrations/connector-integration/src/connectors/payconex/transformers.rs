@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
-    types::{MinorUnit, StringMajorUnit},
+    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -444,7 +444,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                MinorUnit::new(router_data.request.refund_amount),
+                router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
