@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(1)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(4)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub requires the pre-decrypted Apple Pay flow (ApplePayPaymentData::Decrypted); the encrypted token variant is not supported — decrypt the Apple Pay payload with your own merchant certificate before submitting. Received ApplePayPaymentData::Encrypted; expected Decrypted"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "status": "error",
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(11)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(37)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(3)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Card": {
         "status": "error",
@@ -102,19 +102,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(28)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(38)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(12)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(40)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(8)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Givex": {
         "status": "not_implemented",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(7)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub requires the pre-decrypted Google Pay flow (GpayTokenizationData::Decrypted); the encrypted ECv2 token variant is not supported — decrypt the Google Pay payload with your own merchant certificate before submitting. Received GpayTokenizationData::Encrypted; expected Decrypted"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "status": "error",
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(16)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(6)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(35)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(32)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(30)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(5)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(39)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(19)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(20)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -342,115 +342,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(36)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(31)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(22)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(33)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(44)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(29)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(25)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(23)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(24)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(27)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: Fiserv CommerceHub DecryptedWallet flow does not support the wallet variant 'Discriminant(34)'; only ApplePay (decrypted) and GooglePay (decrypted) are supported"
       }
     },
     "capture": {
@@ -792,7 +792,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented for Fiserv CommerceHub; supported methods: Card, CardWithNoCvc, ApplePay (decrypted), GooglePay (decrypted)"
       }
     },
     "token_setup_recurring": {
