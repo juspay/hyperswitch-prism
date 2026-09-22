@@ -297,31 +297,187 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the Authorize TryFrom's three gates: gateway `GatewayRspCode` first
+// (a rejection here is `AttemptStatus::Failure`), then the issuer `RspCode`
+// (a decline is `Failure` under auto-capture, `AuthorizationFailed` under
+// manual capture), then `is_auto_capture` splits an approval into
+// `Charged` / `Authorized`.  The `source:` enum is the issuer decision; the
+// gateway code and the capture flag ride in `GlobalpaymentsHeartlandAuthorizeCtx`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       GlobalpaymentsHeartland<T>,
+    flow:            Authorize,
+    source:          transformers::GlobalpaymentsHeartlandFlowStatus,
+    context:         transformers::GlobalpaymentsHeartlandAuthorizeCtx,
+    params:          [issuer, ctx],
+    success_status:  Approved,
+    success_targets: [Charged, Authorized],
+    failure_status:  Other,
+    failure_target:  AuthorizationFailed,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::GlobalpaymentsHeartlandFlowStatus;
+        // Level 1 — gateway. A rejection carries no transaction body at all.
+        if matches!(ctx.gateway, GlobalpaymentsHeartlandFlowStatus::Other) {
+            return AttemptStatus::Failure;
+        }
+        match issuer {
+            GlobalpaymentsHeartlandFlowStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            GlobalpaymentsHeartlandFlowStatus::Other => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Failure
+                } else {
+                    AttemptStatus::AuthorizationFailed
+                }
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for GlobalpaymentsHeartland<T>
 {
 }
 
+// Mirrors `map_psync_status`: an issuer decline on an auth-bearing transaction
+// (non-approval `Data/RspCode` — gated off `CreditReturn`, whose success code
+// is empty) short-circuits to `Failure`.  Then the (ServiceName, TxnStatus)
+// pair decides: active `CreditAuth` → Authorized (captured auth is
+// indistinguishable — the known limitation on the TryFrom), active
+// `CreditSale`/`CreditReturn` → Charged, a reversed auth/sale or any
+// `CreditVoid` record → Voided, everything else → Pending.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       GlobalpaymentsHeartland<T>,
+    flow:            PSync,
+    source:          transformers::GlobalpaymentsHeartlandFlowStatus,
+    context:         transformers::GlobalpaymentsHeartlandSyncCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged, Voided],
+    failure_status:  Other,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            GlobalpaymentsHeartlandFlowStatus, GlobalpaymentsHeartlandServiceName as Svc,
+            GlobalpaymentsHeartlandTxnStatus as Txn,
+        };
+        // Issuer-decline gate (auth-bearing services only). The `Other` source
+        // arm collapses this same verdict.
+        if matches!(status, GlobalpaymentsHeartlandFlowStatus::Other) && ctx.is_declined {
+            return AttemptStatus::Failure;
+        }
+        match (ctx.service_name, ctx.txn_status) {
+            (Svc::CreditAuth, Txn::Active) => AttemptStatus::Authorized,
+            (Svc::CreditSale, Txn::Active) => AttemptStatus::Charged,
+            (Svc::CreditAuth, Txn::Reversed) | (Svc::CreditSale, Txn::Reversed) => {
+                AttemptStatus::Voided
+            }
+            (Svc::CreditVoid, _) => AttemptStatus::Voided,
+            (Svc::CreditReturn, Txn::Active) => AttemptStatus::Charged,
+            _ => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for GlobalpaymentsHeartland<T>
 {
 }
 
+// Mirrors the Capture TryFrom: the `CreditAddToBatch` body is empty, so the
+// only signal is the header's `GatewayRspCode` — accepted → `Charged`,
+// anything else → `CaptureFailed`.  `GlobalpaymentsHeartlandFlowStatus` types
+// exactly that gateway verdict.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: GlobalpaymentsHeartland<T>,
+    flow:      Capture,
+    source:    transformers::GlobalpaymentsHeartlandFlowStatus,
+    success:   Approved => Charged,
+    failure:   Other    => CaptureFailed,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for GlobalpaymentsHeartland<T>
 {
 }
 
+// Mirrors the Void TryFrom: same header-only ack shape as Capture — accepted
+// → `Voided`, anything else → `VoidFailed`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: GlobalpaymentsHeartland<T>,
+    flow:      Void,
+    source:    transformers::GlobalpaymentsHeartlandFlowStatus,
+    success:   Approved => Voided,
+    failure:   Other    => VoidFailed,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for GlobalpaymentsHeartland<T>
 {
 }
 
+// Mirrors the Refund TryFrom: the `<CreditReturn />` response body is empty,
+// so the only signal is the header's `GatewayRspCode` — accepted → `Success`,
+// anything else → `Failure`.  Same `GlobalpaymentsHeartlandFlowStatus`
+// gateway verdict as Capture/Void above.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: GlobalpaymentsHeartland<T>,
+    flow:      Refund,
+    source:    transformers::GlobalpaymentsHeartlandFlowStatus,
+    success:   Approved => Success,
+    failure:   Other    => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for GlobalpaymentsHeartland<T>
 {
 }
 
+// Mirrors `map_rsync_status`: a non-empty non-approval `Data/RspCode` on a
+// `CreditReturn` (an issuer-rejected refund — a SUCCESSFUL return reports an
+// empty code) short-circuits to `Failure`.  Then the (ServiceName, TxnStatus)
+// pair decides: active `CreditReturn` → Success, a reversed return → Failure,
+// everything else → Pending.  RSync shares PSync's `GlobalpaymentsHeartlandSyncCtx`
+// — the decision surface is the same `ReportTxnDetail` triple.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      GlobalpaymentsHeartland<T>,
+    flow:           RSync,
+    source:         transformers::GlobalpaymentsHeartlandFlowStatus,
+    context:        transformers::GlobalpaymentsHeartlandSyncCtx,
+    params:         [status, ctx],
+    success_status: Approved,
+    failure_status: Other,
+    {
+        use common_enums::RefundStatus;
+        use transformers::{
+            GlobalpaymentsHeartlandFlowStatus, GlobalpaymentsHeartlandServiceName as Svc,
+            GlobalpaymentsHeartlandTxnStatus as Txn,
+        };
+        // Issuer-decline gate (CreditReturn only; a successful return reports an
+        // empty RspCode, so only a non-empty non-approval code is a failure).
+        // The `Other` source arm collapses this same verdict.
+        if matches!(status, GlobalpaymentsHeartlandFlowStatus::Other) && ctx.is_declined
+        {
+            return RefundStatus::Failure;
+        }
+        match (ctx.service_name, ctx.txn_status) {
+            (Svc::CreditReturn, Txn::Active) => RefundStatus::Success,
+            // A reversed return is a refund that did not stand.
+            (Svc::CreditReturn, Txn::Reversed) => RefundStatus::Failure,
+            _ => RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for GlobalpaymentsHeartland<T>
 {

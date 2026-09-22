@@ -1221,6 +1221,141 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// =============================================================================
+// FLOW-STATUS MAPPING TYPES
+// =============================================================================
+// Typed status enums consumed by the `impl_flow_status_mapping!` /
+// `impl_refund_flow_status_mapping!` declarations in `fiuu.rs`. Each collapses
+// a raw-string match in one of the TryFrom impls below into a unit-variant
+// enum so the macro bodies match variants instead of magic strings.
+
+/// Typed version of the `stat_code` string leg inside
+/// [`NonThreeDSResponseData::status`] (Authorize / SetupMandate non-3DS
+/// responses). `Other` covers anything outside `"00"`/`"11"`/`"22"`, which the
+/// TryFrom rejects as an unexpected response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FiuuAuthorizeStatus {
+    /// `stat_code "00"` — the transaction succeeded; the request's capture
+    /// method (ctx) decides Charged vs. Authorized.
+    Approved,
+    /// `stat_code "11"` — the transaction failed.
+    Failed,
+    /// `stat_code "22"` — the transaction is pending.
+    Pending,
+    /// Any other `stat_code` (the default).
+    #[default]
+    Other,
+}
+
+impl FiuuAuthorizeStatus {
+    /// Parse the raw `stat_code` string into the typed variant.
+    pub fn from_stat_code(raw: &str) -> Self {
+        match raw {
+            "00" => Self::Approved,
+            "11" => Self::Failed,
+            "22" => Self::Pending,
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Context for Authorize / SetupMandate / RepeatPayment flow-status mappings:
+/// whether the request was an automatic capture. Fiuu's `stat_code "00"` does
+/// not distinguish a settled sale from a bare authorisation — the original
+/// request's capture method is the only disambiguator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FiuuCaptureMethodCtx {
+    /// Auto capture — a success means `Charged`.
+    #[default]
+    Auto,
+    /// Manual capture — a success means `Authorized`.
+    Manual,
+}
+
+/// Typed version of the `stat_code` string in [`PaymentCaptureResponse`]. The
+/// TryFrom maps `"00"` → Charged, `"22"` → Pending, a fixed list of failure
+/// codes → Failure, and rejects anything else; `Other` covers both the listed
+/// failures and the unexpected ones since both land on the failure arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FiuuCaptureStatus {
+    /// `stat_code "00"` — capture successful.
+    Success,
+    /// `stat_code "22"` — capture pending.
+    Pending,
+    /// Every other `stat_code` (the failure list `"11"|"12"|"13"|"15"|"16"|
+    /// "17"|"18"|"19"|"20"|"21"|"23"|"24"|"25"|"99"` and any unexpected code)
+    /// — the TryFrom treats unlisted codes as an error, which also surfaces as
+    /// a failure outcome.
+    #[default]
+    Other,
+}
+
+impl FiuuCaptureStatus {
+    /// Parse the raw `stat_code` string into the typed variant.
+    pub fn from_stat_code(raw: &str) -> Self {
+        match raw {
+            "00" => Self::Success,
+            "22" => Self::Pending,
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Typed version of the `stat_code` string in [`FiuuPaymentCancelResponse`]:
+/// `"00"` voids, `"11".."21"` fail the void; `Other` covers the unexpected
+/// codes the TryFrom rejects (an error response surfacing as failure).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FiuuVoidStatus {
+    /// `stat_code "00"` — the authorisation was voided.
+    Voided,
+    /// Known void failures (`"11"`.."21"`).
+    Failed,
+    /// Any other `stat_code` (the default).
+    #[default]
+    Other,
+}
+
+impl FiuuVoidStatus {
+    /// Parse the raw `stat_code` string into the typed variant.
+    pub fn from_stat_code(raw: &str) -> Self {
+        match raw {
+            "00" => Self::Voided,
+            "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20" | "21" => {
+                Self::Failed
+            }
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Typed version of the `status` string in [`FiuuRefundSuccessResponse`] —
+/// the Refund initiation response. Same code set as the refund sync: `"00"`
+/// success, `"11"` failure, `"22"` pending; `Other` covers unexpected codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FiuuRefundStatus {
+    /// `status "00"` — refund succeeded.
+    Success,
+    /// `status "11"` — refund failed.
+    Failed,
+    /// `status "22"` — refund is pending.
+    Pending,
+    /// Any other status string (the default).
+    #[default]
+    Other,
+}
+
+impl FiuuRefundStatus {
+    /// Parse the raw `status` string into the typed variant.
+    pub fn from_status_str(raw: &str) -> Self {
+        match raw {
+            "00" => Self::Success,
+            "11" => Self::Failed,
+            "22" => Self::Pending,
+            _ => Self::Other,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PaymentsResponse {
