@@ -36,21 +36,6 @@ const RDP_API_MODE_SOP: &str = "redirection_sop";
 /// `S` = Sale (authorize + automatic capture). `A` (pre-auth / manual capture)
 /// is intentionally not implemented until a Capture flow exists.
 const RDP_PAYMENT_TYPE_SALE: &str = "S";
-/// RDP rejects `order_id` longer than this with `-1014`
-/// ("order_id exceeds the maximum length of : 20"). The doc-type is
-/// Varchar(16), but 20 is the enforced ceiling (22 chars verified rejected)
-/// — validated here so callers get a clear error before the request leaves.
-/// RDP `order_id`: a random 16-char hex id minted BY THE CONNECTOR at
-/// authorize time (ucs-side generation; euler never sees it directly).
-/// Juspay txnUuids (19-21 chars) overflow RDP's 20-char `order_id` ceiling,
-/// so instead of truncating a Juspay id we mint our own 64-bit-random hex
-/// (collision space ~2^64/payment rate) and ask euler to persist it: it is
-/// returned inside `connector_metadata` on the Authorize response, which
-/// euler merges into `second_factor.gateway_auth_req_params`, and the refund
-/// request hands that blob back via `connector_feature_data` (channel 5 of
-/// the UCS state channels — the only one that round-trips connector-private
-/// data). PSync keys off `transaction_id`/`merchant_reference` instead, so
-/// only authorize + refund touch this key.
 const RDP_ORDER_ID_GENERATED_LEN: usize = 16;
 
 /// Key inside the `connector_feature_data` JSON blob under which the

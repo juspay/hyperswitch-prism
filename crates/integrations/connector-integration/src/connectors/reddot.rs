@@ -251,14 +251,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
-                // RDP's gateway-side id for this payment.
-                connector_transaction_id: body.transaction_id,
-                // `merchant_reference` = full Juspay txnId echoed by RDP —
-                // this is the integrity-key euler's verifyTxnId compares
-                // against txnDetail.txnId (TrackerVerification.hs).
-                // Fallback to `order_id` (our random 16-hex id) never matches
-                // a Juspay txnId, so it degrades to a loud integrity failure
-                // when the acquirer didn't round-trip merchant_reference.
                 merchant_transaction_id: body.merchant_reference.or(body.order_id),
             },
         )))
