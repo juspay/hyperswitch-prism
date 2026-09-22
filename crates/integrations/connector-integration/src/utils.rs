@@ -818,3 +818,17 @@ pub fn validate_and_normalize_chilean_rut(
 
     Ok(Secret::new(normalized))
 }
+
+/// Serializes a [`common_enums::Currency`] as its ISO 4217 numeric code
+/// (e.g. `"840"` for USD). Use with `#[serde(serialize_with = "...")]` on
+/// connectors whose `currency_code` field expects the numeric code rather than
+/// the default UPPERCASE alpha-3 representation.
+pub fn serialize_currency_as_iso4217_numeric<S>(
+    currency: &common_enums::Currency,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(currency.iso_4217())
+}

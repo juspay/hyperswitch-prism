@@ -124,6 +124,13 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     }
 
     /// builds the request and returns it
+    // Déjà call-graph skeleton span: covers get_url/get_headers/get_request_body
+    // from above, so even a connector that hand-overrides those is one visible
+    // hop on the graph. Inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::build_request", skip_all)
+    )]
     fn build_request_v2(
         &self,
         req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,

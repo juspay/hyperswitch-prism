@@ -251,7 +251,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
@@ -262,24 +262,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("{ConnectorName}VoidPcResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response);
-        }
+        // `common_utils::events::Event` has no `set_response_body` (setters: events.rs:326-346).
+        // Use the crate macro (`use crate::with_response_body;`, utils.rs:70).
+        with_response_body!(event_builder, response);
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
             router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .change_context(ConnectorError::ResponseHandlingFailed { context: Default::default() })
     }
 
     fn get_error_response_v2(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 
     fn get_http_method(&self) -> common_utils::request::Method {
@@ -520,14 +521,17 @@ impl TryFrom<ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<Void
         if matches!(status, common_enums::AttemptStatus::VoidFailed) {
             let error_response = ErrorResponse {
                 code: response.status.to_string(),
-                message: response.message.clone().unwrap_or_default(),
+                // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+                // (crates/common/common_utils/src/consts.rs:154-156). Import them:
+                //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+                // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+                // an empty string in a log is indistinguishable from "the connector sent nothing".
+                message: response.message.clone().unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: response.message.clone(),
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                ..Default::default()
             };
 
             return Ok(Self {
@@ -542,14 +546,20 @@ impl TryFrom<ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<Void
 
         // Success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
+            // `PaymentsResponseData::TransactionResponse` is an ENUM struct-variant
+            // (connector_types.rs:2009): there is no functional-update (`..`) syntax for
+            // enum variants, so every one of its 11 fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.id.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -664,8 +674,12 @@ fn map_void_pc_status(
         "pending" | "processing" | "initiated" => {
             common_enums::AttemptStatus::Pending
         }
-        _ => {
-            // Default to pending for unknown statuses
+        other => {
+            // Non-terminal on purpose: an unrecognised status is not proof the void failed.
+            // PREFERRED shape is to type this as an enum with `#[serde(other)] Unknown` and make
+            // the match exhaustive with no wildcard — see `TravelhubResult` /
+            // `map_travelhub_status`, connectors/travelhub/transformers.rs:494-568.
+            router_env::logger::warn!(connector_status = %other, "unmapped VoidPC status");
             common_enums::AttemptStatus::Pending
         }
     }
@@ -687,33 +701,31 @@ fn handle_void_pc_error(
             message: "Payment has already been voided".to_string(),
             reason: Some(error_message.to_string()),
             status_code: 400,
-            attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+            // `FlowStatus` is `domain_types::router_data::FlowStatus` (router_data.rs:4186):
+            //     use domain_types::router_data::FlowStatus;
+            // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+            // Payout(PayoutStatus). Pick the one matching THIS flow.
+            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
             connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         }),
         "ALREADY_SETTLED" | "PAYMENT_SETTLED" => Some(ErrorResponse {
             code: error_code.to_string(),
             message: "Payment has already been settled, use refund instead".to_string(),
             reason: Some(error_message.to_string()),
             status_code: 400,
-            attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
             connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         }),
         "VOID_NOT_SUPPORTED" | "OPERATION_NOT_SUPPORTED" => Some(ErrorResponse {
             code: error_code.to_string(),
             message: "Void operation not supported for this payment".to_string(),
             reason: Some(error_message.to_string()),
             status_code: 400,
-            attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
             connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         }),
         _ => None,
     }
@@ -744,7 +756,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
         Err(IntegrationError::NotSupported {
             message: "VoidPC (void post capture) is not supported by this connector. Use Refund flow instead.".to_string(),
-            connector: "{ConnectorName, context: Default::default() }".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
         .into())
     }
@@ -903,7 +916,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
         Err(IntegrationError::NotSupported {
             message: "VoidPC not supported. Use Refund instead.".to_string(),
-            connector: "{ConnectorName, context: Default::default() }".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
         .into())
     }

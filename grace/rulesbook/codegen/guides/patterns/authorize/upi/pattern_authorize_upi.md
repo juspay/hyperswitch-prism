@@ -163,7 +163,12 @@ pub enum UpiSource {
 
 pub mod transformers;
 
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, Refund},
     connector_types::{
@@ -172,9 +177,9 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -182,8 +187,8 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, events::connector_api_logs::ConnectorEvent,
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
@@ -192,7 +197,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -240,7 +245,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -271,7 +276,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -285,7 +290,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
@@ -295,20 +301,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        with_error_response_body!(event_builder, response);
+
+        // `attempt_status` is `Option<FlowStatus>` (`crates/types-traits/domain_types/src/router_data.rs`),
+        // NOT `Option<AttemptStatus>`. Be flow-aware and non-terminal by default:
+        //  * hard-coding `Some(FlowStatus::Payment(AttemptStatus::Failure))` here is what
+        //    reports an already-charged payment as FAILURE;
+        //  * a blanket `None` is equally wrong on refund flows -- a hard-declined refund
+        //    then stays Pending and keeps retrying.
+        // Derive it only from error codes the vendor documents as terminal, and pick the
+        // variant matching the flow (`FlowStatus::Refund(RefundStatus::Failure)` on refunds).
+        // Minimal exemplar: `crates/integrations/connector-integration/src/connectors/noon.rs:499-512`
+        // Flow-aware exemplar: `crates/integrations/connector-integration/src/connectors/flywire.rs:362-370`
+        const TERMINAL_ERROR_CODES: &[&str] = &[/* fill in from the vendor error-code table */];
+        let attempt_status = TERMINAL_ERROR_CODES
+            .contains(&response.error_code.as_deref().unwrap_or_default())
+            .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status: None,
+            attempt_status,
             connector_transaction_id: response.transaction_id,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -343,6 +363,22 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+// `SourceVerification` and `BodyDecoding` are NON-generic traits
+// (`crates/types-traits/interfaces/src/verification.rs:20`,
+// `crates/types-traits/interfaces/src/decode.rs:6`). Write exactly ONE blanket impl of each
+// per connector -- one impl per flow, or one carrying <Flow, Data, Req, Resp> parameters,
+// is an E0107. Exemplar:
+// `crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    SourceVerification for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    BodyDecoding for {ConnectorName}<T>
+{
+}
 ```
 
 ### Transformers Implementation
@@ -353,9 +389,9 @@ macros::macro_connector_implementation!(
 use domain_types::{
     connector_flow::Authorize,
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -382,16 +418,33 @@ impl {ConnectorName}AuthType {
     }
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
+            // Each connector gets its OWN variant in `ConnectorSpecificConfig`
+            // (domain_types/src/router_data.rs). There is no generic `HeaderKey` /
+            // `SignatureKey` variant any more -- add `{ConnectorName} { .. }` to that
+            // enum and destructure it here. Copy the shape from
+            // `crates/integrations/connector-integration/src/connectors/travelhub/transformers.rs:46`.
+            ConnectorSpecificConfig::{ConnectorName} {
+                api_key,
+                api_secret,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
-            _ => Err(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
+            _ => Err(errors::IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the connector account is configured with {ConnectorName} credentials".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into()),
         }
     }
 }
@@ -524,7 +577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .as_ref()
                         .ok_or(errors::IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                        , context: Default::default() })?
+                            context: Default::default() })?
                         .peek()
                         .to_string();
                     (UpiFlowType::Collect, Some(vpa_string))
@@ -600,14 +653,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 response: Err(ErrorResponse {
                     code: error_code,
-                    message: response.error_description.unwrap_or_default(),
+                    message: response.error_description.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: response.error_description.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    // `Option<FlowStatus>`, not `Option<AttemptStatus>`
+                    // (`use domain_types::router_data::FlowStatus;`).
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -624,9 +680,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(router_data.resource_common_data.connector_request_reference_id.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -877,7 +936,7 @@ pub fn determine_upi_flow<T: PaymentMethodDataTypes>(
                     } else {
                         Err(IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                        , context: Default::default() }.into())
+                            context: Default::default() }.into())
                     }
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(UpiFlowType::Intent),
@@ -886,7 +945,7 @@ pub fn determine_upi_flow<T: PaymentMethodDataTypes>(
         _ => Err(IntegrationError::NotSupported {
             message: "Only UPI payment methods are supported".to_string(),
             connector: "Paytm",
-        , context: Default::default() }.into()),
+            context: Default::default() }.into()),
     }
 }
 ```
@@ -905,14 +964,19 @@ pub fn extract_upi_vpa<T: PaymentMethodDataTypes>(
                 if vpa.contains('@') && vpa.len() > 3 {
                     Ok(Some(vpa))
                 } else {
-                    Err(IntegrationError::RequestEncodingFailedWithReason(
-                        "Invalid UPI VPA format".to_string(),
-                    ).into())
+                    Err(IntegrationError::InvalidDataFormat {
+                        field_name: "vpa_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("UPI VPA must contain '@' and be longer than 3 characters".to_string()),
+                            ..Default::default()
+                        },
+                    }
+                    .into())
                 }
             } else {
                 Err(IntegrationError::MissingRequiredField {
                     field_name: "vpa_id",
-                , context: Default::default() }.into())
+                    context: Default::default() }.into())
             }
         }
         _ => Ok(None),
@@ -931,7 +995,12 @@ pub fn generate_paytm_signature(
     let rng = SystemRandom::new();
     let mut salt_bytes = [0u8; 3];
     rng.fill(&mut salt_bytes).map_err(|_| {
-        IntegrationError::RequestEncodingFailedWithReason("Salt generation failed".to_string())
+        IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some("Salt generation failed".to_string()),
+                ..Default::default()
+            },
+        }
     })?;
 
     // Step 2: Base64 encode salt
@@ -1003,9 +1072,14 @@ let vpa = collect_data
     .ok_or(IntegrationError::MissingRequiredField { field_name: "vpa_id" , context: Default::default() })?;
 let vpa_str = vpa.peek().to_string();
 if !vpa_str.contains('@') || vpa_str.len() <= 3 {
-    return Err(IntegrationError::RequestEncodingFailedWithReason(
-        "Invalid VPA format".to_string(),
-    ).into());
+    return Err(IntegrationError::InvalidDataFormat {
+        field_name: "vpa_id",
+        context: IntegrationErrorContext {
+            additional_context: Some("UPI VPA must contain '@' and be longer than 3 characters".to_string()),
+            ..Default::default()
+        },
+    }
+    .into());
 }
 ```
 
@@ -1133,7 +1207,7 @@ mod tests {
         let router_data = create_test_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 

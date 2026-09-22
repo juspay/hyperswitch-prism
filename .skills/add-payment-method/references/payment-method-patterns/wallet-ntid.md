@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/wallet/pattern_authorize_wallet_ntid.md

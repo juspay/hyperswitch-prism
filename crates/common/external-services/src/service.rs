@@ -265,9 +265,7 @@ use tracing::field::Empty;
 use crate::shared_metrics as metrics;
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
-#[cfg(not(feature = "connector-request-kafka"))]
 use common_enums::KafkaClientError;
-#[cfg(not(feature = "connector-request-kafka"))]
 use common_utils::request::KafkaRecord;
 #[cfg(feature = "connector-request-kafka")]
 pub use connector_request_kafka::publish_to_kafka;
@@ -276,6 +274,55 @@ pub async fn publish_to_kafka(
     _kafka_record: KafkaRecord,
 ) -> CustomResult<Result<Response, Response>, KafkaClientError> {
     Err(KafkaClientError::NotEnabled)?
+}
+
+/// The Kafka-transport egress boundary. Both the real publisher and the feature-off stub
+/// flow through this wrapper, so the déjà boundary composes with `connector-request-kafka`
+/// on or off (tapes are portable across the two). Replay substitutes the recorded delivery
+/// outcome and never publishes to a real broker.
+// Gated like its sole caller (`execute_connector_processing_step`); without it the
+// private wrapper is dead code in `injector-client`-less builds.
+#[cfg(feature = "injector-client")]
+#[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::instrument(
+        boundary = "kafka_outgoing",
+        component = "external_services::service",
+        operation = "publish_connector_record",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::kafka_args(&record),
+        codec = crate::deja_codec::KafkaOutcomeCodec,
+        replay = Substitute,
+    )
+)]
+async fn publish_connector_record(
+    record: KafkaRecord,
+) -> CustomResult<Result<Response, Response>, KafkaClientError> {
+    publish_to_kafka(record).await
+}
+
+/// The injector (vault-card-proxy) egress boundary. Args capture is digest-only — the
+/// request carries vault token data and the card-data template (`sensitivity: vault`).
+/// Replay substitutes the recorded response; the vault is never contacted.
+#[cfg(feature = "injector-client")]
+#[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::instrument(
+        boundary = "injector_outgoing",
+        component = "external_services::service",
+        operation = "call_injector_core",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::injector_args(&request),
+        codec = crate::deja_codec::InjectorOutcomeCodec,
+        replay = Substitute,
+    )
+)]
+async fn call_injector_core(
+    request: injector::InjectorRequest,
+) -> error_stack::Result<injector::InjectorResponse, injector::InjectorError> {
+    injector_core(request).await
 }
 
 /// Exposes a flow's outcome as a unified [`FlowStatus`], so the generic connector
@@ -370,6 +417,21 @@ fn capture_connector_reply<E>(
 }
 
 /// Handles the connector response, processing both successful and error responses
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(
+        name = "ucs::handle_response",
+        skip_all,
+        fields(
+            method = %method,
+            // Declared so the record() calls in the body land in the tape
+            // instead of silently no-oping against an undeclared field.
+            status_code = Empty,
+            url = Empty,
+        )
+    )
+)]
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
@@ -388,7 +450,7 @@ where
     ResourceCommonData:
         Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
-    let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
+    let return_connector_data = event_params.is_none_or(|p| p.return_raw_and_typed_connector_data);
     match response {
         Ok(body) => {
             let response = match body {
@@ -398,7 +460,7 @@ where
                         .record("status_code", tracing::field::display(status_code));
                     tracing::Span::current().record("res_code", u64::from(status_code));
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -439,10 +501,22 @@ where
                     // Headers always reach response transformers; they stay on the
                     // response only when the deployment returns raw connector data,
                     // matching the exposure before headers were always captured.
-                    if !(all_keys_required.unwrap_or(true) && return_raw) {
+                    if !(all_keys_required.unwrap_or(true) && return_connector_data) {
                         handled_router_data
                             .resource_common_data
                             .set_connector_response_headers(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_request(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_request(None);
                     }
                     handled_router_data
                 }
@@ -471,7 +545,7 @@ where
                         );
                     }
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -546,15 +620,22 @@ where
                         );
                     }
                     {
-                        error_response.raw_connector_response = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_response();
-                        error_response.raw_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_request();
-                        error_response.typed_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_typed_connector_request();
+                        if return_connector_data {
+                            error_response.raw_connector_response = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_response();
+                            error_response.raw_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_request();
+                            error_response.typed_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_typed_connector_request();
+                        } else {
+                            error_response.raw_connector_response = None;
+                            error_response.raw_connector_request = None;
+                            error_response.typed_connector_response = None;
+                            error_response.typed_connector_request = None;
+                        }
                     }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(Box::new(error_response))
@@ -625,7 +706,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub org_id: &'a str,
-    pub return_raw_connector_data: bool,
+    pub return_raw_and_typed_connector_data: bool,
     pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
@@ -649,6 +730,7 @@ pub struct EventProcessingParams<'a> {
         response.error_message = Empty,
         response.status_code = Empty,
         res_code = Empty,
+        api_tag = Empty,
         message_ = "Golden Log Line (outgoing)",
         // `latency` is the pre-existing human-readable string; `latency_ms` is the same
         // duration as a plain number of milliseconds, for numeric downstream consumers.
@@ -682,6 +764,12 @@ where
         + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
+    tracing::Span::current().record(
+        "api_tag",
+        api_tag
+            .as_deref()
+            .unwrap_or(event_params.flow_name.as_str()),
+    );
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     #[cfg(feature = "log-transformations")]
@@ -717,7 +805,7 @@ where
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
-                Some(request) if event_params.return_raw_connector_data => {
+                Some(request) if event_params.return_raw_and_typed_connector_data => {
                     updated_router_data
                         .resource_common_data
                         .set_raw_connector_request(Some(
@@ -914,7 +1002,7 @@ where
 
                         // New injector handles HTTP request internally and returns enhanced response
                         let injector_response =
-                            injector_core(injector_request).await.change_context(
+                            call_injector_core(injector_request).await.change_context(
                                 ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
                                     context: Default::default(),
                                 }),
@@ -1091,7 +1179,7 @@ where
                     let masked_request = mask_connector_request(&record.payload);
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
-                    let response = publish_to_kafka(record)
+                    let response = publish_connector_record(record)
                         .await
                         .map_err(report_kafka_client_to_flow)
                         .inspect_err(|err| {
@@ -1303,6 +1391,17 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
 
+#[cfg_attr(
+    feature = "deja",
+    deja::http(
+        outgoing,
+        component = "external_services::service",
+        operation = "call_connector_api",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::http_args(&request),
+        codec = crate::deja_codec::HttpOutcomeCodec,
+    )
+)]
 pub async fn call_connector_api(
     proxy: &ProxyConfig,
     request: Request,
@@ -1311,6 +1410,7 @@ pub async fn call_connector_api(
     header_proxy_name: Option<&str>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
+    let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
     let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
 
@@ -1457,21 +1557,23 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let send_request = async {
-        request.send().await.map_err(|error| {
-            let api_error = match error {
-                error if error.is_timeout() => ApiClientError::RequestTimeoutReceived,
-                _ => ApiClientError::RequestNotSent(error.to_string()),
-            };
-            info_log(
-                "REQUEST_FAILURE",
-                &json!("Unable to send request to connector."),
-            );
-            report!(api_error)
-        })
-    };
+    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
 
-    let response = send_request.await;
+    if retried {
+        #[cfg(feature = "otel")]
+        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
+        tracing::info!(
+            connector = %connector_host,
+            "Auto-retried request due to connection closed before message completed"
+        );
+    }
+
+    if response.is_err() {
+        info_log(
+            "REQUEST_FAILURE",
+            &json!("Unable to send request to connector."),
+        );
+    }
 
     handle_response(response).await
 }
