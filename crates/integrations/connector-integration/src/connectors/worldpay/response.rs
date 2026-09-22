@@ -516,6 +516,6 @@ pub struct WorldpayIncrementalAuthResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IncrementalAuthAmounts {
-    pub total_authorized: Option<common_utils::types::MinorUnit>,
+    pub total_authorized: Option<common_utils::types::ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
 }

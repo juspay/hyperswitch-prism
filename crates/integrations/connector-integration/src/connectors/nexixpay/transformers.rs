@@ -389,7 +389,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayOrderData {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?,
@@ -705,7 +708,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Convert amount - handle partial vs full capture
         let capture_amount = StringMinorUnitForConnector
-            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount_to_capture,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -824,7 +830,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Convert refund amount
         let refund_amount = StringMinorUnitForConnector
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_refund_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -922,7 +931,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let void_amount_string = StringMinorUnitForConnector
-            .convert(void_amount, currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                void_amount,
+                currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1329,7 +1341,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayPreAuthOrder {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(item.request.amount, currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.amount,
+                    currency,
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?,
@@ -1773,7 +1788,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
 
         let amount = StringMinorUnitForConnector
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2013,7 +2031,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayPreAuthOrder {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(common_utils::types::MinorUnit::default(), currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    common_utils::types::MinorUnit::default(),
+                    currency,
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?,
@@ -2284,7 +2305,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayOrderData {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?,

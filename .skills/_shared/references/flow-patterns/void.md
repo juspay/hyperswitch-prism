@@ -74,6 +74,20 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+// 4. SourceVerification / BodyDecoding stubs -- BOTH TRAITS ARE NON-GENERIC and are declared
+//    ONCE per connector, not per flow. `SourceVerification<Void, PaymentFlowData, ...>` is
+//    E0107. Definitions: interfaces/src/verification.rs, interfaces/src/decode.rs.
+//    Exemplar: connectors/travelhub.rs:175.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
+}
 ```
 
 ## URL Endpoint Patterns
@@ -89,13 +103,24 @@ macros::macro_connector_implementation!(
 
 ### Available PaymentVoidData Fields
 
-From `router_data.request`:
+From `router_data.request` (`domain_types::connector_types::PaymentVoidData`):
 - `connector_transaction_id: String` -- original transaction reference (always available)
 - `cancellation_reason: Option<String>` -- reason for void
+- `amount: Option<MinorUnit>`, `currency: Option<Currency>`
+- `connector_feature_data: Option<SecretSerdeValue>` -- the carrier that brings back whatever
+  Authorize published in `TransactionResponse.connector_metadata`
+- `metadata: Option<SecretSerdeValue>`, `merchant_order_id: Option<String>`,
+  `browser_info`, `split_payments`, `integrity_object`, `raw_connector_response`
 
-From `router_data.resource_common_data`:
+From `router_data.resource_common_data` (`PaymentFlowData`):
 - `connector_request_reference_id: String`
-- `connector_meta_data: Option<SecretSerdeValue>` -- metadata from authorize
+- `connector_feature_data: Option<SecretSerdeValue>`
+
+There is no `connector_meta_data` field on either type -- the field is
+`connector_feature_data` in both places.
+
+Auth lives on `router_data.connector_config: ConnectorSpecificConfig`
+(`RouterDataV2::connector_auth_type` was removed on 2026-03-14).
 
 ### Pattern 1: Simple Reference Void (Checkout, Stripe-style)
 
@@ -140,7 +165,8 @@ pub struct {ConnectorName}VoidRequest {
 
 ### Pattern 3: Session-Aware Void (requires metadata from authorize)
 
-Extract session data stored in `connector_meta_data` during authorize:
+Extract session data Authorize stashed in `TransactionResponse.connector_metadata`; it
+arrives on this flow as `request.connector_feature_data`:
 
 ```rust
 #[derive(Debug, Clone, Serialize)]
@@ -151,18 +177,25 @@ pub struct {ConnectorName}VoidRequest {
     pub merchant_config: MerchantConfig,
 }
 
-// Helper to parse session from connector_meta_data
+// Helper to parse the session Authorize stashed in `connector_metadata`, which arrives here
+// as `request.connector_feature_data`.
 fn extract_session_from_metadata(
-    meta_data: Option<&pii::SecretSerdeValue>,
-) -> Result<SessionData, IntegrationError> {
+    meta_data: Option<&SecretSerdeValue>,
+) -> Result<SessionData, error_stack::Report<IntegrationError>> {
     let value = meta_data
-        .ok_or_else(|| IntegrationError::MissingRequiredField {
-            field_name: "connector_meta_data for session in Void",
-        , context: Default::default() })?
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_feature_data for session in Void",
+                context: IntegrationErrorContext::default(),
+            })
+        })?
         .peek();
-    // Parse JSON string -> SessionData
+    // Parse serde_json::Value -> SessionData
 }
 ```
+
+`MissingRequiredField` is a struct variant with **two** fields: `field_name: &'static str`
+and `context: IntegrationErrorContext`.
 
 ## Transformers: Response Patterns
 
@@ -183,6 +216,9 @@ pub struct {ConnectorName}VoidResponse {
     pub(super) status: u16,   // Set from http_code, not API body
     pub action_id: String,
     pub reference: String,
+    /// Present only on in-band failures; drives the `Err(ErrorResponse)` branch below.
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 impl From<&{ConnectorName}VoidResponse> for enums::AttemptStatus {
@@ -212,12 +248,49 @@ impl From<{ConnectorName}PaymentStatus> for enums::AttemptStatus {
 
 ### Pattern 3: String Status-Based
 
+Do **not** match on a raw `&str` here. That forces a catch-all `_ =>` at the status-mapping
+layer, which silently misclassifies every status the vendor adds later -- and a
+"conservative" `_ => VoidFailed` turns an unknown into a terminal failure. Deserialize into
+an enum with a `#[serde(other)]` catch-all, then map exhaustively. Reviewers require both
+halves: `#[serde(other)]` at the deserialization layer, no `_ =>` at the mapping layer.
+
 ```rust
-match item.status.as_str() {
-    "completed" | "successful" | "voided" => Self::Voided,
-    "failed" | "declined" | "rejected" => Self::VoidFailed,
-    "pending" | "processing" => Self::Pending,
-    _ => Self::VoidFailed, // Conservative default
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum {ConnectorName}VoidStatus {
+    Completed,
+    Successful,
+    Voided,
+    Failed,
+    Declined,
+    Rejected,
+    Pending,
+    Processing,
+    /// Deserialization-layer catch-all: an unrecognised status lands here instead of failing
+    /// the response parse.
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<{ConnectorName}VoidStatus> for enums::AttemptStatus {
+    fn from(status: {ConnectorName}VoidStatus) -> Self {
+        // Exhaustive -- no `_ =>` arm.
+        match status {
+            {ConnectorName}VoidStatus::Completed
+            | {ConnectorName}VoidStatus::Successful
+            | {ConnectorName}VoidStatus::Voided => Self::Voided,
+
+            {ConnectorName}VoidStatus::Failed
+            | {ConnectorName}VoidStatus::Declined
+            | {ConnectorName}VoidStatus::Rejected => Self::VoidFailed,
+
+            {ConnectorName}VoidStatus::Pending
+            | {ConnectorName}VoidStatus::Processing => Self::Pending,
+
+            // Non-terminal: unknown is not proof the void failed. PSync resolves it.
+            {ConnectorName}VoidStatus::Unknown => Self::Pending,
+        }
+    }
 }
 ```
 
@@ -239,20 +312,64 @@ impl<F> TryFrom<ResponseRouterData<{ConnectorName}VoidResponse, RouterDataV2<F, 
         let status = enums::AttemptStatus::from(&response);
         router_data.resource_common_data.status = status;
 
+        // In-band failure: a 2xx body reporting `VoidFailed` is still a failure and must come
+        // back as `Err(ErrorResponse { .. })`, not an `Ok` carrying a failed status. Gate on
+        // `domain_types::utils::is_payment_failure` (it covers `VoidFailed`), not on the HTTP
+        // code.
+        if domain_types::utils::is_payment_failure(status) {
+            router_data.response = Err(ErrorResponse {
+                // Never `.unwrap_or_default()` -- an empty code reaches the merchant blank.
+                code: response
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response
+                    .error_message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: response.error_message.clone(),
+                status_code: http_code,
+                // `attempt_status` is `Option<FlowStatus>`. Carry the status this response
+                // proves -- do not hardcode a terminal `Failure` on a shared path, and do not
+                // blanket-`None` it either. See `connectors/flywire.rs` (full form) and
+                // `connectors/noon.rs` (minimal form).
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(response.action_id.clone()),
+                // `ErrorResponse` has 13 fields and implements `Default`.
+                ..Default::default()
+            });
+            return Ok(router_data);
+        }
+
+        // `TransactionResponse` is an enum struct-variant: no `..Default::default()` is
+        // possible, so all 11 fields must be listed (E0063).
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.action_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: response.reference.clone(),
+            network_txn_link_id: None,
+            connector_response_reference_id: Some(response.reference.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: http_code,
+            payment_account_reference: None,
         });
 
         Ok(router_data)
     }
 }
+```
+
+Imports for the transformers file:
+
+```rust
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+use domain_types::{
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    router_data::{ErrorResponse, FlowStatus},
+};
 ```
 
 ## Real Connector Examples

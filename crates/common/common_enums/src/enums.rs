@@ -1547,6 +1547,7 @@ pub enum PaymentMethodType {
     Neteller,
     Paysera,
     Paymaya,
+    Payhere,
     QwikcilverWallet,
 }
 
@@ -2487,6 +2488,7 @@ pub enum CountryAlpha3 {
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KafkaClientError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {message}")]
@@ -2504,6 +2506,7 @@ pub enum KafkaClientError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -2596,6 +2599,7 @@ pub enum ProcessTrackerRunner {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    Payhere,
     Adyenplatform,
     Aci,
     Adyen,

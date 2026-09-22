@@ -12,6 +12,7 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentMethodService/Tokenize"
+    "PaymentMethodService/Tokenize",
+    "PaymentMethodAuthenticationService/PostAuthenticate"
   ]
 }

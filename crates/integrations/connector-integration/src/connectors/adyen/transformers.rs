@@ -6,8 +6,8 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, ValueExt},
     request::Method,
-    types::{MinorUnit, SemanticVersion},
-    SecretSerdeValue,
+    types::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector, SemanticVersion},
+    AmountConvertor, SecretSerdeValue,
 };
 use domain_types::{
     connector_flow::{
@@ -72,7 +72,30 @@ pub enum Currency {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: common_enums::Currency,
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
+}
+
+fn convert_amount(
+    amount: MinorUnit,
+    currency: common_enums::Currency,
+) -> Result<ConnectorMinorUnit, Error> {
+    MinorUnitForConnector
+        .convert(&common_utils::types::Money::from_minor_unit(
+            amount, currency,
+        ))
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })
+}
+
+/// Best-effort conversion of a wire `ConnectorMinorUnit` back to the domain `MinorUnit`,
+/// for bridging fields that must stay domain-typed (e.g. `txn_amount`). Returns `None`
+/// on conversion failure rather than failing the whole response parse, matching the
+/// pre-existing infallible behaviour of these call sites.
+fn convert_back_amount(amount: &Amount) -> Option<MinorUnit> {
+    MinorUnitForConnector
+        .convert_back(amount.value, amount.currency)
+        .ok()
 }
 
 type Error = error_stack::Report<IntegrationError>;
@@ -923,12 +946,28 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    /// Google Pay FPAN, see [`AdyenPaymentDataSource`].
+    #[serde(flatten)]
+    paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
+}
+
+/// `additionalData.paymentdatasource.*`, sent for a decrypted Google Pay token that carries a
+/// raw PAN and no cryptogram (FPAN / PAN_ONLY). Both the brand `googlepay` and a network token
+/// reach Adyen as `paymentMethod.type = scheme`, so without this pair Adyen assumes a network
+/// token, expects `mpiData`, and declines the payment with error 158
+/// ("Required field 'MpiData' is not provided."). Mirrors the Hyperswitch Adyen connector.
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+struct AdyenPaymentDataSource {
+    #[serde(rename = "paymentdatasource.type")]
+    data_type: String,
+    #[serde(rename = "paymentdatasource.tokenized")]
+    tokenized: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1044,11 +1083,11 @@ pub struct ShopperName {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LineItem {
-    amount_excluding_tax: Option<MinorUnit>,
-    amount_including_tax: Option<MinorUnit>,
+    amount_excluding_tax: Option<ConnectorMinorUnit>,
+    amount_including_tax: Option<ConnectorMinorUnit>,
     description: Option<String>,
     id: Option<String>,
-    tax_amount: Option<MinorUnit>,
+    tax_amount: Option<ConnectorMinorUnit>,
     quantity: Option<u16>,
 }
 
@@ -1335,11 +1374,14 @@ fn get_amount_data<
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         T,
     >,
-) -> Amount {
-    Amount {
+) -> Result<Amount, Error> {
+    Ok(Amount {
         currency: item.router_data.request.currency,
-        value: item.router_data.request.minor_amount.to_owned(),
-    }
+        value: convert_amount(
+            item.router_data.request.minor_amount.to_owned(),
+            item.router_data.request.currency,
+        )?,
+    })
 }
 
 pub struct AdyenAuthType {
@@ -1564,6 +1606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::GrabpayRedirect { .. }
             | WalletData::Skrill(_)
@@ -2266,7 +2309,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -2453,7 +2496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((wallet_data, &item.router_data.resource_common_data))?,
@@ -2468,6 +2511,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+        // Platform merchants settle wallet payments through the same store/splits as cards, so
+        // resolve them exactly like the Card arm does. Leaving them out makes Adyen reject the
+        // payment with 905_1/905_2 ("could not find an acquirer account ...").
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let mpi_data = match wallet_data {
             WalletData::ApplePay(apple_data) => {
                 if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
@@ -2567,8 +2619,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|descriptor| descriptor.statement_descriptor),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
-            store: None,
-            splits: None,
+            store,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -2618,7 +2670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -2682,7 +2734,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billing_address,
             delivery_address,
             country_code: country,
-            line_items: Some(get_line_items(&item)),
+            line_items: Some(get_line_items(&item)?),
             shopper_reference,
             store_payment_method,
             channel: None,
@@ -2745,7 +2797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_debit_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -2892,7 +2944,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_transfer_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
@@ -3051,7 +3103,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_redirect_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
@@ -3170,7 +3222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, gift_card_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from(gift_card_data)?,
@@ -3283,7 +3335,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, token_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -3431,7 +3483,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (item, pay_later_data) = value;
         let payment_method = AdyenPaymentMethod::try_from((&item.router_data, pay_later_data))?;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
@@ -3499,7 +3551,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billing_address,
             delivery_address,
             country_code,
-            line_items: Some(get_line_items(&item)),
+            line_items: Some(get_line_items(&item)?),
             shopper_reference,
             store_payment_method,
             channel: None,
@@ -3557,7 +3609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, voucher_data) = value;
-        let amount = get_amount_data(&item);
+        let amount = get_amount_data(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((voucher_data, &item.router_data))?,
@@ -3796,7 +3848,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentMethodData::PaymentMethodToken(token_data) => {
                     let token = token_data.token.clone();
 
-                    let amount = get_amount_data(&item);
+                    let amount = get_amount_data(&item)?;
                     let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
                     let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
                     let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -4780,7 +4832,7 @@ pub fn get_adyen_response(
         payment_account_reference: None,
     };
 
-    let txn_amount = response.amount.map(|amount| amount.value);
+    let txn_amount = response.amount.as_ref().and_then(convert_back_amount);
     let connector_response = pmt.and_then(|pmt| {
         response
             .additional_data
@@ -4884,7 +4936,7 @@ pub fn get_present_to_shopper_response(
         payment_account_reference: None,
     };
 
-    let txn_amount = response.amount.map(|amount| amount.value);
+    let txn_amount = response.amount.as_ref().and_then(convert_back_amount);
 
     Ok(AdyenPaymentsResponseData {
         status,
@@ -5044,7 +5096,7 @@ pub fn get_qr_code_response(
         status,
         error,
         payments_response_data,
-        txn_amount: response.amount.map(|amount| amount.value),
+        txn_amount: response.amount.as_ref().and_then(convert_back_amount),
         connector_response: None,
     })
 }
@@ -5141,7 +5193,7 @@ pub fn get_webhook_response(
         None
     };
 
-    let txn_amount = response.amount.as_ref().map(|amount| amount.value);
+    let txn_amount = response.amount.as_ref().and_then(convert_back_amount);
     let connector_response = build_connector_response(&response);
 
     if is_multiple_capture_psync_flow {
@@ -5250,7 +5302,10 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     fn get_amount_captured(
         &self,
     ) -> Result<Option<MinorUnit>, error_stack::Report<common_utils::errors::ParsingError>> {
-        Ok(self.amount.clone().map(|amount| amount.value))
+        self.amount
+            .as_ref()
+            .map(|amount| MinorUnitForConnector.convert_back(amount.value, amount.currency))
+            .transpose()
     }
 }
 
@@ -5350,7 +5405,7 @@ pub fn get_redirection_response(
         payment_account_reference: None,
     };
 
-    let txn_amount = response.amount.map(|amount| amount.value);
+    let txn_amount = response.amount.as_ref().and_then(convert_back_amount);
 
     Ok(AdyenPaymentsResponseData {
         status,
@@ -5545,7 +5600,7 @@ pub struct AdyenNotificationRequestItemWH {
 
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -5936,6 +5991,32 @@ fn get_application_info(
     })
 }
 
+/// A decrypted Google Pay token reaches Adyen as `paymentMethod.type = scheme` with
+/// `brand = googlepay` whether it carries a raw PAN or a network token, so Adyen can only tell
+/// the two apart from `additionalData.paymentdatasource.*`. Send the pair when there is no
+/// cryptogram (FPAN / PAN_ONLY); tokens that do carry one send `mpiData` instead, which is what
+/// Adyen documents for DPAN and what the Hyperswitch Adyen connector branches on.
+fn get_google_pay_payment_data_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Option<AdyenPaymentDataSource> {
+    match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => match &google_pay_data
+            .tokenization_data
+        {
+            GpayTokenizationData::Decrypted(decrypt_data) if decrypt_data.cryptogram.is_none() => {
+                Some(AdyenPaymentDataSource {
+                    data_type: GOOGLE_PAY_BRAND.to_string(),
+                    tokenized: "false".to_string(),
+                })
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn get_additional_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -5967,6 +6048,8 @@ fn get_additional_data<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5976,6 +6059,7 @@ fn get_additional_data<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: item.request.authentication_data.as_ref().and_then(|data| {
             data.exemption_indicator
@@ -6171,7 +6255,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_refund_amount,
+                value: convert_amount(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )?,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -6251,7 +6338,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount_to_capture.to_owned(),
+                value: convert_amount(
+                    item.router_data.request.minor_amount_to_capture.to_owned(),
+                    item.router_data.request.currency,
+                )?,
             },
         })
     }
@@ -6351,7 +6441,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
-        let amount = get_amount_data_for_setup_mandate(&item);
+        let amount = get_amount_data_for_setup_mandate(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let shopper_reference = match item
@@ -6512,7 +6602,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
-        let amount = get_amount_data_for_setup_mandate(&item);
+        let amount = get_amount_data_for_setup_mandate(&item)?;
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         // Prefer the already-known Adyen shopper reference (connector_customer) over deriving
@@ -6824,11 +6914,15 @@ fn get_amount_data_for_setup_mandate<
         >,
         T,
     >,
-) -> Amount {
-    Amount {
-        currency: item.router_data.request.currency,
-        value: item.router_data.request.minor_amount.unwrap_or_default(),
-    }
+) -> Result<Amount, Error> {
+    let currency = item.router_data.request.currency;
+    Ok(Amount {
+        currency,
+        value: convert_amount(
+            item.router_data.request.minor_amount.unwrap_or_default(),
+            currency,
+        )?,
+    })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -6938,6 +7032,8 @@ fn get_additional_data_for_setup_mandate<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -6947,6 +7043,7 @@ fn get_additional_data_for_setup_mandate<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: None,
         ..AdditionalData::default()
@@ -7000,7 +7097,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.router_data.request.minor_amount,
+            value: convert_amount(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )?,
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
@@ -7896,31 +7996,36 @@ fn get_line_items<
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         T,
     >,
-) -> Vec<LineItem> {
+) -> Result<Vec<LineItem>, Error> {
+    let currency = item.router_data.request.currency;
     let order_details = item.router_data.resource_common_data.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()
             .enumerate()
-            .map(|(i, data)| LineItem {
-                amount_including_tax: Some(data.amount),
-                amount_excluding_tax: Some(data.amount),
-                description: Some(data.product_name.clone()),
-                id: Some(format!("Items #{i}")),
-                tax_amount: None,
-                quantity: Some(data.quantity),
+            .map(|(i, data)| {
+                let amount = convert_amount(data.amount, currency)?;
+                Ok(LineItem {
+                    amount_including_tax: Some(amount),
+                    amount_excluding_tax: Some(amount),
+                    description: Some(data.product_name.clone()),
+                    id: Some(format!("Items #{i}")),
+                    tax_amount: None,
+                    quantity: Some(data.quantity),
+                })
             })
             .collect(),
         None => {
+            let amount = convert_amount(item.router_data.request.amount, currency)?;
             let line_item = LineItem {
-                amount_including_tax: Some(item.router_data.request.amount),
-                amount_excluding_tax: Some(item.router_data.request.amount),
+                amount_including_tax: Some(amount),
+                amount_excluding_tax: Some(amount),
                 description: item.router_data.resource_common_data.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
                 quantity: Some(1),
             };
-            vec![line_item]
+            Ok(vec![line_item])
         }
     }
 }
@@ -8049,7 +8154,10 @@ fn get_adyen_split_request(
         .split_items
         .iter()
         .map(|split_item| {
-            let amount = split_item.amount.map(|value| Amount { currency, value });
+            let amount = split_item
+                .amount
+                .and_then(|value| convert_amount(value, currency).ok())
+                .map(|value| Amount { currency, value });
             AdyenSplitData {
                 amount,
                 reference: split_item.reference.clone(),
@@ -8115,7 +8223,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: convert_amount(router_data.request.amount, router_data.request.currency)?,
         };
 
         let reference = router_data
@@ -8239,7 +8347,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: convert_amount(router_data.request.amount, router_data.request.currency)?,
         };
 
         let reference = router_data
@@ -8369,7 +8477,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount.to_owned(),
+                value: convert_amount(
+                    item.router_data.request.minor_amount.to_owned(),
+                    item.router_data.request.currency,
+                )?,
             },
             reference: Some(
                 item.router_data
@@ -8442,7 +8553,7 @@ fn construct_charge_response(
     let splits: Vec<AdyenSplitItem> = split_item
         .iter()
         .map(|split_item| AdyenSplitItem {
-            amount: split_item.amount.as_ref().map(|amount| amount.value),
+            amount: split_item.amount.as_ref().and_then(convert_back_amount),
             reference: split_item.reference.clone(),
             split_type: split_item.split_type.clone(),
             account: split_item.account.clone(),

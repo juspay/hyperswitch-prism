@@ -964,7 +964,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_group_tx_id: router_data.request.connector_transaction_id,
             partner_tx_id,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.minor_refund_amount, router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.minor_refund_amount,
+                    router_data.request.currency,
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1127,7 +1130,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_tx_id,
             currency,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.amount, currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.amount,
+                    currency,
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1150,20 +1156,25 @@ fn build_items(
     let items = details
         .iter()
         .filter(|detail| !detail.product_name.is_empty() && detail.quantity > 0)
-        .map(|detail| -> Result<_, error_stack::Report<errors::IntegrationError>> {
-            Ok(GrabpayItem {
-                item_name: detail.product_name.clone(),
-                quantity: detail.quantity,
-                price: common_utils::types::MinorUnitForConnector
-                    .convert(detail.amount, currency)
-                    .change_context(errors::IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
-                    })?,
-                category: detail.category.clone(),
-                item_category: detail.sub_category.clone(),
-                image_url: detail.product_img_link.clone(),
-            })
-        })
+        .map(
+            |detail| -> Result<_, error_stack::Report<errors::IntegrationError>> {
+                Ok(GrabpayItem {
+                    item_name: detail.product_name.clone(),
+                    quantity: detail.quantity,
+                    price: common_utils::types::MinorUnitForConnector
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            detail.amount,
+                            currency,
+                        ))
+                        .change_context(errors::IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
+                    category: detail.category.clone(),
+                    item_category: detail.sub_category.clone(),
+                    image_url: detail.product_img_link.clone(),
+                })
+            },
+        )
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok((!items.is_empty()).then_some(items))

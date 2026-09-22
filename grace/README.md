@@ -64,39 +64,89 @@ add Wallet:Apple Pay,Google Pay and Card:Credit,Debit to <Connector> using grace
 
 ---
 
-## Orchestrator Workflow (Batch Processing)
+## GRACE v2 Workflow (one connector, many flows, one PR)
 
-For implementing a payment flow across multiple connectors in one run:
+Linux only. One run = one connector × many flows: preflight → links (parallel) → one techspec → one plan →
+codegen per flow → test/RCA loop (Hyperswitch → UCS → connector is the primary gate) → review → one
+hyperswitch-prism PR (+ at most one Hyperswitch PR). State lives in `grace/runs/<connector>-<run6>/`.
+
+### Before your first run
+
+Preflight (`2.0_preflight.md`) checks all of this and aborts with a named reason, but checking first saves a cycle:
+
+| Need | Check |
+|---|---|
+| Linux, GNU coreutils | `uname -s` |
+| CLI tools | `cargo rustup grpcurl jq typos gh ss curl flock nc setsid openssl git` on `PATH`; `git` ≥ 2.38; nightly toolchain (`rustup toolchain list \| grep nightly`) |
+| GitHub | `gh auth status`, and push rights on `juspay/hyperswitch-prism` (`origin` must be that repo) |
+| Credentials | An entry for the connector (lowercase key) in `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` → `creds.json`, in the **flat** shape that mirrors the connector's `*Config` proto message. The legacy `connector_account_details` shape aborts the run |
+| Disk | ~80 GB free when Hyperswitch is built, ~50 GB otherwise. See the cleanup note below |
+| Hyperswitch | A checkout for `HS_REPO_PATH` (optional: without it every HS surface reports `E2E_SKIPPED`, no Hyperswitch PR is raised, and HS parity is never assessed), plus Postgres and Redis (its docker compose, or native) |
+| Clean tree | Preflight refuses to start on a dirty tracked tree and never stashes |
+
+**A run changes your machine**: it creates and leaves you on `feat/grace-<connector>-<run6>`, creates a worktree and
+branch inside your Hyperswitch checkout, pushes one branch and opens one PR (plus at most one Hyperswitch PR), and takes
+hours — the session must stay alive. Full list: `2_connector.md` § *What a run does to the machine*.
+
+**Disk cleanup deletes build output**: preflight removes `target/` directories that are eligible under the policy (the
+branch's PR is merged or closed, or the checkout is clean and untouched for `STALE_DAYS`, default 3) — never a dirty
+tree, one in use, or the run's own repos. By default only worktrees of this repo, `HS_REPO_PATH` and `GRACE_EXTRA_REPOS`
+are candidates. Other checkouts are scanned **only** if you pass `GRACE_SCAN_ROOTS`. To skip cleanup entirely, pass a
+`MIN_FREE_GB` below your current free space.
+
+Single connector — run from the top-level session:
 
 ```
-Implement {FLOW} for all connectors in {CONNECTORS_FILE}. Read grace/workflow/1_orchestrator.md and follow it exactly.
-Integration details: {CONNECTORS_FILE}
-Branch: {BRANCH}
+Read grace/workflow/2_connector.md and follow it exactly.
+CONNECTOR: Braintree
+FLOWS: Refund,RSync,ThreeDS
+HS_REPO_PATH: /path/to/hyperswitch
 ```
 
-**Example:**
+`2_connector.md` § Inputs lists the optional knobs (`MAX_RUN_HOURS`, `MIN_FREE_GB`, `STALE_DAYS`, `GRACE_SCAN_ROOTS`,
+`GRACE_EXTRA_REPOS`, `PARALLEL_HS_BUILD`, `RUN_ID`).
+
+Resume an interrupted run by adding `RUN_ID: braintree-a1b2c3` — run ids are the directory names under `grace/runs/`
+(gitignored, so `git status` never shows them): `ls grace/runs/`.
+
+Many connectors (the same flows, one connector at a time):
+
 ```
-Implement GooglePay for all connectors in connectors.json. Read grace/workflow/1_orchestrator.md and follow it exactly.
-Integration details: connectors.json
-Branch: feat/google_pay_impl
+Implement {FLOWS} for all connectors in {CONNECTORS_FILE}. Read grace/workflow/1_orchestrator.md and follow it exactly.
+HS_REPO_PATH: {HS_REPO_PATH}
 ```
+
+Batch nests one level deeper (orchestrator → Connector Agent → stages). If it stops with `NO_TASK_TOOL` (the Connector
+Agent cannot spawn subagents), run the single-connector prompt above once per remaining connector. If it stops with
+`tree dirty`, resume the named run (`RUN_ID`) or discard its edits, then restart the batch.
 
 ### Workflow Architecture
 
 ```
 workflow/
-├── 1_orchestrator.md      # Top-level orchestrator
-├── 2_connector.md         # Per-connector agent
-├── 2.1_links.md          # Links discovery
-├── 2.2_techspec.md       # Tech spec generation
-├── 2.3_codegen.md        # Code generation
-└── 2.4_pr.md             # PR creation
+├── 1_orchestrator.md        # Batch: one 2_connector.md run per connector
+├── 2_connector.md           # v2 orchestrator: DAG, rules, loop-back protocol, caps, resume
+├── 2.0_preflight.md         # S0: tools, creds, disk cleanup, branch, HS worktree, warm builds
+├── 2.1_links.md             # S1: links discovery (per flow + common)
+├── 2.1a_hs_scout.md         # S1: read-only Hyperswitch reference + reachability
+├── 2.2_techspec.md          # S2: one combined tech spec
+├── 2.3a_plan.md             # S3: codegen plan
+├── 2.3b_codegen_unit.md     # S4: codegen per flow; __hs__ and __finalize__ (CI-parity gate)
+├── 2.3_codegen.md           # Single-flow codegen (cited by 2.3a/2.3b)
+├── 2.6a_test_env.md         # S5: UCS + Hyperswitch environment, baseline
+├── 2.6d_test_exec.md        # S5: runs the repo harness over the committed connector_specs/, bug bucket
+├── 2.6e_rca.md              # S5: root cause → AMEND briefs
+├── 2.7_review.md            # S6: review
+├── 2.8_pr_run.md            # S7: commit, push, PRs
+├── 2.4_pr.md                # Single-flow PR agent (sections reused by 2.8)
+└── 2.5_e2e.md               # S5: HS → UCS → connector end-to-end via Cypress (spawned as S5:e2e:<N>)
 ```
 
 ---
 
+See [setup.md](setup.md) for the **legacy** paths — the `grace` CLI (`grace techspec`), its API keys and the
+`.gracerules` prompts. A v2 run needs none of that: `2.2_techspec.md` falls back to Claude-native generation when
+`grace/.env` is unconfigured. For a v2 run, use *Before your first run* above.
 
-
----
-
-See [setup.md](setup.md) for detailed setup instructions, API key configuration, and advanced usage.
+`grace-workspace/` is a separate TypeScript engine (dashboard + checkpoints) that drives the single-flow files
+`2.1`–`2.4` on its own; it does not run the v2 pipeline.
