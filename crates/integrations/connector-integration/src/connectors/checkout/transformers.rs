@@ -2240,6 +2240,7 @@ pub struct PaymentsResponse {
     approved: Option<bool>,
     processed_on: Option<String>,
     source: Option<Source>,
+    auth_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2354,9 +2355,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None
         };
 
-        let additional_information =
-            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.router_data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -2484,6 +2488,8 @@ impl<
                 let additional_information =
                     convert_to_additional_payment_method_connector_response(
                         item.response.source.as_ref(),
+                        item.response.auth_code.clone(),
+                        item.router_data.request.payment_method_type,
                     )
                     .map(ConnectorResponseData::with_additional_payment_method_data);
 
@@ -2636,9 +2642,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref()
                 .and_then(|source| source.payment_account_reference.clone()),
         };
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.router_data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: additional_information,
                 ..item.router_data.resource_common_data
             },
             response: error_response.map_or_else(|| Ok(payments_response_data), Err),
@@ -2725,9 +2738,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             None
         };
 
-        let additional_information =
-            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.router_data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -3190,20 +3206,33 @@ impl From<String> for ErrorCodeAndMessage {
 
 fn convert_to_additional_payment_method_connector_response(
     source: Option<&Source>,
+    auth_code: Option<String>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
-    source.map(|code| {
-        let payment_checks = serde_json::json!({
-                    "avs_result": code.avs_check,
-                    "card_validation_result": code.cvv_check
-        });
-        AdditionalPaymentMethodConnectorResponse::Card {
-            authentication_data: None,
-            payment_checks: Some(payment_checks),
-            card_network: None,
-            domestic_network: None,
-            auth_code: None,
+    match payment_method_type {
+        Some(common_enums::PaymentMethodType::GooglePay) => {
+            Some(AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code })
         }
-    })
+        Some(common_enums::PaymentMethodType::ApplePay) => {
+            Some(AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code })
+        }
+        _ => {
+            let payment_checks = source.map(|code| {
+                serde_json::json!({
+                    "avs_result": code.avs_check,
+                    "card_validation_result": code.cvv_check,
+                })
+            });
+
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks,
+                card_network: None,
+                domestic_network: None,
+                auth_code,
+            })
+        }
+    }
 }
 
 fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {

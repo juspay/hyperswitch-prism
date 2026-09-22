@@ -26,6 +26,11 @@ use crate::{
 
 pub type Error = error_stack::Report<errors::IntegrationError>;
 
+/// Bridge a domain amount into legacy integer response fields until those fields are removed.
+pub fn legacy_amount_as_i64(amount: MinorUnit) -> i64 {
+    amount.get_amount_as_i64()
+}
+
 /// Trait for converting from one foreign type to another
 pub trait ForeignTryFrom<F>: Sized {
     /// Custom error for conversion failure
@@ -113,6 +118,11 @@ pub fn handle_json_response_deserialization_failure(
     }
 }
 
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+)]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();

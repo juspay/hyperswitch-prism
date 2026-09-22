@@ -668,6 +668,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -870,11 +871,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // (a pure "register the mandate" probe) we fall back to a zero-value
         // request in the requested currency. The connector still accepts the
         // call and returns a usable `extraP.token`.
-        let minor_amount = item
-            .router_data
-            .request
-            .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::default());
+        let minor_amount = item.router_data.request.minor_amount.unwrap_or_default();
         let amount = item
             .connector
             .amount_converter
@@ -1042,7 +1039,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
-                | WalletData::PaymayaRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {} => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )

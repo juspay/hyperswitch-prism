@@ -234,7 +234,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-            | WalletDataPaymentMethod::PaymayaRedirect(_)
+            | WalletDataPaymentMethod::PaymayaRedirect(_) | WalletDataPaymentMethod::PayhereRedirect {}
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
             | WalletDataPaymentMethod::Skrill(_)
             | WalletDataPaymentMethod::Neteller(_) => {

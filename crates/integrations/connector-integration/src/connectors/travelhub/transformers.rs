@@ -284,11 +284,33 @@ pub struct TravelhubPaymentMethod {
     pub code: String,
 }
 
+/// TravelHub `payment.billingAddress`. Live preprod evidence (direct curl against
+/// Worldline preprod): authorizing without at least `billingAddress.country` is
+/// rejected as INVALID with error code BILLING_ADDRESS_COUNTRY_CODE_IS_REQUIRED.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubPayment<T: PaymentMethodDataTypes> {
     pub payment_method: TravelhubPaymentMethod,
     pub payment_card: TravelhubPaymentCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<TravelhubBillingAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -453,6 +475,18 @@ impl<T: PaymentMethodDataTypes>
                     request3ds,
                     authentication,
                 },
+                billing_address: item
+                    .resource_common_data
+                    .get_billing_address()
+                    .ok()
+                    .map(|_| TravelhubBillingAddress {
+                        number: None,
+                        street: item.resource_common_data.get_optional_billing_line1(),
+                        city: item.resource_common_data.get_optional_billing_city(),
+                        state: item.resource_common_data.get_optional_billing_state(),
+                        postal_code: item.resource_common_data.get_optional_billing_zip(),
+                        country: item.resource_common_data.get_optional_billing_country(),
+                    }),
             },
         })
     }
@@ -594,6 +628,15 @@ fn travelhub_result_code(result: &TravelhubResult) -> &'static str {
     }
 }
 
+/// True when TravelHub reports an HTTP-200 business failure. Drives the citigate-style
+/// early-return that converts such a response into `Err(ErrorResponse)`.
+fn travelhub_is_failure(result: &TravelhubResult) -> bool {
+    matches!(
+        result,
+        TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+    )
+}
+
 /// Builds the `Err(ErrorResponse)` for an HTTP-200 business failure (DECLINED / ERROR /
 /// INVALID), citigate-style: failures are surfaced as `Err` rather than as an
 /// Ok-with-Failure response, so the merchant receives an actual error payload instead of an
@@ -638,10 +681,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -767,10 +807,7 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             // CaptureFailed, not Failure: the capture leg failed, but the authorization is
             // still live at TravelHub — the merchant may retry the capture. citigate models
             // the same at citigate/transformers.rs:695.
@@ -870,10 +907,7 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             // VoidFailed, not Failure: the cancel was declined, but the payment remains
             // authorized and capturable. citigate models the same at
             // citigate/transformers.rs:706.
@@ -972,10 +1006,7 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -1120,10 +1151,7 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
@@ -1198,10 +1226,7 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
 
-        if matches!(
-            result,
-            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
-        ) {
+        if travelhub_is_failure(result) {
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,

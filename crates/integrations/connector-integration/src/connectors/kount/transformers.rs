@@ -18,7 +18,10 @@ use domain_types::{
     mandates::MandateAmountData,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::Address,
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        ApplePayPaymentData, ApplePayWalletData, Card, GooglePayWalletData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::{RedirectForm, Response},
@@ -48,10 +51,14 @@ pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 /// "API Key"); it is used directly as the `Authorization: Basic {api_key}`
 /// value on the token request. `auth_server_id` is the account/environment
 /// specific OAuth authorization-server id (sandbox vs production differ).
+/// `khash_config_key` is the Kount-issued KHASH configuration key: when
+/// present, card-typed payment tokens use the KHASH algorithm; when absent
+/// the connector falls back to the legacy HMAC-SHA256 token.
 #[derive(Debug, Clone)]
 pub struct KountAuthType {
     pub api_key: Secret<String>,
     pub auth_server_id: Option<String>,
+    pub khash_config_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
@@ -62,10 +69,12 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
             ConnectorSpecificConfig::Kount {
                 api_key,
                 auth_server_id,
+                khash_config_key,
                 ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
                 auth_server_id: auth_server_id.to_owned(),
+                khash_config_key: khash_config_key.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -730,13 +739,37 @@ pub fn to_session_id(raw: &str) -> String {
 /// merchant id out of the client-visible DDC HTML and yields a valid (≤32-char,
 /// alphanumeric) session id regardless of the source format. The DDC HTML
 /// (PreAuthenticate) and the Evaluate Order both hash the *same* merchant
-/// transaction id, so the collected device data correlates.
+/// transaction id, so the collected device data correlates. Used as the
+/// fallback of [`resolve_session_id`] when the request metadata carries no
+/// merchant-provided session id.
 pub fn hash_session_id(raw: &str) -> String {
     use common_utils::crypto::{GenerateDigest, Sha256};
     Sha256
         .generate_digest(raw.as_bytes())
         .map(|digest| hex::encode(digest).chars().take(32).collect())
         .unwrap_or_else(|_| to_session_id(raw))
+}
+
+/// Read the merchant-provided DDC session id from request metadata parsed as
+/// when the metadata is absent, carries no `sessionId`, or the value is empty.
+pub fn session_id_from_metadata_value(metadata: Option<&serde_json::Value>) -> Option<String> {
+    metadata
+        .and_then(|metadata| metadata.get("sessionId"))
+        .and_then(|session_id| session_id.as_str())
+        .filter(|session_id| !session_id.trim().is_empty())
+        .map(ToString::to_string)
+}
+
+/// Same as [`session_id_from_metadata_value`], for metadata carried as a JSON
+/// string (`PreRiskCheckRequest::metadata`) instead of a parsed value.
+pub fn session_id_from_metadata_str(metadata: Option<&Secret<String>>) -> Option<String> {
+    let parsed = metadata
+        .and_then(|metadata| serde_json::from_str::<serde_json::Value>(metadata.peek()).ok());
+    session_id_from_metadata_value(parsed.as_ref())
+}
+
+pub fn resolve_session_id(provided_session_id: Option<String>, fallback_ref: &str) -> String {
+    provided_session_id.unwrap_or_else(|| hash_session_id(fallback_ref))
 }
 
 /// Locally builds the Kount device-data-collection (DDC) response: no outbound
@@ -763,9 +796,8 @@ pub(crate) fn handle_pre_authenticate_response<
 > {
     use domain_types::connector_types::RawConnectorRequestResponse;
 
-    // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
-    // deviceSessionId (which hashes the same merchant transaction id). Falls
-    // back to the connector request reference when it is absent.
+    // sessionID: the merchant-provided `sessionId` from the request metadata. Otherwise hash(merchant_transaction_id), matching the Evaluate Order
+    // deviceSessionId (which hashes the same merchant transaction id). Falls back to the connector request reference when it is absent.
     let session_ref = data
         .request
         .merchant_transaction_id
@@ -775,7 +807,13 @@ pub(crate) fn handle_pre_authenticate_response<
                 .connector_request_reference_id
                 .clone()
         });
-    let session_id = hash_session_id(&session_ref);
+    let provided_session_id = session_id_from_metadata_value(
+        data.request
+            .metadata
+            .as_ref()
+            .map(|metadata| metadata.peek()),
+    );
+    let session_id = resolve_session_id(provided_session_id, &session_ref);
     // Access token threaded via state.access_token → PaymentFlowData.access_token.
     let token = data
         .resource_common_data
@@ -855,12 +893,10 @@ pub enum KountFulfillmentType {
 /// enumeration from the Kount Orders API is modelled here; only the variants
 /// with a UCS payment-method equivalent are ever produced (see
 /// [`kount_payment_type`]).
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum KountPaymentType {
     #[serde(rename = "APAY")]
     ApplePay,
-    #[serde(rename = "CARD")]
-    Card,
     #[serde(rename = "CREDIT_CARD")]
     CreditCard,
     #[serde(rename = "DEBIT_CARD")]
@@ -1307,10 +1343,12 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     })
 }
 
-/// Stable payment-instrument token for Kount: `hex(HMAC-SHA256(key = api_key,
-/// msg = PAN))`. The Kount `api_key` secret is reused as the salt so the token
-/// is consistent for a given card under a merchant's credentials while never
-/// emitting the raw PAN. Returns `None` if signing fails.
+/// Salted payment-instrument token for non-card Kount instruments (and the
+/// legacy fallback for card instruments without a KHASH configuration key):
+/// `hex(HMAC-SHA256(key = api_key, msg = instrument_id))`. The Kount `api_key`
+/// secret is reused as the salt so the token is consistent for a given
+/// instrument under a merchant's credentials while never emitting the raw
+/// identifier. Returns `None` if signing fails.
 fn payment_token_hash(api_key: &Secret<String>, pan: &str) -> Option<String> {
     use common_utils::crypto::{HmacSha256, SignMessage};
     HmacSha256
@@ -1342,8 +1380,9 @@ fn kount_merchant(details: Option<&MerchantDetails>) -> (Option<KountMerchant>, 
     }
 }
 
-/// Kount payment type for a card, from its (optional) `card_type`. Falls back to
-/// the generic `CARD` when credit/debit is unknown.
+/// Kount payment type for a card, from its (optional) `card_type`. Falls back
+/// to `CREDIT_CARD` when credit/debit is unknown — Kount's paymentType enum
+/// has no generic `CARD` value.
 fn card_payment_type<T: PaymentMethodDataTypes>(card: &Card<T>) -> KountPaymentType {
     match card
         .card_type
@@ -1353,32 +1392,65 @@ fn card_payment_type<T: PaymentMethodDataTypes>(card: &Card<T>) -> KountPaymentT
     {
         Some("credit") => KountPaymentType::CreditCard,
         Some("debit") => KountPaymentType::DebitCard,
-        _ => KountPaymentType::Card,
+        _ => KountPaymentType::CreditCard,
     }
 }
 
-/// A non-card payment instrument mapped for Kount: the payment `type` plus an
-/// optional raw instrument identifier (payer email, IBAN, account number, …)
-/// that the caller salted-hashes into `paymentToken`. `token_source` is `None`
-/// when the method has no stable identifier worth sending (e.g. device-bound
-/// wallet tokens that rotate per transaction and can't link across orders).
+/// How an instrument's `paymentToken` is derived from its raw identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TokenHashKind {
+    /// Kount KHASH (SHA-1 over `"{number}.{salt}"`, prefix-preserving) — for
+    /// card-typed instruments carrying a PAN-shaped number, per Kount's
+    /// guidance ("use KHASH whenever paymentType is CREDIT_CARD/DEBIT_CARD").
+    Khash,
+    /// Salted HMAC-SHA256 keyed with the Kount api_key (`payment_token_hash`)
+    /// — for every other instrument type (wallets, processor tokens).
+    HmacSha256,
+}
+
+/// A payment instrument mapped for Kount: the payment `type`, the raw
+/// instrument identifier (PAN, token PAN, wallet DPAN, …) that the caller
+/// hashes into `paymentToken`, how to hash it, and whether BIN/last4 can be
+/// derived from the identifier. `token_source` is `None` when the method has
+/// no stable identifier worth sending (e.g. device-bound wallet tokens that
+/// rotate per transaction and can't link across orders).
 struct KountInstrument {
     payment_type: KountPaymentType,
     token_source: Option<String>,
+    hash_kind: TokenHashKind,
+    card_shaped: bool,
 }
 
 impl KountInstrument {
+    /// An instrument with no stable identifier — `paymentToken` is omitted.
     fn typed(payment_type: KountPaymentType) -> Self {
         Self {
             payment_type,
             token_source: None,
+            hash_kind: TokenHashKind::HmacSha256,
+            card_shaped: false,
         }
     }
 
-    fn with_token(payment_type: KountPaymentType, token_source: Option<String>) -> Self {
+    /// A card-typed instrument carrying a PAN-shaped number: KHASH token plus
+    /// BIN/last4 derived from the number.
+    fn card(payment_type: KountPaymentType, pan: String) -> Self {
+        Self {
+            payment_type,
+            token_source: Some(pan),
+            hash_kind: TokenHashKind::Khash,
+            card_shaped: true,
+        }
+    }
+
+    /// A non-card instrument with a stable identifier, hashed with the salted
+    /// HMAC-SHA256.
+    fn hashed(payment_type: KountPaymentType, token_source: Option<String>) -> Self {
         Self {
             payment_type,
             token_source,
+            hash_kind: TokenHashKind::HmacSha256,
+            card_shaped: false,
         }
     }
 }
@@ -1408,28 +1480,43 @@ fn pmt_to_kount_payment_type(pmt: PaymentMethodType) -> Option<KountPaymentType>
     }
 }
 
-/// Maps a UCS payment method to a Kount payment instrument (type + optional
-/// token source). Returns `None` for methods with no Kount equivalent, in which
-/// case the `payment` block is omitted from the Evaluate Order.
+/// Maps a UCS payment method to a Kount payment instrument (type + raw
+/// identifier + hash kind). Returns `None` for methods with no Kount
+/// equivalent, in which case the `payment` block is omitted from the Evaluate
+/// Order.
 fn kount_instrument<T: PaymentMethodDataTypes>(
     pm: &PaymentMethodData<T>,
     pmt: Option<PaymentMethodType>,
 ) -> Option<KountInstrument> {
     use KountPaymentType as K;
     Some(match pm {
-        // Cards carry BIN/last4 + PAN-derived token; type reflects credit/debit.
-        PaymentMethodData::Card(card) => KountInstrument::typed(card_payment_type(card)),
-        PaymentMethodData::CardRedirect(_) => KountInstrument::typed(K::Card),
-        // Processor / network tokens: send the token itself as the (salted-hashed)
-        // paymentToken, matching Kount's post-auth `paymentType=TOKEN` guidance.
+        // Cards carry a PAN-shaped number (raw PAN, network-token PAN or a
+        // gateway token, depending on how the caller staged the card):
+        // CREDIT_CARD/DEBIT_CARD + KHASH + BIN/last4. An empty number (e.g. a
+        // device-tokenization placeholder) yields paymentType=NONE with no
+        // paymentToken — an empty string is never hashed.
+        PaymentMethodData::Card(card) => {
+            let pan = card.card_number.peek();
+            if pan.trim().is_empty() {
+                KountInstrument::typed(K::None)
+            } else {
+                KountInstrument::card(card_payment_type(card), pan.to_string())
+            }
+        }
+        PaymentMethodData::CardRedirect(_) => KountInstrument::typed(K::CreditCard),
+        // Processor / network tokens: the token itself is the (hashed)
+        // paymentToken under paymentType=TOKEN.
         PaymentMethodData::NetworkToken(token_data) => {
-            KountInstrument::with_token(K::Token, Some(token_data.token_number.peek().to_string()))
+            KountInstrument::hashed(K::Token, Some(token_data.token_number.peek().to_string()))
         }
         PaymentMethodData::PaymentMethodToken(token_data) => {
-            KountInstrument::with_token(K::Token, Some(token_data.token.peek().to_string()))
+            KountInstrument::hashed(K::Token, Some(token_data.token.peek().to_string()))
         }
         PaymentMethodData::Crypto(_) => KountInstrument::typed(K::Crypto),
         PaymentMethodData::GiftCard(_) => KountInstrument::typed(K::GiftCard),
+        // Wallets carrying decrypted instrument data in the request.
+        PaymentMethodData::Wallet(WalletData::GooglePay(gpay)) => google_pay_instrument(gpay),
+        PaymentMethodData::Wallet(WalletData::ApplePay(apay)) => apple_pay_instrument(apay),
         // For all other payment methods (wallets, pay-later, bank redirect/debit, …)
         // derive the Kount type from PMT; return None when there is no mapping.
         _ => {
@@ -1438,6 +1525,50 @@ fn kount_instrument<T: PaymentMethodDataTypes>(
                 .map(KountInstrument::typed)
         }
     })
+}
+
+/// Google Pay instrument from the wallet data.
+///
+/// A decrypted token **with** a cryptogram is a DPAN (`CRYPTOGRAM_3DS`):
+/// paymentType=GOOG with an HMAC-hashed DPAN (stable per card x device). A
+/// decrypted token **without** a cryptogram is a raw PAN (`PAN_ONLY`) — a card
+/// payment delivered through the wallet — so it is treated as a card:
+/// paymentType=CREDIT_CARD + KHASH + BIN/last4. Encrypted (pass-through)
+/// tokens carry no stable pre-auth identifier (the payload is single-use), so
+/// no paymentToken is sent.
+fn google_pay_instrument(gpay: &GooglePayWalletData) -> KountInstrument {
+    match &gpay.tokenization_data {
+        GpayTokenizationData::Decrypted(data) => {
+            let pan = data.application_primary_account_number.peek().to_string();
+            if data.cryptogram.is_some() {
+                KountInstrument::hashed(KountPaymentType::GooglePay, Some(pan))
+            } else {
+                KountInstrument::card(KountPaymentType::CreditCard, pan)
+            }
+        }
+        GpayTokenizationData::Encrypted(_) => KountInstrument::typed(KountPaymentType::GooglePay),
+    }
+}
+
+/// Apple Pay instrument from the wallet data.
+///
+/// Decrypted data yields a stable instrument identifier: the merchant token
+/// identifier when present (MPAN — stable per card x device x merchant), else
+/// the DPAN (stable per card x device); either is HMAC-hashed under
+/// paymentType=APAY. Encrypted (pass-through) payloads are single-use, so no
+/// paymentToken is sent.
+fn apple_pay_instrument(apay: &ApplePayWalletData) -> KountInstrument {
+    match &apay.payment_data {
+        ApplePayPaymentData::Decrypted(data) => {
+            let token_source = data
+                .merchant_token_identifier
+                .as_ref()
+                .map(|token| token.peek().to_string())
+                .unwrap_or_else(|| data.application_primary_account_number.peek().to_string());
+            KountInstrument::hashed(KountPaymentType::ApplePay, Some(token_source))
+        }
+        ApplePayPaymentData::Encrypted(_) => KountInstrument::typed(KountPaymentType::ApplePay),
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1581,27 +1712,49 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .unwrap_or_default();
 
-        // Payment instrument from the payment method. The Kount api_key is the
-        // salt for `paymentToken` (a salted hash of the instrument identifier), so
-        // a missing/invalid Kount config is surfaced rather than silently dropped.
-        let api_key = KountAuthType::try_from(&item.router_data.connector_config)?.api_key;
-        let salted_token = |source: &str| payment_token_hash(&api_key, source);
+        // Payment instrument from the payment method. Card-typed instruments
+        // use the Kount KHASH algorithm, salted with the Kount-issued
+        // configuration key; every other type uses the salted HMAC-SHA256.
+        // Without a configured KHASH key the card path falls back to the HMAC
+        // token so unseeded merchants keep a stable token instead of losing
+        // instrument linkage.
+        let auth = KountAuthType::try_from(&item.router_data.connector_config)?;
+        let khash = auth
+            .khash_config_key
+            .as_ref()
+            .filter(|key| !key.peek().trim().is_empty())
+            .map(|key| super::khash::Khash::new(key.peek()));
         let payment = req.payment_method.as_ref().and_then(|pm| {
             kount_instrument(pm, req.payment_method_type).map(|instrument| {
-                // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
-                let (bin, last4, payment_token) = match pm {
-                    PaymentMethodData::Card(card) => {
-                        let pan = card.card_number.peek();
-                        let (bin, last4) = card_bin_last4(pan);
-                        (bin, last4, salted_token(pan))
+                // Card-shaped identifiers additionally carry BIN/last4.
+                let (bin, last4) = if instrument.card_shaped {
+                    instrument
+                        .token_source
+                        .as_deref()
+                        .map(card_bin_last4)
+                        .unwrap_or((None, None))
+                } else {
+                    (None, None)
+                };
+                let payment_token = match (instrument.token_source.as_deref(), instrument.hash_kind)
+                {
+                    (Some(source), TokenHashKind::Khash) => match &khash {
+                        Some(khash) => {
+                            Some(khash.hash(source, super::khash::CARD_TOKEN_SUFFIX_LENGTH))
+                        }
+                        None => {
+                            tracing::debug!(
+                                connector = "kount",
+                                "no khash_config_key configured for a card-typed instrument; \
+                                 falling back to the HMAC-SHA256 payment token"
+                            );
+                            payment_token_hash(&auth.api_key, source)
+                        }
+                    },
+                    (Some(source), TokenHashKind::HmacSha256) => {
+                        payment_token_hash(&auth.api_key, source)
                     }
-                    // Non-card methods: salted token of the instrument identifier
-                    // (payer email, IBAN, account number, …) when one is available.
-                    _ => (
-                        None,
-                        None,
-                        instrument.token_source.as_deref().and_then(salted_token),
-                    ),
+                    (None, _) => None,
                 };
                 KountPayment {
                     payment_type: instrument.payment_type,
@@ -1635,7 +1788,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             order_id: order_id.clone(),
-            session_id: hash_session_id(&order_id),
+            // Merchant-provided `sessionId` from the request metadata (the
+            // DDC-collected reference) wins; otherwise hash the merchant
+            // transaction id — the same value the DDC script derives.
+            session_id: resolve_session_id(
+                session_id_from_metadata_str(req.metadata.as_ref()),
+                &order_id,
+            ),
             channel: KountChannel::Web,
             creation_date_time,
             user_ip,
@@ -1659,7 +1818,7 @@ impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
         item: ResponseRouterData<KountPreRiskCheckResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Always surface the *verbatim* Kount body (independent of the global
-        // `return_raw_connector_data` flag). Serialising the captured raw JSON —
+        // `return_raw_and_typed_connector_data` flag). Serialising the captured raw JSON —
         // not the typed struct — keeps every field Kount sent, including any we
         // don't model. Wrapped whole in `Secret` so it masks in the event log.
         // `None` on serialization failure (degrades the audit trail rather than
