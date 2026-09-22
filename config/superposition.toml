@@ -34,7 +34,7 @@ server_type = { value = "grpc", schema = { type = "string" } }
 
 # Metrics configuration
 metrics_host = { value = "0.0.0.0", schema = { type = "string" } }
-metrics_port = { value = 8090, schema = { type = "integer" } }
+metrics_port = { value = 8080, schema = { type = "integer" } }
 
 # Proxy configuration
 proxy_idle_pool_connection_timeout = { value = 90, schema = { type = "integer" } }

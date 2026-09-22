@@ -5,17 +5,8 @@ use grpc_server::{self, app};
 use ucs_env::{configs, logger};
 
 #[allow(clippy::unwrap_in_result)]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create Tokio runtime with increased stack size (128 MB per thread)
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .thread_stack_size(128 * 1024 * 1024) // 128 MB stack size
-        .enable_all()
-        .build()?;
-
-    runtime.block_on(async_main())
-}
-
-async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
     verify_other_config_files();
 
@@ -119,9 +110,7 @@ fn verify_other_config_files() {
         config_path.push(config_file_name);
         #[allow(clippy::panic)]
         let _ = configs::Config::new_with_config_path(Some(config_path.clone()))
-            .unwrap_or_else(|err| {
-                panic!("Update {config_file_name} with the default config values: {err:?}")
-            });
+            .unwrap_or_else(|_| panic!("Update {config_file_name} with the default config values"));
         config_path.pop();
     }
 }

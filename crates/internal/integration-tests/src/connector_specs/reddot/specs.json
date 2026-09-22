@@ -5,5 +5,8 @@
     "PaymentService/Get",
     "PaymentService/Refund",
     "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "card"
   ]
 }

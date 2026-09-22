@@ -3,7 +3,13 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit};
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    types::StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
@@ -121,8 +127,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let response: reddot::ReddotErrorResponse = if res.response.is_empty() {
             reddot::ReddotErrorResponse {
                 response_status: "ERROR".to_string(),
-                response_code: res.status_code.to_string(),
-                response_msg: "Red Dot returned an empty error body".to_string(),
+                response_code: NO_ERROR_CODE.to_string(),
+                response_msg: NO_ERROR_MESSAGE.to_string(),
             }
         } else {
             res.response
@@ -153,7 +159,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             // Capture the raw body regardless of the return_raw_connector_data
             // config flag (mirrors maya's build_error_response); on a WAF
             // block this is the Incapsula HTML page.
-            raw_connector_response: Some(Secret::new(String::from_utf8_lossy(&res.response).to_string())),
+            raw_connector_response: Some(Secret::new(
+                String::from_utf8_lossy(&res.response).to_string(),
+            )),
             typed_connector_response: typed,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -313,6 +321,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }

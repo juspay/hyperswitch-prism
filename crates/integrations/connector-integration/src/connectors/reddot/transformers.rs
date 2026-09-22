@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, Currency};
 use common_utils::{
     crypto::{self, GenerateDigest},
     pii::Email,
@@ -40,7 +40,6 @@ const RDP_PAYMENT_TYPE_SALE: &str = "S";
 /// ("order_id exceeds the maximum length of : 20"). The doc-type is
 /// Varchar(16), but 20 is the enforced ceiling (22 chars verified rejected)
 /// — validated here so callers get a clear error before the request leaves.
-
 /// RDP `order_id`: a random 16-char hex id minted BY THE CONNECTOR at
 /// authorize time (ucs-side generation; euler never sees it directly).
 /// Juspay txnUuids (19-21 chars) overflow RDP's 20-char `order_id` ceiling,
@@ -263,19 +262,16 @@ fn compute_payment_signature(input: PaymentSignatureInput<'_>) -> Result<String,
                 "non-empty CVC"
             }
         )),
-        doc_url: Some(
-            "https://developers.reddotpayment.com/redirect/#payment-api".to_string(),
-        ),
+        doc_url: Some("https://developers.reddotpayment.com/redirect/#payment-api".to_string()),
     };
 
-    let card_first6 =
-        input
-            .card_no
-            .get(..6)
-            .ok_or(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_number",
-                context: card_details_ctx("payment_method_data.card.card_number"),
-            })?;
+    let card_first6 = input
+        .card_no
+        .get(..6)
+        .ok_or(IntegrationError::InvalidDataFormat {
+            field_name: "payment_method_data.card.card_number",
+            context: card_details_ctx("payment_method_data.card.card_number"),
+        })?;
     let card_last4 = input
         .card_no
         .get(input.card_no.len().saturating_sub(4)..)
@@ -283,13 +279,12 @@ fn compute_payment_signature(input: PaymentSignatureInput<'_>) -> Result<String,
             field_name: "payment_method_data.card.card_number",
             context: card_details_ctx("payment_method_data.card.card_number"),
         })?;
-    let cvv_last_digit = input
-        .cvv2
-        .get(input.cvv2.len().saturating_sub(1)..)
-        .ok_or(IntegrationError::InvalidDataFormat {
+    let cvv_last_digit = input.cvv2.get(input.cvv2.len().saturating_sub(1)..).ok_or(
+        IntegrationError::InvalidDataFormat {
             field_name: "payment_method_data.card.card_cvc",
             context: card_details_ctx("payment_method_data.card.card_cvc"),
-        })?;
+        },
+    )?;
 
     let concatenated = [
         input.mid,
@@ -325,7 +320,7 @@ fn compute_payment_signature(input: PaymentSignatureInput<'_>) -> Result<String,
 pub fn compute_generic_signature(mut params: Vec<(&str, &str)>, secret_key: &str) -> String {
     use sha2::{Digest, Sha512};
 
-    params.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+    params.sort_by_key(|(key_a, _)| *key_a);
     let mut concatenated: String = params.into_iter().map(|(_, value)| value).collect();
     concatenated.push_str(secret_key);
 
@@ -334,10 +329,48 @@ pub fn compute_generic_signature(mut params: Vec<(&str, &str)>, secret_key: &str
     hex::encode(hasher.finalize())
 }
 
+/// bill_to_* block of [`ReddotAuthorizeRequest`], sourced from the shared
+/// billing getters (unified `payment.billing` + `payment_method_data.billing`).
+#[derive(Default)]
+struct ReddotBillTo {
+    forename: Option<Secret<String>>,
+    surname: Option<Secret<String>>,
+    address_line1: Option<Secret<String>>,
+    address_city: Option<Secret<String>>,
+    address_country: Option<String>,
+    address_postal_code: Option<Secret<String>>,
+    phone: Option<Secret<String>>,
+}
+
+/// CyberSource-acquired MIDs are billed by RDP with a mandatory billing
+/// block, so a missing billing address is a hard error; individual
+/// subfields stay optional and are simply omitted when absent.
+fn get_bill_to(
+    resource_data: &PaymentFlowData,
+) -> Result<ReddotBillTo, error_stack::Report<IntegrationError>> {
+    resource_data.get_billing_address()?;
+    Ok(ReddotBillTo {
+        forename: resource_data.get_optional_billing_first_name(),
+        surname: resource_data.get_optional_billing_last_name(),
+        address_line1: resource_data.get_optional_billing_line1(),
+        address_city: resource_data.get_optional_billing_city(),
+        address_country: resource_data
+            .get_optional_billing_country()
+            .map(|country| country.to_string()),
+        address_postal_code: resource_data.get_optional_billing_zip(),
+        phone: resource_data.get_optional_billing_phone_number(),
+    })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         ReddotRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for ReddotAuthorizeRequest<T>
@@ -346,7 +379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: ReddotRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -436,25 +474,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // bill_to_* only for CyberSource-acquired MIDs (MGA account
                 // detail flag); for those accounts billing is mandatory, so a
                 // missing billing block is a hard error with a clear message.
-                let billing_details = if auth.is_cybersource_acquired() {
-                    Some(
-                        router_data
-                            .resource_common_data
-                            .get_billing_address_from_payment_address()?,
-                    )
+                let bill_to = if auth.is_cybersource_acquired() {
+                    Some(get_bill_to(&router_data.resource_common_data)?)
                 } else {
                     None
                 };
-                // phone sits on the parent `Address`, not inside `AddressDetails`
-                let billing_phone = if auth.is_cybersource_acquired() {
-                    router_data
-                        .resource_common_data
-                        .address
-                        .get_payment_billing()
-                        .and_then(|addr| addr.phone.as_ref())
-                } else {
-                    None
-                };
+                let ReddotBillTo {
+                    forename: bill_to_forename,
+                    surname: bill_to_surname,
+                    address_line1: bill_to_address_line1,
+                    address_city: bill_to_address_city,
+                    address_country: bill_to_address_country,
+                    address_postal_code: bill_to_address_postal_code,
+                    phone: bill_to_phone,
+                } = bill_to.unwrap_or_default();
 
                 Ok(Self {
                     mid: auth.mid,
@@ -472,22 +505,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     notify_url,
                     merchant_reference: Some(merchant_reference),
                     signature: Secret::new(signature),
-                    bill_to_forename: billing_details.and_then(|ad| ad.first_name.clone()),
-                    bill_to_surname: billing_details.and_then(|ad| ad.last_name.clone()),
-                    bill_to_address_line1: billing_details.and_then(|ad| ad.line1.clone()),
-                    bill_to_address_city: billing_details.and_then(|ad| ad.city.clone()),
-                    bill_to_address_country: billing_details
-                        .and_then(|ad| ad.country.map(|country| country.to_string())),
-                    bill_to_address_postal_code: billing_details.and_then(|ad| ad.zip.clone()),
-                    bill_to_phone: billing_phone.and_then(|phone| phone.number.clone()),
+                    bill_to_forename,
+                    bill_to_surname,
+                    bill_to_address_line1,
+                    bill_to_address_city,
+                    bill_to_address_country,
+                    bill_to_address_postal_code,
+                    bill_to_phone,
                 })
             }
             _ => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("reddot"),
                 errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "Only card payments are wired for reddot".to_string(),
-                    ),
+                    additional_context: Some("Only card payments are wired for reddot".to_string()),
                     suggested_action: Some(
                         "Retry with payment_method = card (SOP redirect)".to_string(),
                     ),
@@ -758,9 +788,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<ReddotPSyncResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<ReddotPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -784,7 +812,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             response.authorized_ccy.clone(),
         ) {
             (Some(authorized_amount), Some(authorized_ccy)) => {
-                let currency = common_enums::Currency::from_str(&authorized_ccy).map_err(|_| {
+                let currency = Currency::from_str(&authorized_ccy).map_err(|_| {
                     ConnectorError::response_handling_failed_with_context(
                         http_code,
                         Some(format!(
@@ -805,29 +833,28 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             _ => None,
         };
 
-        let (status, minor_amount_captured, payment_response) =
-            match response.response_code.as_str() {
-                // Payment successful (final). Every transaction this integration
-                // creates is transaction_type == "S" (sale / auto-capture), so a
-                // successful result means the funds are captured → Charged.
-                "0" => {
-                    let transaction_id = response.transaction_id.ok_or_else(|| {
-                        ConnectorError::response_handling_failed_with_context(
-                            http_code,
-                            Some(
-                                "reddot: PSync success response missing transaction_id"
-                                    .to_string(),
-                            ),
-                        )
-                    })?;
-                    // Carry the amount/currency reported by RDP as the captured
-                    // amount (authorized_amount / authorized_ccy).
-                    let minor_amount_captured = match (
-                        response.authorized_amount,
-                        response.authorized_ccy,
-                    ) {
-                        (Some(authorized_amount), Some(authorized_ccy)) => {
-                            let currency = common_enums::Currency::from_str(&authorized_ccy)
+        let (status, minor_amount_captured, payment_response) = match response
+            .response_code
+            .as_str()
+        {
+            // Payment successful (final). Every transaction this integration
+            // creates is transaction_type == "S" (sale / auto-capture), so a
+            // successful result means the funds are captured → Charged.
+            "0" => {
+                let transaction_id = response.transaction_id.ok_or_else(|| {
+                    ConnectorError::response_handling_failed_with_context(
+                        http_code,
+                        Some("reddot: PSync success response missing transaction_id".to_string()),
+                    )
+                })?;
+                // Carry the amount/currency reported by RDP as the captured
+                // amount (authorized_amount / authorized_ccy).
+                let minor_amount_captured = match (
+                    response.authorized_amount,
+                    response.authorized_ccy,
+                ) {
+                    (Some(authorized_amount), Some(authorized_ccy)) => {
+                        let currency = Currency::from_str(&authorized_ccy)
                                 .map_err(|_| {
                                     ConnectorError::response_handling_failed_with_context(
                                         http_code,
@@ -836,7 +863,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                                         )),
                                     )
                                 })?;
-                            Some(
+                        Some(
                                 ReddotAmountConvertor::convert_back(
                                     authorized_amount,
                                     currency,
@@ -851,100 +878,97 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                                     ),
                                 )?,
                             )
-                        }
-                        _ => None,
-                    };
-                    (
-                        AttemptStatus::Charged,
-                        minor_amount_captured,
-                        Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(transaction_id),
-                            redirection_data: None,
-                            mandate_reference: None,
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            network_txn_link_id: None,
-                            // RDP echoes our full Juspay txnId in
-                            // `merchant_reference` — THAT is the tracker-
-                            // integrity/recon key euler compares against
-                            // (verifyTxnId passes via the txnId clause).
-                            // Fall back to `order_id` (capped uuid) when the
-                            // acquirer doesn't round-trip merchant_reference.
-                            connector_response_reference_id: response
-                                .merchant_reference
-                                .clone()
-                                .or(response.order_id.clone()),
-                            incremental_authorization_allowed: None,
-                            splits: None,
-                            payment_account_reference: None,
-                            status_code: http_code,
-                        }),
+                    }
+                    _ => None,
+                };
+                (
+                    AttemptStatus::Charged,
+                    minor_amount_captured,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        // RDP echoes our full Juspay txnId in
+                        // `merchant_reference` — THAT is the tracker-
+                        // integrity/recon key euler compares against
+                        // (verifyTxnId passes via the txnId clause).
+                        // Fall back to `order_id` (capped uuid) when the
+                        // acquirer doesn't round-trip merchant_reference.
+                        connector_response_reference_id: response
+                            .merchant_reference
+                            .clone()
+                            .or(response.order_id.clone()),
+                        incremental_authorization_allowed: None,
+                        splits: None,
+                        payment_account_reference: None,
+                        status_code: http_code,
+                    }),
+                )
+            }
+            // Pending — the final state has not been reached yet.
+            "-01" => {
+                let transaction_id = response.transaction_id.ok_or_else(|| {
+                    ConnectorError::response_handling_failed_with_context(
+                        http_code,
+                        Some("reddot: PSync pending response missing transaction_id".to_string()),
                     )
-                }
-                // Pending — the final state has not been reached yet.
-                "-01" => {
-                    let transaction_id = response.transaction_id.ok_or_else(|| {
-                        ConnectorError::response_handling_failed_with_context(
-                            http_code,
-                            Some(
-                                "reddot: PSync pending response missing transaction_id"
-                                    .to_string(),
-                            ),
-                        )
-                    })?;
-                    (
-                        AttemptStatus::Pending,
-                         None,
-                        Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(transaction_id),
-                            redirection_data: None,
-                            mandate_reference: None,
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            network_txn_link_id: None,
-                            connector_response_reference_id: response
-                                .merchant_reference
-                                .clone()
-                                .or(response.order_id.clone()),
-                            incremental_authorization_allowed: None,
-                            splits: None,
-                            payment_account_reference: None,
-                            status_code: http_code,
-                        }),
-                    )
-                }
-                // Terminal failure; response_msg carries the reason.
-                // Status mapping mirrors maya: `-7995`/`-7997` (3DS-auth
-                // failures) → AUTHENTICATION_FAILED; everything else
-                // (`-1` bank/acquirer decline, `-1003` signature/validation,
-                // ...) → AUTHORIZATION_FAILED.
-                error_code => {
-                    let attempt_status = match error_code {
-                        "-7995" | "-7997" => AttemptStatus::AuthenticationFailed,
-                        _ => AttemptStatus::AuthorizationFailed,
-                    };
-                    let response_msg = response.response_msg;
-                    (
-                        attempt_status,
-                        None,
-                        Err(ErrorResponse {
-                            code: error_code.to_string(),
-                            status_code: http_code,
-                            message: response_msg.clone().unwrap_or_default(),
-                            reason: response_msg,
-                            attempt_status: None,
-                            connector_transaction_id: response.transaction_id,
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            typed_connector_response: None,
-                            raw_connector_response: raw_connector_response.clone(),
-                            raw_connector_request: None,
-                            typed_connector_request: None,
-                        }),
-                    )
-                }
-            };
+                })?;
+                (
+                    AttemptStatus::Pending,
+                    None,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: response
+                            .merchant_reference
+                            .clone()
+                            .or(response.order_id.clone()),
+                        incremental_authorization_allowed: None,
+                        splits: None,
+                        payment_account_reference: None,
+                        status_code: http_code,
+                    }),
+                )
+            }
+            // Terminal failure; response_msg carries the reason.
+            // Status mapping mirrors maya: `-7995`/`-7997` (3DS-auth
+            // failures) → AUTHENTICATION_FAILED; everything else
+            // (`-1` bank/acquirer decline, `-1003` signature/validation,
+            // ...) → AUTHORIZATION_FAILED.
+            error_code => {
+                let attempt_status = match error_code {
+                    "-7995" | "-7997" => AttemptStatus::AuthenticationFailed,
+                    _ => AttemptStatus::AuthorizationFailed,
+                };
+                let response_msg = response.response_msg;
+                (
+                    attempt_status,
+                    None,
+                    Err(ErrorResponse {
+                        code: error_code.to_string(),
+                        status_code: http_code,
+                        message: response_msg.clone().unwrap_or_default(),
+                        reason: response_msg,
+                        attempt_status: None,
+                        connector_transaction_id: response.transaction_id,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: raw_connector_response.clone(),
+                        raw_connector_request: None,
+                        typed_connector_request: None,
+                    }),
+                )
+            }
+        };
 
         let amount_captured = minor_amount_captured.map(|amount| amount.get_amount_as_i64());
         Ok(Self {
@@ -1033,7 +1057,7 @@ pub fn compute_merchant_api_signature(
     mut params: Vec<(&str, String)>,
     secret_key: &str,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    params.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+    params.sort_by_key(|(key_a, _)| *key_a);
     let mut pairs: Vec<String> = params
         .into_iter()
         .map(|(key, value)| format!("{key}={value}"))
@@ -1078,13 +1102,14 @@ pub struct ReddotRefundRequest {
     /// Original RDP transaction id of the payment being refunded.
     pub transaction_id: String,
     pub amount: StringMajorUnit,
-    pub currency: String,
+    pub currency: Currency,
     pub signature: Secret<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ReddotRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>>
-    for ReddotRefundRequest
+    TryFrom<
+        ReddotRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
+    > for ReddotRefundRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1127,8 +1152,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // authorize. That value is connector-minted (gen_reddot_order_id),
         // persisted by euler in second_factor.gateway_auth_req_params as
         // connector_feature_data["reddot_order_id"], and handed back here.
-        let order_number =
-            reddot_order_id_from_blob(&router_data.request.connector_feature_data)?;
+        let order_number = reddot_order_id_from_blob(&router_data.request.connector_feature_data)?;
         let transaction_id = router_data.request.connector_transaction_id.clone();
 
         let signature = compute_merchant_api_signature(
@@ -1138,7 +1162,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ("currency", ccy.clone()),
                 ("mid", auth.mid.peek().clone()),
                 ("order_number", order_number.clone()),
-                ("response_type", RDP_MERCHANT_API_RESPONSE_TYPE_JSON.to_string()),
+                (
+                    "response_type",
+                    RDP_MERCHANT_API_RESPONSE_TYPE_JSON.to_string(),
+                ),
                 ("transaction_id", transaction_id.clone()),
             ],
             auth.secret.peek(),
@@ -1151,7 +1178,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order_number,
             transaction_id,
             amount,
-            currency: ccy,
+            currency: router_data.request.currency,
             signature: Secret::new(signature),
         })
     }
@@ -1166,7 +1193,7 @@ pub struct ReddotRefundResponse {
     pub refund_id: Option<String>,
     pub order_number: Option<String>,
     pub amount: Option<StringMajorUnit>,
-    pub currency: Option<String>,
+    pub currency: Option<Currency>,
     pub timestamp: Option<String>,
     pub description: Option<String>,
     pub signature: Option<String>,
@@ -1199,19 +1226,15 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
 
         // Echo the refund amount/currency into the refund integrity object
         // when RDP returns both (mirrors maya's refund transform).
-        let integrity_object = match (item.response.amount.clone(), item.response.currency.clone())
-        {
-            (Some(amount), Some(ccy)) => {
-                let currency = common_enums::Currency::from_str(&ccy).map_err(|_| {
-                    ConnectorError::response_handling_failed_with_context(
-                        item.http_code,
-                        Some(format!("reddot: refund response has unknown currency: {ccy}")),
-                    )
-                })?;
+        let integrity_object = match (item.response.amount.clone(), item.response.currency) {
+            (Some(amount), Some(currency)) => {
                 let refund_amount = ReddotAmountConvertor::convert_back(amount, currency)
                     .change_context(ConnectorError::response_handling_failed_with_context(
                         item.http_code,
-                        Some("reddot: failed to parse refund amount from refund response".to_string()),
+                        Some(
+                            "reddot: failed to parse refund amount from refund response"
+                                .to_string(),
+                        ),
                     ))?;
                 Some(RefundIntegrityObject {
                     refund_amount,
@@ -1269,8 +1292,12 @@ pub type ReddotRefundSyncRequest = ReddotPSyncRequest;
 /// send `refund_id`, so RSync re-uses the original payment's
 /// `transaction_id` and RDP resolves the refund through its refund history.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ReddotRouterData<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, T>>
-    for ReddotPSyncRequest
+    TryFrom<
+        ReddotRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for ReddotPSyncRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1330,7 +1357,9 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<ReddotRefundSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<ReddotRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
         let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
 
         // Only `refunded` is success; `refund pending` is non-final;
@@ -1356,11 +1385,11 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
-                refund_id: item
-                    .response
+                refund_id: item.response.refund_id.clone().or(item
+                    .router_data
+                    .resource_common_data
                     .refund_id
-                    .clone()
-                    .or(item.router_data.resource_common_data.refund_id.clone()),
+                    .clone()),
                 raw_connector_status: Some(RawConnectorStatus {
                     code: item.response.refund_response_code.clone(),
                     message: item.response.refund_response_message.clone(),
@@ -1391,7 +1420,9 @@ mod tests {
     fn order_id_is_16_lowercase_hex() {
         let oid = gen_reddot_order_id();
         assert_eq!(oid.len(), RDP_ORDER_ID_GENERATED_LEN);
-        assert!(oid.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(oid
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     }
 
     #[test]

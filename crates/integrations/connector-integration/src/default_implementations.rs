@@ -306,7 +306,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayraft,
         Travelhub,
         D24,
-        Reddot,    
+        Reddot,
         ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -498,7 +498,8 @@ default_impl_recharge_v2!(
     Zift,
     Travelhub,
     Payhere,
-    Reddot,);
+    Reddot,
+);
 
 // ============================================================================
 // CreatePaymentMethod / GetPaymentMethod default impls
@@ -738,7 +739,8 @@ default_impl_create_payment_method_v2!(
     Zift,
     Travelhub,
     Payhere,
-    Reddot,);
+    Reddot,
+);
 
 default_impl_get_payment_method_v2!(
     Citigate,
@@ -856,7 +858,8 @@ default_impl_get_payment_method_v2!(
     Zift,
     Travelhub,
     Payhere,
-    Reddot,);
+    Reddot,
+);
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
@@ -1155,4 +1158,5 @@ default_impl_refresh_payment_method_v2!(
     Zift,
     Travelhub,
     Payhere,
-    Reddot,);
+    Reddot,
+);
