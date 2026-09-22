@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{pii::Email, types::ConnectorMinorUnit, AmountConvertor};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, ClientAuthenticationToken, PSync, RSync},
@@ -650,7 +650,7 @@ pub struct MultisafepayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub order_id: String,
     pub gateway: Gateway,
     pub currency: common_enums::Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub description: String,
     // Required fields for direct transactions
     pub payment_options: PaymentOptions,
@@ -767,7 +767,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.minor_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.request.minor_amount, item.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -869,7 +873,11 @@ impl<T: PaymentMethodDataTypes>
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.minor_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.request.minor_amount, item.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -901,7 +909,7 @@ pub struct MultisafepayResponseData {
     pub transaction_id: Option<String>,
     #[serde(default)]
     pub status: MultisafepayPaymentStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
     // Additional fields that may appear in GET response - using flatten to ignore unknown fields
     #[serde(flatten)]
@@ -1018,7 +1026,7 @@ impl TryFrom<ResponseRouterData<MultisafepayPaymentsResponse, Self>>
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
     pub currency: common_enums::Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 // Implementation for macro-generated wrapper type
@@ -1048,10 +1056,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let item = &wrapper.router_data;
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.minor_refund_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.request.minor_refund_amount, item.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -1065,9 +1078,14 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     fn try_from(
         item: &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.minor_refund_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.request.minor_refund_amount, item.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }

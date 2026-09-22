@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
-use common_utils::{pii::Email, request::Method, MinorUnit};
+use common_utils::{
+    pii::Email,
+    request::Method,
+    types::{AmountConvertor, ConnectorMinorUnit},
+};
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
 };
@@ -252,7 +256,7 @@ pub struct DatatransPaymentsRequest<
     /// Charge amount in minor units. Omitted (`None`) for zero-auth SetupMandate/CIT
     /// alias creation, where no amount is captured; always present for Authorize.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<DatatransCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -516,7 +520,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.minor_amount),
+            amount: Some(
+                common_utils::types::MinorUnitForConnector
+                    .convert(
+                        router_data.request.minor_amount,
+                        router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
+            ),
             card,
             auto_settle,
             redirect,
@@ -1177,7 +1190,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.minor_amount),
+            amount: Some(
+                common_utils::types::MinorUnitForConnector
+                    .convert(
+                        router_data.request.minor_amount,
+                        router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
+            ),
             card: Some(card),
             // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
             // Manual/ManualMultiple/Scheduled -> false.
@@ -1387,7 +1409,7 @@ fn sync_attempt_status(
 #[serde(rename_all = "camelCase")]
 pub struct DatatransHistoryEntry {
     pub action: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub success: bool,
     pub date: String,
 }
@@ -1452,7 +1474,7 @@ pub struct DatatransActionDetail {
     /// action does include it. `Option` accepts both shapes so PSync deserialization
     /// no longer fails on a card_check sync response.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_authorization_code: Option<String>,
 }
@@ -1564,7 +1586,7 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransCaptureRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub refno: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1589,7 +1611,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         // Get the amount to capture from minor_amount_to_capture
-        let amount = router_data.request.minor_amount_to_capture;
+        let amount = common_utils::types::MinorUnitForConnector
+            .convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             amount,
@@ -1663,7 +1692,7 @@ impl TryFrom<ResponseRouterData<DatatransCaptureResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub refno: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1688,7 +1717,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         // Get the refund amount from RefundsData
-        let amount = router_data.request.minor_refund_amount;
+        let amount = common_utils::types::MinorUnitForConnector
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             amount,
@@ -2000,7 +2036,7 @@ impl TryFrom<ResponseRouterData<DatatransVoidPCResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransClientAuthRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub return_url: String,
 }
@@ -2033,7 +2069,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(router_data.request.amount, router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: router_data.request.currency,
             return_url: router_data
                 .resource_common_data
