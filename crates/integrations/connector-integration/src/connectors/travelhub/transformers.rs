@@ -394,6 +394,7 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         let payment_method_data = &item.request.payment_method_data;
@@ -461,7 +462,9 @@ impl<T: PaymentMethodDataTypes>
                 .clone(),
             amount: MinorUnitForConnector
                 .convert(item.request.minor_amount, item.request.currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -779,6 +782,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
     fn try_from(
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         Ok(Self {
@@ -789,7 +793,9 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
                 .clone(),
             amount: MinorUnitForConnector
                 .convert(item.request.minor_amount_to_capture, item.request.currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
         })
     }
@@ -1128,6 +1134,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let auth = TravelhubAuthType::try_from(&item.connector_config)?;
 
         Ok(Self {
@@ -1135,7 +1142,9 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
             amount: MinorUnitForConnector
                 .convert(item.request.minor_refund_amount, item.request.currency)
-                .unwrap_or_default(),
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
         })
     }

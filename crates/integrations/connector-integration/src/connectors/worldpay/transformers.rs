@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use common_enums as enums;
-use common_utils::{ext_traits::OptionExt, fp_utils::when, pii, types::{ConnectorMinorUnit, MinorUnit}, AmountConvertor, CustomResult};
+use common_utils::{
+    ext_traits::OptionExt, fp_utils::when, pii, types::MinorUnit, AmountConvertor, CustomResult,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
@@ -582,9 +584,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: common_utils::MinorUnitForConnector
-                        .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                        .unwrap_or_default(),
+                    amount: common_utils::types::MinorUnitForConnector
+                        .convert(
+                            item.router_data.request.minor_amount,
+                            item.router_data.request.currency,
+                        )
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -738,9 +745,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: common_utils::MinorUnitForConnector
-                        .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                        .unwrap_or_default(),
+                    amount: common_utils::types::MinorUnitForConnector
+                        .convert(
+                            item.router_data.request.minor_amount,
+                            item.router_data.request.currency,
+                        )
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -1179,9 +1191,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .replace('_', "-"),
             value: PaymentValue {
-                amount: common_utils::MinorUnitForConnector
-                    .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
-                    .unwrap_or_default(),
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(
+                        item.router_data.request.minor_amount_to_capture,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1228,21 +1245,25 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 impl<F>
     TryFrom<(
         &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-        ConnectorMinorUnit,
+        MinorUnit,
     )> for WorldpayPartialRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         req: (
             &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-            ConnectorMinorUnit,
+            MinorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, amount) = req;
         Ok(Self {
             reference: item.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount,
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(amount, item.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: item.request.currency,
             },
         })
@@ -1314,9 +1335,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount: common_utils::MinorUnitForConnector
-                    .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
-                    .unwrap_or_default(),
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(
+                        item.router_data.request.minor_refund_amount,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1793,9 +1819,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: PaymentValue {
-                amount: common_utils::MinorUnitForConnector
-                    .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                    .unwrap_or_default(),
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(
+                        item.router_data.request.minor_amount,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: item.router_data.request.currency,
             },
         })

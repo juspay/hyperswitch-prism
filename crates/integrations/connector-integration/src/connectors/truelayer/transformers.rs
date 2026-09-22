@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
-use common_utils::{consts, pii, request::Method, types::ConnectorMinorUnit, AmountConvertor};
+use common_utils::{consts, pii, request::Method, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, RSync, Refund, ServerAuthenticationToken, VerifyWebhookSource, Void,
@@ -392,9 +392,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..
             }) => {
                 let currency = item.router_data.request.currency;
-                let amount_in_minor = common_utils::MinorUnitForConnector
+                let amount_in_minor = item
+                    .connector
+                    .amount_converter
                     .convert(item.router_data.request.amount, currency)
-                    .unwrap_or_default();
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
@@ -1555,9 +1559,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .collect::<String>();
 
         Ok(Self {
-            amount_in_minor: common_utils::MinorUnitForConnector
-                .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
-                .unwrap_or_default(),
+            amount_in_minor: item
+                .connector
+                .amount_converter
+                .convert(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             reference,
         })
     }
