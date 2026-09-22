@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, AuthorizationStatus, Currency, RefundStatus};
-use common_utils::{pii, request::Method, types::{AmountConvertor, ConnectorMinorUnit}};
+use common_utils::{
+    pii,
+    request::Method,
+    types::{AmountConvertor, ConnectorMinorUnit, MinorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
@@ -1233,7 +1237,7 @@ fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus
 /// back `amount: 400, captured: true`). An uncaptured authorization, a
 /// zero-amount verification (always sent uncaptured), a released authorization,
 /// a pending charge and a decline report no captured amount.
-fn get_shift4_captured_amount(response: &Shift4PaymentsResponse) -> Option<MinorUnit> {
+fn get_shift4_captured_amount(response: &Shift4PaymentsResponse) -> Option<ConnectorMinorUnit> {
     (matches!(response.status, Shift4PaymentStatus::Successful) && response.captured)
         .then_some(response.amount)
 }
@@ -1497,7 +1501,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let minor_amount_captured = get_shift4_captured_amount(&item.response).and_then(|amount| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, item.response.currency)
+                .ok()
+        });
 
         Ok(Self {
             response,
@@ -1555,7 +1563,11 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let minor_amount_captured = get_shift4_captured_amount(&item.response).and_then(|amount| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, item.response.currency)
+                .ok()
+        });
 
         Ok(Self {
             response,
@@ -1631,7 +1643,11 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
 
         // The charge `amount` is the captured amount after a capture, so a
         // partial capture of 400 reports 400 captured.
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let minor_amount_captured = get_shift4_captured_amount(&item.response).and_then(|amount| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, item.response.currency)
+                .ok()
+        });
 
         Ok(Self {
             response,
@@ -2510,7 +2526,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let minor_amount_captured = get_shift4_captured_amount(&item.response).and_then(|amount| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, item.response.currency)
+                .ok()
+        });
 
         Ok(Self {
             response,
@@ -2998,7 +3018,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `captured: true` on a `first_recurring` charge and still stores the card
         // or payment method under the customer (sandbox, card and Apple Pay,
         // followed by a successful MIT on the stored credential).
-        let captured = amount != MinorUnit::default();
+        let captured = amount != ConnectorMinorUnit::default();
 
         // NOT SUPPORTED BY SHIFT4, deliberately dropped rather than approximated
         // (same reasoning as the Authorize builder):
@@ -3127,7 +3147,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // A non-zero setup is sent captured, so its settled amount is reported
         // like any other captured charge's. A zero-amount verification is sent
         // uncaptured and reports none, although its status is `Charged`.
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let minor_amount_captured = get_shift4_captured_amount(&item.response).and_then(|amount| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, item.response.currency)
+                .ok()
+        });
 
         Ok(Self {
             response,
