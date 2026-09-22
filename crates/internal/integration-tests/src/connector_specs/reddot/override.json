@@ -50,5 +50,19 @@
         "refund_amount": { "minor_amount": 6000, "currency": "SGD" }
       }
     }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "source_verified": { "equals": false },
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": { "equals": false },
+        "event_status": null
+      }
+    }
   }
 }

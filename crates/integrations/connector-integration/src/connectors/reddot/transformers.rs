@@ -181,7 +181,7 @@ pub struct ReddotAuthorizeRequest<
     pub payment_type: String,
     pub order_id: String,
     pub amount: StringMajorUnit,
-    pub ccy: String,
+    pub ccy: Currency,
     pub card_no: RawCardNumber<T>,
     /// Card expiry as `MMYYYY` — zero-padded month followed by 4-digit year
     /// (RDP rejects any other format with `-1906`).
@@ -480,7 +480,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_type: RDP_PAYMENT_TYPE_SALE.to_string(),
                     order_id,
                     amount,
-                    ccy,
+                    ccy: router_data.request.currency,
                     card_no: card_data.card_number.clone(),
                     exp_date,
                     cvv2: card_data.card_cvc.clone(),
@@ -880,12 +880,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                         // `merchant_reference` — THAT is the tracker-
                         // integrity/recon key euler compares against
                         // (verifyTxnId passes via the txnId clause).
-                        // Fall back to `order_id` (capped uuid) when the
-                        // acquirer doesn't round-trip merchant_reference.
-                        connector_response_reference_id: response
-                            .merchant_reference
-                            .clone()
-                            .or(response.order_id.clone()),
+                        connector_response_reference_id: response.merchant_reference.clone(),
                         incremental_authorization_allowed: None,
                         splits: None,
                         payment_account_reference: None,
@@ -911,10 +906,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                         connector_metadata: None,
                         network_txn_id: None,
                         network_txn_link_id: None,
-                        connector_response_reference_id: response
-                            .merchant_reference
-                            .clone()
-                            .or(response.order_id.clone()),
+                        connector_response_reference_id: response.merchant_reference.clone(),
                         incremental_authorization_allowed: None,
                         splits: None,
                         payment_account_reference: None,

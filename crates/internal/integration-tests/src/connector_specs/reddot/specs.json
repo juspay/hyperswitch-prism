@@ -4,9 +4,16 @@
     "PaymentService/Authorize",
     "PaymentService/Get",
     "PaymentService/Refund",
-    "RefundService/Get"
+    "RefundService/Get",
+    "EventService/HandleEvent"
   ],
   "supported_payment_methods": [
     "card"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "refund_succeeded": "RDP's notify_url is a payment-only callback: get_event_type maps every body to a PaymentIntent* event and there is no process_refund_webhook implementation, so a refund webhook cannot be recognized.",
+      "invalid_signature": "RDP notify_url callbacks are unsigned (no documented/usable signature scheme), so verify_webhook_source always returns false; there is no valid-signature path to break — every RDP webhook is unverified by design."
+    }
+  }
 }

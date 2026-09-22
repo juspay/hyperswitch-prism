@@ -4,6 +4,11 @@ use std::{env, path::PathBuf};
 mod auto_populate;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Without this, cargo watches ONLY auto_populate.rs (any rerun-if-changed
+    // narrows the watch set) and proto edits silently keep serving stale
+    // generated types from target/ — e.g. a merge that adds a connector
+    // compiles the old enum until the crate is cleaned.
+    println!("cargo:rerun-if-changed=proto");
     println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
