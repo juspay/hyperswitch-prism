@@ -57,7 +57,6 @@ use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
     SantanderErrorResponse, SantanderPayoutCreateRequest, SantanderPayoutResponse,
     SantanderStatusResponse, SantanderTransferRequest, SANTANDER_PIX_DOCS_URL,
-    SANTANDER_TED_DOCS_URL,
 };
 
 pub(crate) mod headers {
