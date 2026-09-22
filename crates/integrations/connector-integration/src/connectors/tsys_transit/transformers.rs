@@ -4,6 +4,7 @@ use common_enums::{
 use common_utils::{
     collect_missing_value_keys,
     types::{MinorUnit, StringMajorUnit},
+    AmountConvertor,
 };
 use domain_types::{
     connector_flow::{
@@ -2787,9 +2788,15 @@ fn parse_ambiguous_transaction_amount(
         super::TsysTransitAmountConvertor::convert_back(major_unit, currency)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     } else {
-        amount
-            .parse::<i64>()
-            .map(MinorUnit::new)
+        // Already a bare minor-unit integer string; round-trip it through the
+        // StringMinorUnit AmountConvertor rather than MinorUnit::new(), which
+        // requires the proto_boundary import connector code must never take.
+        let string_minor: common_utils::types::StringMinorUnit = serde_json::from_value(
+            serde_json::Value::String(amount.to_string()),
+        )
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
+        common_utils::types::StringMinorUnitForConnector
+            .convert_back(string_minor, currency)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     }
 }
@@ -2847,7 +2854,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             )
             .then(|| transaction_amount)
             .flatten();
-            let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+            let amount_captured = None;
             let minor_amount_capturable = matches!(
                 status,
                 AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
@@ -3031,7 +3038,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        let amount_captured = None;
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
@@ -4255,7 +4262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        let amount_captured = None;
 
         let minor_amount_capturable = derive_amount_capturable(
             status,
@@ -4308,7 +4315,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: amount_captured.unwrap_or(router_data.request.amount),
+                    amount: minor_amount_captured
+                        .map(domain_types::utils::legacy_amount_as_i64)
+                        .unwrap_or(router_data.request.amount),
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),
