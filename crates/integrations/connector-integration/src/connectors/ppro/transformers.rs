@@ -165,7 +165,10 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
-                .convert(router_data.request.amount, router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.amount,
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -523,10 +526,10 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount_to_capture,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -573,7 +576,9 @@ where
 
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(amount, currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    amount, currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -606,10 +611,10 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_refund_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1212,10 +1217,10 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_amount.unwrap_or_default(),
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1611,10 +1616,10 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

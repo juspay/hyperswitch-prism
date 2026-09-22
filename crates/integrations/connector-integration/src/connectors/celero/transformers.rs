@@ -332,7 +332,10 @@ impl<T: PaymentMethodDataTypes>
                 TransactionType::Authorize
             },
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -775,7 +778,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         Ok(Self {
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(item.request.minor_amount_to_capture, item.request.currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        item.request.minor_amount_to_capture,
+                        item.request.currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -918,7 +924,10 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(item.request.minor_refund_amount, item.request.currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        item.request.minor_refund_amount,
+                        item.request.currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,

@@ -434,7 +434,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Ok::<_, error_stack::Report<IntegrationError>>(netcetera_types::Purchase {
                     purchase_amount: Some(
                         common_utils::types::MinorUnitForConnector
-                            .convert(request.amount, currency)
+                            .convert(&common_utils::types::Money::from_minor_unit(
+                                request.amount,
+                                currency,
+                            ))
                             .change_context(IntegrationError::AmountConversionFailed {
                                 context: Default::default(),
                             })?,

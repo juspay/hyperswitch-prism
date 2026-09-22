@@ -427,7 +427,10 @@ pub fn build_refund_request(
 
     // Convert minor units (paise) to rupees with 2 decimal places via amount converter
     let connector_amount = MinorUnitForConnector
-        .convert(refunds_data.minor_refund_amount, refunds_data.currency)
+        .convert(&common_utils::types::Money::from_minor_unit(
+            refunds_data.minor_refund_amount,
+            refunds_data.currency,
+        ))
         .map_err(|_| IntegrationError::AmountConversionFailed {
             context: Default::default(),
         })?;

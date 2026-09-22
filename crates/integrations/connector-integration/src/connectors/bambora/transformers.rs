@@ -354,7 +354,10 @@ impl<T: PaymentMethodDataTypes>
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -468,7 +471,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount_to_capture,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -629,7 +635,10 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_refund_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -753,7 +762,10 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(minor_amount, currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                minor_amount,
+                currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })

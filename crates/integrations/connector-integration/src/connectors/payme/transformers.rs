@@ -589,7 +589,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
             seller_payme_id: auth.seller_payme_id,
             payme_sale_id,
             sale_price: MinorUnitForConnector
-                .convert(item.request.minor_amount_to_capture, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount_to_capture,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -743,7 +746,10 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             seller_payme_id: auth.seller_payme_id,
             payme_sale_id,
             sale_refund_amount: MinorUnitForConnector
-                .convert(item.request.minor_refund_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_refund_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1147,7 +1153,10 @@ impl
             seller_payme_id: auth.seller_payme_id,
             sale_type: sale_type.to_string(),
             sale_price: MinorUnitForConnector
-                .convert(item.request.amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

@@ -231,7 +231,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             items: vec![FlywireItem {
                 id: CHECKOUT_SESSION_ITEM_ID,
                 amount: common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         router_data.request.amount,
                         router_data.request.currency.ok_or_else(|| {
                             error_stack::report!(IntegrationError::MissingRequiredField {
@@ -239,7 +239,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 context: Default::default(),
                             })
                         })?,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -751,10 +751,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_refund_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
