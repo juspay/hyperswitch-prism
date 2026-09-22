@@ -971,7 +971,7 @@ connector_id: twoc_twop_paco
 doc: docs/connectors/twoc_twop_paco.md
 scenarios: none
 payment_methods: none
-flows: 
+flows: verify_redirect
 examples_python: none
 
 ## Twoctwoppaco
