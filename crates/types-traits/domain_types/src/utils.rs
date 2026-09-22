@@ -26,6 +26,11 @@ use crate::{
 
 pub type Error = error_stack::Report<errors::IntegrationError>;
 
+/// Bridge a domain amount into legacy integer response fields until those fields are removed.
+pub fn legacy_amount_as_i64(amount: MinorUnit) -> i64 {
+    amount.get_amount_as_i64()
+}
+
 /// Trait for converting from one foreign type to another
 pub trait ForeignTryFrom<F>: Sized {
     /// Custom error for conversion failure

@@ -705,7 +705,7 @@ impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
                 },
             }
         })?;
-        Ok(PacoTransactionAmount {
+        Ok(Self {
             amount_text,
             currency_code: currency,
             decimal_places: decimals,

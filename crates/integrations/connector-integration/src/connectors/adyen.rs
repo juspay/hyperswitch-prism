@@ -16,8 +16,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    pii::SecretSerdeValue,
-    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{

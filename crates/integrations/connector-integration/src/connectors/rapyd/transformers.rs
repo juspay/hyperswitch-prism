@@ -1518,7 +1518,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
-        let amount = if minor_amount.get_amount_as_i64() == 0 {
+        let amount = if minor_amount.is_zero() {
             StringMajorUnit::zero()
         } else {
             item.connector
@@ -1825,7 +1825,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.minor_amount.get_amount_as_i64() == 0 {
+        let amount = if request.minor_amount.is_zero() {
             StringMajorUnit::zero()
         } else {
             item.connector

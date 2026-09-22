@@ -603,11 +603,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .into())
             }
         };
-        let amount = item
-            .router_data
-            .request
-            .minor_amount
-            .unwrap_or(MinorUnit::default());
+        let amount = item.router_data.request.minor_amount.unwrap_or_default();
         Ok(Self {
             handle: item
                 .router_data

@@ -586,7 +586,7 @@ pub fn format_amount(
     amount: MinorUnit,
     currency: common_enums::Currency,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    let raw = amount.get_amount_as_i64();
+    let raw = domain_types::utils::legacy_amount_as_i64(amount);
 
     let adjusted = if currency == common_enums::Currency::JPY {
         raw.checked_mul(100).ok_or_else(|| {
@@ -4607,6 +4607,7 @@ impl Gp3ds2ErrorResponse {
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use common_utils::proto_boundary::MinorUnitProtoAccess;
     use domain_types::payment_method_data::DefaultPCIHolder;
 
     use super::*;

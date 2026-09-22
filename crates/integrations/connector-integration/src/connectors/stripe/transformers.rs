@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::{ConnectorMinorUnit, StringMinorUnitForConnector},
+    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -361,7 +361,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.get_amount_as_i64().to_string(),
+                        domain_types::utils::legacy_amount_as_i64(order_item.amount).to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -377,7 +377,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            tax_amount.get_amount_as_i64().to_string(),
+                            domain_types::utils::legacy_amount_as_i64(tax_amount).to_string(),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
@@ -389,7 +389,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     if let Some(line_discount) = order_item.unit_discount_amount {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            line_discount.get_amount_as_i64().to_string(),
+                            domain_types::utils::legacy_amount_as_i64(line_discount).to_string(),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {
