@@ -1,0 +1,382 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 50000,
+          "currency": "MXN"
+        },
+        "payment_method": {
+          "sepa_bank_transfer": null,
+          "ach_bank_transfer": null,
+          "bacs_bank_transfer": null,
+          "card": null,
+          "local_bank_transfer": {}
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "customer_document_details": {
+            "document_type": "OTHER",
+            "document_number": {
+              "value": "PEGJ850101HDFRRN09"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Juan"
+            },
+            "last_name": {
+              "value": "Perez"
+            },
+            "line1": {
+              "value": "Av Reforma 222"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Ciudad de Mexico"
+            },
+            "state": {
+              "value": "CMX"
+            },
+            "zip_code": {
+              "value": "06600"
+            },
+            "country_alpha2_code": "MX",
+            "phone_country_code": "+52"
+          },
+          "shipping_address": {
+            "first_name": {
+              "value": "Juan"
+            },
+            "last_name": {
+              "value": "Perez"
+            },
+            "line1": {
+              "value": "Av Reforma 222"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Ciudad de Mexico"
+            },
+            "state": {
+              "value": "CMX"
+            },
+            "zip_code": {
+              "value": "06600"
+            },
+            "country_alpha2_code": "MX",
+            "phone_country_code": "+52"
+          }
+        },
+        "description": "D24 SPEI deposit, Mexico, no bank_code so the SE default applies",
+        "locale": "es-MX",
+        "browser_info": {
+          "language": "es-MX",
+          "accept_language": "es-MX"
+        },
+        "setup_future_usage": null
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING",
+            "PENDING"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1506,
+          "currency": "BRL"
+        },
+        "payment_method": {
+          "sepa_bank_transfer": null,
+          "ach_bank_transfer": null,
+          "bacs_bank_transfer": null,
+          "card": null,
+          "local_bank_transfer": {
+            "bank_code": "I"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "customer_document_details": {
+            "document_type": "CNPJ",
+            "document_number": {
+              "value": "11.222.333/0001-81"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Empresa"
+            },
+            "last_name": {
+              "value": "Teste"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          },
+          "shipping_address": {
+            "first_name": {
+              "value": "Empresa"
+            },
+            "last_name": {
+              "value": "Teste"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          }
+        },
+        "description": "D24 Itau deposit, Brazil, explicit bank_code I with a CNPJ payer and the full address Itau requires",
+        "locale": "pt-BR",
+        "browser_info": {
+          "language": "pt-BR",
+          "accept_language": "pt-BR"
+        },
+        "setup_future_usage": null
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING",
+            "PENDING"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1506,
+          "currency": "BRL"
+        },
+        "payment_method": {
+          "sepa_bank_transfer": null,
+          "ach_bank_transfer": null,
+          "bacs_bank_transfer": null,
+          "card": null,
+          "local_bank_transfer": {
+            "bank_code": "IX"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "customer_document_details": {
+            "document_type": "CPF",
+            "document_number": {
+              "value": "529.982.247-25"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Ricardo"
+            },
+            "last_name": {
+              "value": "Carlos"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          },
+          "shipping_address": {
+            "first_name": {
+              "value": "Ricardo"
+            },
+            "last_name": {
+              "value": "Carlos"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          }
+        },
+        "description": "D24 Pix deposit, Brazil, explicit bank_code IX with a CPF payer",
+        "locale": "pt-BR",
+        "browser_info": {
+          "language": "pt-BR",
+          "accept_language": "pt-BR"
+        },
+        "setup_future_usage": null
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING",
+            "PENDING"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 20000,
+          "currency": "BRL"
+        },
+        "payment_method": {
+          "sepa_bank_transfer": null,
+          "ach_bank_transfer": null,
+          "bacs_bank_transfer": null,
+          "card": null,
+          "local_bank_transfer": {
+            "bank_code": "BB"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "customer_document_details": {
+            "document_type": "CPF",
+            "document_number": {
+              "value": "529.982.247-25"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Ricardo"
+            },
+            "last_name": {
+              "value": "Carlos"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          },
+          "shipping_address": {
+            "first_name": {
+              "value": "Ricardo"
+            },
+            "last_name": {
+              "value": "Carlos"
+            },
+            "line1": {
+              "value": "Avenida Paulista 1000"
+            },
+            "line2": null,
+            "line3": null,
+            "city": {
+              "value": "Sao Paulo"
+            },
+            "state": {
+              "value": "SP"
+            },
+            "zip_code": {
+              "value": "01310100"
+            },
+            "country_alpha2_code": "BR",
+            "phone_country_code": "+55"
+          }
+        },
+        "description": "D24 deposit with a bank_code outside the connector allow-list, rejected before any Directa24 call",
+        "locale": "pt-BR",
+        "browser_info": {
+          "language": "pt-BR",
+          "accept_language": "pt-BR"
+        },
+        "setup_future_usage": null
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": null
+      }
+    }
+  }
+}
