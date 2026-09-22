@@ -130,7 +130,7 @@
           "headers": {
             "via": "HyperSwitch"
           },
-          "body": "{\"mid\":\"probe_key\",\"api_mode\":\"redirection_sop\",\"payment_type\":\"S\",\"order_id\":\"6c999c6a86805807\",\"amount\":\"10.00\",\"ccy\":\"USD\",\"card_no\":\"4111111111111111\",\"exp_date\":\"032030\",\"cvv2\":\"737\",\"payer_name\":\"John Doe\",\"payer_email\":\"test@example.com\",\"redirect_url\":\"https://example.com/return\",\"notify_url\":\"https://example.com/webhook\",\"merchant_reference\":\"probe_txn_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"mid\":\"probe_key\",\"api_mode\":\"redirection_sop\",\"payment_type\":\"S\",\"order_id\":\"89e9cd937ba27681\",\"amount\":\"10.00\",\"ccy\":\"USD\",\"card_no\":\"4111111111111111\",\"exp_date\":\"032030\",\"cvv2\":\"737\",\"payer_name\":\"John Doe\",\"payer_email\":\"test@example.com\",\"redirect_url\":\"https://example.com/return\",\"notify_url\":\"https://example.com/webhook\",\"merchant_reference\":\"probe_txn_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "CashappQr": {
@@ -674,7 +674,7 @@
           "headers": {
             "via": "HyperSwitch"
           },
-          "body": "{\"mid\":\"probe_key\",\"api_mode\":\"redirection_sop\",\"payment_type\":\"S\",\"order_id\":\"0b36d0f4b577a69c\",\"amount\":\"10.00\",\"ccy\":\"USD\",\"card_no\":\"{{$card_number}}\",\"exp_date\":\"032030\",\"cvv2\":\"{{$card_cvc}}\",\"payer_name\":\"John Doe\",\"payer_email\":\"test@example.com\",\"redirect_url\":\"https://example.com/return\",\"notify_url\":\"https://example.com/webhook\",\"merchant_reference\":\"probe_proxy_txn_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"mid\":\"probe_key\",\"api_mode\":\"redirection_sop\",\"payment_type\":\"S\",\"order_id\":\"f902a61754b77d4e\",\"amount\":\"10.00\",\"ccy\":\"USD\",\"card_no\":\"{{$card_number}}\",\"exp_date\":\"032030\",\"cvv2\":\"{{$card_cvc}}\",\"payer_name\":\"John Doe\",\"payer_email\":\"test@example.com\",\"redirect_url\":\"https://example.com/return\",\"notify_url\":\"https://example.com/webhook\",\"merchant_reference\":\"probe_proxy_txn_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       }
     },
