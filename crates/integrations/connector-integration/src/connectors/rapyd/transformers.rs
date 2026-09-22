@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, FloatMajorUnit,
+    ext_traits::OptionExt, pii::Email, request::Method, AmountConvertor, FloatMajorUnit,
     StringMajorUnit,
 };
 use domain_types::{
@@ -463,7 +463,7 @@ pub struct RapydApplePayDecryptedData {
     /// ISO-4217 numeric currency code (e.g. "978" for EUR), per Apple/Rapyd.
     #[serde(serialize_with = "serialize_currency_as_numeric")]
     currency_code: common_enums::Currency,
-    transaction_amount: MinorUnit,
+    transaction_amount: common_utils::types::ConnectorMinorUnit,
     payment_data_type: RapydApplePayPaymentDataType,
     payment_data: RapydApplePayCryptogram,
 }
@@ -748,10 +748,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 .clone(),
                                             application_expiration_date,
                                             currency_code: item.router_data.request.currency,
-                                            transaction_amount: item
-                                                .router_data
-                                                .request
-                                                .minor_amount,
+                                            transaction_amount:
+                                                common_utils::types::MinorUnitForConnector
+                                                    .convert(
+                                                        item.router_data.request.minor_amount,
+                                                        item.router_data.request.currency,
+                                                    )
+                                                    .change_context(
+                                                        IntegrationError::AmountConversionFailed {
+                                                            context: Default::default(),
+                                                        },
+                                                    )?,
                                             payment_data_type:
                                                 RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
