@@ -14,7 +14,7 @@ use grpc_api_types::{
     payouts::payout_service_server,
     surcharge::surcharge_service_server,
 };
-use std::{future::Future, net, sync::Arc};
+use std::{future::Future, net, sync::Arc, time::Duration};
 use tokio::{
     signal::unix::{signal, SignalKind},
     sync::oneshot,
@@ -353,6 +353,17 @@ impl Service {
         let config_override_layer = RequestExtensionsLayer::new(base_config.clone());
 
         let server_builder = Server::builder()
+            // PING idle client connections so a half-open one is dropped here instead of being
+            // held open until a client writes a payment into it. Deliberately no
+            // `max_connection_age`: tonic retires connections on a plain timer with no jitter, so
+            // every client would re-dial on the same boundary, and keepalive traffic already stops
+            // a connection from being idle on the wire.
+            .http2_keepalive_interval(Some(Duration::from_secs(
+                consts::GRPC_HTTP2_KEEPALIVE_INTERVAL_SECS,
+            )))
+            .http2_keepalive_timeout(Some(Duration::from_secs(
+                consts::GRPC_HTTP2_KEEPALIVE_TIMEOUT_SECS,
+            )))
             .layer(logging_layer)
             .layer(request_id_layer)
             .layer(propagate_request_id_layer);

@@ -360,8 +360,8 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             mandate_type: Some(MandateType {
                 #[allow(deprecated)]
                 mandate_type: Some(MandateTypeInner::MultiUse(MandateAmountData {
-                    amount: 0,
-                    currency: i32::from(Currency::Usd),
+                    amount: Some(0),
+                    currency: Some(i32::from(Currency::Usd)),
                     amount_money: None,
                     start_date: None,
                     end_date: None,
