@@ -602,10 +602,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item
                 .connector
                 .amount_converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1011,10 +1011,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_refund_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1198,10 +1198,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 value: item
                     .connector
                     .amount_converter
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_amount_to_capture,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1266,9 +1266,9 @@ where
             .amount
             .zip(item.router_data.request.currency)
             .map(|(minor_amount, currency)| {
-                item.connector
-                    .amount_converter
-                    .convert(minor_amount, currency)
+                item.connector.amount_converter.convert(
+                    &common_utils::types::Money::from_minor_unit(minor_amount, currency),
+                )
             })
             .transpose()
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1421,10 +1421,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item
                 .connector
                 .amount_converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

@@ -232,11 +232,7 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let connector_minor = <common_utils::types::MinorUnitForConnector as common_utils::types::AmountConvertor>::convert(
-            &common_utils::types::MinorUnitForConnector,
-            minor_amount,
-            currency,
-        )
+        let connector_minor = <common_utils::types::MinorUnitForConnector as common_utils::types::AmountConvertor>::convert(&common_utils::types::MinorUnitForConnector, &common_utils::types::Money::from_minor_unit(minor_amount, currency))
         .map_err(|_| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: errors::IntegrationErrorContext {
@@ -253,8 +249,7 @@ impl PacoTransactionAmount {
         let amount_text = format!("{:0>12}", connector_minor);
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            minor_amount,
-            currency,
+            &common_utils::types::Money::from_minor_unit(minor_amount, currency),
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",

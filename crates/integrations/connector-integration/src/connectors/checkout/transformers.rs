@@ -504,7 +504,9 @@ fn build_checkout_processing(
         amount
             .map(|amount| {
                 common_utils::types::MinorUnitForConnector
-                    .convert(amount, currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        amount, currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })
@@ -544,7 +546,9 @@ fn build_checkout_line_items(
         amount
             .map(|amount| {
                 common_utils::types::MinorUnitForConnector
-                    .convert(amount, currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        amount, currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })
@@ -570,7 +574,10 @@ fn build_checkout_line_items(
                         unit_of_measure: detail.unit_of_measure.clone(),
                         unit_price: Some(
                             common_utils::types::MinorUnitForConnector
-                                .convert(detail.amount, currency)
+                                .convert(&common_utils::types::Money::from_minor_unit(
+                                    detail.amount,
+                                    currency,
+                                ))
                                 .change_context(IntegrationError::AmountConversionFailed {
                                     context: Default::default(),
                                 })?,
@@ -1383,10 +1390,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = Self {
             source: source_var,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1755,10 +1762,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = Self {
             source: source_var,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2993,10 +3000,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_amount_to_capture,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -3097,10 +3104,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_refund_amount,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,

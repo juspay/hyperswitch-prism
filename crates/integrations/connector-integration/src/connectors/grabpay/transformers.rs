@@ -964,10 +964,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_group_tx_id: router_data.request.connector_transaction_id,
             partner_tx_id,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_refund_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1130,7 +1130,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_tx_id,
             currency,
             amount: common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.amount, currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.amount,
+                    currency,
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1159,7 +1162,10 @@ fn build_items(
                     item_name: detail.product_name.clone(),
                     quantity: detail.quantity,
                     price: common_utils::types::MinorUnitForConnector
-                        .convert(detail.amount, currency)
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            detail.amount,
+                            currency,
+                        ))
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,

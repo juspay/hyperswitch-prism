@@ -354,10 +354,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.minor_amount,
-                router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money::from_minor_unit(router_data.request.minor_amount, router_data.request.currency))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -638,10 +635,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
-            )
+            ))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -863,10 +860,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1299,10 +1296,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(

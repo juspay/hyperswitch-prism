@@ -551,10 +551,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd authorize",
@@ -750,10 +750,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             currency_code: item.router_data.request.currency,
                                             transaction_amount:
                                                 common_utils::types::MinorUnitForConnector
-                                                    .convert(
-                                                        item.router_data.request.minor_amount,
-                                                        item.router_data.request.currency,
-                                                    )
+                                                    .convert(&common_utils::types::Money::from_minor_unit(item.router_data.request.minor_amount, item.router_data.request.currency))
                                                     .change_context(
                                                         IntegrationError::AmountConversionFailed {
                                                             context: Default::default(),
@@ -1002,10 +999,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd capture",
@@ -1040,10 +1037,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd refund",
@@ -1170,7 +1167,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1341,7 +1341,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1530,7 +1533,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             item.connector
                 .amount_converter
-                .convert(minor_amount, request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    minor_amount,
+                    request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd setup mandate",
@@ -1837,7 +1843,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             item.connector
                 .amount_converter
-                .convert(request.minor_amount, request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    request.minor_amount,
+                    request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd repeat payment",

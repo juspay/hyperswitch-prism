@@ -585,10 +585,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 value: PaymentValue {
                     amount: common_utils::types::MinorUnitForConnector
-                        .convert(
+                        .convert(&common_utils::types::Money::from_minor_unit(
                             item.router_data.request.minor_amount,
                             item.router_data.request.currency,
-                        )
+                        ))
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -746,10 +746,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 value: PaymentValue {
                     amount: common_utils::types::MinorUnitForConnector
-                        .convert(
+                        .convert(&common_utils::types::Money::from_minor_unit(
                             item.router_data.request.minor_amount,
                             item.router_data.request.currency,
-                        )
+                        ))
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -1192,10 +1192,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .replace('_', "-"),
             value: PaymentValue {
                 amount: common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_amount_to_capture,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1260,7 +1260,10 @@ impl<F>
             reference: item.request.refund_id.replace('_', "-"),
             value: PaymentValue {
                 amount: common_utils::types::MinorUnitForConnector
-                    .convert(amount, item.request.currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        amount,
+                        item.request.currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1336,10 +1339,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
                 amount: common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_refund_amount,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1820,10 +1823,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             value: PaymentValue {
                 amount: common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_amount,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,

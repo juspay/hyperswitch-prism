@@ -416,10 +416,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -519,10 +519,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -973,10 +973,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1089,10 +1089,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1512,13 +1512,15 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                         context: Default::default(),
                     },
                 )?;
-                let connector_amount =
-                    AmountConvertor::convert(&MinorUnitForConnector, amount_data, currency_data)
-                        .map_err(|_| {
-                            error_stack::report!(ConnectorError::ResponseHandlingFailed {
-                                context: Default::default(),
-                            })
-                        })?;
+                let connector_amount = AmountConvertor::convert(
+                    &MinorUnitForConnector,
+                    &common_utils::types::Money::from_minor_unit(amount_data, currency_data),
+                )
+                .map_err(|_| {
+                    error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })
+                })?;
                 let minor_amount_i64: i64 = connector_amount.to_string().parse().map_err(|_| {
                     error_stack::report!(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1975,10 +1977,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = FloatMajorUnitForConnector
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

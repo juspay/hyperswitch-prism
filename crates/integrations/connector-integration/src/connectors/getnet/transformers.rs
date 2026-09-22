@@ -704,7 +704,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 let customer = build_boleto_customer(item, boleto_data)?;
                 let data = GetnetBoletoData {
                     amount: MinorUnitForConnector
-                        .convert(item.request.minor_amount, item.request.currency)
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            item.request.minor_amount,
+                            item.request.currency,
+                        ))
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -767,7 +770,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         .to_string();
                     return Ok(Self::Pix(GetnetPixAuthorize {
                         amount: MinorUnitForConnector
-                            .convert(item.request.minor_amount, item.request.currency)
+                            .convert(&common_utils::types::Money::from_minor_unit(
+                                item.request.minor_amount,
+                                item.request.currency,
+                            ))
                             .change_context(IntegrationError::AmountConversionFailed {
                                 context: Default::default(),
                             })?,
@@ -904,7 +910,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let data = GetnetPaymentData {
             customer_id,
             amount: MinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1173,10 +1182,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             payment_id,
             amount: MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_amount_to_capture,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1339,10 +1348,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             payment_id,
             amount: MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     router_data.request.minor_refund_amount,
                     router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1521,7 +1530,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             payment_id,
             amount: MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     void_amount,
                     router_data
                         .request
@@ -1530,7 +1539,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                             field_name: "currency",
                             context: Default::default(),
                         })?,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1801,7 +1810,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             currency: item.request.currency,
             amount: Some(
                 MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.request.amount,
                         item.request
                             .currency
@@ -1809,7 +1818,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                                 field_name: "currency",
                                 context: Default::default(),
                             })?,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,

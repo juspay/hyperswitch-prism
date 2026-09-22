@@ -522,10 +522,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         router_data.request.minor_amount,
                         router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1192,10 +1192,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         router_data.request.minor_amount,
                         router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1612,10 +1612,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         // Get the amount to capture from minor_amount_to_capture
         let amount = common_utils::types::MinorUnitForConnector
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1718,10 +1718,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         // Get the refund amount from RefundsData
         let amount = common_utils::types::MinorUnitForConnector
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2070,7 +2070,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(router_data.request.amount, router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    router_data.request.amount,
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

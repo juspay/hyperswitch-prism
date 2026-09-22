@@ -80,7 +80,9 @@ fn convert_amount(
     currency: common_enums::Currency,
 ) -> Result<ConnectorMinorUnit, Error> {
     MinorUnitForConnector
-        .convert(amount, currency)
+        .convert(&common_utils::types::Money::from_minor_unit(
+            amount, currency,
+        ))
         .change_context(IntegrationError::AmountConversionFailed {
             context: Default::default(),
         })

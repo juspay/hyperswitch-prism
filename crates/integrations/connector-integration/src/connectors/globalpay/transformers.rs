@@ -1008,7 +1008,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = wrapper
             .connector
             .amount_converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1093,7 +1096,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = wrapper
             .connector
             .amount_converter
-            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount_to_capture,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1513,7 +1519,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = wrapper
             .connector
             .amount_converter
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_refund_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1642,7 +1651,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 wrapper
                     .connector
                     .amount_converter
-                    .convert(amount_value, currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        amount_value,
+                        currency,
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             additional_context: Some(
@@ -2211,7 +2223,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = wrapper
             .connector
             .amount_converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                item.request.minor_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

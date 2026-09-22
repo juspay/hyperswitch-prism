@@ -290,10 +290,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

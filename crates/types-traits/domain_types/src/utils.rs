@@ -7,7 +7,7 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
 use common_utils::{
     consts, fp_utils::when, metadata::MaskedMetadata, proto_boundary::MinorUnitProtoAccess,
-    AmountConvertor, CustomResult, MinorUnit,
+    types::Money, AmountConvertor, CustomResult, MinorUnit,
 };
 use error_stack::{report, Result, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -326,11 +326,11 @@ pub fn convert_amount<T>(
     amount: MinorUnit,
     currency: common_enums::Currency,
 ) -> core::result::Result<T, error_stack::Report<errors::IntegrationError>> {
-    amount_convertor.convert(amount, currency).change_context(
-        errors::IntegrationError::AmountConversionFailed {
+    amount_convertor
+        .convert(&Money::from_minor_unit(amount, currency))
+        .change_context(errors::IntegrationError::AmountConversionFailed {
             context: Default::default(),
-        },
-    )
+        })
 }
 
 pub fn convert_amount_for_webhook<T>(
@@ -338,15 +338,17 @@ pub fn convert_amount_for_webhook<T>(
     amount: MinorUnit,
     currency: common_enums::Currency,
 ) -> core::result::Result<T, error_stack::Report<errors::WebhookError>> {
-    amount_convertor.convert(amount, currency).map_err(|_| {
-        error_stack::report!(errors::WebhookError::WebhookAmountConversionFailed {
-            reason: format!(
-                "Failed to convert amount from minor units: amount={}, currency={}",
-                amount.get_amount_as_i64(),
-                currency
-            ),
+    amount_convertor
+        .convert(&Money::from_minor_unit(amount, currency))
+        .map_err(|_| {
+            error_stack::report!(errors::WebhookError::WebhookAmountConversionFailed {
+                reason: format!(
+                    "Failed to convert amount from minor units: amount={}, currency={}",
+                    amount.get_amount_as_i64(),
+                    currency
+                ),
+            })
         })
-    })
 }
 
 pub fn convert_back_amount_to_minor_units_for_webhook<T>(

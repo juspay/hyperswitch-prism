@@ -1100,7 +1100,10 @@ impl<T: PaymentMethodDataTypes>
         //   silently change its meaning.
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1685,7 +1688,10 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.request.minor_refund_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_refund_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2070,7 +2076,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(request.minor_amount_to_capture, request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    request.minor_amount_to_capture,
+                    request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2423,7 +2432,10 @@ impl<T: PaymentMethodDataTypes>
         // Level 2 / Level 3 data have no field on `POST /charges`.
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.request.minor_amount, item.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount,
+                    item.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2612,7 +2624,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 product: Shift4InlineProduct {
                     name: "Payment".to_string(),
                     amount: common_utils::types::MinorUnitForConnector
-                        .convert(router_data.request.amount, router_data.request.currency)
+                        .convert(&common_utils::types::Money::from_minor_unit(
+                            router_data.request.amount,
+                            router_data.request.currency,
+                        ))
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2676,10 +2691,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         use error_stack::ResultExt;
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(
+                .convert(&common_utils::types::Money::from_minor_unit(
                     item.router_data.request.minor_amount,
                     item.router_data.request.currency,
-                )
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2900,8 +2915,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // missing amount is always a client error rather than an implicit
         // zero-dollar auth.
         let amount = common_utils::types::MinorUnitForConnector
-            .convert(
-                item.request.minor_amount.ok_or_else(|| {
+            .convert(&common_utils::types::Money::from_minor_unit(item.request.minor_amount.ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "amount",
                         context: IntegrationErrorContext {
@@ -2925,9 +2939,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         },
                     })
-                })?,
-                item.request.currency,
-            )
+                })?, item.request.currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
