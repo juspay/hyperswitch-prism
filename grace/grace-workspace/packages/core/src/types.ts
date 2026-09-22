@@ -33,32 +33,7 @@ export type CheckpointId =
   | "cypress"
   | "playwright"
   | "pr_review"
-  | "test_suite"
   | "regression";
-
-/**
- * Result emitted by the test_suite checkpoint (implements grace/workflow/3_test.md).
- * - HARDENED: all tests passed after any positive-override fixes
- * - FAILED: tests failed and could not be fixed by override edits
- * - SKIPPED: no credentials in creds.json for this connector
- * - REPORT_TO_MASTER: real bug detected (NOT a test bug); pipeline does not modify code
- * - CREDENTIALS_FIXED: creds.json shape was corrected; rerun likely succeeds
- */
-export interface TestSuiteResult {
-  status:
-    | "HARDENED"
-    | "FAILED"
-    | "SKIPPED"
-    | "REPORT_TO_MASTER"
-    | "CREDENTIALS_FIXED";
-  reason?: string;
-  /** Commit hash of the override-fix branch, if any. */
-  fixCommit?: string;
-  /** PR opened with override fixes (when status is HARDENED via positive overrides). */
-  prUrl?: string;
-  /** Connector name as passed to test-prism. */
-  connector?: string;
-}
 
 export type CheckpointStatus =
   | "idle"
@@ -917,8 +892,6 @@ export interface PipelineArtifacts {
   cypressReport?: TestReport;
   playwrightReport?: TestReport;
   prReview?: PRReviewResult;
-  /** test_suite checkpoint result (HARDENED/FAILED/SKIPPED per 3_test.md). */
-  testSuite?: TestSuiteResult;
   l2RegeneratePrompt?: string;
   l3RegeneratePrompt?: string;
   previousL2?: L2Plan;

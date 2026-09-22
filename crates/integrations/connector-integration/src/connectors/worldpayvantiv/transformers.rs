@@ -1,7 +1,11 @@
 use std::borrow::Cow;
 
 use common_enums::{self, CountryAlpha2, Currency};
-use common_utils::{id_type::CustomerId, types::{ConnectorMinorUnit, MinorUnit}, StringMajorUnit};
+use common_utils::{
+    id_type::CustomerId,
+    types::{ConnectorMinorUnit, MinorUnit},
+    StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,

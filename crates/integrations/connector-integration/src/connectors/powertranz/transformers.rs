@@ -838,9 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                request_data
-                    .minor_amount
-                    .unwrap_or(common_utils::types::MinorUnit::default()),
+                request_data.minor_amount.unwrap_or_default(),
                 request_data.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

@@ -6,16 +6,16 @@ use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
     Email,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
@@ -242,10 +242,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
         let shipping_amount = converter
             .convert(
-                router_data
-                    .request
-                    .shipping_cost
-                    .unwrap_or(MinorUnit::default()),
+                router_data.request.shipping_cost.unwrap_or_default(),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -258,10 +255,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let tax_amount = converter
             .convert(
-                router_data
-                    .request
-                    .order_tax_amount
-                    .unwrap_or(MinorUnit::default()),
+                router_data.request.order_tax_amount.unwrap_or_default(),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -987,10 +981,22 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
         } else {
             EligibilityStatus::Ineligible
         };
+        // PM-agnostic verdict fanned across every requested payment method.
+        let results = item
+            .router_data
+            .request
+            .payment_method_types
+            .iter()
+            .map(|payment_method_type| PMEligibility {
+                payment_method_type: *payment_method_type,
+                eligibility,
+                error_info: None,
+                payment_method_details: None,
+            })
+            .collect();
         Ok(Self {
             response: Ok(PaymentMethodEligibilityResponse {
-                eligibility,
-                payment_method_details: None,
+                results,
                 status_code: u32::from(item.http_code),
             }),
             ..item.router_data.clone()

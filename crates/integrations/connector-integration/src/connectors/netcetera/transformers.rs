@@ -16,7 +16,7 @@
 //   * Auth (mTLS certificate) is handled by `ConnectorCommon`/the framework, not
 //     here.
 
-use common_utils::types::SemanticVersion;
+use common_utils::{types::SemanticVersion, AmountConvertor};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PostAuthenticate, PreAuthenticate},
     connector_types::{
@@ -419,24 +419,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_security_code: Some(card.card_cvc),
         };
 
-        let purchase = request.currency.map(|currency| {
-            // EMVCo exponent: number of minor-unit digits. Falls back to 2 for
-            // currencies UCS cannot classify.
-            let purchase_exponent = currency.number_of_digits_after_decimal_point().unwrap_or(2);
-            let purchase_date = common_utils::date_time::format_date(
-                common_utils::date_time::now(),
-                common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
-            )
-            .ok();
-            netcetera_types::Purchase {
-                purchase_amount: Some(request.amount),
-                purchase_currency: currency.iso_4217().to_string(),
-                purchase_exponent,
-                purchase_date,
-                // 01 -> Goods and Services (only use case served for now).
-                trans_type: Some("01".to_string()),
-            }
-        });
+        let purchase = request
+            .currency
+            .map(|currency| {
+                // EMVCo exponent: number of minor-unit digits. Falls back to 2 for
+                // currencies UCS cannot classify.
+                let purchase_exponent =
+                    currency.number_of_digits_after_decimal_point().unwrap_or(2);
+                let purchase_date = common_utils::date_time::format_date(
+                    common_utils::date_time::now(),
+                    common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
+                )
+                .ok();
+                Ok::<_, error_stack::Report<IntegrationError>>(netcetera_types::Purchase {
+                    purchase_amount: Some(
+                        common_utils::types::MinorUnitForConnector
+                            .convert(request.amount, currency)
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })?,
+                    ),
+                    purchase_currency: currency.iso_4217().to_string(),
+                    purchase_exponent,
+                    purchase_date,
+                    // 01 -> Goods and Services (only use case served for now).
+                    trans_type: Some("01".to_string()),
+                })
+            })
+            .transpose()?;
 
         let is_app = matches!(
             request.device_channel,

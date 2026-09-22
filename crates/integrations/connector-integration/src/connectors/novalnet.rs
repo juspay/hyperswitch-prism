@@ -625,17 +625,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (data.amount, data.currency)
             }
         };
-        let amount = amount
-            .and_then(|amount| {
-                common_utils::AmountConvertor::convert(
-                    &common_utils::MinorUnitForConnector,
-                    amount,
-                    currency.unwrap_or_default(),
-                )
-                .ok()
-                .map(|a| a.to_string())
-            })
-            .unwrap_or_default();
+        let amount = amount.map(|amount| amount.to_string()).unwrap_or_default();
         let currency = currency
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());
@@ -821,13 +811,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let dispute_status = novalnet::get_novalnet_dispute_status(notif.event.event_type);
 
+        let currency = currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?;
+        let minor_amount = common_utils::AmountConvertor::convert_back(
+            &common_utils::types::MinorUnitForConnector,
+            amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+            currency,
+        )
+        .map_err(|_| report!(WebhookError::WebhookProcessingFailed))?;
+
         Ok(DisputeWebhookDetailsResponse {
             amount: utils::convert_amount_for_webhook(
                 self.amount_converter,
-                amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
-                currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+                minor_amount,
+                currency,
             )?,
-            currency: currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+            currency,
             stage: common_enums::DisputeStage::Dispute,
             dispute_id: notif.event.tid.to_string(),
             connector_reason_code: reason_code,

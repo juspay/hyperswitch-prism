@@ -1,5 +1,10 @@
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, request::Method};
+use common_utils::{
+    ext_traits::ValueExt,
+    request::Method,
+    types::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector},
+    AmountConvertor,
+};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken,
@@ -50,6 +55,17 @@ const GOOGLE_PAY_TOKEN_TYPE: &str = "PAYMENT_GATEWAY";
 /// (see issue #11684 referenced below), so we send a far-future value that
 /// Paysafe accepts instead of failing the payment.
 const GOOGLE_PAY_MESSAGE_EXPIRATION_MS: &str = "9999999999999";
+
+fn convert_amount(
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<ConnectorMinorUnit, error_stack::Report<IntegrationError>> {
+    MinorUnitForConnector
+        .convert(amount, currency)
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })
+}
 
 // Auth Type
 
@@ -523,7 +539,7 @@ where
         })?;
 
         let currency = router_data.request.currency;
-        let amount = router_data.request.minor_amount;
+        let amount = convert_amount(router_data.request.minor_amount, currency)?;
 
         // Resolved before the match: both the returnLinks and `threeDs.merchantUrl` need it.
         let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
@@ -829,7 +845,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     field_name: "currency",
                     context: Default::default(),
                 })?;
-        let amount = router_data.request.amount;
+        let amount = convert_amount(router_data.request.amount, currency)?;
 
         // The ACS return must land on continue_redirection_url (…/redirect/complete/) so HS runs
         // CompleteAuthorize and settles; router_return_url only PSyncs. Falls back to return_url.
@@ -1248,7 +1264,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let currency = router_data.request.currency;
-        let amount = router_data.request.amount;
+        let amount = convert_amount(router_data.request.amount, currency)?;
 
         let (payment_method, payment_type, account_id) =
             match &router_data.request.payment_method_data {
@@ -1808,7 +1824,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.minor_amount;
+        let amount = convert_amount(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
 
         let auth = PaysafeAuthType::try_from(&item.router_data.connector_config)?;
         let account_id = auth
@@ -2397,7 +2416,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.minor_amount;
+        let amount = convert_amount(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
 
         // Get mandate reference (carries the connector_mandate_id we issued at CIT time)
         let mandate_data = match &router_data.request.mandate_reference {
@@ -2709,7 +2731,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: convert_amount(
+                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.currency,
+            )?,
         })
     }
 }
@@ -2780,6 +2805,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ..Default::default()
                     },
                 })?;
+        let currency =
+            item.router_data
+                .request
+                .currency
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "currency",
+                    context: Default::default(),
+                })?;
+        let amount = convert_amount(amount, currency)?;
         Ok(Self {
             merchant_ref_num: item
                 .router_data
@@ -2843,7 +2877,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_ref_num: item.router_data.request.refund_id.clone(),
-            amount: item.router_data.request.minor_refund_amount,
+            amount: convert_amount(
+                item.router_data.request.minor_refund_amount,
+                item.router_data.request.currency,
+            )?,
         })
     }
 }

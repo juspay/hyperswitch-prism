@@ -1758,10 +1758,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // For SetupMandate, use 0 amount if no amount provided (zero dollar auth)
-        let minor_amount = router_data
-            .request
-            .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::default());
+        let minor_amount = router_data.request.minor_amount.unwrap_or_default();
         let amount = item
             .connector
             .amount_converter

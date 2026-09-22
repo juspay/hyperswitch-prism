@@ -228,6 +228,11 @@ impl MinorUnit {
         self.0 > 0
     }
 
+    /// Returns true when the amount is zero.
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+
     /// Convert the amount to its major denomination based on Currency and return String
     /// This method now validates currency support and will error for unsupported currencies.
     /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
@@ -617,6 +622,11 @@ impl Money {
     /// Returns true if the amount is positive.
     pub fn is_positive(&self) -> bool {
         self.amount.is_positive()
+    }
+
+    /// Compare this money's amount with a minor-unit amount in the same currency.
+    pub fn is_greater_than_minor_unit(&self, amount: MinorUnit) -> bool {
+        self.amount > amount
     }
 
     /// Construct from a [`MinorUnit`] and a currency.
