@@ -55,26 +55,317 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+
+// Authorize: mirror of `map_status` in transformers.rs. `Approved` is the
+// canonical success sample; with the default ctx (`transaction_type = Unknown`,
+// no result/status/state) the map falls through to `Failure`, which is in
+// Authorize::TERMINAL_FAILURE_SET — so the *sample* mapping probes the
+// unrecognised-type path, while the success path is exercised through ctx.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Authipay<T>,
+    flow:            Authorize,
+    source:          transformers::AuthipayPaymentResult,
+    context:         transformers::AuthipayPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged, PartialCharged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            AuthipayPaymentResult as AuthResult, AuthipayPaymentStatus as AuthStatus,
+            AuthipayTransactionState as TxState, AuthipayTransactionType as TxType,
+        };
+        // Mirror map_status(): transaction_state short-circuits first.
+        if let Some(state) = ctx.transaction_state {
+            match state {
+                TxState::Declined => return AttemptStatus::Failure,
+                TxState::Voided => return AttemptStatus::Voided,
+                TxState::Authorized if matches!(ctx.transaction_type, TxType::Preauth) => {
+                    return AttemptStatus::Authorized;
+                }
+                TxState::Captured | TxState::Settled
+                    if matches!(ctx.transaction_type, TxType::Sale | TxType::Postauth) =>
+                {
+                    return AttemptStatus::Charged;
+                }
+                _ => {}
+            }
+        }
+        if let Some(tx_status) = ctx.transaction_status {
+            return match tx_status {
+                AuthStatus::Approved => match ctx.transaction_type {
+                    TxType::Preauth => AttemptStatus::Authorized,
+                    TxType::Void => AttemptStatus::Voided,
+                    TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                    _ => AttemptStatus::Failure,
+                },
+                AuthStatus::Waiting => AttemptStatus::Pending,
+                AuthStatus::Partial => AttemptStatus::PartialCharged,
+                AuthStatus::ValidationFailed
+                | AuthStatus::ProcessingFailed
+                | AuthStatus::Declined => AttemptStatus::Failure,
+            };
+        }
+        match status {
+            AuthResult::Approved => match ctx.transaction_type {
+                TxType::Preauth => AttemptStatus::Authorized,
+                TxType::Void => AttemptStatus::Voided,
+                TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                _ => AttemptStatus::Failure,
+            },
+            AuthResult::Waiting => AttemptStatus::Pending,
+            AuthResult::Partial => AttemptStatus::PartialCharged,
+            AuthResult::Declined | AuthResult::Failed | AuthResult::Fraud => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Authipay<T>
 {
 }
 
+// PSync: same source & mirror as Authorize (both flows call `map_status`).
+// PSync::TERMINAL_SUCCESS_SET includes Authorized/Charged/Voided/PartialCharged.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Authipay<T>,
+    flow:            PSync,
+    source:          transformers::AuthipayPaymentResult,
+    context:         transformers::AuthipayPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged, Voided, PartialCharged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            AuthipayPaymentResult as AuthResult, AuthipayPaymentStatus as AuthStatus,
+            AuthipayTransactionState as TxState, AuthipayTransactionType as TxType,
+        };
+        if let Some(state) = ctx.transaction_state {
+            match state {
+                TxState::Declined => return AttemptStatus::Failure,
+                TxState::Voided => return AttemptStatus::Voided,
+                TxState::Authorized if matches!(ctx.transaction_type, TxType::Preauth) => {
+                    return AttemptStatus::Authorized;
+                }
+                TxState::Captured | TxState::Settled
+                    if matches!(ctx.transaction_type, TxType::Sale | TxType::Postauth) =>
+                {
+                    return AttemptStatus::Charged;
+                }
+                _ => {}
+            }
+        }
+        if let Some(tx_status) = ctx.transaction_status {
+            return match tx_status {
+                AuthStatus::Approved => match ctx.transaction_type {
+                    TxType::Preauth => AttemptStatus::Authorized,
+                    TxType::Void => AttemptStatus::Voided,
+                    TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                    _ => AttemptStatus::Failure,
+                },
+                AuthStatus::Waiting => AttemptStatus::Pending,
+                AuthStatus::Partial => AttemptStatus::PartialCharged,
+                AuthStatus::ValidationFailed
+                | AuthStatus::ProcessingFailed
+                | AuthStatus::Declined => AttemptStatus::Failure,
+            };
+        }
+        match status {
+            AuthResult::Approved => match ctx.transaction_type {
+                TxType::Preauth => AttemptStatus::Authorized,
+                TxType::Void => AttemptStatus::Voided,
+                TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                _ => AttemptStatus::Failure,
+            },
+            AuthResult::Waiting => AttemptStatus::Pending,
+            AuthResult::Partial => AttemptStatus::PartialCharged,
+            AuthResult::Declined | AuthResult::Failed | AuthResult::Fraud => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Authipay<T>
 {
 }
 
+// Void: mirror of `map_void_status`. A non-Void transaction type is always
+// VoidFailed; Void+Approved ⇒ Voided.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Authipay<T>,
+    flow:            Void,
+    source:          transformers::AuthipayPaymentResult,
+    context:         transformers::AuthipayVoidCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Voided],
+    failure_status:  Declined,
+    failure_target:  VoidFailed,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            AuthipayPaymentResult as AuthResult, AuthipayPaymentStatus as AuthStatus,
+            AuthipayTransactionState as TxState, AuthipayTransactionType as TxType,
+        };
+        if ctx.transaction_type != TxType::Void {
+            return AttemptStatus::VoidFailed;
+        }
+        if let Some(state) = ctx.transaction_state {
+            match state {
+                TxState::Voided => return AttemptStatus::Voided,
+                TxState::Declined => return AttemptStatus::VoidFailed,
+                TxState::Pending | TxState::Waiting => return AttemptStatus::Pending,
+                _ => {}
+            }
+        }
+        if let Some(result) = ctx.transaction_result.or(Some(status)) {
+            return match result {
+                AuthResult::Approved => AttemptStatus::Voided,
+                AuthResult::Waiting => AttemptStatus::Pending,
+                AuthResult::Declined | AuthResult::Failed | AuthResult::Fraud => {
+                    AttemptStatus::VoidFailed
+                }
+                AuthResult::Partial => AttemptStatus::Pending,
+            };
+        }
+        match ctx.transaction_status {
+            Some(AuthStatus::Approved) => AttemptStatus::Voided,
+            Some(AuthStatus::Waiting) => AttemptStatus::Pending,
+            Some(AuthStatus::ValidationFailed)
+            | Some(AuthStatus::ProcessingFailed)
+            | Some(AuthStatus::Declined) => AttemptStatus::VoidFailed,
+            Some(AuthStatus::Partial) | None => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Authipay<T>
 {
 }
 
+// VoidPC: mirrors `map_void_pc_status`. A `Void` txn with a `Voided` state or an
+// `Approved` result → the post-capture void succeeded (`VoidedPostCapture`);
+// `Declined`/`Failed`/`Fraud` results → terminal failure; Waiting/Partial and any
+// non-Void `transaction_type` fall through to Pending.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Authipay<T>,
+    flow:            VoidPC,
+    source:          transformers::AuthipayPaymentResult,
+    context:         transformers::AuthipayPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [VoidedPostCapture],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            AuthipayPaymentResult as AuthResult, AuthipayPaymentStatus as AuthStatus,
+            AuthipayTransactionState as TxState, AuthipayTransactionType as TxType,
+        };
+        // A non-Void transaction_type can never succeed for VoidPC.
+        if !matches!(ctx.transaction_type, TxType::Void) {
+            return AttemptStatus::Pending;
+        }
+        // State short-circuits (Voided is the canonical post-capture void success).
+        if let Some(state) = ctx.transaction_state {
+            match state {
+                TxState::Voided => return AttemptStatus::VoidedPostCapture,
+                TxState::Declined => return AttemptStatus::Failure,
+                TxState::Pending | TxState::Waiting => return AttemptStatus::Pending,
+                _ => {}
+            }
+        }
+        if let Some(tx_status) = ctx.transaction_status {
+            return match tx_status {
+                AuthStatus::Approved => AttemptStatus::VoidedPostCapture,
+                AuthStatus::Waiting | AuthStatus::Partial => AttemptStatus::Pending,
+                AuthStatus::ValidationFailed
+                | AuthStatus::ProcessingFailed
+                | AuthStatus::Declined => AttemptStatus::Failure,
+            };
+        }
+        match status {
+            AuthResult::Approved => AttemptStatus::VoidedPostCapture,
+            AuthResult::Waiting | AuthResult::Partial => AttemptStatus::Pending,
+            AuthResult::Declined | AuthResult::Failed | AuthResult::Fraud => {
+                AttemptStatus::Failure
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Authipay<T>
 {
 }
 
+// Capture: POSTAUTH+Approved ⇒ Charged. `map_status` outputs not in the Capture
+// ALLOWED set (Authorized/Voided) would be a failed capture here, mirroring how
+// cybersource maps Voided/Reversed/Cancelled to CaptureFailed.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Authipay<T>,
+    flow:            Capture,
+    source:          transformers::AuthipayPaymentResult,
+    context:         transformers::AuthipayPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged, PartialCharged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{
+            AuthipayPaymentResult as AuthResult, AuthipayPaymentStatus as AuthStatus,
+            AuthipayTransactionState as TxState, AuthipayTransactionType as TxType,
+        };
+        if let Some(state) = ctx.transaction_state {
+            match state {
+                TxState::Declined => return AttemptStatus::Failure,
+                TxState::Voided => return AttemptStatus::CaptureFailed,
+                TxState::Captured | TxState::Settled
+                    if matches!(ctx.transaction_type, TxType::Sale | TxType::Postauth) =>
+                {
+                    return AttemptStatus::Charged;
+                }
+                _ => {}
+            }
+        }
+        if let Some(tx_status) = ctx.transaction_status {
+            return match tx_status {
+                AuthStatus::Approved => match ctx.transaction_type {
+                    TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                    TxType::Void => AttemptStatus::CaptureFailed,
+                    TxType::Preauth => AttemptStatus::CaptureFailed,
+                    _ => AttemptStatus::Failure,
+                },
+                AuthStatus::Waiting => AttemptStatus::Pending,
+                AuthStatus::Partial => AttemptStatus::PartialCharged,
+                AuthStatus::ValidationFailed
+                | AuthStatus::ProcessingFailed
+                | AuthStatus::Declined => AttemptStatus::Failure,
+            };
+        }
+        match status {
+            AuthResult::Approved => match ctx.transaction_type {
+                TxType::Sale | TxType::Postauth => AttemptStatus::Charged,
+                TxType::Void => AttemptStatus::CaptureFailed,
+                TxType::Preauth => AttemptStatus::CaptureFailed,
+                _ => AttemptStatus::Failure,
+            },
+            AuthResult::Waiting => AttemptStatus::Pending,
+            AuthResult::Partial => AttemptStatus::PartialCharged,
+            AuthResult::Declined | AuthResult::Failed | AuthResult::Fraud => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Authipay<T>
 {
@@ -87,11 +378,167 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+// Refund: mirror of `map_refund_status(transaction_type, transaction_status,
+// transaction_result, transaction_state)` — a sequenced guard over four
+// optional response fields (transactionType must be RETURN first, then state,
+// then result, then the deprecated status). No single connector status enum
+// determines the outcome, so the source enum is `AuthipayTransactionType` and
+// the remaining fields ride in `AuthipayRefundCtx`; the body's first guard
+// reduces the combined tuple to exactly what `map_refund_status` returns.
+// `Return`/`Sale` are the unambiguous terminal probes (the default ctx maps
+// them to Success/Failure respectively).
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Authipay<T>,
+    flow:           Refund,
+    source:         transformers::AuthipayTransactionType,
+    context:        transformers::AuthipayRefundCtx,
+    params:         [transaction_type, ctx],
+    success_status: Return,
+    failure_status: Sale,
+    {
+        let status = ctx.transaction_type.unwrap_or(transaction_type);
+        use transformers::{
+            AuthipayPaymentResult, AuthipayPaymentStatus, AuthipayTransactionState,
+            AuthipayTransactionType,
+        };
+        // Mirror map_refund_status(): RETURN + clear-failure fields → Failure,
+        // anything else pending all-clear fields → Success, → Pending otherwise.
+        if status != AuthipayTransactionType::Return
+            || matches!(
+                ctx.transaction_state,
+                Some(AuthipayTransactionState::Declined)
+            )
+            || matches!(
+                ctx.transaction_result,
+                Some(AuthipayPaymentResult::Declined
+                    | AuthipayPaymentResult::Failed
+                    | AuthipayPaymentResult::Fraud)
+            )
+            || matches!(
+                ctx.transaction_status,
+                Some(AuthipayPaymentStatus::ValidationFailed
+                    | AuthipayPaymentStatus::ProcessingFailed
+                    | AuthipayPaymentStatus::Declined)
+            )
+        {
+            return common_enums::RefundStatus::Failure;
+        }
+        if matches!(
+            ctx.transaction_state,
+            Some(AuthipayTransactionState::Captured | AuthipayTransactionState::Settled)
+        ) && matches!(
+            ctx.transaction_result,
+            None | Some(AuthipayPaymentResult::Approved)
+        )
+            && matches!(
+                ctx.transaction_status,
+                None | Some(AuthipayPaymentStatus::Approved)
+            )
+        {
+            common_enums::RefundStatus::Success
+        } else if matches!(
+            ctx.transaction_result,
+            Some(AuthipayPaymentResult::Approved)
+        ) && !matches!(
+            ctx.transaction_state,
+            Some(AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting)
+        ) {
+            common_enums::RefundStatus::Success
+        } else if matches!(ctx.transaction_result, None | Some(AuthipayPaymentResult::Partial))
+            && !matches!(
+                ctx.transaction_state,
+                Some(AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting)
+            )
+            && matches!(
+                ctx.transaction_status,
+                Some(AuthipayPaymentStatus::Approved)
+            )
+        {
+            common_enums::RefundStatus::Success
+        } else {
+            common_enums::RefundStatus::Pending
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Authipay<T>
 {
 }
 
+// RSync runs the identical `map_refund_status` mapping as Refund.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Authipay<T>,
+    flow:           RSync,
+    source:         transformers::AuthipayTransactionType,
+    context:        transformers::AuthipayRefundCtx,
+    params:         [transaction_type, ctx],
+    success_status: Return,
+    failure_status: Sale,
+    {
+        let status = ctx.transaction_type.unwrap_or(transaction_type);
+        use transformers::{
+            AuthipayPaymentResult, AuthipayPaymentStatus, AuthipayTransactionState,
+            AuthipayTransactionType,
+        };
+        if status != AuthipayTransactionType::Return
+            || matches!(
+                ctx.transaction_state,
+                Some(AuthipayTransactionState::Declined)
+            )
+            || matches!(
+                ctx.transaction_result,
+                Some(AuthipayPaymentResult::Declined
+                    | AuthipayPaymentResult::Failed
+                    | AuthipayPaymentResult::Fraud)
+            )
+            || matches!(
+                ctx.transaction_status,
+                Some(AuthipayPaymentStatus::ValidationFailed
+                    | AuthipayPaymentStatus::ProcessingFailed
+                    | AuthipayPaymentStatus::Declined)
+            )
+        {
+            return common_enums::RefundStatus::Failure;
+        }
+        if matches!(
+            ctx.transaction_state,
+            Some(AuthipayTransactionState::Captured | AuthipayTransactionState::Settled)
+        ) && matches!(
+            ctx.transaction_result,
+            None | Some(AuthipayPaymentResult::Approved)
+        )
+            && matches!(
+                ctx.transaction_status,
+                None | Some(AuthipayPaymentStatus::Approved)
+            )
+        {
+            common_enums::RefundStatus::Success
+        } else if matches!(
+            ctx.transaction_result,
+            Some(AuthipayPaymentResult::Approved)
+        ) && !matches!(
+            ctx.transaction_state,
+            Some(AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting)
+        ) {
+            common_enums::RefundStatus::Success
+        } else if matches!(ctx.transaction_result, None | Some(AuthipayPaymentResult::Partial))
+            && !matches!(
+                ctx.transaction_state,
+                Some(AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting)
+            )
+            && matches!(
+                ctx.transaction_status,
+                Some(AuthipayPaymentStatus::Approved)
+            )
+        {
+            common_enums::RefundStatus::Success
+        } else {
+            common_enums::RefundStatus::Pending
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Authipay<T>
 {

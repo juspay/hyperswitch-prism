@@ -63,26 +63,195 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Checkout<T>
 {
 }
+
+// ── Authorize ────────────────────────────────────────────────────────────────
+// Mirrors `get_attempt_status_cap`: `Authorized` maps to `Charged` when the
+// capture method is Automatic/absent (auto-capture), else `Authorized`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Checkout<T>,
+    flow:            Authorize,
+    source:          transformers::CheckoutPaymentStatus,
+    context:         Option<common_enums::CaptureMethod>,
+    params:          [status, capture_method],
+    success_status:  Captured,
+    success_targets: [Charged, Authorized],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::CheckoutPaymentStatus;
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(common_enums::CaptureMethod::Automatic)
+                    || capture_method.is_none()
+                {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded
+            | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
+            CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Checkout<T>
 {
 }
 
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Mirrors `get_attempt_status_intent`: the intent (stored in connector_meta at
+// authorize time) decides whether `Authorized` means `Charged` or `Authorized`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Checkout<T>,
+    flow:            PSync,
+    source:          transformers::CheckoutPaymentStatus,
+    context:         transformers::CheckoutPaymentIntent,
+    params:          [status, psync_flow],
+    success_status:  Captured,
+    success_targets: [Charged, Authorized],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{CheckoutPaymentIntent, CheckoutPaymentStatus};
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if psync_flow == CheckoutPaymentIntent::Capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded
+            | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
+            CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Checkout<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      Void,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   Voided            => Voided,
+    failure:   Declined          => VoidFailed,
+    {
+        Authorized        => VoidInitiated,
+        Pending           => VoidInitiated,
+        RetryScheduled    => VoidInitiated,
+        CardVerified      => VoidInitiated,
+        Canceled          => Voided,
+        Captured          => VoidFailed,
+        PartiallyCaptured => VoidFailed,
+        PartiallyRefunded => VoidFailed,
+        Refunded          => VoidFailed,
+        Expired           => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Checkout<T>
 {
 }
+// Mirrors `From<&ActionResponse> for RefundStatus` in transformers.rs — the
+// RSync TryFrom locates the refund action in the actions list and maps its
+// `approved: Option<bool>` tri-state (true→Success, false→Failure,
+// absent→Pending), typed as `CheckoutActionApproval`. The `()` context is
+// unused; the match is on the approval verdict only.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Checkout<T>,
+    flow:           RSync,
+    source:         transformers::CheckoutActionApproval,
+    context:        (),
+    params:         [status, ctx],
+    success_status: Approved,
+    failure_status: Rejected,
+    {
+        let _ = ctx;
+        use common_enums::RefundStatus;
+        use transformers::CheckoutActionApproval;
+        match status {
+            CheckoutActionApproval::Approved => RefundStatus::Success,
+            CheckoutActionApproval::Rejected => RefundStatus::Failure,
+            CheckoutActionApproval::Pending => RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Checkout<T>
 {
 }
+// Mirrors `http_code_to_refund_status`: Checkout's refund-create response
+// carries only ids, so the status is derived from the HTTP code alone
+// (202→Success, anything else→Failure), typed as `CheckoutRefundVerdict`.
+// The `()` context is unused; the match is on the verdict only.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Checkout<T>,
+    flow:           Refund,
+    source:         transformers::CheckoutRefundVerdict,
+    context:        (),
+    params:         [status, ctx],
+    success_status: Accepted,
+    failure_status: Other,
+    {
+        let _ = ctx;
+        use common_enums::RefundStatus;
+        use transformers::CheckoutRefundVerdict;
+        match status {
+            CheckoutRefundVerdict::Accepted => RefundStatus::Success,
+            CheckoutRefundVerdict::Other => RefundStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Checkout<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      Capture,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   Captured          => Charged,
+    failure:   Declined          => CaptureFailed,
+    {
+        PartiallyCaptured => PartialCharged,
+        PartiallyRefunded => Charged,
+        Refunded          => Charged,
+        Authorized        => CaptureInitiated,
+        Pending           => CaptureInitiated,
+        RetryScheduled    => CaptureInitiated,
+        CardVerified      => CaptureInitiated,
+        Voided            => CaptureFailed,
+        Canceled          => CaptureFailed,
+        Expired           => CaptureFailed,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Checkout<T>
@@ -91,6 +260,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Checkout<T>
 {
+}
+// ── SetupMandate ─────────────────────────────────────────────────────────────
+// `Authorized` is NOT in SetupMandate's ALLOWED set — a successful zero-amount
+// verification is `Charged` (same treatment as DLocal in batch 1).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      SetupMandate,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   CardVerified      => Charged,
+    failure:   Declined          => Failure,
+    {
+        Authorized        => Charged,
+        Captured          => Charged,
+        PartiallyCaptured => Charged,
+        PartiallyRefunded => Charged,
+        Refunded          => Charged,
+        Canceled          => Failure,
+        Expired           => Failure,
+        Voided            => Failure,
+        Pending           => AuthenticationPending,
+        RetryScheduled    => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Checkout<T>
@@ -111,6 +303,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
     for Checkout<T>
 {
+}
+// ── RepeatPayment ────────────────────────────────────────────────────────────
+// Same status semantics as Authorize (`get_attempt_status_cap`) against
+// RepeatPayment's ALLOWED set. Deviation from `get_attempt_status_cap`:
+// `Voided` → Failure because `Voided` is not in RepeatPayment's ALLOWED set and
+// a voided MIT is a terminal failure for the customer-initiated retry.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Checkout<T>,
+    flow:            RepeatPayment,
+    source:          transformers::CheckoutPaymentStatus,
+    context:         Option<common_enums::CaptureMethod>,
+    params:          [status, capture_method],
+    success_status:  Captured,
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::CheckoutPaymentStatus;
+        let _ = capture_method;
+        match status {
+            CheckoutPaymentStatus::Authorized => AttemptStatus::Charged,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded
+            | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled
+            | CheckoutPaymentStatus::Voided => AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Checkout<T>

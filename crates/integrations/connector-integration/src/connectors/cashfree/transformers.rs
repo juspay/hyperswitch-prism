@@ -915,6 +915,26 @@ pub struct CashfreeCaptureResponse {
     pub captured_amount: Option<f64>,
 }
 
+/// Typed mirror of `map_capture_payment_status` below: `"SUCCESS"` →
+/// `Success`, `"FAILED"` → `Failed`, `"PENDING"` → `Pending`, `"CAPTURE"`
+/// (pre-auth authorization-status variant, capture succeeded) → `Success`,
+/// any other string → `Other`. Used by the `impl_flow_status_mapping_ctx!`
+/// declaration in `cashfree.rs`; `map_capture_payment_status` remains what
+/// the TryFrom actually routes through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeCaptureStatus {
+    /// `"SUCCESS"` (or the pre-auth authorization-status variant `"CAPTURE"`)
+    /// — the capture settled.
+    Success,
+    /// `"FAILED"` — the capture was declined.
+    Failed,
+    /// `"PENDING"` — the capture was initiated.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
+}
+
 /// Status mapping for capture flow per techspec section 9.4
 fn map_capture_payment_status(payment_status: &str) -> common_enums::AttemptStatus {
     match payment_status {
@@ -1068,6 +1088,24 @@ pub struct CashfreeVoidResponse {
     pub order_id: Option<String>,
     pub action: Option<String>,
     pub status: Option<String>,
+}
+
+/// Typed mirror of `map_void_payment_status` below: `"VOID"` → `Void`,
+/// `"FAILED"` → `Failed`, `"PENDING"` → `Pending`, any other string →
+/// `Other`. Used by the `impl_flow_status_mapping_ctx!` declaration in
+/// `cashfree.rs`; `map_void_payment_status` remains what the TryFrom
+/// actually routes through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeVoidStatus {
+    /// `"VOID"` — the authorization was voided.
+    Void,
+    /// `"FAILED"` — the void was declined.
+    Failed,
+    /// `"PENDING"` — the void is still in flight.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
 }
 
 /// Status mapping for void flow per techspec section 9.5
@@ -1275,13 +1313,45 @@ pub struct CashfreeRefundResponse {
     pub refund_note: Option<String>,
 }
 
+/// Cashfree V3 `refund_status` values — typed wrapper over the raw wire string.
+/// `#[default] Other` covers every unrecognized value (which the mapping below
+/// treats as still-in-flight → `Pending`).
+#[derive(Debug, Clone, Default)]
+pub enum CashfreeRefundStatus {
+    /// "SUCCESS" or "OK"
+    Success,
+    /// "PENDING"
+    Pending,
+    /// "CANCELLED"
+    Cancelled,
+    /// "FAILED"
+    Failed,
+    /// Any other raw value
+    #[default]
+    Other,
+}
+
+impl From<&str> for CashfreeRefundStatus {
+    fn from(s: &str) -> Self {
+        match s {
+            "SUCCESS" | "OK" => Self::Success,
+            "PENDING" => Self::Pending,
+            "CANCELLED" => Self::Cancelled,
+            "FAILED" => Self::Failed,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// Cashfree refund status → internal RefundStatus
-fn map_refund_status(status: &str) -> common_enums::RefundStatus {
-    match status {
-        "SUCCESS" | "OK" => common_enums::RefundStatus::Success,
-        "PENDING" => common_enums::RefundStatus::Pending,
-        "CANCELLED" | "FAILED" => common_enums::RefundStatus::Failure,
-        _ => common_enums::RefundStatus::Pending,
+pub fn map_refund_status(status: &str) -> common_enums::RefundStatus {
+    match CashfreeRefundStatus::from(status) {
+        CashfreeRefundStatus::Success => common_enums::RefundStatus::Success,
+        CashfreeRefundStatus::Pending => common_enums::RefundStatus::Pending,
+        CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
+            common_enums::RefundStatus::Failure
+        }
+        CashfreeRefundStatus::Other => common_enums::RefundStatus::Pending,
     }
 }
 

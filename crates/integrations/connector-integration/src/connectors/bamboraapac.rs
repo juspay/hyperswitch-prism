@@ -57,36 +57,159 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Authorize: mirrors the TryFrom exactly. response_code 0 → Authorized (manual capture) /
+// Charged (auto) — hence the ctx; non-zero → Failure.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bamboraapac<T>,
+    flow:            Authorize,
+    source:          transformers::BamboraapacResponseCode,
+    context:         transformers::BamboraapacAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        match status {
+            transformers::BamboraapacResponseCode::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            transformers::BamboraapacResponseCode::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentAuthorizeV2<T> for Bamboraapac<T>
 {
 }
 
+// PSync: mirrors the TryFrom exactly. Found + response_code 0 → Authorized (manual) /
+// Charged (auto) — hence the ctx; found + non-zero or not-found → Failure.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bamboraapac<T>,
+    flow:            PSync,
+    source:          transformers::BamboraapacResponseCode,
+    context:         transformers::BamboraapacAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        match status {
+            transformers::BamboraapacResponseCode::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            // Covers both a declined response_code and transaction-not-found (which the
+            // TryFrom surfaces as Failure too).
+            transformers::BamboraapacResponseCode::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentSyncV2 for Bamboraapac<T>
 {
 }
 
+// Capture: mirrors the TryFrom exactly. response_code 0 → Charged, non-zero → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow:      Capture,
+    source:    transformers::BamboraapacResponseCode,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentCapture for Bamboraapac<T>
 {
 }
 
+// Refund: mirrors the TryFrom exactly. response_code 0 → Success, non-zero → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow:      Refund,
+    source:    transformers::BamboraapacResponseCode,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundV2 for Bamboraapac<T>
 {
 }
 
+// RSync: mirrors the TryFrom exactly. Found + response_code 0 → Success; found + non-zero or
+// not-found → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow:      RSync,
+    source:    transformers::BamboraapacResponseCode,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundSyncV2 for Bamboraapac<T>
 {
 }
 
+// SetupMandate: mirrors the TryFrom exactly. The discriminator is `return_value` (registration
+// outcome), with identical 0/non-zero semantics to `BamboraapacResponseCode`, so the same enum
+// is reused: 0 → Charged (registration done — SetupMandate uses Charged, not Authorized),
+// non-zero → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow:      SetupMandate,
+    source:    transformers::BamboraapacResponseCode,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::SetupMandateV2<T> for Bamboraapac<T>
 {
 }
 
+// RepeatPayment: mirrors the TryFrom exactly. response_code 0 → Charged, non-zero →
+// Failure (the RepeatPayment TryFrom does not consult the capture method — every
+// approved repeat payment is Charged).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bamboraapac<T>,
+    flow:            RepeatPayment,
+    source:          transformers::BamboraapacResponseCode,
+    context:         transformers::BamboraapacAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        let _ = ctx;
+        match status {
+            transformers::BamboraapacResponseCode::Approved => AttemptStatus::Charged,
+            transformers::BamboraapacResponseCode::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RepeatPaymentV2<T> for Bamboraapac<T>
 {

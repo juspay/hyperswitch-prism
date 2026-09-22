@@ -505,10 +505,7 @@ pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
     fn success_connector_status() -> Self::ConnectorStatus;
     fn failure_connector_status() -> Self::ConnectorStatus;
 
-    fn map_refund_status(
-        status: Self::ConnectorStatus,
-        ctx: Self::MappingContext,
-    ) -> RefundStatus;
+    fn map_refund_status(status: Self::ConnectorStatus, ctx: Self::MappingContext) -> RefundStatus;
 }
 
 pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {

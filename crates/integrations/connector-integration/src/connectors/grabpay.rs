@@ -1175,19 +1175,127 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ── Authorize ────────────────────────────────────────────────────────────────
+// The Authorize TryFrom is a plain `AttemptStatus::from(GrabpayPaymentStatus)` on
+// `tx_status`. `_ctx!` (with `()` context) rather than the plain macro because
+// the `Unknown(String)` catch-all variant carries data and cannot be written in
+// the declarative `variant => target` body.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Grabpay<T>,
+    flow:            Authorize,
+    source:          grabpay::GrabpayPaymentStatus,
+    context:         (),
+    params:          [status, ctx],
+    success_status:  Success,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use grabpay::GrabpayPaymentStatus;
+        match (status, ctx) {
+            (GrabpayPaymentStatus::Success, ()) => AttemptStatus::Charged,
+            (GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined, ()) => AttemptStatus::Failure,
+            (GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist, ()) => AttemptStatus::Pending,
+            (GrabpayPaymentStatus::Authorised, ()) => AttemptStatus::Authorized,
+            (GrabpayPaymentStatus::Unknown(_), ()) => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Grabpay<T>
 {
 }
 
+// ── PSync ────────────────────────────────────────────────────────────────────
+// The PSync TryFrom (`GrabpayChargeCompleteResponse`) uses the identical
+// `AttemptStatus::from(GrabpayPaymentStatus)` mapping as Authorize.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Grabpay<T>,
+    flow:            PSync,
+    source:          grabpay::GrabpayPaymentStatus,
+    context:         (),
+    params:          [status, ctx],
+    success_status:  Success,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use grabpay::GrabpayPaymentStatus;
+        match (status, ctx) {
+            (GrabpayPaymentStatus::Success, ()) => AttemptStatus::Charged,
+            (GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined, ()) => AttemptStatus::Failure,
+            (GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist, ()) => AttemptStatus::Pending,
+            (GrabpayPaymentStatus::Authorised, ()) => AttemptStatus::Authorized,
+            (GrabpayPaymentStatus::Unknown(_), ()) => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Grabpay<T>
 {
 }
 
+// Refund / RSync go through `From<GrabpayRefundStatus> for RefundStatus`. The
+// `GrabpayRefundStatus::Unknown(String)` catch-all carries the raw tx_status
+// string, so the declarative `variant => target` body cannot express it — use
+// the context form with `()` (mirrors the Authorize/PSync `_ctx!` above).
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Grabpay<T>,
+    flow:           Refund,
+    source:         grabpay::GrabpayRefundStatus,
+    context:        (),
+    params:         [status, ctx],
+    success_status: Success,
+    failure_status: Failed,
+    {
+        use common_enums::RefundStatus;
+        use grabpay::GrabpayRefundStatus;
+        let _ = ctx;
+        match status {
+            GrabpayRefundStatus::Success => RefundStatus::Success,
+            GrabpayRefundStatus::Failed
+            | GrabpayRefundStatus::Cancelled
+            | GrabpayRefundStatus::AuthorisationDeclined => RefundStatus::Failure,
+            GrabpayRefundStatus::Processing
+            | GrabpayRefundStatus::TransactionAlreadyExist
+            | GrabpayRefundStatus::Unknown(_) => RefundStatus::Pending,
+        }
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Grabpay<T>
 {
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Grabpay<T>,
+    flow:           RSync,
+    source:         grabpay::GrabpayRefundStatus,
+    context:        (),
+    params:         [status, ctx],
+    success_status: Success,
+    failure_status: Failed,
+    {
+        use common_enums::RefundStatus;
+        use grabpay::GrabpayRefundStatus;
+        let _ = ctx;
+        match status {
+            GrabpayRefundStatus::Success => RefundStatus::Success,
+            GrabpayRefundStatus::Failed
+            | GrabpayRefundStatus::Cancelled
+            | GrabpayRefundStatus::AuthorisationDeclined => RefundStatus::Failure,
+            GrabpayRefundStatus::Processing
+            | GrabpayRefundStatus::TransactionAlreadyExist
+            | GrabpayRefundStatus::Unknown(_) => RefundStatus::Pending,
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

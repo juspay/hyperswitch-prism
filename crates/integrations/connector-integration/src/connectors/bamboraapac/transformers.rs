@@ -115,6 +115,44 @@ struct QueryCriteriaXml {
 // END XML SERIALIZATION STRUCTURES
 // ============================================================================
 
+// ============================================================================
+// FLOW STATUS MAPPING TYPES
+// ============================================================================
+
+/// The single status discriminator every Bamboraapac response TryFrom branches on:
+/// the inner XML `ResponseCode` (0 = Approved, anything else = Not Approved).
+///
+/// NOTE: why a named enum and not the raw `u8`: the `impl_flow_status_mapping*` /
+/// `impl_refund_flow_status_mapping*` grammar declares `success:` / `failure:` as
+/// unit-variant *idents* and emits `<$source>::Variant` paths in the generated
+/// impl — a primitive `u8` source cannot be threaded through that grammar without
+/// changing the framework macro itself. This enum is the smallest wrapper that
+/// keeps the 0 / non-zero semantics of `response_code` explicit at the declaration
+/// site (`Approved` = code 0, `Declined` = any other code).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BamboraapacResponseCode {
+    /// `ResponseCode == 0`.
+    Approved,
+    /// Any non-zero `ResponseCode` (the TryFroms treat every non-zero code alike).
+    Declined,
+}
+
+/// Context for Authorize / PSync / RepeatPayment: mirrors the request-side input those
+/// TryFroms use to split `0`-approved into `Authorized` (manual capture) vs `Charged`
+/// (auto capture). `Default` = auto-capture, the canonical path (non-Manual).
+#[derive(Debug, Clone, Copy)]
+pub struct BamboraapacAuthorizeCtx {
+    pub is_auto_capture: bool,
+}
+
+impl Default for BamboraapacAuthorizeCtx {
+    fn default() -> Self {
+        Self {
+            is_auto_capture: true,
+        }
+    }
+}
+
 // Authentication Type Definition
 #[derive(Debug, Clone)]
 pub struct BamboraapacAuthType {

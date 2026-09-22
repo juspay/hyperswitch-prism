@@ -4276,6 +4276,19 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
     }
 }
 
+/// Mapping context for `impl_flow_status_mapping_ctx!` — carries the two pieces of
+/// request context `get_adyen_payment_status` needs beyond `AdyenStatus` alone:
+/// whether the payment uses manual capture (Authorised → Authorized vs Charged) and
+/// the payment method type (Pix Pending requires customer action).
+///
+/// `Default` = automatic capture, no payment method type (auto-capture path), used by
+/// `assert_terminal_mapping!` when probing the canonical success path.
+#[derive(Debug, Clone, Default)]
+pub struct AdyenAuthorizeCtx {
+    pub is_manual_capture: bool,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+}
+
 fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,

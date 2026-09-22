@@ -52,6 +52,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for AbsaSanlam<T>
 {
 }
+
+// Mirrors `From<AbsaSanlamPaymentEnqueueStatus> for AttemptStatus`
+// (sanlam_common/transformers.rs): Authorize is a fire-and-forget Kafka
+// enqueue — `Queued` (accepted onto the bus) and `Unknown` (unrecognized but
+// not an explicit rejection) both surface as `Pending`; only `Rejected`
+// signals an immediate failure.  `Queued` is declared the success source
+// because enqueue-acceptance is the only positive sync outcome; the true
+// terminal arrives via the webhook-side `AbsaSanlamPaymentStatus` whose
+// Success maps to `Charged`.  The declared success target is `Authorized`
+// (the canonical async-authorization terminal in TERMINAL_SUCCESS_SET) —
+// AbsaSanlam's webhook verdict lands as `Charged`, but the const-assert
+// is about flow-set membership, not per-instance sync behavior.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: AbsaSanlam<T>,
+    flow:      Authorize,
+    source:    super::sanlam_common::transformers::AbsaSanlamPaymentEnqueueStatus,
+    success:   Queued => Authorized,
+    failure:   Rejected => Failure,
+    {
+        Unknown => Pending
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for AbsaSanlam<T>
 {

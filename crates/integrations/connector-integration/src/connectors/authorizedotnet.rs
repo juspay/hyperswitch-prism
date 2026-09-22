@@ -72,6 +72,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+// SetupMandate (zero-mandate): the response is a customer-profile payload, not a
+// transaction — verification success is signalled by `ResultCode::Ok` (or the
+// E00039 duplicate-profile case) and surfaces as `Charged` per the flow rules.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Authorizedotnet<T>,
+    flow:      SetupMandate,
+    source:    transformers::ResultCode,
+    success:   Ok    => Charged,
+    failure:   Error => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     SetupMandateV2<T> for Authorizedotnet<T>
 {
@@ -316,17 +328,121 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     for Authorizedotnet<T>
 {
 }
+// RepeatPayment (MIT) is submitted as authCaptureTransaction → Operation::Authorize
+// with automatic capture → Approved maps to Charged.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector:       Authorizedotnet<T>,
+    flow:            RepeatPayment,
+    source:          transformers::AuthorizedotnetPaymentStatus,
+    context:         transformers::AuthorizedotnetPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::AuthorizedotnetPaymentStatus as S;
+        if !ctx.is_result_code_ok {
+            return AttemptStatus::Failure;
+        }
+        // Mirrors get_hs_status(Operation::Authorize, capture_method=Automatic) —
+        // RepeatPayment always submits authCaptureTransaction.
+        match status {
+            S::Approved => AttemptStatus::Charged,
+            S::Declined | S::Error => AttemptStatus::Failure,
+            S::HeldForReview => AttemptStatus::Pending,
+            S::RequiresAction => AttemptStatus::AuthenticationPending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     RepeatPaymentV2<T> for Authorizedotnet<T>
 {
+}
+
+// Authorize: mirror of `get_hs_status(Operation::Authorize, capture_method)`.
+// `ctx.is_manual_capture` selects Authorized (manual) vs Charged (automatic);
+// `ctx.is_result_code_ok` mirrors the ResultCode::Error short-circuit which
+// overrides any transaction-level status.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector:       Authorizedotnet<T>,
+    flow:            Authorize,
+    source:          transformers::AuthorizedotnetPaymentStatus,
+    context:         transformers::AuthorizedotnetPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::AuthorizedotnetPaymentStatus as S;
+        if !ctx.is_result_code_ok {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            S::Approved => {
+                if ctx.is_manual_capture {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Charged
+                }
+            }
+            S::Declined | S::Error => AttemptStatus::Failure,
+            S::HeldForReview => AttemptStatus::Unresolved,
+            S::RequiresAction => AttemptStatus::AuthenticationPending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     PaymentAuthorizeV2<T> for Authorizedotnet<T>
 {
 }
+
+// PSync: mirror of `From<SyncStatus> for AttemptStatus` — all outputs are in
+// PSync::ALLOWED.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Authorizedotnet<T>,
+    flow:      PSync,
+    source:    transformers::SyncStatus,
+    success:   SettledSuccessfully    => Charged,
+    failure:   GeneralError           => Failure,
+    {
+        CapturedPendingSettlement     => Charged,
+        AuthorizedPendingCapture      => Authorized,
+        Declined                      => AuthenticationFailed,
+        Voided                        => Voided,
+        CouldNotVoid                  => VoidFailed,
+        RefundSettledSuccessfully     => Charged,
+        RefundPendingSettlement       => Charged,
+        FDSPendingReview              => Unresolved,
+        FDSAuthorizedPendingReview    => Unresolved,
+        Unknown                       => Unspecified,
+    }
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> PaymentSyncV2
     for Authorizedotnet<T>
 {
+}
+
+// Void: authorize.net returns an empty transactionResponse on a successful
+// voidTransaction — `get_hs_status` maps (ResultCode::Ok, no tx response) to
+// Voided. A real transaction response means the void was declined/errored/held.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Authorizedotnet<T>,
+    flow:      Void,
+    source:    transformers::AuthorizedotnetVoidOutcome,
+    success:   ApprovedEmpty            => Voided,
+    failure:   Declined                 => VoidFailed,
+    {
+        Error                         => Failure,
+        HeldForReview                 => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> PaymentVoidV2
     for Authorizedotnet<T>
@@ -339,6 +455,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> RefundV2
     for Authorizedotnet<T>
 {
+}
+
+// Capture: mirror of `get_hs_status(Operation::Capture)`. HeldForReview maps to
+// Unresolved in the TryFrom (not in Capture::ALLOWED) → CaptureInitiated as the
+// closest non-terminal capture state; RequiresAction cannot occur on a capture
+// request, coerced to CaptureFailed.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector:       Authorizedotnet<T>,
+    flow:            Capture,
+    source:          transformers::AuthorizedotnetPaymentStatus,
+    context:         transformers::AuthorizedotnetPaymentCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  CaptureFailed,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::AuthorizedotnetPaymentStatus as S;
+        if !ctx.is_result_code_ok {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            S::Approved => AttemptStatus::Charged,
+            S::Declined | S::Error => AttemptStatus::CaptureFailed,
+            S::HeldForReview => AttemptStatus::CaptureInitiated,
+            S::RequiresAction => AttemptStatus::CaptureFailed,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> PaymentCapture
     for Authorizedotnet<T>

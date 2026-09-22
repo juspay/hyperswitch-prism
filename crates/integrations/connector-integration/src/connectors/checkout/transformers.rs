@@ -548,6 +548,14 @@ pub enum CheckoutPaymentIntent {
     Authorize,
 }
 
+impl Default for CheckoutPaymentIntent {
+    /// Auto-capture is the canonical intent — used as the default mapping
+    /// context by `ConnectorTerminalMapping` (PSync flow).
+    fn default() -> Self {
+        Self::Capture
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckoutChallengeIndicator {
@@ -3025,11 +3033,50 @@ pub struct RefundResponse {
     reference: String,
 }
 
+/// Typed verdict of a Checkout.com refund-create call. The refund endpoint
+/// answers 202 with only ids in the body, so the outcome is decided by the
+/// HTTP status alone: 202 → `Accepted`, anything else → `Other` (which the
+/// mapping reads as `Failure`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CheckoutRefundVerdict {
+    /// 202 Accepted — refund accepted for processing
+    Accepted,
+    /// Any other HTTP code
+    #[default]
+    Other,
+}
+
+/// Typed view of `ActionResponse.approved` — the tri-state flag on the refund
+/// action located in the actions list during RSync.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CheckoutActionApproval {
+    /// `approved: true`
+    Approved,
+    /// `approved: false`
+    Rejected,
+    /// `approved` absent — action not yet decided
+    #[default]
+    Pending,
+}
+
+impl From<Option<bool>> for CheckoutActionApproval {
+    fn from(approved: Option<bool>) -> Self {
+        match approved {
+            Some(true) => Self::Approved,
+            Some(false) => Self::Rejected,
+            None => Self::Pending,
+        }
+    }
+}
+
 fn http_code_to_refund_status(http_code: u16) -> common_enums::RefundStatus {
-    if http_code == 202 {
-        common_enums::RefundStatus::Success
+    match if http_code == 202 {
+        CheckoutRefundVerdict::Accepted
     } else {
-        common_enums::RefundStatus::Failure
+        CheckoutRefundVerdict::Other
+    } {
+        CheckoutRefundVerdict::Accepted => common_enums::RefundStatus::Success,
+        CheckoutRefundVerdict::Other => common_enums::RefundStatus::Failure,
     }
 }
 
@@ -3144,10 +3191,10 @@ pub struct CheckoutRedirectResponse {
 
 impl From<&ActionResponse> for common_enums::RefundStatus {
     fn from(item: &ActionResponse) -> Self {
-        match item.approved {
-            Some(true) => Self::Success,
-            Some(false) => Self::Failure,
-            None => Self::Pending,
+        match CheckoutActionApproval::from(item.approved) {
+            CheckoutActionApproval::Approved => Self::Success,
+            CheckoutActionApproval::Rejected => Self::Failure,
+            CheckoutActionApproval::Pending => Self::Pending,
         }
     }
 }
