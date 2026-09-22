@@ -1110,15 +1110,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
                 // TSYS requires a non-zero amount even for authorization; default
-                // to 1 minor unit if the request does not carry one.
-                let minor_amount = item.request.minor_amount.unwrap_or_default();
-                let transaction_amount = item_data
-                    .connector
-                    .amount_converter
-                    .convert(minor_amount, item.request.currency)
-                    .change_context(IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
-                    })?;
+                // to 1 minor unit if the request does not carry one. Built directly
+                // as ConnectorMinorUnit (via its Deserialize impl, not
+                // MinorUnit::new()) since connector code cannot construct a domain
+                // MinorUnit outside AmountConvertor.
+                let transaction_amount = match item.request.minor_amount {
+                    Some(amount) => item_data
+                        .connector
+                        .amount_converter
+                        .convert(amount, item.request.currency)
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
+                    None => serde_json::from_value(serde_json::json!(1)).change_context(
+                        IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        },
+                    )?,
+                };
 
                 let auth_data = TsysPaymentAuthSaleRequest {
                     device_id: auth.device_id,

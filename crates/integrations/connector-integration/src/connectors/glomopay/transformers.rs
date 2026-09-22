@@ -21,6 +21,7 @@ use domain_types::{
     router_request_types::PaymentSynIntegrityObject,
     router_response_types::RedirectForm,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -980,8 +981,10 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
             match (payment.requested_amount, payment.requested_currency) {
                 (Some(amount), Some(currency)) => {
                     let minor = GlomopayAmountConvertor::convert_back(amount, currency)
-                        .ok()
-                        .unwrap_or_default();
+                        .change_context(crate::utils::response_deserialization_fail(
+                            item.http_code,
+                            "glomopay: failed to convert requested_amount back to MinorUnit",
+                        ))?;
                     (
                         Some(Money::from_minor_unit(minor, currency)),
                         Some(PaymentSynIntegrityObject {

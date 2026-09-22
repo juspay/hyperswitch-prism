@@ -825,7 +825,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             notif.amount.currency,
         )
         .map(|a| a.to_string())
-        .unwrap_or_default();
+        .map_err(|err| {
+            report!(WebhookError::WebhookAmountConversionFailed {
+                reason: format!("Failed to convert Adyen webhook amount: {err}"),
+            })
+        })?;
         let message = format!(
             "{}:{}:{}:{}:{}:{}:{}:{}",
             notif.psp_reference,
