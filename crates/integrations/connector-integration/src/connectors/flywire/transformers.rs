@@ -1,7 +1,7 @@
 use crate::connectors::flywire::FlywireRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{pii::Email, types::ConnectorMinorUnit, AmountConvertor};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
@@ -17,6 +17,7 @@ use domain_types::{
     router_request_types::AuthoriseIntegrityObject,
     router_response_types::RedirectForm,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -121,7 +122,7 @@ pub struct FlywireRecipientField {
 #[derive(Debug, Serialize)]
 pub struct FlywireItem {
     pub id: &'static str,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -229,7 +230,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             items: vec![FlywireItem {
                 id: CHECKOUT_SESSION_ITEM_ID,
-                amount: router_data.request.amount,
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(
+                        router_data.request.amount,
+                        router_data.request.currency.ok_or_else(|| {
+                            error_stack::report!(IntegrationError::MissingRequiredField {
+                                field_name: "currency",
+                                context: Default::default(),
+                            })
+                        })?,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
             }],
             payor_id,
             external_reference: payment_ref,
@@ -443,9 +456,9 @@ pub struct FlywirePayment {
     pub payment_id: String,
     pub status: FlywirePaymentStatus,
     pub status_detail: Option<String>,
-    pub amount_from: Option<MinorUnit>,
+    pub amount_from: Option<ConnectorMinorUnit>,
     pub currency_from: Option<String>,
-    pub amount_to: Option<MinorUnit>,
+    pub amount_to: Option<ConnectorMinorUnit>,
     pub currency_to: Option<String>,
     pub external_reference: Option<String>,
     pub payor_id: Option<String>,
@@ -584,7 +597,7 @@ pub struct FlywireConfirmResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireConfirmChargeInfo {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
 }
 
@@ -660,7 +673,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Serialize)]
 pub struct FlywireRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub external_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications_url: Option<String>,
@@ -673,7 +686,7 @@ pub struct FlywireRefundResponse {
     pub payment_id: Option<String>,
     pub bundle_id: Option<String>,
     pub status: FlywireRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
     pub external_reference: Option<String>,
     pub notifications_url: Option<String>,
@@ -737,7 +750,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         Ok(Self {
-            amount: router_data.request.minor_refund_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(
+                    router_data.request.minor_refund_amount,
+                    router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             external_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
