@@ -297,8 +297,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                     amount: requests::PeachpaymentsAmount {
                         amount: MinorUnitForConnector
-                            .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                            .unwrap_or_default(),
+                            .convert(
+                                item.router_data.request.minor_amount,
+                                item.router_data.request.currency,
+                            )
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })?,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -355,8 +360,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         },
                         amount: requests::PeachpaymentsAmount {
                             amount: MinorUnitForConnector
-                                .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                                .unwrap_or_default(),
+                                .convert(
+                                    item.router_data.request.minor_amount,
+                                    item.router_data.request.currency,
+                                )
+                                .change_context(IntegrationError::AmountConversionFailed {
+                                    context: Default::default(),
+                                })?,
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },
@@ -513,8 +523,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             amount: requests::PeachpaymentsAmount {
                 amount: MinorUnitForConnector
-                    .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
-                    .unwrap_or_default(),
+                    .convert(
+                        item.router_data.request.minor_amount_to_capture,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency_code: item.router_data.request.currency,
                 display_amount: None,
             },
@@ -592,7 +607,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount: requests::PeachpaymentsAmount {
                 amount: MinorUnitForConnector
                     .convert(amount, currency)
-                    .unwrap_or_default(),
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency_code: currency,
                 display_amount: None,
             },
@@ -659,8 +676,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 requests::PeachpaymentsRefundTransactionData {
                     amount: requests::PeachpaymentsAmount {
                         amount: MinorUnitForConnector
-                            .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
-                            .unwrap_or_default(),
+                            .convert(
+                                item.router_data.request.minor_refund_amount,
+                                item.router_data.request.currency,
+                            )
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })?,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -856,7 +878,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::PeachpaymentsAmount {
                         amount: MinorUnitForConnector
                             .convert(minor_amount, item.router_data.request.currency)
-                            .unwrap_or_default(),
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })?,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -1059,7 +1083,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::PeachpaymentsAmount {
                         amount: MinorUnitForConnector
                             .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                            .unwrap_or_default(),
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })?,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -1110,7 +1136,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::PeachpaymentsAmount {
                             amount: MinorUnitForConnector
                                 .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-                                .unwrap_or_default(),
+                                .change_context(IntegrationError::AmountConversionFailed {
+                                    context: Default::default(),
+                                })?,
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },
