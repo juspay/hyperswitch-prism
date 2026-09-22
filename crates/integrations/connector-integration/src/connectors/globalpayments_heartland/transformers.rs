@@ -1662,3 +1662,85 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRSyncResponse, Self>> for
         })
     }
 }
+
+// =============================================================================
+// FLOW-STATUS MAPPING CONTEXT TYPES
+// =============================================================================
+// Typed descriptors used *only* by the `impl_flow_status_mapping!` /
+// `impl_flow_status_mapping_ctx!` declarations in `globalpayments_heartland.rs`.
+// They restate the decision gates the existing TryFrom bodies apply inline, so
+// the macros get a constructible `source:` / `context:` without touching the
+// TryFroms themselves.
+
+/// The single binary decision surface every heartland flow reduces to.
+/// Mirrors `GlobalpaymentsHeartlandResponseHeader::is_gateway_accepted`
+/// (header-only ack flows: Capture, Void, Refund), the Authorize body's
+/// `GlobalpaymentsHeartlandCreditResponseBody::is_approved` (`Approved` is
+/// `RspCode == "00" | "85"`), and the PSync/RSync active-vs-reversed verdict.
+/// `Other` collapses every non-approval code and every missing body.
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandFlowStatus {
+    Approved,
+    #[default]
+    Other,
+}
+
+/// Authorize context: the two gates the TryFrom consults beyond the issuer
+/// code — the gateway code and the `is_auto_capture` request flag (the flag
+/// splits both the success terminal (Charged vs Authorized) and the issuer-
+/// decline terminal (Failure vs AuthorizationFailed)).
+///
+/// `Default` = gateway accepted, auto-capture: the canonical charged path.
+#[derive(Debug, Clone)]
+pub struct GlobalpaymentsHeartlandAuthorizeCtx {
+    pub gateway: GlobalpaymentsHeartlandFlowStatus,
+    pub is_auto_capture: bool,
+}
+
+impl Default for GlobalpaymentsHeartlandAuthorizeCtx {
+    fn default() -> Self {
+        Self {
+            gateway: GlobalpaymentsHeartlandFlowStatus::Approved,
+            is_auto_capture: true,
+        }
+    }
+}
+
+/// `ReportTxnDetail` `ServiceName` leg, typed for the PSync / RSync `_ctx`
+/// mappings (the TryFroms read the raw string; the same values).
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandServiceName {
+    CreditAuth,
+    CreditSale,
+    CreditVoid,
+    CreditReturn,
+    /// Any service name Portico adds later — the TryFrom falls through to
+    /// Pending for these.
+    #[default]
+    Other,
+}
+
+/// `ReportTxnDetail` `Data/TxnStatus` leg.  `Other` collapses every value
+/// that is not `A` (`Active`) or `R` (`Reversed`), matching the TryFrom
+/// fall-through to Pending.
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandTxnStatus {
+    Active,
+    Reversed,
+    #[default]
+    Other,
+}
+
+/// PSync / RSync context: the full `ReportTxnDetail` decision surface —
+/// service name, txn status, and the issuer `RspCode` gate. `is_declined`
+/// carries the already-computed issuer verdict for auth-bearing services
+/// (skipped for `CreditReturn`, whose successful response reports an empty
+/// code; there, a non-empty non-approval code is itself the decline).
+///
+/// `Default` = active `CreditSale`, not declined: the canonical charged path.
+#[derive(Debug, Clone, Default)]
+pub struct GlobalpaymentsHeartlandSyncCtx {
+    pub service_name: GlobalpaymentsHeartlandServiceName,
+    pub txn_status: GlobalpaymentsHeartlandTxnStatus,
+    pub is_declined: bool,
+}

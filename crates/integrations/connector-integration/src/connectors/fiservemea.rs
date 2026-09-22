@@ -165,26 +165,229 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+
+// ── Authorize ────────────────────────────────────────────────────────────────
+// Mirrors `map_status`.  `Approved` is disambiguated by the response's
+// `transaction_type` (ctx): Preauth → Authorized (manual-capture path),
+// Sale → Charged (auto-capture path).  `Waiting` from the result leg maps to
+// Pending; a `None` status + `None` result also lands on Pending.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiservemea<T>,
+    flow:            Authorize,
+    source:          fiservemea::FiservemeaPaymentStatus,
+    context:         fiservemea::FiservemeaStatusCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Authorized, Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use fiservemea::{FiservemeaPaymentStatus, FiservemeaTransactionType};
+        match status {
+            FiservemeaPaymentStatus::Approved => match ctx.transaction_type {
+                FiservemeaTransactionType::Preauth => AttemptStatus::Authorized,
+                FiservemeaTransactionType::Void => AttemptStatus::Voided,
+                FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth => {
+                    AttemptStatus::Charged
+                }
+                FiservemeaTransactionType::Credit
+                | FiservemeaTransactionType::ForcedTicket
+                | FiservemeaTransactionType::Return
+                | FiservemeaTransactionType::PayerAuth
+                | FiservemeaTransactionType::Disbursement
+                | FiservemeaTransactionType::Unknown => AttemptStatus::Failure,
+            },
+            FiservemeaPaymentStatus::Waiting => AttemptStatus::Pending,
+            FiservemeaPaymentStatus::Partial => AttemptStatus::PartialCharged,
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiservemea<T>
 {
 }
 
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Same `map_status` inputs as Authorize; PSync mirrors the payment's actual
+// state, so its ALLOWED set is broad.  `Approved`+`Void` surfaces `Voided`
+// (an authorization that was voided between calls).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiservemea<T>,
+    flow:            PSync,
+    source:          fiservemea::FiservemeaPaymentStatus,
+    context:         fiservemea::FiservemeaStatusCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged, Authorized, Voided],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use fiservemea::{FiservemeaPaymentStatus, FiservemeaTransactionType};
+        match status {
+            FiservemeaPaymentStatus::Approved => match ctx.transaction_type {
+                FiservemeaTransactionType::Preauth => AttemptStatus::Authorized,
+                FiservemeaTransactionType::Void => AttemptStatus::Voided,
+                FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth => {
+                    AttemptStatus::Charged
+                }
+                FiservemeaTransactionType::Credit
+                | FiservemeaTransactionType::ForcedTicket
+                | FiservemeaTransactionType::Return
+                | FiservemeaTransactionType::PayerAuth
+                | FiservemeaTransactionType::Disbursement
+                | FiservemeaTransactionType::Unknown => AttemptStatus::Failure,
+            },
+            FiservemeaPaymentStatus::Waiting => AttemptStatus::Pending,
+            FiservemeaPaymentStatus::Partial => AttemptStatus::PartialCharged,
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiservemea<T>
 {
 }
 
+// ── Void ─────────────────────────────────────────────────────────────────────
+// Mirrors `map_status` restricted to the Void endpoint: the void API only ever
+// returns `transaction_type: Void`, so `map_status`'s non-Void `Approved` arms
+// are unreachable here and `Approved` collapses to `Voided` (this also keeps
+// the macro's `Default` ctx — `Sale` — on the success path for
+// `assert_terminal_mapping!`).  Declined/Failed shapes are `VoidFailed`;
+// mid-flight (`Waiting`) is `VoidInitiated`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiservemea<T>,
+    flow:            Void,
+    source:          fiservemea::FiservemeaPaymentStatus,
+    context:         fiservemea::FiservemeaStatusCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Voided],
+    failure_status:  Declined,
+    failure_target:  VoidFailed,
+    {
+        use common_enums::AttemptStatus;
+        use fiservemea::FiservemeaPaymentStatus;
+        let _ = &ctx;
+        match status {
+            FiservemeaPaymentStatus::Approved => AttemptStatus::Voided,
+            FiservemeaPaymentStatus::Waiting => AttemptStatus::VoidInitiated,
+            // Partial is not a state a void should produce; surface it as Pending
+            // rather than assert a terminal.
+            FiservemeaPaymentStatus::Partial => AttemptStatus::Pending,
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => AttemptStatus::VoidFailed,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiservemea<T>
 {
 }
 
+// ── VoidPC ───────────────────────────────────────────────────────────────────
+// Mirrors `From<FiservemeaVoidPCStatus> for PostCaptureVoidStatus` in
+// transformers.rs, flattened onto AttemptStatus: the two-leg decision tree is
+// identical, with `Succeeded → VoidedPostCapture`, `Failed → Failure`.  The
+// TryFrom reports through `PaymentsResponseData::PostCaptureVoidResponse` and
+// does not set `PaymentFlowData.status`, but its PostCaptureVoidStatus decision
+// is exactly expressible here — Succeeded/Failed/Pending line up one-to-one
+// with VoidPC's TERMINAL_SUCCESS/TERMINAL_FAILURE/Pending.  Both optional legs
+// ride on `FiservemeaRefundCtx` (its two-Option shape is exactly what the
+// TryFrom's `FiservemeaVoidPCStatus` struct carries); the `source:` status only
+// declares the terminal representatives for `assert_terminal_mapping!`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiservemea<T>,
+    flow:            VoidPC,
+    source:          fiservemea::FiservemeaPaymentStatus,
+    context:         fiservemea::FiservemeaRefundCtx,
+    params:          [_status, ctx],
+    success_status:  Approved,
+    success_targets: [VoidedPostCapture],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use fiservemea::{FiservemeaPaymentResult, FiservemeaPaymentStatus};
+        match ctx.transaction_status {
+            Some(FiservemeaPaymentStatus::Approved) => AttemptStatus::VoidedPostCapture,
+            Some(FiservemeaPaymentStatus::Waiting) => AttemptStatus::Pending,
+            Some(
+                FiservemeaPaymentStatus::Partial
+                | FiservemeaPaymentStatus::ValidationFailed
+                | FiservemeaPaymentStatus::ProcessingFailed
+                | FiservemeaPaymentStatus::Declined,
+            )
+            | None => match ctx.transaction_result {
+                Some(FiservemeaPaymentResult::Approved) => AttemptStatus::VoidedPostCapture,
+                Some(FiservemeaPaymentResult::Waiting) => AttemptStatus::Pending,
+                Some(
+                    FiservemeaPaymentResult::Declined
+                    | FiservemeaPaymentResult::Failed
+                    | FiservemeaPaymentResult::Partial
+                    | FiservemeaPaymentResult::Fraud,
+                )
+                | None => AttemptStatus::Failure,
+            },
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Fiservemea<T>
 {
 }
 
+// ── Capture ──────────────────────────────────────────────────────────────────
+// Mirrors `map_status`.  A successful PostAuth capture is `Charged`
+// (pre-settlement `Waiting` is `CaptureInitiated`).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiservemea<T>,
+    flow:            Capture,
+    source:          fiservemea::FiservemeaPaymentStatus,
+    context:         fiservemea::FiservemeaStatusCtx,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  CaptureFailed,
+    {
+        use common_enums::AttemptStatus;
+        use fiservemea::{FiservemeaPaymentStatus, FiservemeaTransactionType};
+        match status {
+            FiservemeaPaymentStatus::Approved => match ctx.transaction_type {
+                FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth => {
+                    AttemptStatus::Charged
+                }
+                FiservemeaTransactionType::Preauth => AttemptStatus::CaptureInitiated,
+                FiservemeaTransactionType::Void
+                | FiservemeaTransactionType::Credit
+                | FiservemeaTransactionType::ForcedTicket
+                | FiservemeaTransactionType::Return
+                | FiservemeaTransactionType::PayerAuth
+                | FiservemeaTransactionType::Disbursement
+                | FiservemeaTransactionType::Unknown => AttemptStatus::CaptureFailed,
+            },
+            FiservemeaPaymentStatus::Waiting => AttemptStatus::CaptureInitiated,
+            FiservemeaPaymentStatus::Partial => AttemptStatus::PartialCharged,
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => AttemptStatus::CaptureFailed,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Fiservemea<T>
 {
@@ -197,11 +400,94 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+// Mirrors `map_refund_status(Option<FiservemeaPaymentStatus>,
+// Option<FiservemeaPaymentResult>)` in transformers.rs. Both Refund and RSync
+// hydrate their status from the same two optional legs — `transaction_status`
+// and `transaction_result` — so both live on `FiservemeaRefundCtx`; the plain
+// `source:` status itself is only used for the terminal success/failure
+// declarations. A `None` status leg falls through to the result leg; both
+// `None` lands on Pending.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Fiservemea<T>,
+    flow:           Refund,
+    source:         fiservemea::FiservemeaPaymentStatus,
+    context:        fiservemea::FiservemeaRefundCtx,
+    params:         [_status, ctx],
+    success_status: Approved,
+    failure_status: Declined,
+    {
+        use common_enums::RefundStatus;
+        use fiservemea::{FiservemeaPaymentResult, FiservemeaPaymentStatus};
+        match ctx.transaction_status {
+            Some(FiservemeaPaymentStatus::Approved) => RefundStatus::Success,
+            Some(FiservemeaPaymentStatus::Partial | FiservemeaPaymentStatus::Waiting) => {
+                RefundStatus::Pending
+            }
+            Some(
+                FiservemeaPaymentStatus::ValidationFailed
+                | FiservemeaPaymentStatus::ProcessingFailed
+                | FiservemeaPaymentStatus::Declined,
+            ) => RefundStatus::Failure,
+            None => match ctx.transaction_result {
+                Some(FiservemeaPaymentResult::Approved) => RefundStatus::Success,
+                Some(FiservemeaPaymentResult::Partial | FiservemeaPaymentResult::Waiting) => {
+                    RefundStatus::Pending
+                }
+                Some(
+                    FiservemeaPaymentResult::Declined
+                    | FiservemeaPaymentResult::Failed
+                    | FiservemeaPaymentResult::Fraud,
+                ) => RefundStatus::Failure,
+                None => RefundStatus::Pending,
+            },
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiservemea<T>
 {
 }
 
+// Mirrors `map_refund_status` — same two-leg decision tree as the Refund
+// mapping above.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Fiservemea<T>,
+    flow:           RSync,
+    source:         fiservemea::FiservemeaPaymentStatus,
+    context:        fiservemea::FiservemeaRefundCtx,
+    params:         [_status, ctx],
+    success_status: Approved,
+    failure_status: Declined,
+    {
+        use common_enums::RefundStatus;
+        use fiservemea::{FiservemeaPaymentResult, FiservemeaPaymentStatus};
+        match ctx.transaction_status {
+            Some(FiservemeaPaymentStatus::Approved) => RefundStatus::Success,
+            Some(FiservemeaPaymentStatus::Partial | FiservemeaPaymentStatus::Waiting) => {
+                RefundStatus::Pending
+            }
+            Some(
+                FiservemeaPaymentStatus::ValidationFailed
+                | FiservemeaPaymentStatus::ProcessingFailed
+                | FiservemeaPaymentStatus::Declined,
+            ) => RefundStatus::Failure,
+            None => match ctx.transaction_result {
+                Some(FiservemeaPaymentResult::Approved) => RefundStatus::Success,
+                Some(FiservemeaPaymentResult::Partial | FiservemeaPaymentResult::Waiting) => {
+                    RefundStatus::Pending
+                }
+                Some(
+                    FiservemeaPaymentResult::Declined
+                    | FiservemeaPaymentResult::Failed
+                    | FiservemeaPaymentResult::Fraud,
+                ) => RefundStatus::Failure,
+                None => RefundStatus::Pending,
+            },
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiservemea<T>
 {

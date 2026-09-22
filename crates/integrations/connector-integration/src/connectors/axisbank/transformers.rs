@@ -117,6 +117,15 @@ pub type AxisbankSyncRequest = JwsObject;
 /// PSync response — Status 360 response wrapper.
 pub type AxisbankSyncResponse = Status360Response;
 
+/// Context for the PSync `impl_flow_status_mapping_ctx!` in `axisbank.rs`:
+/// `OuterResponseCode::Success` on Status 360 is further disambiguated by the
+/// payload's `gateway_response_code` (mirrors `map_transaction_status` in
+/// `juspay_upi_stack`).
+#[derive(Debug, Default)]
+pub struct AxisbankSyncCtx {
+    pub gateway_response_code: Option<String>,
+}
+
 /// Refund request body (Refund 360) — JWS object.
 pub type AxisbankRefundRequest = JwsObject;
 /// Refund response — Refund 360 response wrapper.

@@ -233,6 +233,63 @@ pub struct BamboraAvsDetails {
     pub processed: bool,
 }
 
+// ============================================================================
+// FLOW STATUS MAPPING TYPES
+// ============================================================================
+
+/// Decision-relevant fields of an Authorize/PSync `BamboraPaymentsResponse`, lifted into a
+/// typed status enum so `impl_flow_status_mapping_ctx!` can match unit variants against a
+/// single source value.
+///
+/// Why a pair enum and not the existing [`BamboraPaymentType`]: the Authorize and PSync
+/// TryFroms branch on **both** `approved` and `payment_type` (declined transactions of any
+/// type collapse to the ctx-split failure arm). `BamboraPaymentType` alone therefore cannot
+/// carry the decision. Nor can it be the macro `source:` with `approved` pushed into the
+/// context: `assert_terminal_mapping!` verifies success and failure against the *same*
+/// default context, and the success arm needs `approved == true` while the failure arm needs
+/// `approved == false` — no single honest default `BamboraAuthorizeCtx` could satisfy both.
+/// Enumerating the (approved, payment_type) domain keeps `success_status` / `failure_status`
+/// declarable and the test sound.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BamboraPaymentStatus {
+    ApprovedPreAuth,
+    ApprovedPayment,
+    ApprovedPreAuthCompletion,
+    ApprovedVoidPayment,
+    ApprovedVoidRefund,
+    ApprovedReturn,
+    Declined,
+}
+
+/// Context for Authorize/PSync: mirrors the request-side input those TryFroms use to pick a
+/// failure terminal (`Failure` for auto-capture, `AuthorizationFailed` for manual capture).
+/// `Default` = auto-capture, the canonical path (mirrors the TryFroms' `unwrap_or(true)`).
+#[derive(Debug, Clone, Copy)]
+pub struct BamboraAuthorizeCtx {
+    pub is_auto_capture: bool,
+}
+
+impl Default for BamboraAuthorizeCtx {
+    fn default() -> Self {
+        Self {
+            is_auto_capture: true,
+        }
+    }
+}
+
+/// The discriminator of every Capture / Void / Refund / RSync TryFrom: the response
+/// `approved` field (`"1"` = approved, anything else = declined). None of these four
+/// TryFroms reads `payment_type` at all, so this two-variant enum — not
+/// [`BamboraPaymentType`], and not a per-flow padded copy of its domain — is the exact
+/// decision variable for each of them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BamboraApproval {
+    /// `approved == "1"`.
+    Approved,
+    /// Any other `approved` value.
+    Declined,
+}
+
 // Request Transformation
 
 impl<T: PaymentMethodDataTypes>

@@ -533,7 +533,9 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Default)]
 pub enum FiservemeaTransactionType {
+    #[default]
     Sale,
     Preauth,
     Credit,
@@ -546,6 +548,8 @@ pub enum FiservemeaTransactionType {
     #[serde(other)]
     Unknown,
 }
+
+// Canonical ctx for `assert_terminal_mapping!`: auto-capture sale, no result leg.
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -567,6 +571,33 @@ pub enum FiservemeaPaymentResult {
     Waiting,
     Partial,
     Fraud,
+}
+
+/// Mapping context for `impl_flow_status_mapping_ctx!`.  `map_status` takes
+/// three inputs — `transaction_status`, `transaction_result`, and
+/// `transaction_type` — of which only `transaction_status` is the `source:`
+/// enum.  The remaining two ride in this context.
+///
+/// `Default` = no result, `Sale` transaction: the canonical "approved sale"
+/// success path used by `assert_terminal_mapping!`.
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaStatusCtx {
+    pub transaction_result: Option<FiservemeaPaymentResult>,
+    pub transaction_type: FiservemeaTransactionType,
+}
+
+/// Mapping context for refund `impl_refund_flow_status_mapping_ctx!` — carries
+/// both optional legs consumed by `map_refund_status(Option<status>,
+/// Option<result>)`. The `source:` type stays `FiservemeaPaymentStatus`; the
+/// ctx holds the raw `Option` shape the TryFrom reads so the macro body can
+/// mirror the two-leg decision tree directly.
+///
+/// `Default` = neither leg present: the "approved status" success path used by
+/// `assert_terminal_mapping!` with `source: = FiservemeaPaymentStatus::Approved`.
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaRefundCtx {
+    pub transaction_status: Option<FiservemeaPaymentStatus>,
+    pub transaction_result: Option<FiservemeaPaymentResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
