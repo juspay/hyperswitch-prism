@@ -252,7 +252,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
                 connector_transaction_id: body.transaction_id,
-                merchant_transaction_id: body.merchant_reference.or(body.order_id),
+                merchant_transaction_id: body.merchant_reference,
             },
         )))
     }
