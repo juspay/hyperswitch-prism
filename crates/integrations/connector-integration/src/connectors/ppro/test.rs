@@ -735,7 +735,6 @@ mod tests {
 #[cfg(test)]
 mod transformer_tests {
     use super::super::transformers::*;
-    use common_utils::{proto_boundary::MinorUnitProtoAccess, MinorUnit};
 
     macro_rules! ensure_eq {
         ($left:expr, $right:expr $(,)?) => {{
@@ -888,7 +887,7 @@ mod transformer_tests {
     #[test]
     fn test_capture_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproCaptureRequest {
-            amount: MinorUnit::new(2500),
+            amount: serde_json::from_value(serde_json::json!(2500))?,
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(
@@ -904,7 +903,7 @@ mod transformer_tests {
     #[test]
     fn test_void_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproVoidRequest {
-            amount: MinorUnit::new(1000),
+            amount: serde_json::from_value(serde_json::json!(1000))?,
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(json.get("amount"), Some(&serde_json::json!(1000)));
@@ -916,7 +915,7 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_with_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: MinorUnit::new(500),
+            amount: serde_json::from_value(serde_json::json!(500))?,
             merchant_refund_reference: "ref_500".to_string(),
             refund_reason: Some(PproRefundReason::Fraud),
         };
@@ -932,7 +931,7 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_no_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: MinorUnit::new(300),
+            amount: serde_json::from_value(serde_json::json!(300))?,
             merchant_refund_reference: "ref_300".to_string(),
             refund_reason: None,
         };

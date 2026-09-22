@@ -1,5 +1,8 @@
 use common_enums::{self, AttemptStatus, CountryAlpha2, RefundStatus};
-use common_utils::{consts, pii, types::{AmountConvertor, ConnectorMinorUnit}};
+use common_utils::{
+    consts, pii,
+    types::{AmountConvertor, ConnectorMinorUnit},
+};
 use domain_types::{
     connector_flow::{Authorize, RSync, Refund, RepeatPayment},
     connector_types::{
@@ -464,7 +467,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.router_data.request.amount, item.router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.router_data.request.amount,
+                    item.router_data.request.currency,
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -689,7 +695,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: common_utils::types::MinorUnitForConnector
-                .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.router_data.request.minor_amount,
+                    item.router_data.request.currency,
+                ))
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -867,7 +876,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment: item.router_data.request.connector_transaction_id.clone(),
             amount: Some(
                 common_utils::types::MinorUnitForConnector
-                    .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
+                    .convert(&common_utils::types::Money::from_minor_unit(
+                        item.router_data.request.minor_refund_amount,
+                        item.router_data.request.currency,
+                    ))
                     .change_context(errors::IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,

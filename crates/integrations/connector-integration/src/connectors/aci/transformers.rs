@@ -226,6 +226,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
             | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -1063,10 +1064,10 @@ fn get_transaction_details<
     let amount = item
         .connector
         .amount_converter
-        .convert(
+        .convert(&common_utils::types::Money::from_minor_unit(
             item.router_data.request.minor_amount,
             item.router_data.request.currency,
-        )
+        ))
         .change_context(IntegrationError::AmountConversionFailed {
             context: Default::default(),
         })?;
@@ -1463,10 +1464,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1691,10 +1692,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1994,10 +1995,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

@@ -32,8 +32,13 @@ macros::create_all_prerequisites!(
         ),
         // ... more flows
     ],
+    // Pick the unit that matches the vendor's documented wire format. FIVE unit types exist in
+    // common_utils/src/types.rs: MinorUnit(:170) `1250`, StringMinorUnit(:305) `"1250"`,
+    // FloatMajorUnit(:336) `12.50`, StringMajorUnit(:374) `"12.50"`,
+    // StringTwoDecimalUnit(:443) `"12.50"` zero-padded. Do NOT default to StringMinorUnit —
+    // on HEAD the split is StringMajorUnit 24 / FloatMajorUnit 22 / MinorUnit 11 / StringMinorUnit 8.
     amount_converters: [
-        {{converter_name}}: {{AmountType}},     // e.g., amount_converter: StringMinorUnit
+        {{converter_name}}: {{AmountType}},
         // ... more converters if needed
     ],
     member_functions: {
@@ -99,7 +104,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
         }
@@ -234,6 +239,132 @@ macros::macro_connector_implementation!(
 );
 ```
 
+### 3. `macro_connector_flow_status_impls!` - Stubs for every flow you did NOT implement
+
+Defined at `crates/integrations/connector-integration/src/connectors/macros.rs:1827`.
+**All 111 connectors on HEAD invoke it** (111 of the 111 files in `connectors/` excluding `macros.rs`) — a connector that omits it will not compile, because
+`ConnectorServiceTrait` requires a `ConnectorIntegrationV2` impl for every flow, implemented or not.
+
+It emits, for each flow you name, both the marker-trait impl and a stub `ConnectorIntegrationV2`
+impl that fails with the right error. Two keys, both optional but at least one required:
+
+- `not_implemented: [...]` — the connector's API *could* support this flow, nobody has written it yet.
+- `not_supported: [...]` — the connector's API has no such capability at all.
+
+**Syntax** (`macros.rs:1829-1836`, the "both lists" arm):
+```rust
+macros::macro_connector_flow_status_impls!(
+    connector: {{ConnectorName}},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [ FlowA, FlowB ],
+    not_supported: [ FlowC ],
+);
+```
+
+**Real invocation** (`connectors/travelhub.rs:455`):
+```rust
+macros::macro_connector_flow_status_impls!(
+    connector: Travelhub,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Accept,
+        ClientAuthenticationToken,
+        CreateConnectorCustomer,
+        GetConnectorCustomer,
+        DefendDispute,
+        MandateRevoke,
+        Authenticate,
+        IncrementalAuthorization,
+        CreateOrder,
+        PostAuthenticate,
+        PreAuthenticate,
+        PaymentMethodToken,
+        VoidPC,
+        RepeatPayment,
+        ServerAuthenticationToken,
+        ServerSessionAuthenticationToken,
+        SetupMandate,
+        SubmitEvidence
+    ],
+    not_supported: [
+        VoidPostRefund,
+    ],
+);
+```
+
+Flow identifiers are the marker structs in `domain_types::connector_flow`; the macro has one arm
+per flow (`expand_flow_status_impl!`, `macros.rs:1945`), so a typo is a compile error, not a
+silent no-op. Do **not** hand-write these stubs — remove any you find and list the flow here.
+
+### 4. `macro_connector_local_flow_implementation!` - Flows with no outbound HTTP call
+
+Defined at `macros.rs:2425`. Use it when a flow is resolved entirely inside UCS — no request is
+built and nothing is sent to the connector. The macro sets
+`get_call_connector_action` to `CallConnectorAction::HandleResponseWithoutBuildRequest`, makes
+`build_request_v2` return `Ok(None)`, and routes everything through the free function you name in
+`handle_response`.
+
+**Argument keys** (`macros.rs:2426-2434` — all required, in this order):
+```rust
+macros::macro_connector_local_flow_implementation!(
+    connector: {{ConnectorName}},
+    flow_name: {{Flow}},
+    resource_common_data: {{FlowData}},
+    flow_request: {{RequestData}},
+    flow_response: {{ResponseData}},
+    handle_response: {{module}}::{{handler_fn}},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+);
+```
+
+**Real invocation** (`connectors/kount.rs:390`):
+```rust
+macros::macro_connector_local_flow_implementation!(
+    connector: Kount,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    handle_response: kount::handle_pre_authenticate_response,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+);
+```
+
+A flow covered by this macro must NOT also appear in `macro_connector_flow_status_impls!` — that
+would be a conflicting impl.
+
+### 5. `macro_connector_payout_implementation!` - Payout flow stubs
+
+Defined at `macros.rs:1448`. Every connector needs `ConnectorIntegrationV2` impls for the payout
+flows whether or not it does payouts. Invoked with no flow list, it expands to all nine payout
+flows (`macros.rs:1460-1470`): `PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `PayoutVoid`,
+`PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`, `PayoutEnrollDisburseAccount`,
+`PayoutEligibility`.
+
+**Real invocation, all payout flows stubbed** (`connectors/travelhub.rs:187`, `connectors/kount.rs:402`):
+```rust
+macros::macro_connector_payout_implementation!(
+    connector: {{ConnectorName}},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+```
+
+**Stub only a subset** (arm 2, `macros.rs:1477`) — name the flows you want stubbed and
+hand-implement the rest:
+```rust
+macros::macro_connector_payout_implementation!(
+    connector: {{ConnectorName}},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    payout_flows: [ PayoutStage, PayoutCreateLink, PayoutEligibility ]
+);
+```
+
 ## Flow-Specific Data Types
 
 ### Resource Common Data Types
@@ -275,7 +406,7 @@ use domain_types::{
     connector_types::*,
     errors,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::*,
@@ -376,7 +507,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
         }
@@ -404,7 +535,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let auth = {{connector_name_lower}}::{{ConnectorName}}AuthType::try_from(auth_type)
             .map_err(|_| errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -422,24 +553,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {{connector_name_lower}}::{{ConnectorName}}ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
+        // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+        // (definition: crates/integrations/connector-integration/src/utils.rs:61). It expands to
+        // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+        // `set_error_response_body` method on `events::Event`.
         with_error_response_body!(event_builder, response);
 
+        // `ErrorResponse` has 13 fields (domain_types/src/router_data.rs:4228) and a
+        // `Default` impl right below it — spell out what you set, then `..Default::default()`.
+        // Never `unwrap_or_default()` an error code/message: use the NO_ERROR_* consts
+        // (common_utils/src/consts.rs:154-156) so the failure is legible in logs.
+        // `attempt_status` is `Option<FlowStatus>`, not `Option<AttemptStatus>`, and it must
+        // stay `None` here unless the connector's own payload proves a terminal outcome for
+        // THIS flow — hardcoding `Some(FlowStatus::Payment(AttemptStatus::Failure))` on the
+        // shared error path is what reports a charged payment as FAILURE.
+        // `FlowStatus` is `domain_types::router_data::FlowStatus` (router_data.rs:4186):
+        //     use domain_types::router_data::FlowStatus;
+        // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+        // Payout(PayoutStatus). Pick the one matching THIS flow.
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.clone(),
-            message: response.message.clone(),
-            reason: Some(response.message),
-            attempt_status: None,
+            // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE`: `use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};`
+            // (crates/common/common_utils/src/consts.rs:154-156).
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.message,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -484,8 +637,19 @@ macros::macro_connector_implementation!(
 - Generic requests: Add `<T>` for payment method generics (e.g., `StripePaymentRequest<T>`)
 
 ### 2. **Amount Converters**
-- Use `StringMinorUnit` for most connectors
-- Use `FloatMajorUnit` if connector requires decimal amounts
+- **Read the vendor's API spec and match its wire format.** There is no safe default; guessing
+  `StringMinorUnit` is wrong for roughly seven out of eight connectors. The distribution across
+  the 65 connectors on HEAD that declare a converter is `StringMajorUnit` 24, `FloatMajorUnit` 22,
+  `MinorUnit` 11, `StringMinorUnit` 8. Reproduce with:
+  `grep -roh 'amount_converter: [A-Za-z]*' crates/integrations/connector-integration/src/connectors/ | sort | uniq -c | sort -rn`
+- The five unit types live in `crates/common/common_utils/src/types.rs`:
+  | Type | Wire shape | Spec looks like |
+  |---|---|---|
+  | `MinorUnit` (`types.rs:170`) | JSON number of minor units | `"amount": 1250` |
+  | `StringMinorUnit` (`types.rs:305`) | string of minor units | `"amount": "1250"` |
+  | `StringMajorUnit` (`types.rs:374`) | string of major units | `"amount": "12.50"` |
+  | `FloatMajorUnit` (`types.rs:336`) | JSON float of major units | `"amount": 12.50` |
+  | `StringTwoDecimalUnit` (`types.rs:443`) | string, always 2 decimals | `"amount": "12.50"` (zero-padded) |
 - Name converter logically (e.g., `amount_converter`, `amount_converter_webhooks`)
 
 ### 3. **Member Functions**

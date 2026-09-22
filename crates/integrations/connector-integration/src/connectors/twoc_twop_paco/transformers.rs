@@ -232,11 +232,7 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let connector_minor = <common_utils::types::MinorUnitForConnector as common_utils::types::AmountConvertor>::convert(
-            &common_utils::types::MinorUnitForConnector,
-            minor_amount,
-            currency,
-        )
+        let connector_minor = <common_utils::types::MinorUnitForConnector as common_utils::types::AmountConvertor>::convert(&common_utils::types::MinorUnitForConnector, &common_utils::types::Money::from_minor_unit(minor_amount, currency))
         .map_err(|_| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: errors::IntegrationErrorContext {
@@ -253,8 +249,7 @@ impl PacoTransactionAmount {
         let amount_text = format!("{:0>12}", connector_minor);
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            minor_amount,
-            currency,
+            &common_utils::types::Money::from_minor_unit(minor_amount, currency),
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -380,6 +375,21 @@ impl PacoBrowserInfo {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PacoGeneralPayerDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+}
+
+impl PacoGeneralPayerDetails {
+    fn from_billing_email(email: Option<common_utils::pii::Email>) -> Option<Self> {
+        Some(Self {
+            email: Some(email?),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TwocTwopPacoCardAuthorizeRequest {
     pub api_request: ApiRequestEnvelope,
     pub office_id: Secret<String>,
@@ -390,6 +400,8 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     #[serde(rename = "notificationURLs")]
     pub notification_urls: PacoNotificationUrls,
     pub credit_card_details: PacoCreditCardDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub general_payer_details: Option<PacoGeneralPayerDetails>,
     #[serde(rename = "request3dsFlag")]
     pub request3ds_flag: PacoRequest3dsFlag,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -688,7 +700,7 @@ impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
                 },
             }
         })?;
-        Ok(PacoTransactionAmount {
+        Ok(Self {
             amount_text,
             currency_code: currency,
             decimal_places: decimals,
@@ -1039,6 +1051,27 @@ where
                 .as_ref()
                 .and_then(|bi| bi.user_agent.clone())
                 .map(PacoDeviceDetails::from_user_agent);
+            let general_payer_details = PacoGeneralPayerDetails::from_billing_email(
+                item.resource_common_data.get_optional_billing_email(),
+            );
+            let card_holder_name = card
+                .get_optional_cardholder_name()
+                .filter(|name| {
+                    let n = name.peek().trim();
+                    !n.is_empty() && !n.eq_ignore_ascii_case("name")
+                })
+                .or_else(|| {
+                    let first = item.resource_common_data.get_optional_billing_first_name();
+                    let last = item.resource_common_data.get_optional_billing_last_name();
+                    match (first, last) {
+                        (Some(first), Some(last)) => {
+                            Some(Secret::new(format!("{} {}", first.peek(), last.peek())))
+                        }
+                        (Some(first), None) => Some(first),
+                        (None, Some(last)) => Some(last),
+                        (None, None) => None,
+                    }
+                });
             let body = TwocTwopPacoCardAuthorizeRequest {
                 api_request: ApiRequestEnvelope::new(request_message_id),
                 office_id,
@@ -1051,7 +1084,7 @@ where
                     card_number: Secret::new(card.card_number.peek().to_string()),
                     card_expiry_mmyy: mmyy,
                     cvv_code: card.card_cvc.clone(),
-                    card_holder_name: card.get_optional_cardholder_name(),
+                    card_holder_name,
                     card_type,
                 },
                 request3ds_flag,
@@ -1060,6 +1093,7 @@ where
                 billing_address: paco_billing_address,
                 shipping_address: paco_shipping_address,
                 airline_data: airline_data.clone(),
+                general_payer_details,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Card(body))
         }

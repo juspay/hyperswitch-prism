@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{
+    pii,
+    types::{ConnectorMinorUnit, MinorUnitForConnector},
+    AmountConvertor,
+};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
@@ -151,7 +155,7 @@ pub struct PaymePaymentResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_token_sale: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub price: Option<MinorUnit>,
+    pub price: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payme_signature: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -409,9 +413,9 @@ pub struct PaymeSyncItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sale_price: Option<MinorUnit>,
+    pub sale_price: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sale_price_after_fees: Option<MinorUnit>,
+    pub sale_price_after_fees: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -553,7 +557,7 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
 pub struct PaymeCaptureRequest {
     pub seller_payme_id: Secret<String>,
     pub payme_sale_id: String,
-    pub sale_price: MinorUnit,
+    pub sale_price: ConnectorMinorUnit,
 }
 
 // ===== CAPTURE RESPONSE STRUCTURES =====
@@ -584,7 +588,14 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         Ok(Self {
             seller_payme_id: auth.seller_payme_id,
             payme_sale_id,
-            sale_price: item.request.minor_amount_to_capture,
+            sale_price: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_amount_to_capture,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -694,7 +705,7 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
 pub struct PaymeRefundRequest {
     pub seller_payme_id: Secret<String>,
     pub payme_sale_id: String,
-    pub sale_refund_amount: MinorUnit,
+    pub sale_refund_amount: ConnectorMinorUnit,
     pub language: String,
 }
 
@@ -734,7 +745,14 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             seller_payme_id: auth.seller_payme_id,
             payme_sale_id,
-            sale_refund_amount: item.request.minor_refund_amount,
+            sale_refund_amount: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.minor_refund_amount,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             language: LANGUAGE.to_string(),
         })
     }
@@ -1083,7 +1101,7 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
 pub struct PaymeGenerateSaleRequest {
     pub seller_payme_id: Secret<String>,
     pub sale_type: String,
-    pub sale_price: MinorUnit,
+    pub sale_price: ConnectorMinorUnit,
     pub currency: Currency,
     pub sale_payment_method: String,
     pub product_name: Option<String>,
@@ -1099,7 +1117,7 @@ pub struct PaymeGenerateSaleResponse {
     pub sale_url: Option<String>,
     pub payme_sale_id: String,
     pub payme_sale_code: Option<i64>,
-    pub price: Option<MinorUnit>,
+    pub price: Option<ConnectorMinorUnit>,
     pub transaction_id: Option<String>,
     pub currency: Option<Currency>,
 }
@@ -1134,7 +1152,14 @@ impl
         Ok(Self {
             seller_payme_id: auth.seller_payme_id,
             sale_type: sale_type.to_string(),
-            sale_price: item.request.amount,
+            sale_price: MinorUnitForConnector
+                .convert(&common_utils::types::Money::from_minor_unit(
+                    item.request.amount,
+                    item.request.currency,
+                ))
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
             sale_payment_method: "credit-card".to_string(), // Only card for no3ds
             product_name: item

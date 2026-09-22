@@ -7,7 +7,7 @@ use domain_types::{
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility, PaymentFlowData,
         PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
         PaymentsResponseData, RawConnectorStatus, RechargeRequestData, RechargeResponseData,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
@@ -281,10 +281,10 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
@@ -596,7 +596,10 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(req.amount, req.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                req.amount,
+                req.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
@@ -1259,9 +1262,27 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                     } else {
                         (common_enums::EligibilityStatus::Unknown, None)
                     };
+                // Verdict fanned across every requested PM; the wallet details
+                // only attach to the wallet PM they describe.
+                let results = data
+                    .request
+                    .payment_method_types
+                    .iter()
+                    .map(|payment_method_type| PMEligibility {
+                        payment_method_type: *payment_method_type,
+                        eligibility,
+                        error_info: None,
+                        payment_method_details: if *payment_method_type
+                            == grpc_api_types::payments::PaymentMethodType::QwikcilverWallet
+                        {
+                            payment_method_details.clone()
+                        } else {
+                            None
+                        },
+                    })
+                    .collect();
                 Ok(PaymentMethodEligibilityResponse {
-                    eligibility,
-                    payment_method_details,
+                    results,
                     status_code: u32::from(item.http_code),
                 })
             }

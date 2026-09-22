@@ -87,7 +87,9 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {

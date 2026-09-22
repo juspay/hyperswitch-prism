@@ -1,5 +1,5 @@
 use common_enums::Currency;
-use common_utils::MinorUnit;
+use common_utils::ConnectorMinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::Serialize;
@@ -91,7 +91,7 @@ pub struct CardOnFileData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsAmount {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency_code: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_amount: Option<String>,

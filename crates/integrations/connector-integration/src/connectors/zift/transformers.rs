@@ -501,7 +501,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.minor_amount, request_data.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                request_data.minor_amount,
+                request_data.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -726,7 +729,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.minor_amount, request_data.currency)
+            .convert(&common_utils::types::Money::from_minor_unit(
+                request_data.minor_amount,
+                request_data.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -977,10 +983,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1077,7 +1083,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.amount.unwrap_or(0) > 0 {
+        if item.router_data.request.minor_amount.unwrap_or_default()
+            > common_utils::types::MinorUnit::default()
+        {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "Zift".to_string(),
@@ -1303,10 +1311,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

@@ -17,15 +17,19 @@ use utoipa::ToSchema;
 use crate::errors::ParsingError;
 
 /// Amount convertor trait for connector
+///
+/// `convert` takes a [`Money`] rather than a bare `MinorUnit` + `Currency` pair so that
+/// connector code never has to hold or construct a domain `MinorUnit` value itself — it
+/// only ever sees the connector-facing `Output` type. `convert_back` still returns
+/// `MinorUnit` rather than `Money`: connector domain structs (e.g. `minor_amount_captured`)
+/// are still `MinorUnit`-typed pending a later unification to `Money`, and connector code
+/// has no way to extract a `MinorUnit` out of a `Money` (that accessor lives behind
+/// `proto_boundary`, which connector code must never import).
 pub trait AmountConvertor: Send {
     /// Output type for the connector
     type Output;
     /// helps in conversion of connector required amount type
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>>;
 
     /// helps in converting back connector required amount type to core minor unit
     fn convert_back(
@@ -41,12 +45,8 @@ pub struct StringMinorUnitForConnector;
 
 impl AmountConvertor for StringMinorUnitForConnector {
     type Output = StringMinorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        _currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_string()
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_minor_unit_as_string()
     }
 
     fn convert_back(
@@ -63,12 +63,8 @@ impl AmountConvertor for StringMinorUnitForConnector {
 pub struct StringMajorUnitForCore;
 impl AmountConvertor for StringMajorUnitForCore {
     type Output = StringMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_string(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_string(money.currency)
     }
 
     fn convert_back(
@@ -86,12 +82,8 @@ pub struct StringMajorUnitForConnector;
 
 impl AmountConvertor for StringMajorUnitForConnector {
     type Output = StringMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_string(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_string(money.currency)
     }
 
     fn convert_back(
@@ -109,12 +101,8 @@ pub struct FloatMajorUnitForConnector;
 
 impl AmountConvertor for FloatMajorUnitForConnector {
     type Output = FloatMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_f64(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_f64(money.currency)
     }
     fn convert_back(
         &self,
@@ -132,12 +120,8 @@ pub struct MinorUnitForConnector;
 
 impl AmountConvertor for MinorUnitForConnector {
     type Output = ConnectorMinorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        _currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(ConnectorMinorUnit(amount))
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(ConnectorMinorUnit(money.amount))
     }
     fn convert_back(
         &self,
@@ -226,6 +210,11 @@ impl MinorUnit {
     /// Returns true if the amount is positive (> 0)
     pub fn is_positive(&self) -> bool {
         self.0 > 0
+    }
+
+    /// Returns true when the amount is zero.
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -544,12 +533,9 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
 
     /// `wire = minor * 100 / 10^currency_exponent`, kept in `i128` so there is neither a
     /// float hop nor an intermediate decimal string to re-parse.
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        let minor = i128::from(amount.as_i64());
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let currency = money.currency;
+        let minor = i128::from(money.amount.as_i64());
         let scale = currency_scale(currency)?;
         let scaled = minor * 10_i128.pow(TWO_DECIMAL_EXPONENT);
         // A currency with more than two decimals cannot always be expressed with two
@@ -619,6 +605,11 @@ impl Money {
         self.amount.is_positive()
     }
 
+    /// Compare this money's amount with a minor-unit amount in the same currency.
+    pub fn is_greater_than_minor_unit(&self, amount: MinorUnit) -> bool {
+        self.amount > amount
+    }
+
     /// Construct from a [`MinorUnit`] and a currency.
     ///
     /// Unlike `new()`, this is **always available** (not feature-gated).
@@ -651,7 +642,7 @@ impl Money {
         &self,
         convertor: &dyn AmountConvertor<Output = T>,
     ) -> Result<T, error_stack::Report<ParsingError>> {
-        convertor.convert(self.amount, self.currency)
+        convertor.convert(self)
     }
 }
 

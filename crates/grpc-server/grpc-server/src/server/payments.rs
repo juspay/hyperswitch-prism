@@ -60,9 +60,9 @@ use domain_types::{
         generate_refresh_payment_method_response, generate_refund_response,
         generate_repeat_payment_response, generate_setup_mandate_response,
         tokenized_authorize_to_base, tokenized_setup_recurring_to_base, AuthorizationRequest,
-        PaymentMethodDataAction, SetupRecurringRequest,
+        PaymentMethodDataAction, PaymentSyncSkipped, SetupRecurringRequest,
     },
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -473,6 +473,17 @@ impl CustomerService for Customer {
 }
 impl Payments {
     #[allow(clippy::too_many_arguments)]
+    // Déjà call-graph skeleton span (`ucs::*` namespace): one node per pipeline
+    // hop on the execution-graph tape. cfg_attr keeps feature-off builds
+    // byte-identical — the convention for every déjà touchpoint.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(
+            name = "ucs::flow_orchestration",
+            skip_all,
+            fields(connector = ?connector, flow = "Authorize")
+        )
+    )]
     async fn process_authorization_internal<
         T: PaymentMethodDataTypes
             + Default
@@ -522,6 +533,7 @@ impl Payments {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .map_err(|e| {
             tracing::error!("Failed to resolve connector overrides: {:?}", e);
             e.to_grpc_error()
@@ -583,7 +595,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -591,6 +603,7 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
+        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -599,7 +612,7 @@ impl Payments {
                 None,
                 event_params,
                 token_data,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             ),
@@ -666,6 +679,7 @@ impl Payments {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create common request data
@@ -725,7 +739,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -1067,6 +1081,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create common request data
@@ -1077,23 +1092,44 @@ impl PaymentService for Payments {
                     ))
                     .to_grpc_error()?;
 
-                    let should_do_access_token = connector_data
-                        .connector
-                        .should_do_access_token(Some(payment_flow_data.payment_method));
-
-                    let payment_flow_data = if should_do_access_token {
-                        let access_token = payload
-                            .state
-                            .as_ref()
-                            .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        let access_token_data =
-                            ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                                .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        payment_flow_data.set_access_token(Some(access_token_data))
-                    } else {
-                        payment_flow_data
-                    };
+                    // Connector pre-flight for sync. Hyperswitch's direct path never dispatches a
+                    // PSync the connector cannot serve (Adyen without `encoded_data`, or any
+                    // connector without a connector transaction id); it skips the call and keeps
+                    // the caller's current state. Without this check UCS builds the request
+                    // anyway or, when the connector returns no request, answers with the default
+                    // HE_00 error that callers then persist as a connector failure.
+                    //
+                    // UCS is stateless and cannot echo the caller's status, so the equivalent of
+                    // "skip" here is a no-op reply: gRPC OK, `PAYMENT_STATUS_UNSPECIFIED`, no
+                    // error. Callers already treat an unspecified status as "keep the previous
+                    // status" and write no error for it.
+                    if let Err(validation_error) = connector_data.connector.validate_psync_reference_id(
+                        &payments_sync_data,
+                        &payment_flow_data,
+                    ) {
+                        // Log with the same fields `IntoGrpcStatus` would emit, while the
+                        // report's frames (connector-supplied context) are still attached;
+                        // this reply is never converted to a gRPC status, so it would
+                        // otherwise go unlogged.
+                        let report = validation_error.to_grpc_error();
+                        let context = report.current_context();
+                        tracing::warn!(
+                            error = ?report,
+                            error_code = %context.error_code(),
+                            http_status_code = ?context.http_status_code(),
+                            "PAYMENT_SYNC_FLOW: connector pre-flight rejected the sync; returning a no-op response (status unspecified, no error) without calling the connector"
+                        );
+                        return Ok(tonic::Response::new(PaymentServiceGetResponse::foreign_from(
+                            PaymentSyncSkipped {
+                                connector_transaction_id: payload.connector_transaction_id.clone(),
+                                merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                            },
+                        )));
+                    }
+                    // `payment_flow_data.access_token` is already populated above by
+                    // `PaymentFlowData::foreign_try_from` from `payload.state.access_token` —
+                    // unconditionally, the same way Authorize gets it. No extra fetch-or-fail
+                    // needed here.
 
                     // Create router data
                     let router_data = RouterDataV2::<
@@ -1144,7 +1180,7 @@ impl PaymentService for Payments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         org_id: metadata_payload.org_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
                         masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
@@ -1273,6 +1309,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -1559,6 +1596,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -2538,6 +2576,7 @@ impl PaymentMethod {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create payment flow data
@@ -2595,7 +2634,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -2668,6 +2707,7 @@ impl PaymentMethod {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let payment_flow_data =
@@ -2740,7 +2780,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
@@ -2862,7 +2902,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             org_id: event_params.org_id,
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -3006,7 +3046,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             org_id: event_params.org_id,
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
             masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -3165,6 +3205,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create merchant authentication flow data
@@ -3281,6 +3322,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create minimal merchant auth flow data for access token generation
@@ -3411,6 +3453,7 @@ impl RecurringPaymentService for RecurringPayments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create payment flow data
@@ -3543,7 +3586,7 @@ impl RecurringPaymentService for RecurringPayments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         org_id: metadata_payload.org_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
                         masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,

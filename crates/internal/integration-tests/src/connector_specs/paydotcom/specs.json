@@ -8,6 +8,8 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentMethodAuthenticationService/PreAuthenticate",
-    "PaymentMethodAuthenticationService/Authenticate"
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
   ]
 }

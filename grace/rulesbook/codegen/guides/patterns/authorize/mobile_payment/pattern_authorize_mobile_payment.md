@@ -79,7 +79,7 @@ pub enum MobilePaymentData {
 ```rust
 PaymentMethodData::MobilePayment(_) => {
     Err(IntegrationError::NotImplemented(
-        "Direct Carrier Billing is not supported by {ConnectorName}".to_string(, Default::default())
+        "Direct Carrier Billing is not supported by {ConnectorName}".to_string(), Default::default()
     ))?
 }
 ```
@@ -219,7 +219,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // ... other supported methods
             PaymentMethodData::MobilePayment(_) => {
                 Err(IntegrationError::NotImplemented(
-                    "Direct Carrier Billing is not supported by {ConnectorName}".to_string(, Default::default())
+                    "Direct Carrier Billing is not supported by {ConnectorName}".to_string(), Default::default()
                 ))?
             }
             // ... other unsupported methods
@@ -321,9 +321,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             callback_url: router_data.request.router_return_url.clone()
                                 .ok_or(IntegrationError::MissingRequiredField {
                                     field_name: "router_return_url",
-                                , context: Default::default() })?,
+                                    context: Default::default() })?,
                             description: router_data.request.description.clone(),
-                            merchant_id: get_merchant_id(&router_data.connector_auth_type)?,
+                            merchant_id: get_merchant_id(&router_data.connector_config)?,
                         })
                     }
                 }
@@ -333,19 +333,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+// use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 // Helper function to validate MSISDN format
 fn validate_msisdn(msisdn: &str) -> Result<(), IntegrationError> {
     // Basic validation: starts with + and contains only digits after
     if !msisdn.starts_with('+') || !msisdn[1..].chars().all(|c| c.is_ascii_digit()) {
-        return Err(IntegrationError::InvalidRequestData {
-            message: format!("Invalid MSISDN format: {}. Must start with + followed by digits", msisdn),
+        // `IntegrationError` has no `InvalidRequestData` variant (that one belongs to
+        // `ApiErrorResponse`). Use `InvalidDataFormat` and put the detail in the context --
+        // see `crates/types-traits/domain_types/src/errors.rs:148`.
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Invalid MSISDN format: {msisdn}. Must start with + followed by digits"
+                )),
+                ..Default::default()
+            },
         });
     }
 
     // Minimum length check (e.g., +1XXXXXXXXXX = 12 chars minimum)
     if msisdn.len() < 7 {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "MSISDN too short".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                additional_context: Some("MSISDN too short".to_string()),
+                ..Default::default()
+            },
         });
     }
 
@@ -422,11 +436,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: "Mobile payment was rejected by carrier".to_string(),
                     reason: Some(format!("Status: {:?}", response.status)),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    // `Option<FlowStatus>`, not `Option<AttemptStatus>`
+                    // (`use domain_types::router_data::FlowStatus;`).
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(response.transaction_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -444,9 +461,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             ),
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.transaction_id.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -473,7 +493,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // In transformers.rs - Request transformation
 PaymentMethodData::MobilePayment(_) => {
     Err(IntegrationError::NotImplemented(
-        "Direct Carrier Billing is not supported".to_string(, Default::default())
+        "Direct Carrier Billing is not supported".to_string(), Default::default()
     ))?
 }
 ```
@@ -576,25 +596,40 @@ macros::macro_connector_implementation!(
 
 **Solution**:
 ```rust
+// use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 fn validate_msisdn(msisdn: &str) -> Result<(), IntegrationError> {
     // E.164 format: +[country code][national number]
     if !msisdn.starts_with('+') {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "MSISDN must start with +".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                additional_context: Some("MSISDN must start with +".to_string()),
+                ..Default::default()
+            },
         });
     }
 
     let digits_only = &msisdn[1..];
     if !digits_only.chars().all(|c| c.is_ascii_digit()) {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "MSISDN must contain only digits after +".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                additional_context: Some("MSISDN must contain only digits after +".to_string()),
+                ..Default::default()
+            },
         });
     }
 
     // E.164 allows 7-15 digits for the national number
     if digits_only.len() < 7 || digits_only.len() > 15 {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "MSISDN length must be 8-16 characters including +".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "msisdn",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "MSISDN length must be 8-16 characters including +".to_string(),
+                ),
+                ..Default::default()
+            },
         });
     }
 
@@ -630,8 +665,14 @@ fn validate_dcb_amount(amount: MinorUnit, currency: Currency) -> Result<(), Inte
 
     // Typical DCB limits: $10-50 per transaction
     if amount_in_usd > 50.0 {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "Direct Carrier Billing amount exceeds maximum limit".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "amount",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Direct Carrier Billing amount exceeds maximum limit".to_string(),
+                ),
+                ..Default::default()
+            },
         });
     }
 

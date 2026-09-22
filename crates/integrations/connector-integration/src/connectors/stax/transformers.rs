@@ -3,7 +3,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts,
     pii::Email,
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, ConnectorMinorUnit, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -241,7 +241,7 @@ pub struct StaxAuthorizeRequest {
 #[derive(Debug, Serialize)]
 pub struct StaxMeta {
     /// Tax amount in minor units (cents)
-    pub tax: MinorUnit,
+    pub tax: ConnectorMinorUnit,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -272,10 +272,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -307,7 +307,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::default(),
+                tax: ConnectorMinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -506,10 +506,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -618,10 +618,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -646,10 +646,10 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
         // Convert refund amount to FloatMajorUnit for filtering (like HS does)
         let converter = FloatMajorUnitForConnector;
         let refund_amount = converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
                 "stax",
@@ -1267,7 +1267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: false,
             pre_auth: true,
             meta: StaxMeta {
-                tax: MinorUnit::default(),
+                tax: ConnectorMinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -1440,7 +1440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::default(),
+                tax: ConnectorMinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data

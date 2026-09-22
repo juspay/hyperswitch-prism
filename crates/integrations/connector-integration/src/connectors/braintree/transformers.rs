@@ -5,7 +5,8 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::XmlExt,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnit, MinorUnitForConnector, StringMajorUnit},
+    AmountConvertor,
 };
 use domain_types::{
     connector_flow::{
@@ -370,10 +371,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -487,10 +488,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(
+                    .convert(&common_utils::types::Money::from_minor_unit(
                         item.router_data.request.minor_amount,
                         item.router_data.request.currency,
-                    )
+                    ))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;
@@ -1253,10 +1254,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1792,10 +1793,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2576,10 +2577,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
+            .convert(&common_utils::types::Money::from_minor_unit(
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
-            )
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2737,7 +2738,7 @@ pub struct Notification {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: MinorUnit,
+    pub amount_disputed: ConnectorMinorUnit,
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
@@ -2899,7 +2900,19 @@ pub(super) fn build_webhook_dispute_response(
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
-                dispute_data.amount_disputed,
+                MinorUnitForConnector
+                    .convert_back(dispute_data.amount_disputed, dispute_data.currency_iso_code)
+                    .map_err(|_| {
+                        error_stack::report!(
+                            domain_types::errors::WebhookError::WebhookAmountConversionFailed {
+                                reason: format!(
+                                    "Failed to convert connector amount to minor units for \
+                                     currency={}",
+                                    dispute_data.currency_iso_code
+                                ),
+                            }
+                        )
+                    })?,
                 dispute_data.currency_iso_code,
             )?,
             currency: dispute_data.currency_iso_code,
