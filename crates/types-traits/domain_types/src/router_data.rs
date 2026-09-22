@@ -1588,13 +1588,7 @@ impl ConnectorSpecificConfig {
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
-            Netcetera {
-                certificate,
-                private_key,
-                merchant_configuration_id,
-                three_ds_requestor_id,
-                three_ds_requestor_name
-            },
+            Netcetera {},
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -2132,13 +2126,7 @@ impl ConnectorSpecificConfig {
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
-                Netcetera {
-                    certificate,
-                    private_key,
-                    merchant_configuration_id,
-                    three_ds_requestor_id,
-                    three_ds_requestor_name
-                },
+                Netcetera {},
                 TwocTwopPaco {
                     access_token,
                     office_id,
