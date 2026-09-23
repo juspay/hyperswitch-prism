@@ -273,6 +273,18 @@ impl EventService for EventServiceImpl {
                         .connector
                         .get_webhook_integrity_checks();
 
+                    // Fail-closed dispatch: a connector that rejects unverified
+                    // notifications (e.g. authipay, TH-10) overrides
+                    // `on_source_not_verified` to abort here, before any event
+                    // content is built or an ack is produced. The permissive
+                    // default is what `process_webhook_event` documents.
+                    if !source_verified {
+                        connector_data
+                            .connector
+                            .on_source_not_verified(&request_details)
+                            .to_grpc_error()?;
+                    }
+
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
                         connector_data,
                         request_details,

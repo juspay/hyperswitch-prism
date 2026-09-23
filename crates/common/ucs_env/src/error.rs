@@ -294,24 +294,38 @@ impl ToGrpcStatus for KafkaClientError {
 
 impl ToGrpcStatus for WebhookError {
     fn to_grpc_status_unlogged(&self) -> Status {
-        let msg = self.to_string();
-        match self {
-            Self::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
+        // Encode the proto IntegrationError view (via ErrorSwitch) as status
+        // details the same way ToGrpcStatus for IntegrationError does, so an
+        // assertable `{"error": ...}` body survives the wire — a fail-closed
+        // webhook rejection with no details would otherwise be indistinguishable
+        // from a transport failure to tooling reading grpc-status-details-bin.
+        let integration_error: grpc_api_types::payments::IntegrationError =
+            ErrorSwitch::switch(self);
+        let msg = integration_error.error_message.clone();
+
+        // SAFETY: IntegrationError only contains String fields with valid UTF-8
+        // and prost encoding cannot fail for these controlled types
+        let mut buf = Vec::new();
+        let _ = integration_error.encode(&mut buf);
+
+        let code = match self {
+            Self::WebhooksNotImplemented { .. } => tonic::Code::Unimplemented,
             Self::WebhookEventTypeNotFound
             | Self::WebhookSignatureNotFound
             | Self::WebhookReferenceIdNotFound
             | Self::WebhookResourceObjectNotFound
-            | Self::WebhookVerificationSecretNotFound => Status::not_found(msg),
-            Self::WebhookMissingRequiredField { .. } => Status::invalid_argument(msg),
-            Self::WebhookBodyDecodingFailed => Status::invalid_argument(msg),
-            Self::WebhookMissingRequiredContext { .. } => Status::invalid_argument(msg),
+            | Self::WebhookVerificationSecretNotFound => tonic::Code::NotFound,
+            Self::WebhookMissingRequiredField { .. }
+            | Self::WebhookBodyDecodingFailed
+            | Self::WebhookMissingRequiredContext { .. } => tonic::Code::InvalidArgument,
             Self::WebhookSourceVerificationFailed | Self::WebhookVerificationSecretInvalid => {
-                Status::unauthenticated(msg)
+                tonic::Code::Unauthenticated
             }
             Self::WebhookProcessingFailed
             | Self::WebhookAmountConversionFailed { .. }
-            | Self::WebhookResponseEncodingFailed => Status::internal(msg),
-        }
+            | Self::WebhookResponseEncodingFailed => tonic::Code::Internal,
+        };
+        Status::with_details(code, msg, buf.into())
     }
 }
 

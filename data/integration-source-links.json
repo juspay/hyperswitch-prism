@@ -359,6 +359,7 @@
     "https://developer.globalpayments.com/api/3d-secure-two",
     "https://developer.globalpayments.com/resources/messages",
     "https://developer.globalpayments.com/resources/test-cards"
+  ],
   "D24": [
     "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
     "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",
@@ -375,5 +376,25 @@
     "https://docs.d24.com/getting-started/start-testing",
     "https://docs.d24.com/api-reference/references/test-merchant-and-mock-psp",
     "https://docs.d24.com/former/api-documentation/deposits-api/endpoints/deposit-creation-endpoint"
+  ],
+  "Authipay": [
+    "https://developer.fiserv.com/product/IPGNA/docs/additionalInfo/BillingShippingFields.md?branch=active",
+    "https://developer.fiserv.com/product/IPGNA/docs/additionalInfo/PreAuthorizationSale.md?branch=active",
+    "https://docs.fiserv.dev/public/docs/errors",
+    "https://docs.fiserv.dev/public/docs/message-signature",
+    "https://docs.fiserv.dev/public/docs/payment-methods",
+    "https://docs.fiserv.dev/public/docs/payments-general-concepts",
+    "https://docs.fiserv.dev/public/docs/payments-test-cards",
+    "https://docs.fiserv.dev/public/docs/s2s-notifications",
+    "https://docs.fiserv.dev/public/docs/sandbox-usage",
+    "https://docs.fiserv.dev/public/docs/webhooks-and-status-updates-checkout",
+    "https://docs.fiserv.dev/public/openapi/6582b0d2483992005c5c56f0",
+    "https://docs.fiserv.dev/public/reference/orderinquiry",
+    "https://docs.fiserv.dev/public/reference/submitprimarytransaction",
+    "https://docs.fiserv.dev/public/reference/submitsecondarytransaction",
+    "https://github.com/Fiserv-Developer/fiserv-payments-demo",
+    "https://www.aibms.com/developers/api-documentation/",
+    "https://www.aibms.com/wp-content/uploads/2025/07/AIBMS_Authipay_API-Integration-Guide.pdf",
+    "https://www.aibms.com/wp-content/uploads/2025/07/AIBMS_Authipay_Connect-Integration-Guide.pdf"
   ]
 }

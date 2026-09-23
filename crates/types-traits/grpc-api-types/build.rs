@@ -22,6 +22,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
+    // WebhookSecrets carries per-connector secrets that must not reach log
+    // spans (see ucs.log Recordjson `request_body`). Declaring them SecretString
+    // would change the proto-JSON wire shape (string→message), so instead the
+    // fields keep `string` and get serde masking attributes: under
+    // hyperswitch_masking::masked_serialize the value is redacted, while the
+    // plain serde_json path (and therefore gRPC clients/tonic) still see it
+    // exposed, same convention as every other Secret-typed field here.
+    config.field_attribute(
+        ".types.WebhookSecrets.secret",
+        "#[serde(serialize_with = \"crate::masked::serialize_secret_string\")]",
+    );
+    config.field_attribute(
+        ".types.WebhookSecrets.additional_secret",
+        "#[serde(serialize_with = \"crate::masked::serialize_opt_secret_string\")]",
+    );
+
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

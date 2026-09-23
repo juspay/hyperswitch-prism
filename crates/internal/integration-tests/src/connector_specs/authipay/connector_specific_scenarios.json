@@ -1,0 +1,119 @@
+{
+ "PaymentMethodAuthenticationService/PostAuthenticate": {
+  "post_authenticate_missing_cres": {
+   "grpc_req": {
+    "amount": {
+     "minor_amount": 6000,
+     "currency": "USD"
+    },
+    "payment_method": {
+     "card": {
+      "card_number": {
+       "value": "4761340000000035"
+      },
+      "card_exp_month": {
+       "value": "08"
+      },
+      "card_exp_year": {
+       "value": "30"
+      },
+      "card_cvc": {
+       "value": "999"
+      },
+      "card_holder_name": {
+       "value": "auto_generate"
+      },
+      "card_type": "credit"
+     }
+    },
+    "metadata": {
+     "value": "{}"
+    },
+    "connector_feature_data": {
+     "value": "{}"
+    },
+    "redirection_response": null
+   },
+   "assert": {
+    "error": {
+     "must_exist": true,
+     "error_code": "INTERNAL_SERVICE_ERROR"
+    }
+   },
+   "display_name": "Post Authenticate missing CRes refused"
+  }
+ },
+ "PaymentMethodAuthenticationService/PreAuthenticate": {
+  "preauthenticate_non_card_refused": {
+   "grpc_req": {
+    "merchant_order_id": "auto_generate",
+    "amount": {
+     "minor_amount": 6000,
+     "currency": "USD"
+    },
+    "payment_method": {
+     "upi": {
+      "upi_collect": {
+       "vpa_id": "auto_generate"
+      }
+     }
+    }
+   },
+   "assert": {
+    "error": {
+     "must_exist": true
+    }
+   },
+   "display_name": "Pre Authenticate non-card payment method refused"
+  }
+ },
+ "EventService/HandleEvent": {
+  "webhook_refund_txntype_return": {
+   "grpc_req": {
+    "request_details": {
+     "method": "HTTP_METHOD_POST",
+     "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDImb2lkPUFVVEhFWEFNUExFLTEwMDA0NSZjaGFyZ2V0b3RhbD0xMC4wMCZjdXJyZW5jeT1VU0QmdHhuZGF0ZXRpbWU9MjAyNjowOToyMi0xNzowNTowMCZzdG9yZW5hbWU9MTIzNDU2Nzg5MDEmYXBwcm92YWxfY29kZT1ZOjY1NDMyMTpBVVRIRVhBTVBMRS0xMDAwNDU6UFBYOjEyMzQ1Njc4OTAxMyZzdGF0dXM9QVBQUk9WRUQmdHhudHlwZT1SRVRVUk4maGFzaF9hbGdvcml0aG09SE1BQ1NIQTI1NiZyZWZudW1iZXI9QTEyMzQ1NlImbm90aWZpY2F0aW9uX2hhc2g9MzdlZjk0YTI2NDQ0MTIzOWM1NjIwZTllYTRjNDdhMWEzNTZiMmQ0MTE3YTY4NDE5MjA2OTU5NDE3NjBiMTU2Nw=="
+    },
+    "merchant_event_id": "authipay_webhook_refund_return"
+   },
+   "assert": {
+    "source_verified": {
+     "equals": true
+    },
+    "event_type": {
+     "one_of": [
+      "WEBHOOK_REFUND_SUCCESS"
+     ]
+    }
+   },
+   "display_name": "Handle Event | Refund via txntype RETURN notification"
+  },
+  "webhook_unknown_hash_algorithm": {
+   "grpc_req": {
+    "request_details": {
+     "method": "HTTP_METHOD_POST",
+     "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDQmY2hhcmdldG90YWw9MTAuMDAmY3VycmVuY3k9VVNEJnR4bmRhdGV0aW1lPTIwMjY6MDk6MjItMTY6NTI6MDAmc3RvcmVuYW1lPTEyMzQ1Njc4OTAxJmFwcHJvdmFsX2NvZGU9WTowMDAwMDA6QVVUSEVYQU1QTEUtMTAwMDQ3OlBQWDoxMjM0NTY3ODkwMTQmc3RhdHVzPUFQUFJPVkVEJnR4bnR5cGU9U0FMRSZoYXNoX2FsZ29yaXRobT1ITUFDU0hBOTk5Jm5vdGlmaWNhdGlvbl9oYXNoPTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+    },
+    "merchant_event_id": "authipay_webhook_bad_algo"
+   },
+   "assert": {
+    "source_verified": {
+     "must_not_exist": true
+    },
+    "event_content": {
+     "must_not_exist": true
+    },
+    "event_type": {
+     "one_of": []
+    }
+   },
+   "display_name": "Handle Event | unknown hash_algorithm refused"
+  }
+ }
+}

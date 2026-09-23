@@ -7,6 +7,15 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/Void",
-    "PaymentService/Reverse"
-  ]
+    "PaymentService/Reverse",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": ["card"],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "refund_succeeded": "CONNECTOR_API_LACKS: spec ### IncomingWebhook payload table — Authipay sends exactly one OMS transaction-notification shape whose txntype field (ORIGINAL/RETURN) distinguishes payment from refund; there is no refund-specific webhook event definition separate from txntype=RETURN. The global refund_succeeded scenario asserts refund-id semantics the OMS refnumber does not map onto, so the refund notification path is covered by the connector scenario webhook_refund_txntype_return in connector_specific_scenarios.json instead."
+    }
+  }
 }

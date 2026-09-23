@@ -3479,7 +3479,7 @@
         "must_not_exist": true
       }
     },
-    "is_default": true,
+    "is_default": false,
     "display_name": "Credit Card | No 3DS | Manual Capture"
   }
 }

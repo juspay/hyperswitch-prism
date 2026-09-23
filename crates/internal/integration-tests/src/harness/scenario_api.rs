@@ -62,12 +62,32 @@ pub fn get_the_assertion(
 }
 
 /// Loads scenario and applies connector-specific request/assertion patches.
+///
+/// The base definition comes from the global suite when the scenario exists
+/// there; a connector-private scenario — one declared only in
+/// `connector_specs/<connector>/connector_specific_scenarios.json` — is merged
+/// in as the base instead, so the effective request is built from the private
+/// scenario's own grpc_req template. Private names that collide with a global
+/// scenario are rejected by `merge_connector_specific_scenarios`.
 fn load_effective_scenario_for_connector(
     suite: &str,
     scenario: &str,
     connector: &str,
 ) -> Result<(Value, BTreeMap<String, FieldAssert>), ScenarioError> {
-    let base_scenario = load_scenario(suite, scenario)?;
+    let base_scenario = match load_scenario(suite, scenario) {
+        Ok(def) => def,
+        Err(ScenarioError::ScenarioNotFound { .. }) => {
+            let mut merged = load_suite_scenarios(suite)?;
+            merge_connector_specific_scenarios(connector, suite, &mut merged)?;
+            merged
+                .remove(scenario)
+                .ok_or_else(|| ScenarioError::ScenarioNotFound {
+                    suite: suite.to_string(),
+                    scenario: scenario.to_string(),
+                })?
+        }
+        Err(error) => return Err(error),
+    };
     let mut grpc_req = base_scenario.grpc_req;
     let mut assertions = base_scenario.assert_rules;
 
@@ -3649,7 +3669,11 @@ pub fn run_scenario_test_with_options(
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let target_suite_spec = load_suite_spec(suite)?;
-    let scenarios = load_suite_scenarios(suite)?;
+    let mut scenarios = load_suite_scenarios(suite)?;
+    // Connector-private scenarios (connector_specific_scenarios.json) are
+    // runtime members of this suite; without the merge a named run of one of
+    // them fails before it even reaches the request builder.
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
 
     if !scenarios.contains_key(scenario) {
         return Err(ScenarioError::ScenarioNotFound {
