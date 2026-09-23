@@ -695,12 +695,15 @@ pub(super) fn ensure_supported_capture_method(
 ///
 /// A parse failure is an error rather than a missing redirect: Payhound is redirect-only, so an
 /// authorization whose invoice URL cannot be resolved leaves the shopper with no way to pay.
-pub(super) fn build_invoice_redirect(invoice_url: &str) -> CustomResult<Url, ConnectorError> {
+pub(super) fn build_invoice_redirect(
+    invoice_url: &str,
+    hosted_base: &str,
+) -> CustomResult<Url, ConnectorError> {
     let trimmed = invoice_url.trim();
     let parsed = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
         Url::parse(trimmed)
     } else {
-        Url::parse(PAYHOUND_HOSTED_INVOICE_BASE).and_then(|base| base.join(trimmed))
+        Url::parse(hosted_base).and_then(|base| base.join(trimmed))
     };
 
     parsed.change_context(ConnectorError::UnexpectedResponseError {
@@ -1092,12 +1095,30 @@ pub(super) fn payhound_invoice_outcome(
     })
 }
 
+/// Resolves the hosted invoice page base for this merchant.
+///
+/// Payhound returns `invoice_url` as a path (`/invoices/{id}`), so it needs a host. The default,
+/// `pay.payhound.com`, serves PRODUCTION invoices only: pointing a sandbox invoice id at it renders
+/// Payhound's "Not found -- please double-check the link or contact your merchant" page (verified
+/// against a live sandbox invoice, and against a deliberately bogus id, which renders identically).
+/// A merchant on a non-production environment must therefore set `hosted_invoice_base_url`.
+fn hosted_invoice_base(config: &ConnectorSpecificConfig) -> &str {
+    match config {
+        ConnectorSpecificConfig::Payhound {
+            hosted_invoice_base_url: Some(base),
+            ..
+        } => base.as_str(),
+        _ => PAYHOUND_HOSTED_INVOICE_BASE,
+    }
+}
+
 /// Builds the `PaymentsResponseData`/`ErrorResponse` pair shared by Authorize and PSync.
 fn payhound_payments_response(
     response: &PayhoundInvoiceResponse,
     outcome: &PayhoundInvoiceOutcome,
     http_code: u16,
     redirect_requirement: PayhoundRedirectRequirement,
+    hosted_base: &str,
 ) -> CustomResult<Result<PaymentsResponseData, ErrorResponse>, ConnectorError> {
     if is_payment_failure(outcome.status) {
         let message = outcome
@@ -1124,7 +1145,7 @@ fn payhound_payments_response(
 
     let redirection_data = match (&response.invoice_url, redirect_requirement) {
         (Some(invoice_url), _) => Some(RedirectForm::from((
-            build_invoice_redirect(invoice_url)?,
+            build_invoice_redirect(invoice_url, hosted_base)?,
             common_utils::request::Method::Get,
         ))),
         (None, PayhoundRedirectRequirement::Required) => {
@@ -1182,6 +1203,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             &outcome,
             http_code,
             PayhoundRedirectRequirement::Required,
+            hosted_invoice_base(&router_data.connector_config),
         )?;
 
         Ok(Self {
@@ -1226,6 +1248,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
             &outcome,
             http_code,
             PayhoundRedirectRequirement::Optional,
+            hosted_invoice_base(&router_data.connector_config),
         )?;
 
         Ok(Self {

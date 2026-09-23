@@ -1138,6 +1138,9 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         base_url: Option<String>,
+        /// Base for the shopper-facing hosted invoice page. Distinct from `base_url`,
+        /// which is the API host. `None` falls back to the production page host.
+        hosted_invoice_base_url: Option<String>,
     },
 }
 
@@ -2855,6 +2858,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: payhound.api_key.ok_or_else(err)?,
                 api_secret: payhound.api_secret.ok_or_else(err)?,
                 base_url: payhound.base_url,
+                hosted_invoice_base_url: payhound.hosted_invoice_base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4284,11 +4288,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         base_url: None,
+                        // Legacy ConnectorAuthType carries no slot for this; merchants
+                        // needing a non-production page host must use x-connector-config.
+                        hosted_invoice_base_url: None,
                     }),
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payhound {
                         api_key: api_key.clone(),
                         api_secret: key1.clone(),
                         base_url: None,
+                        hosted_invoice_base_url: None,
                     }),
                     _ => Err(err().into()),
                 },

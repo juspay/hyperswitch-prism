@@ -859,6 +859,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             api_secret: k(),
             base_url: None,
+            hosted_invoice_base_url: None,
         },
         ConnectorEnum::JpmorganOrbital => ConnectorSpecificConfig::JpmorganOrbital {
             username: k(),
