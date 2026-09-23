@@ -53,7 +53,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R3 **The UCS working tree is sequential**: S1m, codegen units, AMENDs, `__finalize__` and 2.8 run one at a time; test exec never overlaps a tree writer or a cargo build. Background agents write only the run dir or `hs-wt`.
 - R4 **No commits or pushes before S7** in either repo; no stash/reset/checkout -f/clean/restore.
 - R5 **Never poll or re-message a finished agent**. A completion notification is handled once; if the row is already `done`, make no tool call. No TaskOutput/SendMessage on done rows, and no progress checks on running agents.
-- R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
+- R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling, and no turn-burning no-ops: a foreground `sleep`, a `for i in $(seq ...); do sleep ...; done` wrapper around one (which evades the foreground-`sleep` guard), and a bare `echo` tick are all equally forbidden — each costs a full turn and produces nothing. Use the background waiter in the Join rules. Measured on the 2026-09-16 Braintree run, before this rule existed: two units spent 2,223 and 1,243 calls this way, 79% of that run's tool calls and ~32% of its tokens.
 - R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
 - R9 **Time budget** `MAX_RUN_HOURS` (default 12): when exceeded, finish the current stage and go to S6/S7.
