@@ -581,35 +581,12 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, ToSchema)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Hash, ToSchema, serde::Serialize, serde::Deserialize,
+)]
 pub struct Money {
     pub(crate) amount: MinorUnit,
     pub(crate) currency: enums::Currency,
-}
-
-impl Serialize for Money {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("Money", 2)?;
-        state.serialize_field("amount", &self.amount.as_i64())?;
-        state.serialize_field("currency", &self.currency)?;
-        state.end()
-    }
-}
-
-impl<'de> Deserialize<'de> for Money {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(serde::Deserialize)]
-        struct MoneyHelper {
-            amount: i64,
-            currency: enums::Currency,
-        }
-        let helper = MoneyHelper::deserialize(deserializer)?;
-        Ok(Self {
-            amount: MinorUnit::from_i64(helper.amount),
-            currency: helper.currency,
-        })
-    }
 }
 
 impl Money {
