@@ -866,6 +866,19 @@ pub fn handle_event_transformer(
         )
         .unwrap_or(false);
 
+    // Fail-closed dispatch mirrors the gRPC server: connectors rejecting
+    // unverified notifications abort before any event content is built.
+    if !source_verified {
+        connector_data
+            .connector
+            .on_source_not_verified(&request_details)
+            .map_err(
+                |e: error_stack::Report<domain_types::errors::WebhookError>| {
+                    e.current_context().switch()
+                },
+            )?;
+    }
+
     connector_integration::webhook_utils::process_webhook_event(
         connector_data,
         request_details,

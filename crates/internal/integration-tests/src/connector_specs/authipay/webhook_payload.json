@@ -1,0 +1,44 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "api_secret",
+    "signature_location": "body field notification_hash (application/x-www-form-urlencoded payload)",
+    "signature_algorithm": "HMAC-SHA256 over chargetotal|currency|txndatetime|storename|approval_code keyed by the store shared secret (creds api_secret), lowercase hex",
+    "note": "Authipay's integrity hash lives inside the form body, so the harness cannot inject it into a header (payhere md5sig precedent). The notification_hash values below are precomputed hex HMAC-SHA256 digests over the documented preimage, keyed by the store shared secret; the payload bodies are base64-encoded form strings (proto bytes field)."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDEmb2lkPUFVVEhFWEFNUExFLTEwMDA0NSZjaGFyZ2V0b3RhbD0xMC4wMCZjdXJyZW5jeT1VU0QmdHhuZGF0ZXRpbWU9MjAyNjowOToyMi0xNjo1MjowMCZzdG9yZW5hbWU9MTIzNDU2Nzg5MDEmYXBwcm92YWxfY29kZT1ZOjEyMzQ1NjpBVVRIRVhBTVBMRS0xMDAwNDU6UFBYOjEyMzQ1Njc4OTAxMiZzdGF0dXM9QVBQUk9WRUQmdHhudHlwZT1TQUxFJmhhc2hfYWxnb3JpdGhtPUhNQUNTSEEyNTYmbm90aWZpY2F0aW9uX2hhc2g9OWI1Y2UxYWJhZWU5OGFkYjkxNjZkNmJlMjFlODZlZGY5ZDNjNGNkZmQzMDcyNzRmMTMwYTU1MWU5NDMxNmUyNg=="
+      },
+      "merchant_event_id": "authipay_webhook_payment_succeeded"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDImb2lkPUFVVEhFWEFNUExFLTEwMDA0NSZjaGFyZ2V0b3RhbD0xMC4wMCZjdXJyZW5jeT1VU0QmdHhuZGF0ZXRpbWU9MjAyNjowOToyMi0xNzowNTowMCZzdG9yZW5hbWU9MTIzNDU2Nzg5MDEmYXBwcm92YWxfY29kZT1ZOjY1NDMyMTpBVVRIRVhBTVBMRS0xMDAwNDU6UFBYOjEyMzQ1Njc4OTAxMyZzdGF0dXM9QVBQUk9WRUQmdHhudHlwZT1SRVRVUk4maGFzaF9hbGdvcml0aG09SE1BQ1NIQTI1NiZyZWZudW1iZXI9QTEyMzQ1NlImbm90aWZpY2F0aW9uX2hhc2g9MzdlZjk0YTI2NDQ0MTIzOWM1NjIwZTllYTRjNDdhMWEzNTZiMmQ0MTE3YTY4NDE5MjA2OTU5NDE3NjBiMTU2Nw=="
+      },
+      "merchant_event_id": "authipay_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDEmb2lkPUFVVEhFWEFNUExFLTEwMDA0NSZjaGFyZ2V0b3RhbD0xMC4wMCZjdXJyZW5jeT1VU0QmdHhuZGF0ZXRpbWU9MjAyNjowOToyMi0xNjo1MjowMCZzdG9yZW5hbWU9MTIzNDU2Nzg5MDEmYXBwcm92YWxfY29kZT1ZOjEyMzQ1NjpBVVRIRVhBTVBMRS0xMDAwNDU6UFBYOjEyMzQ1Njc4OTAxMiZzdGF0dXM9QVBQUk9WRUQmdHhudHlwZT1TQUxFJmhhc2hfYWxnb3JpdGhtPUhNQUNTSEEyNTYmbm90aWZpY2F0aW9uX2hhc2g9MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA=="
+      },
+      "merchant_event_id": "authipay_webhook_invalid_sig"
+    }
+  }
+}

@@ -616,6 +616,21 @@ pub trait IncomingWebhook {
         vec![]
     }
 
+    /// Fail-closed webhook handling hook: invoked by the HandleEvent path when
+    /// `verify_webhook_source` returned `false` (or errored), before any event
+    /// content is built. The default accepts the event unconditionally —
+    /// connectors that intentionally process unverified events (and any
+    /// connector not opting in) keep the permissive behaviour. A connector
+    /// whose security model rejects unverified notifications overrides this to
+    /// return an error, which aborts HandleEvent with no event content and no
+    /// ack. See TH-10 semantics in the authipay technical specification.
+    fn on_source_not_verified(
+        &self,
+        _request: &RequestDetails,
+    ) -> Result<(), error_stack::Report<WebhookError>> {
+        Ok(())
+    }
+
     /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
         &self,

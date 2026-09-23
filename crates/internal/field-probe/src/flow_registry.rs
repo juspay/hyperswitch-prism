@@ -46,10 +46,13 @@ pub fn probe_flow_by_definition(
         }
         Some(results)
     } else {
-        // Single flow - use dispatcher
+        // Single flow - use dispatcher. Flows whose base request builder fixes
+        // the payment method to a card produce a genuine Card payment-method
+        // arm, so the result is keyed "Card" rather than "default".
+        let arm_key = if def.card_arm { "Card" } else { "default" };
         dispatch_probe(def.key, connector, config, auth, metadata).map(|result| {
             let mut m = BTreeMap::new();
-            m.insert("default".to_string(), result);
+            m.insert(arm_key.to_string(), result);
             m
         })
     }

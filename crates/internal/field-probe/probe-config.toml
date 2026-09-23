@@ -160,6 +160,29 @@ default = '{}'
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
 
+# Authipay's authorize transformer emits `authenticationResult` (cavv/xid/eci/
+# dsTransactionId) when `authentication_data` carries an externally-obtained 3DS
+# result. The probe never performs 3DS itself and the patcher only reacts to
+# missing-field errors, so pre-set a plausible completed-3DS blob to surface the
+# field in the probed request body.
+[connector_overrides.authorize.authipay]
+authentication_data = { eci = "05", cavv = "AAAAAAAAAAAAAAAAAAAAAAAA", threeds_server_transaction_id = "probe-3ds-server-txn-001", message_version = "2.1.0", ds_transaction_id = "probe-3ds-ds-txn-001" }
+
+# Authipay's PostAuthenticate leg (PATCH /payments/{ipgTransactionId} with
+# authenticationType=Secure3DAuthenticationUpdateRequest) fails closed on two
+# preconditions the patcher can never reach:
+#   1. `redirect_response.params` must be the urlencoded ACS termURL POST body
+#      and must contain a parseable `cRes` field — the shared patch template
+#      ("probe_redirect_params") is not urlencoded, so the connector's
+#      `serde_urlencoded::from_str` rejects it as a present-but-wrong value.
+#   2. The URL path needs the payer-auth ipgTransactionId, taken from
+#      `connector_order_reference_id`.
+# Both are pre-set here: a plausible Base64 CRes in urlencoded form, and a
+# probe transaction reference. The `cation` suffix is URL-safe Base64.
+[connector_overrides.post_authenticate.authipay]
+redirection_response = { params = "cRes=ZXlKMGVXaGxzeUk2SW5SbGMzUWlMQ0pqWVhZaU9pSkJRVVpCVUVGRlFVNHZJbjA9", payload = {} }
+connector_order_reference_id = "probe_ipg_txn_payerauth_001"
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]

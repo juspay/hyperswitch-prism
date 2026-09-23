@@ -1,0 +1,169 @@
+{
+  "PaymentService/Reverse": {
+    "reverse_full_payment": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE"
+          ]
+        }
+      }
+    },
+    "reverse_with_reason": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE"
+          ]
+        }
+      }
+    },
+    "reverse_fail_invalid_transaction_id": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE",
+            "FAILED",
+            "PROCESSING_ERROR"
+          ]
+        },
+        "error": null
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761340000000035"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "continue_redirection_url": "https://example.com/payment/complete",
+        "browser_info": {
+          "user_agent": "Mozilla/5.0 (3ds-probe)",
+          "accept_header": "application/json",
+          "accept_language": "en-US",
+          "ip_address": "127.0.0.1"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761340000000035"
+            }
+          }
+        },
+        "redirection_response": {
+          "params": "cRes=AAABBBCCCDDDEEEFFFGGGHHHIIIJJJKKKLLLMMMNNN"
+        }
+      },
+      "assert": {
+        "status": null,
+        "error": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761340000000035"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "continue_redirection_url": "https://example.com/payment/complete"
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_failed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "aXBnVHJhbnNhY3Rpb25JZD04Mzg5MTYwMjkzMDMmb2lkPUFVVEhFWEFNUExFLTEwMDA0NiZjaGFyZ2V0b3RhbD0xMC4wMCZjdXJyZW5jeT1VU0QmdHhuZGF0ZXRpbWU9MjAyNjowOToyMi0xNjo1MjowMCZzdG9yZW5hbWU9MTIzNDU2Nzg5MDEmYXBwcm92YWxfY29kZT1OOjA1Okluc3VmZmljaWVudCBmdW5kcyZzdGF0dXM9REVDTElORUQmZmFpbF9yZWFzb249SW5zdWZmaWNpZW50IGZ1bmRzJnR4bnR5cGU9U0FMRSZoYXNoX2FsZ29yaXRobT1ITUFDU0hBMjU2Jm5vdGlmaWNhdGlvbl9oYXNoPTkyZTlkMTcyZjJlNmVjZDg2NDJjNWY4OGJlOTk3NGZkMTRmM2I5NThlYzYxMWUyZGExMGMyMDNmMTEyNDU4M2Q="
+        },
+        "merchant_event_id": "authipay_webhook_payment_failed"
+      },
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "source_verified": {
+          "equals": true
+        }
+      }
+    },
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "source_verified": {
+          "equals": true
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.refunds_response.status": {
+          "one_of": [
+            "REFUND_SUCCESS"
+          ]
+        },
+        "source_verified": {
+          "equals": true
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_content": {
+          "must_not_exist": true
+        },
+        "event_type": {
+          "must_not_exist": true
+        },
+        "event_ack_response": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_exist": true
+        }
+      }
+    }
+  }
+}

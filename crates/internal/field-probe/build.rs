@@ -17,6 +17,13 @@ use std::path::Path;
 /// Flows probed once per payment method through dedicated generators.
 const PAYMENT_METHOD_ITERATED_FLOWS: &[&str] = &["authorize", "tokenize"];
 
+/// Flows whose base request builder fixes the payment method to a card
+/// (`base_{flow}_request` in requests.rs uses `card_payment_method()`). The
+/// single probe result is therefore a genuine Card payment-method arm, so
+/// it is keyed "Card" rather than "default": refusal-gate checks name the
+/// Card arm explicitly and treat a `default`-only entry as inconclusive.
+const CARD_ARM_FLOWS: &[&str] = &["pre_authenticate", "authenticate", "post_authenticate"];
+
 fn main() {
     println!("cargo:rerun-if-changed=../../ffi/ffi/src/services/payments.rs");
     println!("cargo:rerun-if-changed=../../types-traits/grpc-api-types/proto/services.proto");
@@ -688,6 +695,23 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "        pub request_type: &'static str,").unwrap();
     writeln!(f, "        pub transformer_fn: &'static str,").unwrap();
     writeln!(f, "        pub has_payment_methods: bool,").unwrap();
+    writeln!(
+        f,
+        "        /// Base request is card-based by construction (see requests.rs), so the"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "        /// single probe result is a genuine Card payment-method arm and is keyed"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "        /// \"Card\" instead of \"default\". Only for flows whose base builder fixes"
+    )
+    .unwrap();
+    writeln!(f, "        /// the payment method to a card.").unwrap();
+    writeln!(f, "        pub card_arm: bool,").unwrap();
     writeln!(f, "    }}").unwrap();
     writeln!(f).unwrap();
 
@@ -710,6 +734,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: true,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     // parse_event is special — standalone function, not a req_transformer! macro
@@ -724,6 +749,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     // handle_event is special — standalone function, not a req_transformer! macro
@@ -742,6 +768,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     // verify_redirect
@@ -760,6 +787,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     // dispute_get
@@ -770,6 +798,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "            request_type: \"DisputeServiceGetRequest\",").unwrap();
     writeln!(f, "            transformer_fn: \"none\",").unwrap();
     writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     // payment_method_eligibility
@@ -784,6 +813,7 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     .unwrap();
     writeln!(f, "            transformer_fn: \"none\",").unwrap();
     writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "            card_arm: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     for flow in flows {
@@ -802,6 +832,12 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
             f,
             "            has_payment_methods: {},",
             flow.key == "tokenize"
+        )
+        .unwrap();
+        writeln!(
+            f,
+            "            card_arm: {},",
+            CARD_ARM_FLOWS.contains(&flow.key.as_str())
         )
         .unwrap();
         writeln!(f, "        }},").unwrap();

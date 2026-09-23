@@ -231,7 +231,21 @@ def check_cap02(probe, plan):
                              % (unit, arm, name))
                 continue
             checked += 1
-            if name and name not in body:
+            # D-19: dotted names ("a.b") resolve as a JSON path against the
+            # parsed body; flat names keep the original substring semantics.
+            def _dotted_present(text, dotted):
+                try:
+                    cur = json.loads(text)
+                except Exception:
+                    return dotted in text
+                for part in dotted.split("."):
+                    if isinstance(cur, dict) and part in cur:
+                        cur = cur[part]
+                    else:
+                        return False
+                return True
+            present = _dotted_present(body, name) if name and "." in name else (name in body if name else True)
+            if name and not present:
                 evidence.append({
                     "unit": unit, "field": name, "arm": arm,
                     "detail": "plan §8 wire_fields names %r but it does not appear in the probed "
