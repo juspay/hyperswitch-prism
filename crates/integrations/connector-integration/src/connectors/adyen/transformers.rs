@@ -4301,10 +4301,15 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
     }
 }
 
+const ADYEN_FRAUD_CANCELLED_CODE: &str = "22";
+const ADYEN_FRAUD_CANCELLED_REASON: &str = "FRAUD-CANCELLED";
+
 fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
+    refusal_reason_code: Option<&str>,
+    refusal_reason: Option<&str>,
 ) -> AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
@@ -4314,7 +4319,12 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        AdyenStatus::Cancelled => AttemptStatus::Voided,
+        AdyenStatus::Cancelled => match (refusal_reason_code, refusal_reason) {
+            (Some(ADYEN_FRAUD_CANCELLED_CODE), _) | (_, Some(ADYEN_FRAUD_CANCELLED_REASON)) => {
+                AttemptStatus::Failure
+            }
+            _ => AttemptStatus::Voided,
+        },
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
@@ -4710,7 +4720,13 @@ pub fn get_adyen_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_capture_manual,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4849,7 +4865,13 @@ pub fn get_present_to_shopper_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4927,7 +4949,13 @@ pub fn get_redirection_error_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -5005,7 +5033,13 @@ pub fn get_qr_code_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -5286,7 +5320,13 @@ pub fn get_redirection_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
