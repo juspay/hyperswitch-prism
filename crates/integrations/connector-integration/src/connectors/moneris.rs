@@ -729,6 +729,114 @@ macros::macro_connector_implementation!(
     }
 );
 
+// These declarations reuse the production conversions, including cross-flow states.
+// In particular, do not rewrite Authorized/Voided on Capture or Charged on Void
+// merely to fit a narrower flow ALLOWED set.
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Authorize,
+    source: moneris::MonerisPaymentStatus,
+    context: (),
+    params: [status, ctx],
+    success: Succeeded => [Charged, Authorized],
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PSync,
+    source: moneris::MonerisPaymentStatus,
+    context: (),
+    params: [status, ctx],
+    success: Succeeded => [Charged, Authorized, Voided],
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: RepeatPayment,
+    source: moneris::MonerisPaymentStatus,
+    context: (),
+    params: [status, ctx],
+    success: Succeeded => [Charged],
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Void,
+    source: moneris::MonerisPaymentStatus,
+    context: (),
+    params: [status, ctx],
+    success: Canceled => [Voided],
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Capture,
+    source: moneris::MonerisPaymentStatus,
+    context: (MinorUnit, Option<MinorUnit>),
+    params: [status, ctx],
+    success: Succeeded => [Charged, PartialCharged],
+    failure: Declined => Failure,
+    {
+        moneris::capture_attempt_status(status, ctx.0, ctx.1)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Refund,
+    source: moneris::MonerisRefundStatus,
+    context: (),
+    params: [status, ctx],
+    success: Succeeded => Success,
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::RefundStatus::from(status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: RSync,
+    source: moneris::MonerisRefundStatus,
+    context: (),
+    params: [status, ctx],
+    success: Succeeded => Success,
+    failure: Declined => Failure,
+    {
+        let _ = ctx;
+        common_enums::RefundStatus::from(status)
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Moneris,
     generic_type: T,

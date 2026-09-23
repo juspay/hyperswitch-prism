@@ -678,6 +678,116 @@ macros::macro_connector_implementation!(
 // not_implemented: EPG exposes the capability but it is out of scope for this
 //                  integration (cards, one-time payments only).
 // not_supported:   EPG's v1 API has no such resource at all.
+// Flow declarations mirror the production transformer mappings, including
+// context-dependent and nonterminal outcomes.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::Authorize,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: (Option<bool>, bool, bool),
+    params: [status, ctx],
+    success: Captured => [Authorized, Charged],
+    failure: Declined => Failure,
+    {
+        common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
+            state: &status,
+            is_authorized: ctx.0,
+            is_held_for_review: ctx.1,
+            is_auto_capture: ctx.2,
+        })
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::PSync,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: (Option<bool>, bool, bool),
+    params: [status, ctx],
+    success: Captured => [Authorized, Charged, Voided],
+    failure: Declined => Failure,
+    {
+        common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
+            state: &status,
+            is_authorized: ctx.0,
+            is_held_for_review: ctx.1,
+            is_auto_capture: ctx.2,
+        })
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::Capture,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: (Option<bool>, bool),
+    params: [status, ctx],
+    success: Captured => [Charged],
+    failure: Declined => Failure,
+    {
+        common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
+            state: &status,
+            is_authorized: ctx.0,
+            is_held_for_review: ctx.1,
+            is_auto_capture: true,
+        })
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::Void,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: Option<bool>,
+    params: [status, ctx],
+    success: Authorized => [Voided],
+    failure: Declined => VoidFailed,
+    {
+        common_enums::AttemptStatus::from(elavon_pg::ElavonPgChildStatus {
+            state: &status,
+            is_authorized: ctx,
+        })
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::Refund,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: Option<bool>,
+    params: [status, ctx],
+    success: Authorized => Success,
+    failure: Declined => Failure,
+    {
+        common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
+            state: &status,
+            is_authorized: ctx,
+        })
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: domain_types::connector_flow::RSync,
+    source: elavon_pg::ElavonPgTransactionState,
+    context: Option<bool>,
+    params: [status, ctx],
+    success: Authorized => Success,
+    failure: Declined => Failure,
+    {
+        common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
+            state: &status,
+            is_authorized: ctx,
+        })
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: ElavonPg,
     generic_type: T,

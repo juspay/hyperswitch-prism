@@ -127,16 +127,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+
+// Authorize: mirrors `MolliePaymentStatus::to_attempt_status` (transformers.rs:561).
+// The full map includes `Open → AuthenticationPending`, `Authorized → Authorized`,
+// `Canceled → Voided` — only the terminal targets constraint-checkable here are
+// declared; the body is checked against the flow's ALLOWED set at each variant.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Mollie<T>,
+    flow:      Authorize,
+    source:    transformers::MolliePaymentStatus,
+    success:   Authorized => Authorized,
+    failure:   Failed => Failure,
+    {
+        Open => AuthenticationPending,
+        Pending => Pending,
+        Paid => Charged,
+        Canceled => Voided,
+        Expired => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Mollie<T>
 {
 }
 
+// PSync: mirrors the PSync TryFrom (transformers.rs:624), the same
+// `MolliePaymentStatus::to_attempt_status` map as Authorize.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Mollie<T>,
+    flow:      PSync,
+    source:    transformers::MolliePaymentStatus,
+    success:   Paid => Charged,
+    failure:   Failed => Failure,
+    {
+        Open => AuthenticationPending,
+        Pending => Pending,
+        Authorized => Authorized,
+        Canceled => Voided,
+        Expired => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Mollie<T>
 {
 }
 
+// NOTE — Void: the Void TryFrom (transformers.rs:804-836) reuses
+// `MolliePaymentStatus::to_attempt_status` verbatim, so its arms include
+// `Paid → Charged` and `Authorized → Authorized`, both outside Void's ALLOWED set.
+// Lifting this needs a Void-specific typed surface (e.g. a `MollieVoidStatus`
+// enum that excludes the payment-progress variants) so a canceled payment maps
+// to `Voided` and anything else to a Void-legal status.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Mollie<T>
 {
@@ -156,17 +199,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
+// NOTE — Capture: the Capture TryFrom (transformers.rs:1054) reuses
+// `MolliePaymentStatus::to_attempt_status` verbatim, whose arms include
+// `Authorized → Authorized` and `Canceled → Voided`, both outside Capture's
+// ALLOWED set. Lifting this needs a Capture-specific typed surface (a Mollie
+// Capture only reports a `paid`/`failed` outcome) so only `Paid → Charged` and
+// failure arms remain.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Mollie<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+
+// Refund: mirrors `MollieRefundStatus::to_refund_status` (transformers.rs:714).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Mollie<T>,
+    flow:      Refund,
+    source:    transformers::MollieRefundStatus,
+    success:   Refunded => Success,
+    failure:   Failed => Failure,
+    {
+        Queued => Pending,
+        Pending => Pending,
+        Processing => Pending,
+        Canceled => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Mollie<T>
 {
 }
 
+// RSync: mirrors the RSync TryFrom (transformers.rs:782), the same
+// `MollieRefundStatus::to_refund_status` map.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Mollie<T>,
+    flow:      RSync,
+    source:    transformers::MollieRefundStatus,
+    success:   Refunded => Success,
+    failure:   Failed => Failure,
+    {
+        Queued => Pending,
+        Pending => Pending,
+        Processing => Pending,
+        Canceled => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Mollie<T>
 {

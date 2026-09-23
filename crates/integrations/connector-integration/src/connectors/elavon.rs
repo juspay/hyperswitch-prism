@@ -474,6 +474,148 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 {
 }
 
+// Flow declarations mirror the production transformer mappings, including
+// context-dependent and nonterminal outcomes.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::PSync,
+    source: elavon::TransactionSyncStatus,
+    context: elavon::SyncTransactionType,
+    params: [status, ctx],
+    success: STL => [Authorized, Charged],
+    failure: PST => Failure,
+    {
+        use common_enums::AttemptStatus;
+        use elavon::{SyncTransactionType, TransactionSyncStatus};
+        match status {
+            TransactionSyncStatus::STL => match ctx {
+                SyncTransactionType::Sale | SyncTransactionType::AuthOnly => AttemptStatus::Charged,
+                SyncTransactionType::Return => AttemptStatus::Pending,
+            },
+            TransactionSyncStatus::OPN => match ctx {
+                SyncTransactionType::AuthOnly => AttemptStatus::Authorized,
+                SyncTransactionType::Sale | SyncTransactionType::Return => AttemptStatus::Pending,
+            },
+            TransactionSyncStatus::PEN | TransactionSyncStatus::REV => AttemptStatus::Pending,
+            TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+                if ctx == SyncTransactionType::AuthOnly && status == TransactionSyncStatus::PRE {
+                    AttemptStatus::AuthenticationFailed
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::RSync,
+    source: elavon::TransactionSyncStatus,
+    context: elavon::SyncTransactionType,
+    params: [status, ctx],
+    success: STL => Success,
+    failure: PST => Failure,
+    {
+        use common_enums::RefundStatus;
+        use elavon::{SyncTransactionType, TransactionSyncStatus};
+        match ctx {
+            SyncTransactionType::Return => match status {
+                TransactionSyncStatus::STL => RefundStatus::Success,
+                TransactionSyncStatus::PEN | TransactionSyncStatus::OPN => RefundStatus::Pending,
+                TransactionSyncStatus::REV => RefundStatus::ManualReview,
+                TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+                    RefundStatus::Failure
+                }
+            },
+            _ => RefundStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::Authorize,
+    source: elavon::ElavonResult,
+    context: u16,
+    params: [status, ctx],
+    success: _ => [Charged],
+    failure: none,
+    {
+        elavon::get_elavon_attempt_status(&status, ctx).0
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::Capture,
+    source: elavon::ElavonResult,
+    context: u16,
+    params: [status, ctx],
+    success: _ => [Charged],
+    failure: none,
+    {
+        let attempt_status = elavon::get_elavon_attempt_status(&status, ctx).0;
+        match &status {
+            elavon::ElavonResult::Success(payload) => {
+                match payload.ssl_transaction_type.as_deref() {
+                    Some("cccomplete") | Some("ccsale") => match payload.ssl_result {
+                        elavon::SslResult::Approved => common_enums::AttemptStatus::Charged,
+                        _ => common_enums::AttemptStatus::Failure,
+                    },
+                    _ => attempt_status,
+                }
+            }
+            _ => attempt_status,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::RepeatPayment,
+    source: elavon::ElavonResult,
+    context: u16,
+    params: [status, ctx],
+    success: _ => [Charged],
+    failure: none,
+    {
+        elavon::get_elavon_attempt_status(&status, ctx).0
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: domain_types::connector_flow::Refund,
+    source: elavon::ElavonResult,
+    context: (),
+    params: [status, ctx],
+    success: _ => [Success],
+    failure: none,
+    {
+        let _ = ctx;
+        match status {
+            elavon::ElavonResult::Success(payload) => {
+                match payload.ssl_transaction_type.as_deref() {
+                    Some("RETURN") => match payload.ssl_result {
+                        elavon::SslResult::Approved => common_enums::RefundStatus::Success,
+                        elavon::SslResult::Declined => common_enums::RefundStatus::Failure,
+                        elavon::SslResult::Other(_) => common_enums::RefundStatus::Pending,
+                    },
+                    _ => common_enums::RefundStatus::Pending,
+                }
+            }
+            elavon::ElavonResult::Error(_) => common_enums::RefundStatus::Failure,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Elavon,
     generic_type: T,

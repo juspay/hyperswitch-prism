@@ -842,6 +842,189 @@ fn get_webhook_object_from_body(
         .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors `From<NovalnetTransactionStatus> for AttemptStatus`
+// (transformers.rs:657) used by the Authorize TryFrom (transformers.rs:749), including
+// the TryFrom's absence default (`Progress` when a redirect form exists — "Novalnet does
+// not send us the transaction.status for redirection flow" — else `Pending`). All targets
+// are in `Authorize::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      Authorize,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Charged,
+    failure:   Failure   => Failure,
+    {
+        Success     => Charged,
+        OnHold      => Authorized,
+        Pending     => Pending,
+        Progress    => AuthenticationPending,
+        Deactivated => Voided,
+        Error       => Failure,
+    }
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:1484), same
+// `From<NovalnetTransactionStatus>` mapping against the broad `PSync::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      PSync,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Charged,
+    failure:   Failure   => Failure,
+    {
+        Success     => Charged,
+        OnHold      => Authorized,
+        Pending     => Pending,
+        Progress    => AuthenticationPending,
+        Deactivated => Voided,
+        Error       => Failure,
+    }
+}
+
+// Capture — mirrors the Capture TryFrom (transformers.rs:1597), same mapping adapted to
+// `Capture::ALLOWED` (no `Voided`/`AuthenticationPending`): a deactivated authorization is
+// a capture failure, a redirect-stage status is still in flight.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      Capture,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Charged,
+    failure:   Failure   => CaptureFailed,
+    {
+        Success     => Charged,
+        OnHold      => CaptureInitiated,
+        Pending     => Pending,
+        Progress    => CaptureInitiated,
+        Deactivated => CaptureFailed,
+        Error       => CaptureFailed,
+    }
+}
+
+// Void — mirrors the Void TryFrom (transformers.rs:1804): success is `Deactivated` →
+// `Voided`, everything else on the success path maps to `VoidFailed` (including `Pending`
+// / still-active transaction states — the cancel endpoint is terminal-or-failed).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      Void,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Deactivated => Voided,
+    failure:   Failure     => VoidFailed,
+    {
+        Success   => VoidFailed,
+        Confirmed => VoidFailed,
+        OnHold    => VoidFailed,
+        Pending   => VoidFailed,
+        Progress  => VoidFailed,
+        Error     => VoidFailed,
+    }
+}
+
+// SetupMandate — mirrors the SetupMandate TryFrom (transformers.rs:848): same mapping
+// adapted to `SetupMandate::ALLOWED` — `Authorized`-shaped states (`OnHold`) read as
+// `Charged` (a parked mandate registration terminates like DLocal/checkout precedent;
+// there is no separate "on-hold captured" AttemptStatus for mandate setup), `Deactivated`
+// reads as `Failure`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      SetupMandate,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Charged,
+    failure:   Failure   => Failure,
+    {
+        Success     => Charged,
+        OnHold      => Charged,
+        Pending     => Pending,
+        Progress    => AuthenticationPending,
+        Deactivated => Failure,
+        Error       => Failure,
+    }
+}
+
+// RepeatPayment — mirrors the RepeatPayment TryFrom (transformers.rs:953), same mapping
+// adapted to `RepeatPayment::ALLOWED` (no `Voided`): a deactivated mandate instrument is a
+// terminal failure for the MIT.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      RepeatPayment,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Charged,
+    failure:   Failure   => Failure,
+    {
+        Success     => Charged,
+        OnHold      => Authorized,
+        Pending     => Pending,
+        Progress    => AuthenticationPending,
+        Deactivated => Failure,
+        Error       => Failure,
+    }
+}
+
+// IncrementalAuthorization — same transaction-status source; the callback response only
+// reports the updated authorization, so `OnHold` → `Authorized` is the success terminal.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      IncrementalAuthorization,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   OnHold => Authorized,
+    failure:   Failure => Failure,
+    {
+        Success     => Charged,
+        Confirmed   => Charged,
+        Pending     => Pending,
+        Progress    => AuthenticationPending,
+        Deactivated => Voided,
+        Error       => Failure,
+    }
+}
+
+// Refund — mirrors `From<NovalnetTransactionStatus> for RefundStatus`
+// (transformers.rs:1293) used by the Refund TryFrom (transformers.rs:1347).
+// `OnHold`/`Deactivated`/`Progress` collapse to `Failure` per the shared impl.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      Refund,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Success,
+    failure:   Failure   => Failure,
+    {
+        Success     => Success,
+        Pending     => Pending,
+        OnHold      => Failure,
+        Deactivated => Failure,
+        Progress    => Failure,
+        Error       => Failure,
+    }
+}
+
+// RSync — mirrors the refund-sync TryFrom (transformers.rs:1705), same
+// `From<NovalnetTransactionStatus> for RefundStatus` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Novalnet<T>,
+    flow:      RSync,
+    source:    novalnet::NovalnetTransactionStatus,
+    success:   Confirmed => Success,
+    failure:   Failure   => Failure,
+    {
+        Success     => Success,
+        Pending     => Pending,
+        OnHold      => Failure,
+        Deactivated => Failure,
+        Progress    => Failure,
+        Error       => Failure,
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Novalnet,
     generic_type: T,

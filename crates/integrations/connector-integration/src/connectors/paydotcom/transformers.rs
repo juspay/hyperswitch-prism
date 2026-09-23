@@ -2833,3 +2833,39 @@ pub fn hold_capture_path(
         )))
     }
 }
+
+/// Minimal Charge sample for flow status macros — the mapping only inspects `status`
+/// (and `id` via `.attempt_status()`); every other field is a placeholder.
+pub fn status_mapping_charge_sample(status: PaydotcomChargeStatus) -> PaydotcomPaymentsResponse {
+    PaydotcomPaymentsResponse::Charge(Box::new(PaydotcomChargeResponse {
+        id: String::new(),
+        status,
+        amount: None,
+        amount_refunded: None,
+        currency: None,
+        reference: None,
+        hold: None,
+        failure_code: None,
+        failure_message: None,
+        underlying_network_id: None,
+        source: None,
+    }))
+}
+
+/// Minimal canceled-Hold sample for the Void flow status macro — `attempt_status()`
+/// maps `canceled: true` to `AttemptStatus::Voided`.
+pub fn status_mapping_void_sample() -> PaydotcomPaymentsResponse {
+    PaydotcomPaymentsResponse::Hold(Box::new(PaydotcomHoldResponse {
+        id: String::new(),
+        status: PaydotcomHoldStatus::Canceled,
+        amount: None,
+        amount_capturable: None,
+        currency: None,
+        reference: None,
+        canceled: Some(true),
+        failure_code: None,
+        failure_message: None,
+        underlying_network_id: None,
+        source: None,
+    }))
+}

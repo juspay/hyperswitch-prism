@@ -325,6 +325,23 @@ impl From<MerchantePaymentStatus> for RefundStatus {
     }
 }
 
+/// Capture-intent context for `to_attempt_status` (transformers.rs:310): an approved
+/// auth is `Charged` when the request was auto-capture, `Authorized` otherwise.
+/// `Default` = auto-capture (the canonical path; `is_auto_capture()` itself
+/// defaults to true at the request layer).
+#[derive(Debug, Clone, Copy)]
+pub struct MerchanteCaptureIntent {
+    pub is_auto_capture: bool,
+}
+
+impl Default for MerchanteCaptureIntent {
+    fn default() -> Self {
+        Self {
+            is_auto_capture: true,
+        }
+    }
+}
+
 // ============================================================================
 // AUTHORIZE (CIT — transaction_type = D or P)
 // ============================================================================
