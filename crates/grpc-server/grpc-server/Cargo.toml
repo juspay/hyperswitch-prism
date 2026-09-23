@@ -24,7 +24,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
     "time",
 ] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.18.0" }
+injector = { git = "https://github.com/juspay/hyperswitch", rev = "34508c2118" }
 tracing-kafka = { path = "../../common/tracing-kafka", optional = true }
 connector_request_kafka = { path = "../../common/connector_request_kafka", optional = true }
 ucs_env = { path = "../../common/ucs_env" }
