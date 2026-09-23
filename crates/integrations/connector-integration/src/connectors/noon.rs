@@ -796,6 +796,238 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
 // SourceVerification implementations for authentication flows
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors `get_payment_status` (transformers.rs:570) which all payment
+// TryFroms funnel through. All targets are in `Authorize::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      Authorize,
+    source:    noon::NoonPaymentStatus,
+    success:   Authorized => Authorized,
+    failure:   Failed     => Failure,
+    {
+        Captured            => Charged,
+        PartiallyCaptured   => Charged,
+        PartiallyRefunded   => Charged,
+        Refunded            => Charged,
+        Reversed            => Voided,
+        PartiallyReversed   => Voided,
+        Cancelled           => AuthenticationFailed,
+        Expired             => AuthenticationFailed,
+        ThreeDsEnrollInitiated => AuthenticationPending,
+        ThreeDsEnrollChecked   => AuthenticationPending,
+        ThreeDsResultVerified  => AuthenticationSuccessful,
+        Rejected            => Failure,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => Started,
+        PaymentInfoAdded    => Started,
+        Authenticated       => Started,
+        Locked              => Unspecified,
+    }
+}
+
+// PSync — same shared `get_payment_status` (PSync TryFrom uses the generic
+// `RouterDataV2<F, PaymentFlowData, T, …>` impl at transformers.rs:628); `PSync::ALLOWED`
+// covers every target.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      PSync,
+    source:    noon::NoonPaymentStatus,
+    success:   Captured => Charged,
+    failure:   Failed   => Failure,
+    {
+        Authorized          => Authorized,
+        PartiallyCaptured   => Charged,
+        PartiallyRefunded   => Charged,
+        Refunded            => Charged,
+        Reversed            => Voided,
+        PartiallyReversed   => Voided,
+        Cancelled           => AuthenticationFailed,
+        Expired             => AuthenticationFailed,
+        ThreeDsEnrollInitiated => AuthenticationPending,
+        ThreeDsEnrollChecked   => AuthenticationPending,
+        ThreeDsResultVerified  => AuthenticationSuccessful,
+        Rejected            => Failure,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => Started,
+        PaymentInfoAdded    => Started,
+        Authenticated       => Started,
+        Locked              => Unspecified,
+    }
+}
+
+// Capture — capture response shares the same `NoonPaymentsResponse` → `get_payment_status`
+// path (generic impl at transformers.rs:628). Adjusted to `Capture::ALLOWED`:
+// pre-capture wire states stay `CaptureInitiated`; `Reversed`/`Cancelled`/`Expired` (and
+// the unreachable 3DS states) collapse to `CaptureFailed`; `PartiallyCaptured` keeps the
+// genuinely partial `PartialCharged` terminal.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      Capture,
+    source:    noon::NoonPaymentStatus,
+    success:   Captured => Charged,
+    failure:   Failed   => Failure,
+    {
+        PartiallyCaptured   => PartialCharged,
+        PartiallyRefunded   => Charged,
+        Refunded            => Charged,
+        Authorized          => CaptureInitiated,
+        Reversed            => CaptureFailed,
+        PartiallyReversed   => CaptureFailed,
+        Cancelled           => CaptureFailed,
+        Expired             => CaptureFailed,
+        ThreeDsEnrollInitiated => CaptureInitiated,
+        ThreeDsEnrollChecked   => CaptureInitiated,
+        ThreeDsResultVerified  => CaptureInitiated,
+        Rejected            => CaptureFailed,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => CaptureInitiated,
+        PaymentInfoAdded    => CaptureInitiated,
+        Authenticated       => CaptureInitiated,
+        Locked              => Pending,
+    }
+}
+
+// Void — void response also shares `get_payment_status` via the generic impl.
+// Adjusted to `Void::ALLOWED`: `Reversed` (the actual voided wire state) is the success
+// terminal; `CaptureInitiated`-shaped pendings map to `VoidInitiated`; `Failed`/`Rejected`
+// and impossible-for-void states (`Captured`, `PartiallyRefunded`, …) map to `VoidFailed`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      Void,
+    source:    noon::NoonPaymentStatus,
+    success:   Reversed => Voided,
+    failure:   Failed   => VoidFailed,
+    {
+        PartiallyReversed   => Voided,
+        Cancelled           => Voided,
+        Expired             => Voided,
+        Authorized          => VoidInitiated,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => VoidInitiated,
+        PaymentInfoAdded    => VoidInitiated,
+        Authenticated       => VoidInitiated,
+        ThreeDsEnrollInitiated => VoidInitiated,
+        ThreeDsEnrollChecked   => VoidInitiated,
+        ThreeDsResultVerified  => VoidInitiated,
+        Locked              => Pending,
+        Captured            => VoidFailed,
+        PartiallyCaptured   => VoidFailed,
+        PartiallyRefunded   => VoidFailed,
+        Refunded            => VoidFailed,
+        Rejected            => VoidFailed,
+    }
+}
+
+// SetupMandate — the mandate TryFrom reuses `get_payment_status`
+// (transformers.rs:1466). `SetupMandate::ALLOWED` has no `Voided` / `Unspecified` /
+// `AutoRefunded`, so a reversed or locked verification reads as `Failure` / `Pending`,
+// and a successful `Authorized` card verification reads as `Charged` (there is no
+// separate "registered" wire status for the flow).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      SetupMandate,
+    source:    noon::NoonPaymentStatus,
+    success:   Authorized => Charged,
+    failure:   Failed     => Failure,
+    {
+        Captured            => Charged,
+        PartiallyCaptured   => Charged,
+        PartiallyRefunded   => Charged,
+        Refunded            => Charged,
+        Reversed            => Failure,
+        PartiallyReversed   => Failure,
+        Cancelled           => AuthenticationFailed,
+        Expired             => AuthenticationFailed,
+        ThreeDsEnrollInitiated => AuthenticationPending,
+        ThreeDsEnrollChecked   => AuthenticationPending,
+        ThreeDsResultVerified  => AuthenticationSuccessful,
+        Rejected            => Failure,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => Started,
+        PaymentInfoAdded    => Started,
+        Authenticated       => Started,
+        Locked              => Pending,
+    }
+}
+
+// RepeatPayment — MIT responses share `get_payment_status`. Adjusted to
+// `RepeatPayment::ALLOWED`: `Voided`/`AutoRefunded`/`AuthenticationSuccessful` and the
+// pre-3DS `Started`/`Unspecified` states map to `Failure` — a canceled/refunded or
+// challenge-locked MIT can never complete on its own.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      RepeatPayment,
+    source:    noon::NoonPaymentStatus,
+    success:   Captured => Charged,
+    failure:   Failed   => Failure,
+    {
+        Authorized          => Authorized,
+        PartiallyCaptured   => Charged,
+        PartiallyRefunded   => Charged,
+        Refunded            => Charged,
+        Reversed            => Failure,
+        PartiallyReversed   => Failure,
+        Cancelled           => Failure,
+        Expired             => Failure,
+        ThreeDsEnrollInitiated => AuthenticationPending,
+        ThreeDsEnrollChecked   => AuthenticationPending,
+        ThreeDsResultVerified  => Failure,
+        Rejected            => Failure,
+        Pending             => Pending,
+        MarkedForReview     => Pending,
+        Initiated           => Pending,
+        PaymentInfoAdded    => Pending,
+        Authenticated       => Pending,
+        Locked              => Pending,
+    }
+}
+
+// NOTE: no impl_flow_status_mapping! for MandateRevoke. That flow answers with a
+// `NoonRevokeStatus` whose only honest success is `MandateStatus::Revoked` — a mandate
+// domain status, not an `AttemptStatus` — and `connector_flow::MandateRevoke` has no
+// `FlowStatusRules` impl to declare terminals against.
+
+// Refund — mirrors `From<noon::RefundStatus> for common_enums::RefundStatus`
+// (transformers.rs:922) used by the Refund TryFrom (transformers.rs:954).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      Refund,
+    source:    noon::RefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+    }
+}
+
+// RSync — mirrors the RSync TryFrom (transformers.rs:1017), same
+// `From<noon::RefundStatus>` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow:      RSync,
+    source:    noon::RefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Noon,
     generic_type: T,
