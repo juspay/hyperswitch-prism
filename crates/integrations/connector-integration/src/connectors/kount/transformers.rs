@@ -2343,8 +2343,9 @@ impl KountAuthResult {
     /// Map the internal attempt status to Kount's authResult. Reuses the same
     /// success/decline categorization as `KountPaymentStatus::from_attempt_status`
     /// (Charged/Authorized/Voided/Refunded-family => APPROVED, explicit
-    /// failure/decline-family => DECLINED); anything else maps to `Unknown`
-    /// rather than a guessed value.
+    /// failure/decline-family => DECLINED). Every other status falls outside
+    /// both buckets and is reported as `Error`; `Unknown` is intentionally
+    /// not used.
     fn from_attempt_status(status: AttemptStatus) -> Self {
         match status {
             AttemptStatus::Charged

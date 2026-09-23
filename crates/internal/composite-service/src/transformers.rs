@@ -651,7 +651,7 @@ impl
         // the parent flow's freshly-created server-authentication token. OAuth-gated
         // connectors (should_do_access_token) need this both to avoid
         // FAILED_TO_OBTAIN_AUTH_TYPE and because the resolved token is the source
-        // of connector-side values derived from it during PreAuthenticate (e.g. the
+        // of connector-side values derived from it during PreAuthenticate.
         let access_token_from_req = item
             .state
             .as_ref()
