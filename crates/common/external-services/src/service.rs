@@ -11,7 +11,10 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
-    events::{record_json_fields_on_span, CompiledLogFields},
+    events::{
+        record_json_fields_on_declaring_span, record_json_fields_on_span, record_on_declaring_span,
+        CompiledLogFields,
+    },
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -483,9 +486,13 @@ where
             let response = match body {
                 Ok(body) => {
                     let status_code = body.status_code;
+                    // `status_code` is declared on the (déjà) span this function runs in and
+                    // feeds the tape; `res_code` and the `response.*` fields below belong to
+                    // the outgoing golden-log span, which may be an ancestor when the déjà
+                    // feature wraps this function in its own child span.
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
-                    tracing::Span::current().record("res_code", u64::from(status_code));
+                    record_on_declaring_span("res_code", &u64::from(status_code));
 
                     if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
@@ -520,7 +527,7 @@ where
                         }
 
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_declaring_span(json_fields);
                         }
                     }
 
@@ -616,19 +623,18 @@ where
                             json_fields.push(("response.headers", headers_json));
                         }
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_declaring_span(json_fields);
                         }
                     }
-                    tracing::Span::current().record(
+                    record_on_declaring_span(
                         "response.error_message",
-                        tracing::field::display(&error_response.message),
+                        &tracing::field::display(&error_response.message),
                     );
-                    tracing::Span::current().record(
+                    record_on_declaring_span(
                         "response.status_code",
-                        tracing::field::display(error_response.status_code),
+                        &tracing::field::display(error_response.status_code),
                     );
-                    tracing::Span::current()
-                        .record("res_code", u64::from(error_response.status_code));
+                    record_on_declaring_span("res_code", &u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
