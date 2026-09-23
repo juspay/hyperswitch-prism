@@ -1,5 +1,5 @@
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, FrmDecision};
-use common_utils::types::FloatMajorUnit;
+use common_utils::types::{FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::connector_flow::PreRiskCheck;
 use domain_types::{
     connector_types::CustomerInfo,
@@ -761,7 +761,7 @@ impl<
         let paid_amount = NsureAmount {
             value_in_currency: req
                 .amount
-                .convert(&common_utils::types::FloatMajorUnitForConnector)
+                .convert(&FloatMajorUnitForConnector)
                 .change_context(errors::IntegrationError::InvalidDataFormat {
                     field_name: "amount",
                     context: Default::default(),
