@@ -1095,21 +1095,26 @@ pub(super) fn payhound_invoice_outcome(
     })
 }
 
-/// Resolves the hosted invoice page base for this merchant.
+/// Resolves the shopper-facing hosted invoice page host for the running environment.
 ///
-/// Payhound returns `invoice_url` as a path (`/invoices/{id}`), so it needs a host. The default,
-/// `pay.payhound.com`, serves PRODUCTION invoices only: pointing a sandbox invoice id at it renders
-/// Payhound's "Not found -- please double-check the link or contact your merchant" page (verified
-/// against a live sandbox invoice, and against a deliberately bogus id, which renders identically).
-/// A merchant on a non-production environment must therefore set `hosted_invoice_base_url`.
-fn hosted_invoice_base(config: &ConnectorSpecificConfig) -> &str {
-    match config {
-        ConnectorSpecificConfig::Payhound {
-            hosted_invoice_base_url: Some(base),
-            ..
-        } => base.as_str(),
-        _ => PAYHOUND_HOSTED_INVOICE_BASE,
-    }
+/// Payhound returns `invoice_url` as a bare path (`/invoices/{id}`), so it needs a host, and that
+/// host is an ENVIRONMENT fact rather than a merchant one: it comes from `payhound.secondary_base_url`
+/// in `config/{development,sandbox,production}.toml`, the same place `base_url` comes from, so URL
+/// resolution keeps flowing through `resource_common_data.connectors` (already the post-override
+/// runtime config, superposition included) as `RouterDataV2` documents.
+///
+/// Falls back to [`PAYHOUND_HOSTED_INVOICE_BASE`] only if the key is absent from config.
+///
+/// NOTE: `pay.payhound.com` is the only hosted-page host Payhound documents and it serves PRODUCTION
+/// invoices; a sandbox invoice id renders its "Not found" page there, identically to a bogus id.
+/// When Payhound supplies the sandbox host, change it in the sandbox/development TOMLs alone.
+fn payhound_hosted_base(common: &PaymentFlowData) -> &str {
+    common
+        .connectors
+        .payhound
+        .secondary_base_url
+        .as_deref()
+        .unwrap_or(PAYHOUND_HOSTED_INVOICE_BASE)
 }
 
 /// Builds the `PaymentsResponseData`/`ErrorResponse` pair shared by Authorize and PSync.
@@ -1203,7 +1208,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             &outcome,
             http_code,
             PayhoundRedirectRequirement::Required,
-            hosted_invoice_base(&router_data.connector_config),
+            payhound_hosted_base(&router_data.resource_common_data),
         )?;
 
         Ok(Self {
@@ -1248,7 +1253,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
             &outcome,
             http_code,
             PayhoundRedirectRequirement::Optional,
-            hosted_invoice_base(&router_data.connector_config),
+            payhound_hosted_base(&router_data.resource_common_data),
         )?;
 
         Ok(Self {

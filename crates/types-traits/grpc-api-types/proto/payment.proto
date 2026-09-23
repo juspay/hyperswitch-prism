@@ -5986,14 +5986,6 @@ message PayhoundConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
   optional string base_url = 50;
-  // Base for Payhound's hosted invoice page, which `invoice_url` is resolved
-  // against when the API returns it as a relative path. Distinct from `base_url`:
-  // that is the API host (api.payhound.com / sandbox-api.payhound.com), this is
-  // the shopper-facing page host. Defaults to https://pay.payhound.com, which
-  // serves PRODUCTION invoices only -- a sandbox invoice id renders a "Not found"
-  // page there, so a sandbox merchant must set this to Payhound's sandbox
-  // hosted-page host.
-  optional string hosted_invoice_base_url = 51;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector
