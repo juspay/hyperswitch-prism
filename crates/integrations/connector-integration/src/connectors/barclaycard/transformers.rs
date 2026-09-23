@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::ext_traits::ValueExt;
-use common_utils::types::StringMajorUnit;
+use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
@@ -425,7 +425,7 @@ where
         .as_ref()
         .and_then(|data| data.original_payment_authorized_amount.as_ref())
         .map(|oa| {
-            oa.convert(&common_utils::types::StringMajorUnitForConnector)
+            oa.convert(&StringMajorUnitForConnector)
                 .map(|s| s.get_amount_as_string())
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),

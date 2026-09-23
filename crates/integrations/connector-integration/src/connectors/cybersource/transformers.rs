@@ -6,7 +6,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
-    types::{SemanticVersion, StringMajorUnit},
+    types::{SemanticVersion, StringMajorUnit, StringMajorUnitForConnector},
 };
 
 use crate::{connectors::cybersource::CybersourceRouterData, types::ResponseRouterData, utils};
@@ -5554,7 +5554,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                     .map(|original_amount| {
                         original_amount
-                            .convert(&common_utils::types::StringMajorUnitForConnector)
+                            .convert(&StringMajorUnitForConnector)
                             .map(|s| s.get_amount_as_string())
                             .change_context(IntegrationError::AmountConversionFailed {
                                 context: Default::default(),

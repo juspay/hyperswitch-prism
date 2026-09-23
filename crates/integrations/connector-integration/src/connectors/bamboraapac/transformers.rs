@@ -15,6 +15,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+use super::BamboraapacAmountConvertor;
 use crate::types::ResponseRouterData;
 
 // ============================================================================
@@ -474,7 +475,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: super::BamboraapacAmountConvertor::convert(
+            amount: BamboraapacAmountConvertor::convert(
                 router_data.request.minor_amount,
                 router_data.request.currency,
             )?,
@@ -629,7 +630,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 
         Ok(Self {
             receipt,
-            amount: super::BamboraapacAmountConvertor::convert(
+            amount: BamboraapacAmountConvertor::convert(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
             )?,
@@ -929,7 +930,7 @@ impl
                 .connector_request_reference_id
                 .clone(),
             receipt,
-            amount: super::BamboraapacAmountConvertor::convert(
+            amount: BamboraapacAmountConvertor::convert(
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )?,
@@ -1483,7 +1484,7 @@ impl<
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: super::BamboraapacAmountConvertor::convert(
+            amount: BamboraapacAmountConvertor::convert(
                 router_data.request.minor_amount,
                 router_data.request.currency,
             )?,
