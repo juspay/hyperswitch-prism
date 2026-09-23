@@ -371,9 +371,10 @@ where
                     ))
                 })?;
             // Resolve across every family this connector might be registered under
-            // (e.g. Kount is both a payment connector and an FRM connector) — same
-            // "try each family, no hand-written match on `ConnectorVariant`"
-            // primitive used elsewhere; `should_do_access_token` isn't a
+            // (a connector such as an FRM provider is looked up in the FRM
+            // dispatch table, not the payment one) — same "try each family, no
+            // hand-written match on `ConnectorVariant`" primitive used
+            // elsewhere; `should_do_access_token` isn't a
             // `ConnectorIntegrationV2` flow, so it can't go through
             // `resolve_connector_integration!` directly, but the pattern is the same.
             ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::from_connector_variant(connector)
@@ -1008,8 +1009,8 @@ where
 
         // Unlike the other composite flows below, pre-authenticate can target
         // either a payment connector (`x-connector`) or an FRM connector
-        // (`x-frm-connector`) — e.g. Kount is dual-registered as both while its
-        // FRM registration is being rolled out — so this resolves the full
+        // (`x-frm-connector`) — Kount, for one, is FRM-only and is reached only
+        // through `x-frm-connector` — so this resolves the full
         // `ConnectorVariant` instead of requiring `x-connector`.
         let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
