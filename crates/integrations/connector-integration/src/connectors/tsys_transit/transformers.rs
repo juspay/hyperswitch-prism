@@ -12,10 +12,11 @@ use domain_types::{
         VoidPostRefund,
     },
     connector_types::{
-        MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RecurringMandatePaymentData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        L2L3Data, MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RecurringMandatePaymentData, RefundFlowData,
+        RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -31,7 +32,7 @@ use domain_types::{
         PaymentVoidIntegrityObject, PaymentVoidPostCaptureIntegrityObject, RefundIntegrityObject,
         RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SetupMandateIntegrityObject,
     },
-    utils::split_full_name as split_domain_full_name,
+    utils::{legacy_amount_as_i64, split_full_name as split_domain_full_name},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -1619,7 +1620,7 @@ fn compute_commercial_card_context<
     let ship_from_zip = request_metadata.ship_from_zip.clone();
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
     let order_date = l2_l3_data
-        .map(domain_types::connector_types::L2L3Data::get_order_date_mmddyyyy)
+        .map(L2L3Data::get_order_date_mmddyyyy)
         .transpose()?
         .flatten();
     let summary_commodity_code =
@@ -2618,11 +2619,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
             item.http_code,
         )?;
-        // Deprecated i64 mirror dropped rather than populated via a raw
-        // MinorUnit->i64 extraction, matching the money-framework convention
-        // used everywhere else in this stack (connector code never imports
-        // proto_boundary).
-        let amount_captured = None;
+        let amount_captured = minor_amount_captured.map(legacy_amount_as_i64);
         let minor_amount_capturable = derive_amount_capturable(
             status,
             body.processed_amount.as_ref(),
@@ -2854,7 +2851,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             )
             .then(|| transaction_amount)
             .flatten();
-            let amount_captured = None;
+            let amount_captured = minor_amount_captured.map(legacy_amount_as_i64);
             let minor_amount_capturable = matches!(
                 status,
                 AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
@@ -3038,7 +3035,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = None;
+        let amount_captured = minor_amount_captured.map(legacy_amount_as_i64);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
@@ -4262,7 +4259,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = None;
+        let amount_captured = minor_amount_captured.map(legacy_amount_as_i64);
 
         let minor_amount_capturable = derive_amount_capturable(
             status,
@@ -4316,7 +4313,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
                     amount: minor_amount_captured
-                        .map(domain_types::utils::legacy_amount_as_i64)
+                        .map(legacy_amount_as_i64)
                         .unwrap_or(router_data.request.amount),
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
