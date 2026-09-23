@@ -11,10 +11,7 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
-    events::{
-        record_json_fields_on_declaring_span, record_json_fields_on_span, record_on_declaring_span,
-        CompiledLogFields,
-    },
+    events::{record_json_fields_on_declaring_span, record_on_declaring_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -445,6 +442,11 @@ fn capture_connector_reply<E>(
         ),
     })
 }
+
+// Only `execute_connector_processing_step` (gated on `injector-client`) records JSON
+// fields on its own span; everything else goes through the declaring-span helpers.
+#[cfg(feature = "injector-client")]
+use common_utils::events::record_json_fields_on_span;
 
 /// Handles the connector response, processing both successful and error responses
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
