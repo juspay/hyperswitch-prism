@@ -18,7 +18,6 @@ const _defaultConfig: types.IConnectorConfig = {
             apiKey: { value: 'YOUR_API_KEY' },
             apiSecret: { value: 'YOUR_API_SECRET' },
             baseUrl: 'YOUR_BASE_URL',
-            hostedInvoiceBaseUrl: 'YOUR_HOSTED_INVOICE_BASE_URL',
         }
     },
 };
