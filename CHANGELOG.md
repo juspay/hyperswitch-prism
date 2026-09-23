@@ -19,6 +19,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.23.1
+
+### Features
+
+- **connector:** Checkout webhook, applePay, googlePay enhancement ([#2315](https://github.com/juspay/connector-service/pull/2315)) ([`7087d02`](https://github.com/juspay/connector-service/commit/7087d02d6a6e8d318fbe09c09f94d99ff4227753))
+
+**Full Changelog:** [`2026.09.23.0...2026.09.23.1`](https://github.com/juspay/connector-service/compare/2026.09.23.0...2026.09.23.1)
+
+- - -
+
+## 2026.09.23.0
+
+### Bug Fixes
+
+- **grpc-server:** Resolve secondary connector families in card-carrying payment-method arms ([#2346](https://github.com/juspay/connector-service/pull/2346)) ([`468e0a6`](https://github.com/juspay/connector-service/commit/468e0a60dddfe616b9e37242085bc54a6b606992))
+
+**Full Changelog:** [`2026.09.22.1...2026.09.23.0`](https://github.com/juspay/connector-service/compare/2026.09.22.1...2026.09.23.0)
+
+- - -
+
+## 2026.09.22.1
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add integrity checks, map the amount captured and fix psync status handling ([#2270](https://github.com/juspay/connector-service/pull/2270)) ([`e9d3b3d`](https://github.com/juspay/connector-service/commit/e9d3b3d6d19abe1c568b70e20f7259beba41f402))
+
+**Full Changelog:** [`2026.09.22.0...2026.09.22.1`](https://github.com/juspay/connector-service/compare/2026.09.22.0...2026.09.22.1)
+
+- - -
+
+## 2026.09.22.0
+
+### Bug Fixes
+
+- **connector:** [Gotyme] Serialize bank names in camelCase ([#2342](https://github.com/juspay/connector-service/pull/2342)) ([`7cb0f5d`](https://github.com/juspay/connector-service/commit/7cb0f5dba18f66cf79e8674c241595d9e1b361d3))
+- **deps:** Upgrade reqwest to 0.12 so the connection-closed retry fires ([#2336](https://github.com/juspay/connector-service/pull/2336)) ([`76c2fd3`](https://github.com/juspay/connector-service/commit/76c2fd3e5ac12b861f67e11636c0485ed0dd6a60))
+
+### Miscellaneous Tasks
+
+- **connector:** Add TwocTwopPaco VerifyRedirectResponse stub ([#2343](https://github.com/juspay/connector-service/pull/2343)) ([`1eb3769`](https://github.com/juspay/connector-service/commit/1eb376991fe78a673f4a56e7b392ca148cee7352))
+
+**Full Changelog:** [`2026.09.21.3...2026.09.22.0`](https://github.com/juspay/connector-service/compare/2026.09.21.3...2026.09.22.0)
+
+- - -
+
+## 2026.09.21.3
+
+### Bug Fixes
+
+- **stripe:** Stop dropping billing, shipping, browser info and L2/L3 on wallet tokens ([#2328](https://github.com/juspay/connector-service/pull/2328)) ([`7f72f5c`](https://github.com/juspay/connector-service/commit/7f72f5c614d4e0d4d0bb7a51f8b2d5bea2a508db))
+
+**Full Changelog:** [`2026.09.21.2...2026.09.21.3`](https://github.com/juspay/connector-service/compare/2026.09.21.2...2026.09.21.3)
+
+- - -
+
+## 2026.09.21.2
+
+### Features
+
+- **connector:**
+  - [PayNearMe] add SetupMandate, RepeatPayment and CreateOrder standing orders; refuse Apple Pay and Google Pay ([#2295](https://github.com/juspay/connector-service/pull/2295)) ([`147f435`](https://github.com/juspay/connector-service/commit/147f435ade86cce72bec63ce51cfe725ebb25714))
+  - Add GlobalpaymentsRealex card flows (Authorize, PSync, Capture, Void, Refund, RSync) and merchant-driven 3DS2 ([#2204](https://github.com/juspay/connector-service/pull/2204)) ([`b63cfcf`](https://github.com/juspay/connector-service/commit/b63cfcfd8312806c86d17ea362d82218c5d5ea60))
+- **grace:** Alpha connectors without credentials, operator-supplied creds, and less run rework ([#2332](https://github.com/juspay/connector-service/pull/2332)) ([`a602f88`](https://github.com/juspay/connector-service/commit/a602f88529188dadebcc8c2801a7cbf6a0a98b85))
+
+**Full Changelog:** [`2026.09.21.1...2026.09.21.2`](https://github.com/juspay/connector-service/compare/2026.09.21.1...2026.09.21.2)
+
+- - -
+
 ## 2026.09.21.1
 
 ### Features
