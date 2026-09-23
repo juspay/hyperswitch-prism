@@ -783,6 +783,39 @@ pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>
     });
 }
 
+/// Why a `record_*_on_declaring_span` write did not land anywhere.
+///
+/// Returned out of the `with_subscriber` closure and logged by the caller *after* the
+/// closure has finished: logging inside it would emit an event while the registry's
+/// span guards are live, which is exactly the kind of subscriber re-entry the storage
+/// helpers avoid.
+#[cfg(feature = "logging")]
+#[derive(Debug, Clone, Copy)]
+enum DeclaringSpanMiss {
+    /// The subscriber is not a `tracing_subscriber::Registry`; there is no scope to walk.
+    NotARegistry,
+    /// No span from the current one up to the root declares the field.
+    NoDeclaringSpan,
+}
+
+#[cfg(feature = "logging")]
+fn log_declaring_span_miss(key: &str, miss: DeclaringSpanMiss) {
+    match miss {
+        // A non-registry subscriber is a deployment/test-harness shape, not a bug in
+        // the caller; keep it at debug so it cannot flood production logs.
+        DeclaringSpanMiss::NotARegistry => tracing::debug!(
+            field = key,
+            "span field dropped: subscriber is not a Registry, cannot walk the span scope"
+        ),
+        // Nobody in scope declares the field: the value is gone. That is a programming
+        // error (a golden-log field with no golden span above it), so warn.
+        DeclaringSpanMiss::NoDeclaringSpan => tracing::warn!(
+            field = key,
+            "span field dropped: no span in scope declares it"
+        ),
+    }
+}
+
 /// Record `value` under `key` on the nearest span, starting from the current one and
 /// walking up to the root, that **declares** `key` as a field.
 ///
@@ -802,9 +835,11 @@ pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>
 pub fn record_on_declaring_span(key: &'static str, value: &dyn tracing::Value) {
     use tracing_subscriber::{registry::LookupSpan, Registry};
 
-    tracing::Span::current().with_subscriber(|(id, dispatch)| {
+    // `None` here means the current span is disabled (no subscriber at all); that is
+    // the same silent no-op a plain `Span::record` gives and needs no log line.
+    let outcome = tracing::Span::current().with_subscriber(|(id, dispatch)| {
         let Some(registry) = dispatch.downcast_ref::<Registry>() else {
-            return;
+            return Err(DeclaringSpanMiss::NotARegistry);
         };
         // Resolve the target id first and drop the span refs before dispatching, so
         // the layers' own `ctx.span(..)` lookups never contend with a held guard.
@@ -815,15 +850,20 @@ pub fn record_on_declaring_span(key: &'static str, value: &dyn tracing::Value) {
                 .map(|span| (span.id(), span.metadata()))
         });
         let Some((target_id, metadata)) = target else {
-            return;
+            return Err(DeclaringSpanMiss::NoDeclaringSpan);
         };
         let Some(field) = metadata.fields().field(key) else {
-            return;
+            return Err(DeclaringSpanMiss::NoDeclaringSpan);
         };
         let values = [(&field, Some(value))];
         let value_set = metadata.fields().value_set(&values);
         dispatch.record(&target_id, &tracing::span::Record::new(&value_set));
+        Ok(())
     });
+    // Logged only once the closure (and every span guard it held) is gone.
+    if let Some(Err(miss)) = outcome {
+        log_declaring_span_miss(key, miss);
+    }
 }
 
 /// JSON-valued counterpart of [`record_on_declaring_span`]: like
@@ -854,26 +894,42 @@ pub fn record_json_fields_on_declaring_span(fields: Vec<(&'static str, serde_jso
         return;
     }
 
-    tracing::Span::current().with_subscriber(|(id, dispatch)| {
-        let Some(registry) = dispatch.downcast_ref::<Registry>() else {
-            return;
-        };
-        let Some(current) = registry.span(id) else {
-            return;
-        };
-        for (key, value) in fields {
-            let Some(target) = current
-                .scope()
-                .find(|span| span.metadata().fields().field(key).is_some())
-            else {
-                continue;
+    // Misses are collected inside the closure and logged after it returns, so no
+    // event is emitted while the registry's span guards are live.
+    let misses: Vec<(&'static str, DeclaringSpanMiss)> = tracing::Span::current()
+        .with_subscriber(|(id, dispatch)| {
+            let Some(registry) = dispatch.downcast_ref::<Registry>() else {
+                return fields
+                    .iter()
+                    .map(|(key, _)| (*key, DeclaringSpanMiss::NotARegistry))
+                    .collect();
             };
-            let mut extensions = target.extensions_mut();
-            if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
-                storage.record_value(key, value);
+            let Some(current) = registry.span(id) else {
+                return fields
+                    .iter()
+                    .map(|(key, _)| (*key, DeclaringSpanMiss::NoDeclaringSpan))
+                    .collect();
+            };
+            let mut misses = Vec::new();
+            for (key, value) in fields {
+                let Some(target) = current
+                    .scope()
+                    .find(|span| span.metadata().fields().field(key).is_some())
+                else {
+                    misses.push((key, DeclaringSpanMiss::NoDeclaringSpan));
+                    continue;
+                };
+                let mut extensions = target.extensions_mut();
+                if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
+                    storage.record_value(key, value);
+                }
             }
-        }
-    });
+            misses
+        })
+        .unwrap_or_default();
+    for (key, miss) in misses {
+        log_declaring_span_miss(key, miss);
+    }
 }
 
 /// Recursively merge `source` JSON object into `target`.
@@ -1263,5 +1319,89 @@ mod runtime_metadata_tests {
         };
         let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
         assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
+}
+
+#[cfg(all(test, feature = "logging"))]
+#[allow(clippy::expect_used)]
+mod declaring_span_tests {
+    use std::sync::{Arc, Mutex};
+
+    use tracing::{span::Record, Id, Level, Subscriber};
+    use tracing_subscriber::{layer::Context, prelude::*, Layer};
+
+    use super::{record_json_fields_on_declaring_span, record_on_declaring_span};
+
+    /// Captures which span ids receive `record()` calls, and how many WARN events fire.
+    #[derive(Default, Clone)]
+    struct Probe {
+        recorded: Arc<Mutex<Vec<(u64, String)>>>,
+        warns: Arc<Mutex<usize>>,
+    }
+
+    impl<S: Subscriber> Layer<S> for Probe {
+        fn on_record(&self, id: &Id, values: &Record<'_>, _ctx: Context<'_, S>) {
+            struct Names(Vec<String>);
+            impl tracing::field::Visit for Names {
+                fn record_debug(&mut self, f: &tracing::field::Field, _: &dyn std::fmt::Debug) {
+                    self.0.push(f.name().to_owned());
+                }
+            }
+            let mut names = Names(Vec::new());
+            values.record(&mut names);
+            let mut recorded = self.recorded.lock().expect("probe lock");
+            for name in names.0 {
+                recorded.push((id.into_u64(), name));
+            }
+        }
+
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+            if *event.metadata().level() == Level::WARN {
+                *self.warns.lock().expect("probe lock") += 1;
+            }
+        }
+    }
+
+    #[test]
+    fn lands_on_the_ancestor_that_declares_the_field() {
+        let probe = Probe::default();
+        let subscriber = tracing_subscriber::registry().with(probe.clone());
+        tracing::subscriber::with_default(subscriber, || {
+            let golden = tracing::info_span!("golden", res_code = tracing::field::Empty);
+            let golden_id = golden.id().expect("enabled").into_u64();
+            let _g = golden.enter();
+            // A child that declares nothing, exactly like a déjà skeleton span.
+            let child = tracing::info_span!("child");
+            let child_id = child.id().expect("enabled").into_u64();
+            let _c = child.enter();
+
+            record_on_declaring_span("res_code", &200_u64);
+
+            let recorded = probe.recorded.lock().expect("probe lock");
+            assert_eq!(recorded.as_slice(), &[(golden_id, "res_code".to_owned())]);
+            assert_ne!(golden_id, child_id);
+        });
+        assert_eq!(*probe.warns.lock().expect("probe lock"), 0);
+    }
+
+    #[test]
+    fn undeclared_field_warns_after_the_scope_walk_and_does_not_deadlock() {
+        let probe = Probe::default();
+        let subscriber = tracing_subscriber::registry().with(probe.clone());
+        tracing::subscriber::with_default(subscriber, || {
+            let _outer = tracing::info_span!("outer").entered();
+            let _inner = tracing::info_span!("inner").entered();
+
+            record_on_declaring_span("nobody_declares_this", &1_u64);
+            record_json_fields_on_declaring_span(vec![(
+                "nobody_declares_this_either",
+                serde_json::json!({"k": "v"}),
+            )]);
+
+            assert!(probe.recorded.lock().expect("probe lock").is_empty());
+        });
+        // One warn per dropped field; the JSON helper also emits its per-field info
+        // event, which is not counted here.
+        assert_eq!(*probe.warns.lock().expect("probe lock"), 2);
     }
 }
