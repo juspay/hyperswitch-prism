@@ -677,8 +677,8 @@ impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
         let bank_name = ted
             .bank_name
             .map(|bn| {
-                grpc_api_types::payouts::BankNames::from_str_name(&bn)
-                    .ok_or_else(|| {
+                grpc_api_types::payouts::BankNames::try_from(bn)
+                    .map_err(|_| {
                         error_stack::report!(IntegrationError::InvalidDataFormat {
                             field_name: "bank_name",
                             context: IntegrationErrorContext {
