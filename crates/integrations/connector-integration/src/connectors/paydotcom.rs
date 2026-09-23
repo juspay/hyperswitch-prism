@@ -83,6 +83,127 @@
 
 pub mod transformers;
 
+// Use the full response so resource kind, cancellation, and authentication are preserved.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: Authorize,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Succeeded)),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        let _ = ctx;
+        status.attempt_status()
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: PSync,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Succeeded)),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        let _ = ctx;
+        status.attempt_status()
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: Void,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_void_sample()),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        let _ = ctx;
+        status.attempt_status()
+    }
+}
+
+// Missing underlying_network_id changes ErrorResponse, but leaves resource_common_data.status intact.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: SetupMandate,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Succeeded)),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        let _ = ctx;
+        status.attempt_status()
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: RepeatPayment,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Succeeded)),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        let _ = ctx;
+        status.attempt_status()
+    }
+}
+
+// Context is the original authorized amount; missing amounts retain Charged.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: Capture,
+    source: transformers::PaydotcomPaymentsResponse,
+    context: Option<common_utils::types::MinorUnit>,
+    params: [status, ctx],
+    success_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Succeeded)),
+    failure_sample: Some(transformers::status_mapping_charge_sample(transformers::PaydotcomChargeStatus::Failed)),
+    {
+        use common_enums::AttemptStatus;
+        match status.attempt_status() {
+            AttemptStatus::Charged => match (status.amount(), ctx) {
+                (Some(captured), Some(authorized)) if captured < authorized => AttemptStatus::PartialCharged,
+                _ => AttemptStatus::Charged,
+            },
+            AttemptStatus::Pending => AttemptStatus::CaptureInitiated,
+            AttemptStatus::Failure => AttemptStatus::CaptureFailed,
+            other => other,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: Refund,
+    source: transformers::PaydotcomRefundStatus,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
+    { Pending => Pending }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: RSync,
+    source: transformers::PaydotcomRefundStatus,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
+    { Pending => Pending }
+}
+
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;

@@ -364,6 +364,15 @@ macros::create_all_prerequisites!(
 // =============================================================================
 // AUTHORIZE — POST /v1/payments/init (paymentMethod="card", hosted/3DS redirect)
 // =============================================================================
+// NOTE: no impl_flow_status_mapping! for Authorize. The Init response
+// (`BoostPaymentInitResponse`, `uuid`/`referenceId`/`paymentUrl` only) carries
+// no `status` field at all — the TryFrom at transformers.rs:537 hardcodes
+// `AttemptStatus::AuthenticationPending` because the customer must still
+// complete the hosted/3DS redirect before BCPG reports any outcome. That
+// value is a non-terminal in Authorize::ALLOWED, not a member of
+// TERMINAL_SUCCESS_SET, so there is no honest `success_connector_status` to
+// declare; the outcome arrives later via webhook callback or PSync's
+// `BoostPaymentStatus`.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -435,6 +444,39 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // PSYNC — GET /v1/payments/refs/{referenceId}
 // =============================================================================
+// Mirrors `From<BoostPaymentStatus> for AttemptStatus` (transformers.rs:222),
+// which the PSync TryFrom (transformers.rs:591) routes through via
+// `AttemptStatus::from(item.response.status)`. The webhook event classifier
+// (`BoostWebhookBody::get_event_type`, transformers.rs:828) consults the same
+// mapping. All targets land in PSync's intentionally broad ALLOWED set.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Boost<T>,
+    flow:            PSync,
+    source:          boost::BoostPaymentStatus,
+    context:         (),
+    params:          [status, _ctx],
+    success_status:  Succeeded,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use boost::BoostPaymentStatus;
+        use common_enums::AttemptStatus;
+        match status {
+            BoostPaymentStatus::Succeeded => AttemptStatus::Charged,
+            BoostPaymentStatus::PendingPaymentMethod => AttemptStatus::PaymentMethodAwaited,
+            BoostPaymentStatus::PendingConfirmation
+            | BoostPaymentStatus::AwaitingConfirmation => AttemptStatus::ConfirmationAwaited,
+            BoostPaymentStatus::Processing | BoostPaymentStatus::Unknown => AttemptStatus::Pending,
+            BoostPaymentStatus::Canceled => AttemptStatus::Voided,
+            BoostPaymentStatus::Expired => AttemptStatus::Expired,
+            BoostPaymentStatus::Failed
+            | BoostPaymentStatus::Denied
+            | BoostPaymentStatus::Error => AttemptStatus::Failure,
+        }
+    }
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -473,6 +515,27 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // REFUND — POST /v1/reversals
 // =============================================================================
+// Mirrors `From<BoostReversalStatus> for RefundStatus` (transformers.rs:259),
+// which the Refund TryFrom (transformers.rs:739) routes through via
+// `RefundStatus::from(item.response.status)`. The `_ctx` variant (with `()`
+// context) is used because the enum carries a `#[serde(other)] Unknown`
+// catch-all the declarative macro expresses no differently — kept identical to
+// the RSync mapping below so both reversal legs stay in lockstep.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow:      Refund,
+    source:    boost::BoostReversalStatus,
+    success:   Succeeded => Success,
+    failure:   Failed    => Failure,
+    {
+        Pending         => Pending,
+        PendingApproval => Pending,
+        Expired         => Failure,
+        Denied          => Failure,
+        Unknown         => Pending,
+    }
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -504,6 +567,26 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // RSYNC — GET /v1/reversals/{reversalUuid}
 // =============================================================================
+// Mirrors `From<BoostReversalStatus> for RefundStatus` (transformers.rs:259),
+// which the RSync TryFrom (transformers.rs:775) routes through via
+// `RefundStatus::from(item.response.status)` — the reversal resource is the
+// same on create and on read, so this is identical to the Refund mapping
+// above.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow:      RSync,
+    source:    boost::BoostReversalStatus,
+    success:   Succeeded => Success,
+    failure:   Failed    => Failure,
+    {
+        Pending         => Pending,
+        PendingApproval => Pending,
+        Expired         => Failure,
+        Denied          => Failure,
+        Unknown         => Pending,
+    }
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,

@@ -557,36 +557,180 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// CreateOrder is not an AttemptStatus flow (its response type is
+// `PaymentCreateOrderResponse`, carrying an order id) — outside macro scope.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Juspay<T>
 {
 }
 
+// Authorize: mirrors `From<JuspayOrderStatus> for AttemptStatus`
+// (transformers.rs:177). The shared From is order-lifecycle-wide, so the
+// capture/void legs (`CaptureInitiated`, `CaptureFailed`, `VoidInitiated`,
+// `VoidFailed`) — which the authorize endpoint never legitimately returns —
+// are folded into Authorize-legal statuses: still-in-flight states stay
+// `Pending`, and a state already past the authorization leg counts as an
+// authorization failure. (Precedent: the Capture macro folds them to
+// `CaptureFailed`; Void folds them to `VoidFailed`.)
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Juspay<T>,
+    flow:      Authorize,
+    source:    transformers::JuspayOrderStatus,
+    success:   Charged => Charged,
+    failure:   AuthorizationFailed => Failure,
+    {
+        New => Started,
+        Created => Started,
+        Started => Pending,
+        Authorizing => Pending,
+        VbvSuccessful => Pending,
+        CodInitiated => Pending,
+        PendingVbv => AuthenticationPending,
+        Authorized => Authorized,
+        Voided => Voided,
+        VoidInitiated => AuthorizationFailed,
+        CaptureInitiated => AuthorizationFailed,
+        CaptureFailed => AuthorizationFailed,
+        VoidFailed => AuthorizationFailed,
+        AutoRefunded => AutoRefunded,
+        AuthenticationFailed => Failure,
+        JuspayDeclined => Failure,
+        NotFound => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Juspay<T>
 {
 }
 
+// PSync: mirrors the same `From<JuspayOrderStatus> for AttemptStatus`
+// (transformers.rs:177) — every target is PSync-legal.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Juspay<T>,
+    flow:      PSync,
+    source:    transformers::JuspayOrderStatus,
+    success:   Charged => Charged,
+    failure:   AuthorizationFailed => Failure,
+    {
+        New => Started,
+        Created => Started,
+        Started => Pending,
+        Authorizing => Pending,
+        VbvSuccessful => Pending,
+        CodInitiated => Pending,
+        PendingVbv => AuthenticationPending,
+        Authorized => Authorized,
+        Voided => Voided,
+        VoidInitiated => VoidInitiated,
+        CaptureInitiated => CaptureInitiated,
+        CaptureFailed => CaptureFailed,
+        VoidFailed => VoidFailed,
+        AutoRefunded => AutoRefunded,
+        AuthenticationFailed => Failure,
+        JuspayDeclined => Failure,
+        NotFound => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Juspay<T>
 {
 }
 
+// Capture: mirrors the Capture TryFrom via the shared `From<JuspayOrderStatus>`
+// (transformers.rs:1077), with the payment-lifecycle arms it can never legitimately
+// return folded into Capture-legal statuses (mirroring how cybersource maps
+// Voided/Reversed/Cancelled to CaptureFailed): an un-captured order state is
+// progress (`Pending`), a voided/refunded order has failed the capture.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Juspay<T>,
+    flow:      Capture,
+    source:    transformers::JuspayOrderStatus,
+    success:   Charged => Charged,
+    failure:   CaptureFailed => CaptureFailed,
+    {
+        CaptureInitiated => CaptureInitiated,
+        New => Pending,
+        Created => Pending,
+        Started => Pending,
+        Authorizing => Pending,
+        VbvSuccessful => Pending,
+        CodInitiated => Pending,
+        Authorized => Pending,
+        PendingVbv => CaptureFailed,
+        Voided => CaptureFailed,
+        VoidInitiated => CaptureFailed,
+        VoidFailed => CaptureFailed,
+        AutoRefunded => CaptureFailed,
+        AuthenticationFailed => Failure,
+        AuthorizationFailed => Failure,
+        JuspayDeclined => Failure,
+        NotFound => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Juspay<T>
 {
 }
 
+// NOTE — Refund: the Refund TryFrom (transformers.rs:1184) never reads a wire
+// status enum for the response-level branch. It searches `refunds[]` for the
+// entry matching the request's `refund_id` (or falls back to the last entry)
+// and stamps `RefundStatus::Pending` whenever the selected entry's `status`
+// field is absent. The status therefore depends on list structure + two
+// request-side values, not on a connector status alone — no typed source enum
+// covers that domain. Lifting this needs the response to carry a single
+// authoritative status field (or the TryFrom to error on a missing entry)
+// instead of list-scan + Pending fallback.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Juspay<T>
 {
 }
 
+// NOTE — RSync: the RSync TryFrom (transformers.rs:1238) has the same
+// shape as Refund: find the `refunds[]` entry matching `connector_refund_id`,
+// else stamp `RefundStatus::Pending`. The match-on-list + Pending fallback
+// cannot be expressed against a connector status enum (a missing entry is not
+// a status). Lifting needs an authoritative per-refund status field or a
+// lookup error on a missing entry.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Juspay<T>
 {
 }
 
+// Void: mirrors `From<JuspayOrderStatus>` (transformers.rs:1327), folding the
+// non-void lifecycle arms into Void-legal statuses: pre-void order states are
+// progress (`Pending`), a transaction already in the capture lifecycle cannot
+// be voided (`VoidFailed`).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Juspay<T>,
+    flow:      Void,
+    source:    transformers::JuspayOrderStatus,
+    success:   Voided => Voided,
+    failure:   VoidFailed => VoidFailed,
+    {
+        VoidInitiated => VoidInitiated,
+        New => Pending,
+        Created => Pending,
+        Started => Pending,
+        Authorizing => Pending,
+        VbvSuccessful => Pending,
+        CodInitiated => Pending,
+        PendingVbv => Pending,
+        Authorized => Pending,
+        Charged => VoidFailed,
+        CaptureInitiated => VoidFailed,
+        CaptureFailed => VoidFailed,
+        AutoRefunded => VoidFailed,
+        AuthenticationFailed => Failure,
+        AuthorizationFailed => Failure,
+        JuspayDeclined => Failure,
+        NotFound => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Juspay<T>
 {

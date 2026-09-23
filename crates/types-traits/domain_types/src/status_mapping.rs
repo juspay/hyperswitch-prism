@@ -223,6 +223,39 @@ macro_rules! impl_flow_status_mapping {
 /// canonical context used by `assert_terminal_mapping!` when testing the success path.
 #[macro_export]
 macro_rules! impl_flow_status_mapping_ctx {
+    // Expression samples support tuples, Option, primitives and acknowledgement-only
+    // responses. None explicitly records that this response has no terminal sample.
+    // Unlike the variant form, this form does not assert terminal/ALLOWED membership;
+    // callers must validate the returned status with the flow rules.
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_sample: $success:expr,
+        failure_sample: $failure:expr,
+        $body:block
+    ) => {
+        impl<$($($generic)*)?> $crate::flow_status::ConnectorTerminalMapping<$flow> for $connector {
+            type ConnectorStatus = $source;
+            type MappingContext = $ctx;
+            fn success_connector_sample() -> Option<$source> { $success }
+            fn failure_connector_sample() -> Option<$source> { $failure }
+            fn success_connector_status() -> $source {
+                <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::success_connector_sample()
+                    .expect("this response does not expose a terminal success sample")
+            }
+            fn failure_connector_status() -> $source {
+                <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::failure_connector_sample()
+                    .expect("this response does not expose a terminal failure sample")
+            }
+            fn map_attempt_status($status_name: $source, $ctx_name: $ctx) -> common_enums::AttemptStatus {
+                $body
+            }
+        }
+    };
     // ── with generics ────────────────────────────────────────────────────
     (
         generics:        [ $($generic:tt)* ],
@@ -545,6 +578,39 @@ macro_rules! impl_refund_flow_status_mapping {
 /// when the match just needs a free-form body but no real context.
 #[macro_export]
 macro_rules! impl_refund_flow_status_mapping_ctx {
+    // Expression samples support tuples, Option, primitives and acknowledgement-only
+    // responses. None explicitly records that this response has no terminal sample.
+    // Unlike the variant form, this form does not assert terminal/ALLOWED membership;
+    // callers must validate the returned status with the flow rules.
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_sample: $success:expr,
+        failure_sample: $failure:expr,
+        $body:block
+    ) => {
+        impl<$($($generic)*)?> $crate::flow_status::ConnectorRefundTerminalMapping<$flow> for $connector {
+            type ConnectorStatus = $source;
+            type MappingContext = $ctx;
+            fn success_connector_sample() -> Option<$source> { $success }
+            fn failure_connector_sample() -> Option<$source> { $failure }
+            fn success_connector_status() -> $source {
+                <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::success_connector_sample()
+                    .expect("this response does not expose a terminal success sample")
+            }
+            fn failure_connector_status() -> $source {
+                <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::failure_connector_sample()
+                    .expect("this response does not expose a terminal failure sample")
+            }
+            fn map_refund_status($status_name: $source, $ctx_name: $ctx) -> common_enums::RefundStatus {
+                $body
+            }
+        }
+    };
     // ── with explicit generics ────────────────────────────────────────────
     (
         generics:        [ $($generic:tt)* ],

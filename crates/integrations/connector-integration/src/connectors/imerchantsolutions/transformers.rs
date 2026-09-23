@@ -650,6 +650,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
+pub enum ImerchantsolutionsStatusSource {
+    Payment(ImerchantsolutionsPaymentStatus),
+    Webhook(ImerchantsolutionsWebhookStatus),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsPaymentsResponseData {
     payment_id: String,
     psp_reference: String,
@@ -686,7 +694,7 @@ enum ResultCode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsPaymentStatus {
+pub enum ImerchantsolutionsPaymentStatus {
     #[serde(alias = "AUTHORISED")]
     Authorised,
     Authorized,
@@ -1382,7 +1390,7 @@ pub struct ImerchantsolutionsVoidResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-enum ImerchantsolutionsVoidStatus {
+pub enum ImerchantsolutionsVoidStatus {
     Received,
     Cancelled,
 }
@@ -1501,7 +1509,7 @@ pub struct ImerchantsolutionsCaptureResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsCaptureStatus {
+pub enum ImerchantsolutionsCaptureStatus {
     Received,
     PartiallyCaptured,
     Captured,
@@ -1601,7 +1609,7 @@ pub struct ImerchantsolutionsRefundResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsRefundStatus {
+pub enum ImerchantsolutionsRefundStatus {
     Received,
     PartiallyRefunded,
     Refunded,
@@ -1634,6 +1642,18 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
 pub enum ImerchantsolutionsRefundSyncResponse {
     ImerchantsolutionsRsyncResponse(ImerchantsolutionsRsyncResponseData),
     ImerchantsolutionsWebhookResponse(Box<ImerchantsolutionsWebhookData>),
+}
+
+/// Status-source bridge for the RSync flow-status mapping: the untagged
+/// `ImerchantsolutionsRefundSyncResponse` carries either an
+/// `ImerchantsolutionsRefundStatus` (status endpoint) or an
+/// `ImerchantsolutionsWebhookStatus` (webhook payload echoed on sync), which the two
+/// arms map through different `From`/`TryFrom` impls.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::enum_variant_names)]
+pub enum ImerchantsolutionsRefundStatusSource {
+    Status(ImerchantsolutionsRefundStatus),
+    Webhook(ImerchantsolutionsWebhookStatus),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

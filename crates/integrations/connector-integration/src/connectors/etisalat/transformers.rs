@@ -702,6 +702,33 @@ pub struct EtisalatResponse {
     pub transaction: EtisalatTransactionBody,
 }
 
+/// Typed verdict of an Etisalat `Transaction.ResponseCode`, used as the
+/// `source` of the `impl_flow_status_mapping!`/`impl_refund_flow_status_mapping!`
+/// declarations. `response_code` stays a `String` on the wire struct (unknown
+/// codes must still deserialize), so the raw code is parsed into this enum at
+/// the trust boundary instead of being string-matched inside the macro bodies:
+/// `"0"` (SUCCESS_RESPONSE_CODE) is a success verdict, the codes in
+/// PENDING_RESPONSE_CODES are still in flight, and anything else is a
+/// flow-specific failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EtisalatResponseVerdict {
+    Success,
+    Pending,
+    Failure,
+}
+
+impl From<&EtisalatTransactionBody> for EtisalatResponseVerdict {
+    fn from(body: &EtisalatTransactionBody) -> Self {
+        if body.is_success() {
+            Self::Success
+        } else if body.is_pending() {
+            Self::Pending
+        } else {
+            Self::Failure
+        }
+    }
+}
+
 impl EtisalatTransactionBody {
     fn is_success(&self) -> bool {
         self.response_code == SUCCESS_RESPONSE_CODE

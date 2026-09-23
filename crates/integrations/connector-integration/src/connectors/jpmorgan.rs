@@ -795,6 +795,137 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
+// Keep the response capture method as context: Closed without Now is Authorized,
+// including Capture and SetupMandate. Instrumentation must preserve that behavior.
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: Authorize,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Closed,
+    success_targets: [Charged, Authorized],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: PSync,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Closed,
+    success_targets: [Charged, Authorized, Voided],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: Capture,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Closed,
+    success_targets: [Charged],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: Void,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Voided,
+    success_targets: [Voided],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: SetupMandate,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Closed,
+    success_targets: [Charged],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: RepeatPayment,
+    source: responses::JpmorganTransactionState,
+    context: Option<requests::CapMethod>,
+    params: [status, ctx],
+    success_status: Closed,
+    success_targets: [Charged],
+    failure_status: Declined,
+    failure_target: Failure,
+    {
+        jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: Refund,
+    source: responses::JpmorganResponseStatus,
+    context: responses::JpmorganTransactionState,
+    params: [status, state],
+    success_status: Success,
+    failure_status: Denied,
+    {
+        responses::RefundStatus::from((status, state)).into()
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Jpmorgan<T>,
+    flow: RSync,
+    source: responses::JpmorganResponseStatus,
+    context: responses::JpmorganTransactionState,
+    params: [status, state],
+    success_status: Success,
+    failure_status: Denied,
+    {
+        responses::RefundStatus::from((status, state)).into()
+    }
+}
+
+// VoidPC returns PostCaptureVoidStatus in PostCaptureVoidResponse and preserves
+// PaymentFlowData.status. It needs a mapping trait for that result type; mapping
+// it to AttemptStatus::VoidedPostCapture would change the production contract.
+
 macros::macro_connector_flow_status_impls!(
     connector: Jpmorgan,
     generic_type: T,

@@ -359,6 +359,46 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors the Authorize TryFrom (transformers.rs:1317): `/payments` is
+// synchronous, so the wire verdict is `procStatus == "0" && approvalStatus == "1"`,
+// typed as `JpmorganOrbitalAuthorizeOutcome` (transformers.rs:1054). `Capture` and
+// `VoidPC` are `not_implemented` here, so the connector only ever sends `transType
+// "AC"` and an approved verdict is always `Charged` (the TryFrom's `success_status`);
+// every failure verdict lands on `Failure` (the TryFrom's `failure_status`, whose only
+// exception — `procStatus "9710"` → non-terminal `Unresolved` — is one look-em-up-leg
+// of PSync, not of Authorize).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: JpmorganOrbital<T>,
+    flow:      Authorize,
+    source:    jpmorganorbital::JpmorganOrbitalAuthorizeOutcome,
+    success:   Success => Charged,
+    failure:   Failure => Failure,
+    {}
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:1384): `/inquiry` is the
+// recovery lookup for a lost Authorize response, keyed on the original `retryTrace`.
+// The wire verdict is typed as `JpmorganOrbitalInquiryOutcome` (transformers.rs:1085):
+// a found-and-approved transaction is `Charged` (this connector only sends `transType
+// "AC"`), a declined one is `Failure`. `NotFound` (inquiry itself failed:
+// `procStatus != "0"`) maps to the TryFrom's `Unresolved` — deliberately non-terminal,
+// since the payment may still have landed. `success_connector_status()` cannot
+// represent it; only `map_attempt_status` does.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: JpmorganOrbital<T>,
+    flow:      PSync,
+    source:    jpmorganorbital::JpmorganOrbitalInquiryOutcome,
+    success:   Success  => Charged,
+    failure:   Failure  => Failure,
+    {
+        NotFound => Unresolved,
+    }
+}
+
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // Authorize and PSync are implemented above and therefore appear in neither list.
 // `not_implemented` = Orbital documents an endpoint for it but this pass is scoped

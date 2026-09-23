@@ -505,6 +505,15 @@ pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
     fn success_connector_status() -> Self::ConnectorStatus;
     fn failure_connector_status() -> Self::ConnectorStatus;
 
+    /// Optional terminal sample; acknowledgement-only mappings return None.
+    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::success_connector_status())
+    }
+
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
+
     fn map_refund_status(
         status: Self::ConnectorStatus,
         ctx: Self::MappingContext,
@@ -530,6 +539,15 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// Returns the connector status that maps to a value in the flow's
     /// `TERMINAL_FAILURE_SET`.  Verified at test time by `assert_terminal_mapping!`.
     fn failure_connector_status() -> Self::ConnectorStatus;
+
+    /// Optional terminal sample; acknowledgement-only mappings return None.
+    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::success_connector_status())
+    }
+
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
 
     /// The per-flow status mapping function.  Replaces the shared
     /// `From<ConnectorStatus> for AttemptStatus` for this flow.

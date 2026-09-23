@@ -438,6 +438,91 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors the Authorize TryFrom (transformers/multisafepay/transformers.rs:925),
+// which maps via `From<MultisafepayPaymentStatus> for AttemptStatus` (transformers.rs:512).
+// All mapped targets are in `Authorize::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow:      Authorize,
+    source:    multisafepay::MultisafepayPaymentStatus,
+    success:   Completed  => Charged,
+    failure:   Declined   => Failure,
+    {
+        Initialized => AuthenticationPending,
+        Uncleared   => Pending,
+        Void        => Voided,
+    }
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:971), same
+// `From<MultisafepayPaymentStatus> for AttemptStatus` mapping; `PSync::ALLOWED` is a
+// superset of every target, so no flow adjustment is needed.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow:      PSync,
+    source:    multisafepay::MultisafepayPaymentStatus,
+    success:   Completed  => Charged,
+    failure:   Declined   => Failure,
+    {
+        Initialized => AuthenticationPending,
+        Uncleared   => Pending,
+        Void        => Voided,
+    }
+}
+
+// Refund — mirrors the Refund TryFrom (transformers.rs:1090): the response carries only a
+// `success: bool` flag, folded into `MultisafepayRefundStatus::{Succeeded, Failed}` and
+// mapped by `From<MultisafepayRefundStatus> for RefundStatus` (transformers.rs:533).
+// `Processing` is unreachable here (that variant exists for the webhook path). The
+// `()` context is unused; the `_ctx` variant only gives the verdict enum a wildcard arm.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Multisafepay<T>,
+    flow:           Refund,
+    source:         multisafepay::MultisafepayRefundVerdict,
+    context:        (),
+    params:         [verdict, ctx],
+    success_status: Succeeded,
+    failure_status: Failed,
+    {
+        let _ = ctx;
+        use common_enums::RefundStatus;
+        use multisafepay::MultisafepayRefundVerdict;
+        match verdict {
+            MultisafepayRefundVerdict::Succeeded => RefundStatus::Success,
+            MultisafepayRefundVerdict::Failed => RefundStatus::Failure,
+            MultisafepayRefundVerdict::Other => RefundStatus::Failure,
+        }
+    }
+}
+
+// RSync — mirrors the RSync TryFrom (transformers.rs:1117): identical bool-flag folding
+// as the Refund flow (the sync response is the same `MultisafepayRefundResponse` shape).
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Multisafepay<T>,
+    flow:           RSync,
+    source:         multisafepay::MultisafepayRefundVerdict,
+    context:        (),
+    params:         [verdict, ctx],
+    success_status: Succeeded,
+    failure_status: Failed,
+    {
+        let _ = ctx;
+        use common_enums::RefundStatus;
+        use multisafepay::MultisafepayRefundVerdict;
+        match verdict {
+            MultisafepayRefundVerdict::Succeeded => RefundStatus::Success,
+            MultisafepayRefundVerdict::Failed => RefundStatus::Failure,
+            MultisafepayRefundVerdict::Other => RefundStatus::Failure,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Multisafepay,
     generic_type: T,

@@ -718,6 +718,222 @@ macros::macro_connector_implementation!(
     }
 );
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors the Authorize TryFrom (transformers.rs:732), which delegates its
+// status to `From<ImerchantsolutionsPaymentStatus> for AttemptStatus`
+// (transformers.rs:1757). `Cancelled` → `Voided` is in `Authorize::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      Authorize,
+    source:    imerchantsolutions::ImerchantsolutionsPaymentStatus,
+    success:   Captured => Charged,
+    failure:   Failed   => Failure,
+    {
+        Authorised         => Authorized,
+        Authorized         => Authorized,
+        PendingCapture     => Authorized,
+        Pending3ds         => AuthenticationPending,
+        Cancelled          => Voided,
+        PartiallyCaptured  => PartialCharged,
+        PartiallyRefunded  => Charged,
+        Refunded           => Charged,
+        Pending            => Pending,
+        Refused            => Failure,
+    }
+}
+
+// RepeatPayment — mirrors the RepeatPayment TryFrom (transformers.rs:978), same
+// `From<ImerchantsolutionsPaymentStatus>` mapping. `RepeatPayment::ALLOWED` has no
+// `Voided`, and `PartiallyAuthorized` is not in `TERMINAL_SUCCESS_SET`, so the on-hold
+// wire states (`PendingCapture`, `Pending3ds`, `Pending`) read as the success terminal
+// `Authorized` — a parked MIT authorization terminates like the nexixpay/novalnet
+// repeat-payment precedents; `Cancelled` reads as terminal `Failure`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      RepeatPayment,
+    source:    imerchantsolutions::ImerchantsolutionsPaymentStatus,
+    success:   Captured => Charged,
+    failure:   Failed   => Failure,
+    {
+        Authorised         => Authorized,
+        Authorized         => Authorized,
+        PendingCapture     => Authorized,
+        Pending3ds         => Authorized,
+        PartiallyCaptured  => PartialCharged,
+        PartiallyRefunded  => Charged,
+        Refunded           => Charged,
+        Pending            => Authorized,
+        Cancelled          => Failure,
+        Refused            => Failure,
+    }
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:1160): source is the untagged
+// `ImerchantsolutionsPaymentSyncResponse`, which carries either
+// `ImerchantsolutionsPaymentStatus` (status endpoint) or `ImerchantsolutionsWebhookStatus`
+// (webhook payload echoed back on sync); both are relayed by
+// `From<ImerchantsolutionsPaymentStatus>` (transformers.rs:1757) and
+// `From<ImerchantsolutionsWebhookStatus>` (transformers.rs:1783). `PSync::ALLOWED`
+// covers every target.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      PSync,
+    source:    imerchantsolutions::ImerchantsolutionsStatusSource,
+    context:   (),
+    params:    [status, _ctx],
+    success_sample: Some(imerchantsolutions::ImerchantsolutionsStatusSource::Payment(
+        imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured,
+    )),
+    failure_sample: Some(imerchantsolutions::ImerchantsolutionsStatusSource::Payment(
+        imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed,
+    )),
+    {
+        use common_enums::AttemptStatus;
+        use imerchantsolutions::{
+            ImerchantsolutionsPaymentStatus as PS, ImerchantsolutionsStatusSource as Src,
+            ImerchantsolutionsWebhookStatus as WS,
+        };
+        match status {
+            Src::Payment(PS::Authorised) | Src::Payment(PS::Authorized)
+            | Src::Payment(PS::PendingCapture) | Src::Webhook(WS::Authorized) => {
+                AttemptStatus::Authorized
+            }
+            Src::Payment(PS::PartiallyCaptured) | Src::Webhook(WS::PartiallyCaptured) => {
+                AttemptStatus::PartialCharged
+            }
+            Src::Payment(PS::Cancelled) | Src::Webhook(WS::Cancelled) => {
+                AttemptStatus::Voided
+            }
+            Src::Payment(PS::Captured) | Src::Payment(PS::PartiallyRefunded)
+            | Src::Payment(PS::Refunded) | Src::Webhook(WS::Captured)
+            | Src::Webhook(WS::PartiallyRefunded) | Src::Webhook(WS::Refunded) => {
+                AttemptStatus::Charged
+            }
+            Src::Payment(PS::Pending) => AttemptStatus::Pending,
+            Src::Payment(PS::Pending3ds) => AttemptStatus::AuthenticationPending,
+            Src::Payment(PS::Refused) | Src::Payment(PS::Failed)
+            | Src::Webhook(WS::Failed) | Src::Webhook(WS::Refused) => AttemptStatus::Failure,
+        }
+    }
+}
+
+// Void — mirrors the Void TryFrom (transformers.rs:1398): the cancel endpoint answers
+// ack-or-cancelled (`ImerchantsolutionsVoidStatus` has only `Received` | `Cancelled`).
+// There is no failure variant on the wire — a rejected cancel arrives as an HTTP error
+// body, not in this enum — so `failure_sample: None` per the acknowledge-only
+// convention of `impl_flow_status_mapping_ctx!`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      Void,
+    source:    imerchantsolutions::ImerchantsolutionsVoidStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success_sample: Some(imerchantsolutions::ImerchantsolutionsVoidStatus::Cancelled),
+    failure_sample: None,
+    {
+        use common_enums::AttemptStatus;
+        use imerchantsolutions::ImerchantsolutionsVoidStatus as VS;
+        match status {
+            VS::Received => AttemptStatus::VoidInitiated,
+            VS::Cancelled => AttemptStatus::Voided,
+        }
+    }
+}
+
+// Capture — mirrors the Capture TryFrom (transformers.rs:1526), which reads
+// `From<ImerchantsolutionsCaptureStatus> for AttemptStatus` (transformers.rs:1803):
+// `Captured`/`PartiallyCaptured` are terminal, `Received` is in-flight. As with Void
+// the wire enum has no failure variant, so `failure_sample: None`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      Capture,
+    source:    imerchantsolutions::ImerchantsolutionsCaptureStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success_sample: Some(imerchantsolutions::ImerchantsolutionsCaptureStatus::Captured),
+    failure_sample: None,
+    {
+        use common_enums::AttemptStatus;
+        use imerchantsolutions::ImerchantsolutionsCaptureStatus as CS;
+        match status {
+            CS::Received => AttemptStatus::CaptureInitiated,
+            CS::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CS::Captured => AttemptStatus::Charged,
+        }
+    }
+}
+
+// Refund — mirrors the Refund TryFrom (transformers.rs:1618), which reads
+// `From<ImerchantsolutionsRefundStatus> for RefundStatus` (transformers.rs:1848):
+// `Refunded`/`PartiallyRefunded` are terminal success, `Received` is in-flight.
+// The wire shape has no failure variant (POST /refunds only reports these three
+// states), so there is no terminal-failure sample — `failure_sample: None` per the
+// acknowledge-only convention of `impl_refund_flow_status_mapping_ctx!`.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      Refund,
+    source:    imerchantsolutions::ImerchantsolutionsRefundStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success_sample: Some(imerchantsolutions::ImerchantsolutionsRefundStatus::Refunded),
+    failure_sample: None,
+    {
+        use common_enums::RefundStatus;
+        use imerchantsolutions::ImerchantsolutionsRefundStatus as RS;
+        match status {
+            RS::Received => RefundStatus::Pending,
+            RS::PartiallyRefunded | RS::Refunded => RefundStatus::Success,
+        }
+    }
+}
+
+// RSync — mirrors the RSync TryFrom (transformers.rs:1665): source is the untagged
+// `ImerchantsolutionsRefundSyncResponse`. The status-endpoint arm reads
+// `From<ImerchantsolutionsRefundStatus> for RefundStatus` (transformers.rs:1848, same
+// mapping as Refund); the webhook arm reads `TryFrom<ImerchantsolutionsWebhookStatus>`
+// (transformers.rs:1851) where refusal (`Failed` | `Refused`) is a terminal refund
+// failure and non-refund statuses error out before mapping — no wire refund status ever
+// produces `Pending` on that arm.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Imerchantsolutions<T>,
+    flow:      RSync,
+    source:    imerchantsolutions::ImerchantsolutionsRefundStatusSource,
+    context:   (),
+    params:    [status, _ctx],
+    success_sample: Some(imerchantsolutions::ImerchantsolutionsRefundStatusSource::Status(
+        imerchantsolutions::ImerchantsolutionsRefundStatus::Refunded,
+    )),
+    failure_sample: Some(imerchantsolutions::ImerchantsolutionsRefundStatusSource::Webhook(
+        imerchantsolutions::ImerchantsolutionsWebhookStatus::Failed,
+    )),
+    {
+        use common_enums::RefundStatus;
+        use imerchantsolutions::{
+            ImerchantsolutionsRefundStatus as RS, ImerchantsolutionsRefundStatusSource as RSrc,
+            ImerchantsolutionsWebhookStatus as WS,
+        };
+        match status {
+            RSrc::Status(RS::Received) => RefundStatus::Pending,
+            RSrc::Status(RS::PartiallyRefunded) | RSrc::Status(RS::Refunded)
+            | RSrc::Webhook(WS::PartiallyRefunded) | RSrc::Webhook(WS::Refunded) => {
+                RefundStatus::Success
+            }
+            RSrc::Webhook(WS::Failed) | RSrc::Webhook(WS::Refused) => RefundStatus::Failure,
+            // Non-refund webhook statuses are rejected by
+            // `TryFrom<ImerchantsolutionsWebhookStatus> for RefundStatus` before mapping.
+            RSrc::Webhook(_) => RefundStatus::Failure,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Imerchantsolutions,
     generic_type: T,

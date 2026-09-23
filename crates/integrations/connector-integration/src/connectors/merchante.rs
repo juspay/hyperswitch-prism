@@ -287,33 +287,185 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Merchante<T>
 {
 }
+
+// Authorize: mirrors `MerchantePaymentStatus::to_attempt_status` (transformers.rs:310) —
+// Approved → Charged (auto-capture) / Authorized (manual), Declined → Failure; the
+// failure target does not depend on capture intent, unlike bambora, but the success
+// target does, hence the ctx.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Merchante<T>,
+    flow:            Authorize,
+    source:          transformers::MerchantePaymentStatus,
+    context:         transformers::MerchanteCaptureIntent,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged, Authorized],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Merchante<T>
 {
+}
+
+// PSync: mirrors the PSync TryFrom (transformers.rs:601), which reuses
+// `MerchantePaymentStatus::to_attempt_status` with the request's capture intent.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Merchante<T>,
+    flow:            PSync,
+    source:          transformers::MerchantePaymentStatus,
+    context:         transformers::MerchanteCaptureIntent,
+    params:          [status, ctx],
+    success_status:  Approved,
+    success_targets: [Charged, Authorized],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Merchante<T>
 {
 }
+
+// Capture: mirrors the Capture TryFrom (transformers.rs:785-789) — an approved
+// Settle is Charged, anything else Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow:      Capture,
+    source:    transformers::MerchantePaymentStatus,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Merchante<T>
 {
+}
+
+// Void: mirrors the Void TryFrom (transformers.rs:877-881) — an approved Void is
+// Voided, anything else VoidFailed.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow:      Void,
+    source:    transformers::MerchantePaymentStatus,
+    success:   Approved => Voided,
+    failure:   Declined => VoidFailed,
+    {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Merchante<T>
 {
 }
+
+// Refund: mirrors the Refund TryFrom, i.e. `From<MerchantePaymentStatus> for
+// RefundStatus` (transformers.rs:319) — approved → Success, declined → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow:      Refund,
+    source:    transformers::MerchantePaymentStatus,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Merchante<T>
 {
+}
+
+// RSync: mirrors the RSync TryFrom (transformers.rs:676-692), the same
+// `From<MerchantePaymentStatus> for RefundStatus` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow:      RSync,
+    source:    transformers::MerchantePaymentStatus,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Merchante<T>
 {
 }
+
+// RepeatPayment: mirrors the RepeatPayment TryFrom (transformers.rs:1197-1198),
+// the same `to_attempt_status` helper as Authorize.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Merchante<T>,
+    flow:            RepeatPayment,
+    source:          transformers::MerchantePaymentStatus,
+    context:         transformers::MerchanteCaptureIntent,
+    params:          [status, ctx],
+    success_status:  Approved,
+    // `Authorized` is omitted: not in RepeatPayment's TERMINAL_SUCCESS_SET (an MIT is
+    // always sent auto-capture in practice, so the Charged arm is canonical).
+    success_targets: [Charged],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Merchante<T>
 {
+}
+
+// SetupMandate: mirrors the SetupMandate TryFrom (transformers.rs:1350-1388) — an
+// approved $0 Verify (store_card=Y) is stamped Charged (the flow's terminal success),
+// a decline goes to the error path.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow:      SetupMandate,
+    source:    transformers::MerchantePaymentStatus,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Merchante<T>

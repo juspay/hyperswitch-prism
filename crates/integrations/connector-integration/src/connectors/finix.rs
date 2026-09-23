@@ -295,11 +295,63 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+// Mirrors the Authorize TryFrom's `(FinixId, FinixPaymentStatus)` matrix
+// (transformers.rs:572): `AU*` + Succeeded → Authorized (manual-capture
+// path), `TR*` + Succeeded → Charged, `AU*` + Pending → AuthenticationPending
+// (3DS still in flight), everything else → the flow's failure terminal. The
+// id-prefix split is typed as `FinixIdKind` (transformers.rs) — the same
+// discriminant the TryFrom matches on, not a synthetic flow-specific
+// duplicate. The default ctx (`Authorization`, mirroring `From<String>`s
+// unknown-prefix fallback) makes `success_connector_status()` resolve to the
+// manual-capture `Authorized` terminal.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Finix<T>,
+    flow:            Authorize,
+    source:          finix::FinixPaymentStatus,
+    context:         finix::FinixIdKind,
+    params:          [status, id_kind],
+    success_status:  Succeeded,
+    success_targets: [Authorized, Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use finix::{FinixIdKind, FinixPaymentStatus};
+        match (id_kind, status) {
+            (FinixIdKind::Transfer, FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
+            (FinixIdKind::Transfer, FinixPaymentStatus::Pending) => AttemptStatus::Pending,
+            (FinixIdKind::Authorization, FinixPaymentStatus::Succeeded) => {
+                AttemptStatus::Authorized
+            }
+            (FinixIdKind::Authorization, FinixPaymentStatus::Pending) => {
+                AttemptStatus::AuthenticationPending
+            }
+            (FinixIdKind::Authorization, FinixPaymentStatus::Failed)
+            | (FinixIdKind::Authorization, FinixPaymentStatus::Canceled)
+            | (FinixIdKind::Authorization, FinixPaymentStatus::Unknown) => {
+                AttemptStatus::AuthorizationFailed
+            }
+            (FinixIdKind::Transfer, FinixPaymentStatus::Failed)
+            | (FinixIdKind::Transfer, FinixPaymentStatus::Canceled)
+            | (FinixIdKind::Transfer, FinixPaymentStatus::Unknown) => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Finix<T>
 {
 }
 
+// NOTE: no impl_flow_status_mapping! for Capture. Finix capture is an async
+// handoff — the TryFrom (transformers.rs:826) never reports a terminal success:
+// a SUCCEEDED capture only confirms the authorization update, so the attempt
+// stays `Pending` until a PSync on the transfer id confirms the charge
+// (`Charged`). The `(state, is_void)` pair maps the capture's own success into
+// `Pending`, which is not in Capture::TERMINAL_SUCCESS_SET, so the macro's
+// const-asserted `success:` variant has no honest target: declaring
+// `Succeeded => Charged` would claim a terminal the TryFrom deliberately never
+// produces on this call.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Finix<T>
 {
@@ -310,26 +362,150 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the PSync TryFrom's `(FinixId, FinixPaymentStatus)` matrix
+// (transformers.rs:729) — same id-prefix split as Authorize, but the
+// catch-alls are the sync-side honest reads: Failed → Failure, Canceled →
+// Voided, Unknown → Pending (rather than Authorize's `_ ⇒
+// AuthorizationFailed`/`Failure` per-branch failure leg).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Finix<T>,
+    flow:            PSync,
+    source:          finix::FinixPaymentStatus,
+    context:         finix::FinixIdKind,
+    params:          [status, id_kind],
+    success_status:  Succeeded,
+    success_targets: [Authorized, Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use finix::{FinixIdKind, FinixPaymentStatus};
+        match (id_kind, status) {
+            (FinixIdKind::Authorization, FinixPaymentStatus::Succeeded) => {
+                AttemptStatus::Authorized
+            }
+            (FinixIdKind::Authorization, FinixPaymentStatus::Pending) => {
+                AttemptStatus::AuthenticationPending
+            }
+            (FinixIdKind::Transfer, FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
+            (FinixIdKind::Transfer, FinixPaymentStatus::Pending) => AttemptStatus::Pending,
+            (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
+            (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
+            (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Finix<T>
 {
 }
 
+// Mirrors the Void TryFrom (transformers.rs:1004): `Succeeded`/`Canceled` →
+// `Voided`, `Failed` → `VoidFailed`, `Pending`/`Unknown` collapse to `Pending`
+// — the `Voided|Voided` pair in the TryFrom's pattern is what collapses into a
+// single `success: Succeeded => Voided` here, with `Canceled => Voided` carried
+// in the body.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Finix<T>,
+    flow:      Void,
+    source:    finix::FinixPaymentStatus,
+    success:   Succeeded => Voided,
+    failure:   Failed    => VoidFailed,
+    {
+        Pending => Pending,
+        Canceled => Voided,
+        Unknown => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Finix<T>
 {
 }
 
+// Mirrors the Refund TryFrom (transformers.rs:1070): refund leg settled →
+// `Success`; `Failed`/`Canceled` → `Failure` (a canceled refund leg can never
+// reach the account, so it is terminal, not `Pending`); `Pending`/`Unknown`
+// stay `Pending` until RSync or a webhook resolves them.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Finix<T>,
+    flow:      Refund,
+    source:    finix::FinixPaymentStatus,
+    success:   Succeeded => Success,
+    failure:   Failed    => Failure,
+    {
+        Pending => Pending,
+        Canceled => Failure,
+        Unknown => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Finix<T>
 {
 }
 
+// RSync re-issues the same `state` lookup and goes through the identical
+// mapping the RSync TryFrom (transformers.rs:954) applies — the refund
+// transaction resource is the same on create and on read.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Finix<T>,
+    flow:      RSync,
+    source:    finix::FinixPaymentStatus,
+    success:   Succeeded => Success,
+    failure:   Failed    => Failure,
+    {
+        Pending => Pending,
+        Canceled => Failure,
+        Unknown => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Finix<T>
 {
 }
 
+// Mirrors the RepeatPayment TryFrom's `(FinixId, FinixPaymentStatus)` matrix
+// (transformers.rs:1811): the TryFrom hands every Finix MIT/repeat charge to
+// the same HS-style `get_finix_response` failure split, so `Failed`,
+// `Canceled` and `Unknown` all surface as `Failure` (never `Voided` — the
+// RepeatPayment request cannot void). The `AU*` + `Succeeded` → `Authorized`
+// leg is kept in the body for honesty with the TryFrom, but
+// `success_targets` declares only `Charged`: Finix's RepeatPayment request
+// `POST /transfers` always settles to a `TR*` id, so an `AU*` response is a
+// protocol anomaly rather than a RepeatPayment terminal, and
+// RepeatPayment::TERMINAL_SUCCESS_SET does not admit `Authorized`.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Finix<T>,
+    flow:            RepeatPayment,
+    source:          finix::FinixPaymentStatus,
+    context:         finix::FinixIdKind,
+    params:          [status, id_kind],
+    success_status:  Succeeded,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use finix::{FinixIdKind, FinixPaymentStatus};
+        match (id_kind, status) {
+            (FinixIdKind::Transfer, FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
+            (FinixIdKind::Transfer, FinixPaymentStatus::Pending) => AttemptStatus::Pending,
+            (FinixIdKind::Authorization, FinixPaymentStatus::Succeeded) => {
+                AttemptStatus::Authorized
+            }
+            (FinixIdKind::Authorization, FinixPaymentStatus::Pending) => {
+                AttemptStatus::AuthenticationPending
+            }
+            (_, FinixPaymentStatus::Failed)
+            | (_, FinixPaymentStatus::Canceled)
+            | (_, FinixPaymentStatus::Unknown) => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Finix<T>
 {
@@ -341,6 +517,14 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+// NOTE: no impl_flow_status_mapping! for SetupMandate. The mandate-setup leg
+// creates a Finix payment *instrument* (`POST /payment_instruments`) whose
+// response (`FinixInstrumentResponse`) has no transaction state at all — the
+// TryFrom (transformers.rs:1630) keys success off `id.is_some() && enabled`,
+// and hardcodes `AttemptStatus::Charged` on that structural verdict (the
+// instrument being live), `AttemptStatus::Failure` otherwise. There is no
+// connector *status* enum on the wire to mirror, so the macro's
+// `source_connector_status` has nothing honest to name.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Finix<T>
 {

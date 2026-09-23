@@ -60,21 +60,114 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Etisalat<T>
 {
 }
+// Mirrors `map_attempt_status` (transformers.rs:741) as the Authorize TryFrom
+// (transformers.rs:800) calls it: `is_auto_capture` chooses the success leg
+// (`Charged` auto / `Authorized` manual), `"0"` → that leg, a pending response
+// code → `Pending`, anything else → `Failure`. The response code string is
+// parsed into `EtisalatResponseVerdict` (transformers.rs) — the macro body
+// matches enum variants, never raw strings. The ctx bool is the request's
+// `is_auto_capture()` (Default false = manual capture, matching a `None`
+// capture_method).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Etisalat<T>,
+    flow:            Authorize,
+    source:          etisalat::EtisalatResponseVerdict,
+    context:         bool,
+    params:          [verdict, is_auto_capture],
+    success_status:  Success,
+    success_targets: [Charged, Authorized],
+    failure_status:  Failure,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use etisalat::EtisalatResponseVerdict;
+        match verdict {
+            EtisalatResponseVerdict::Success => {
+                if is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            EtisalatResponseVerdict::Pending => AttemptStatus::Pending,
+            EtisalatResponseVerdict::Failure => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Etisalat<T>
 {
 }
+// NOTE: no impl_flow_status_mapping! for Capture. The Capture TryFrom
+// (transformers.rs:847) computes `is_partial` by comparing the capture amount
+// against the authorized amount on the request — that comparison is
+// request-data, not connector-response status, so the dispatcher macro cannot
+// consume it — and routes the success leg to `PartialCharged`/`Charged`
+// accordingly. A fixed `success_connector_status()` therefore has no honest
+// target (`EtisalatResponseVerdict::Success` maps to either Charged or
+// PartialCharged depending on that comparison); both are in
+// Capture::TERMINAL_SUCCESS_SET but the const-asserted single `success:`
+// variant cannot express the split, and synthesising a bool ctx for a
+// *request-side* amount comparison would lie about the source type being
+// response-derived.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Etisalat<T>
 {
+}
+// The refund leg (transformers.rs:1031) keys its `RefundsResponseData.refund_status`
+// off the same `is_success()`/`is_pending()` response-code split as
+// `map_attempt_status` — `RefundStatus::Success` on `"0"`, `Pending` on the
+// PENDING_RESPONSE_CODES, `Failure` otherwise. The connector status string is
+// parsed into `EtisalatResponseVerdict` at the trust boundary (transformers.rs);
+// the macro body matches its variants, no raw string matching.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow:      Refund,
+    source:    etisalat::EtisalatResponseVerdict,
+    success:   Success => Success,
+    failure:   Failure => Failure,
+    {
+        Pending => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Etisalat<T>
 {
 }
+// Mirrors the Void TryFrom (transformers.rs:940): `map_attempt_status(&body,
+// AttemptStatus::Voided, AttemptStatus::VoidFailed)` — all Void targets land in
+// Void::ALLOWED (Voided / Pending / VoidFailed).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow:      Void,
+    source:    etisalat::EtisalatResponseVerdict,
+    success:   Success => Voided,
+    failure:   Failure => VoidFailed,
+    {
+        Pending => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Etisalat<T>
 {
+}
+// Mirrors the RepeatPayment TryFrom (transformers.rs:999): payer-not-present
+// recurring charges always auto-capture on Etisalat, so the call is
+// `map_attempt_status(&body, AttemptStatus::Charged, AttemptStatus::Failure)`
+// — a fixed success leg with no request-side split.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow:      RepeatPayment,
+    source:    etisalat::EtisalatResponseVerdict,
+    success:   Success => Charged,
+    failure:   Failure => Failure,
+    {
+        Pending => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Etisalat<T>

@@ -363,6 +363,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ===== FLOW STATUS MAPPINGS =====
+// NOTE: no flow-status macros. The only implemented flow is AccessTokenAuth
+// (ServerAuthenticationToken), which returns `ServerAuthenticationTokenResponseData`
+// instead of producing an AttemptStatus, so there is no status mapping to declare —
+// and there is no `FlowStatusRules` impl for it. Every `AttemptStatus`/`RefundStatus`
+// flow (Authorize, PSync, Refund, RSync, SetupMandate, RepeatPayment) is directly
+// listed as `not_implemented` in macro_connector_flow_status_impls below — the Pix
+// payment integration was never written, so there is no wire status enum at all.
+
 macros::macro_connector_flow_status_impls!(
     connector: Itaubank,
     generic_type: T,

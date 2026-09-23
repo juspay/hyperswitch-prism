@@ -33,6 +33,264 @@ use serde::Serialize;
 use std::fmt::Debug;
 pub mod transformers;
 
+// Status instrumentation only; ID/detail extraction errors remain in TryFrom.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: Authorize,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: (transformers::NuveiPaymentStatus, bool),
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let (response_status, is_auto_capture) = ctx;
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized },
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Redirect) => AttemptStatus::AuthenticationPending,
+            Some(NuveiTransactionStatus::Pending) => AttemptStatus::Pending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Pending
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+// Maps extracted transaction_details; absent details return Err before mapping (no AttemptStatus).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: PSync,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: (transformers::NuveiPaymentStatus, transformers::NuveiSyncTransactionType),
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let (response_status, transaction_type) = ctx;
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => if matches!(transaction_type, transformers::NuveiSyncTransactionType::Auth) {
+                AttemptStatus::Authorized
+            } else {
+                AttemptStatus::Charged
+            },
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Redirect) => AttemptStatus::AuthenticationPending,
+            Some(NuveiTransactionStatus::Pending) => AttemptStatus::Pending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Pending
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: Capture,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: transformers::NuveiPaymentStatus,
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let response_status = ctx;
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Pending) => AttemptStatus::Pending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: Void,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: transformers::NuveiPaymentStatus,
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let response_status = ctx;
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::VoidFailed;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => AttemptStatus::Voided,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::VoidFailed,
+            Some(NuveiTransactionStatus::Pending) => AttemptStatus::Pending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Voided
+                } else {
+                    AttemptStatus::VoidFailed
+                }
+            }
+        }
+    }
+}
+
+// Context includes presence of payment_option.user_payment_option_id.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: SetupMandate,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: (transformers::NuveiPaymentStatus, bool),
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let (response_status, has_mandate_reference) = ctx;
+        if !has_mandate_reference {
+            return AttemptStatus::Failure;
+        }
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Redirect) => AttemptStatus::AuthenticationPending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Pending
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: RepeatPayment,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: transformers::NuveiPaymentStatus,
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        let response_status = ctx;
+        if matches!(response_status, NuveiPaymentStatus::Error) {
+            return AttemptStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Redirect) => AttemptStatus::AuthenticationPending,
+            _ => {
+                if matches!(response_status, NuveiPaymentStatus::Success) {
+                    AttemptStatus::Pending
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: Refund,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: transformers::NuveiPaymentStatus,
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::RefundStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        if matches!(ctx, NuveiPaymentStatus::Error) {
+            return RefundStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => RefundStatus::Success,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => RefundStatus::Failure,
+            Some(NuveiTransactionStatus::Pending) => RefundStatus::Pending,
+            _ => {
+                if matches!(ctx, NuveiPaymentStatus::Success) {
+                    RefundStatus::Success
+                } else {
+                    RefundStatus::Failure
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: RSync,
+    source: Option<transformers::NuveiTransactionStatus>,
+    context: transformers::NuveiPaymentStatus,
+    params: [status, ctx],
+    success_sample: Some(Some(transformers::NuveiTransactionStatus::Approved)),
+    failure_sample: Some(Some(transformers::NuveiTransactionStatus::Declined)),
+    {
+        use common_enums::RefundStatus;
+        use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
+        if matches!(ctx, NuveiPaymentStatus::Error) {
+            return RefundStatus::Failure;
+        }
+        match status {
+            Some(NuveiTransactionStatus::Approved) => RefundStatus::Success,
+            Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => RefundStatus::Failure,
+            Some(NuveiTransactionStatus::Pending) => RefundStatus::Pending,
+            _ => {
+                if matches!(ctx, NuveiPaymentStatus::Success) {
+                    RefundStatus::Success
+                } else {
+                    RefundStatus::Failure
+                }
+            }
+        }
+    }
+}
+
 use transformers::{
     NuveiCaptureRequest, NuveiCaptureResponse, NuveiClientAuthRequest, NuveiClientAuthResponse,
     NuveiErrorResponse, NuveiOpenOrderRequest, NuveiOpenOrderResponse, NuveiPaymentRequest,

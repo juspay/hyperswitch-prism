@@ -1,5 +1,106 @@
 pub mod transformers;
 
+// Status instrumentation mirrors the existing response transformers.
+// Source is transaction_approved; context is request.is_auto_capture().
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: Authorize,
+    source: bool,
+    context: bool,
+    params: [status, ctx],
+    success_sample: Some(true),
+    failure_sample: Some(false),
+    {
+        transformers::map_payment_status(true, status, ctx)
+    }
+}
+
+// Source is (found, transaction_approved); context is request.is_auto_capture().
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: PSync,
+    source: (bool, bool),
+    context: bool,
+    params: [status, ctx],
+    success_sample: Some((true, true)),
+    failure_sample: Some((true, false)),
+    {
+        transformers::map_payment_status(status.0, status.1, ctx)
+    }
+}
+
+// Source is transaction_approved; required transaction IDs remain TryFrom validation.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: Capture,
+    source: bool,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(true),
+    failure_sample: Some(false),
+    {
+        let _ = ctx;
+        if status {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::CaptureFailed
+        }
+    }
+}
+
+// Source is transaction_approved; required transaction IDs remain TryFrom validation.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: Void,
+    source: bool,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(true),
+    failure_sample: Some(false),
+    {
+        let _ = ctx;
+        if status {
+            common_enums::AttemptStatus::Voided
+        } else {
+            common_enums::AttemptStatus::VoidFailed
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: Refund,
+    source: bool,
+    context: (),
+    params: [status, ctx],
+    success_sample: Some(true),
+    failure_sample: Some(false),
+    {
+        let _ = ctx;
+        transformers::map_refund_status(true, status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payconex<T>,
+    flow: RSync,
+    source: (bool, bool),
+    context: (),
+    params: [status, ctx],
+    success_sample: Some((true, true)),
+    failure_sample: Some((true, false)),
+    {
+        let _ = ctx;
+        transformers::map_refund_status(status.0, status.1)
+    }
+}
+
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
