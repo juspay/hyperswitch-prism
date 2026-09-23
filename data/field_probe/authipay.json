@@ -2,7 +2,7 @@
   "connector": "authipay",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for authipay"
       }
@@ -118,6 +118,13 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAAAAAAAAAAAAAAAA",
+            "threeds_server_transaction_id": "probe-3ds-server-txn-001",
+            "message_version": "2.1.0",
+            "ds_transaction_id": "probe-3ds-ds-txn-001"
+          },
           "return_url": "https://example.com/return"
         },
         "sample": {
@@ -132,7 +139,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\"}},\"authenticationResult\":{\"authenticationType\":\"Secure3DAuthenticationResult\",\"cavv\":\"AAAAAAAAAAAAAAAAAAAAAAAA\",\"xid\":\"probe-3ds-server-txn-001\",\"dsTransactionId\":\"probe-3ds-ds-txn-001\",\"eci\":\"05\"}}"
         }
       },
       "CashappQr": {
@@ -609,7 +616,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
       }
     },
     "incremental_authorization": {
@@ -620,7 +642,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -629,15 +665,84 @@
       }
     },
     "post_authenticate": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for authipay"
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "connector_order_reference_id": "probe_ipg_txn_payerauth_001",
+          "redirection_response": {
+            "params": "cRes=ZXlKMGVXaGxzeUk2SW5SbGMzUWlMQ0pqWVhZaU9pSkJRVVpCVUVGRlFVNHZJbjA9",
+            "payload": {}
+          }
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments/probe_ipg_txn_payerauth_001",
+          "method": "Patch",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"authenticationType\":\"Secure3DAuthenticationUpdateRequest\",\"acsResponse\":{\"cRes\":\"ZXlKMGVXaGxzeUk2SW5SbGMzUWlMQ0pqWVhZaU9pSkJRVVpCVUVGRlFVNHZJbjA9\"}}"
+        }
       }
     },
     "pre_authenticate": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for authipay"
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardPayerAuthTransaction\",\"merchantTransactionId\":\"\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\"}},\"authenticationRequest\":{\"authenticationType\":\"Secure3DAuthenticationRequest\",\"termURL\":\"https://example.com/3ds-return\",\"methodNotificationURL\":\"https://example.com/3ds-return\",\"messageCategory\":\"01\"}}"
+        }
       }
     },
     "proxy_authorize": {
