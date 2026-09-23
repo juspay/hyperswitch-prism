@@ -179,14 +179,10 @@ impl Revolv3BillingDetails {
         }
         Ok(self)
     }
-
-    fn with_fallback_full_name(mut self, card_holder_name: Option<Secret<String>>) -> Self {
-        self.billing_full_name = self.billing_full_name.or(card_holder_name);
-        self
-    }
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Revolv3BillingAddress {
     address_line1: Option<Secret<String>>,
     address_line2: Option<Secret<String>>,
@@ -257,7 +253,6 @@ pub struct GooglePayPaymentMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3GooglePayData {
-    google_pay_payment_data_response: Option<Secret<String>>,
     google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage,
 }
 
@@ -414,9 +409,15 @@ impl TryFrom<&DecryptedWalletTokenDetailsForNetworkTransactionId>
             online_payment_cryptogram: None,
             device_manufacturer_identifier: None,
             card_brand: token
-                .get_card_issuer()
-                .ok()
-                .and_then(Revolv3CardBrand::from_card_issuer),
+                .card_network
+                .as_ref()
+                .and_then(|network| Revolv3CardBrand::from_wallet_network(&network.to_string()))
+                .or_else(|| {
+                    token
+                        .get_card_issuer()
+                        .ok()
+                        .and_then(Revolv3CardBrand::from_card_issuer)
+                }),
         })
     }
 }
@@ -436,9 +437,15 @@ impl TryFrom<&DecryptedWalletTokenDetailsForNetworkTransactionId>
             electronic_commerce_indicator: None,
             online_payment_cryptogram: None,
             card_brand: token
-                .get_card_issuer()
-                .ok()
-                .and_then(Revolv3CardBrand::from_card_issuer),
+                .card_network
+                .as_ref()
+                .and_then(|network| Revolv3CardBrand::from_wallet_network(&network.to_string()))
+                .or_else(|| {
+                    token
+                        .get_card_issuer()
+                        .ok()
+                        .and_then(Revolv3CardBrand::from_card_issuer)
+                }),
         })
     }
 }
@@ -555,7 +562,6 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
             billing: Revolv3BillingDetails::from_payment_flow_data(common_data),
             method: Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
                 google_pay: Revolv3GooglePayData {
-                    google_pay_payment_data_response: None,
                     google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage::try_from(
                         google_pay_data,
                     )?,
@@ -1451,7 +1457,6 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
             Some(TokenSource::GooglePay) => {
                 Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
                     google_pay: Revolv3GooglePayData {
-                        google_pay_payment_data_response: None,
                         google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage::try_from(
                             token,
                         )?,
@@ -1466,7 +1471,7 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
 
         Ok(Self {
             billing: Revolv3BillingDetails::from_payment_flow_data(common_data)
-                .with_fallback_full_name(token.card_holder_name.clone()),
+                .with_required_full_name(token.card_holder_name.clone())?,
             method,
         })
     }
@@ -1666,6 +1671,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     }),
                 }
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                let common_data = &item.router_data.resource_common_data;
+                let billing = Revolv3BillingDetails::from_payment_flow_data(common_data);
+
+                let method = match wallet_data {
+                    WalletData::ApplePay(apple_pay_data) => {
+                        Revolv3PaymentMethodDetails::ApplePay(ApplePayPaymentMethodData {
+                            apple_pay: Revolv3ApplePayData {
+                                apple_pay_decrypted_package:
+                                    Revolv3ApplePayDecryptedPackage::try_from(&apple_pay_data)?,
+                            },
+                        })
+                    }
+                    WalletData::GooglePay(google_pay_data) => {
+                        Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
+                            google_pay: Revolv3GooglePayData {
+                                google_pay_decrypted_package:
+                                    Revolv3GooglePayDecryptedPackage::try_from(&google_pay_data)?,
+                            },
+                        })
+                    }
+                    _ => Err(IntegrationError::NotImplemented(
+                        domain_types::utils::get_unimplemented_payment_method_error_message(
+                            "revolv3",
+                        ),
+                        Default::default(),
+                    ))?,
+                };
+
+                Revolv3PaymentMethodData { billing, method }
             }
             _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
