@@ -11,6 +11,10 @@
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {}
 }

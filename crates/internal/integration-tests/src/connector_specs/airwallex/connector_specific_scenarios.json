@@ -1,0 +1,179 @@
+{
+  "EventService/HandleEvent": {
+    "airwallex_payment_intent_created": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "x-timestamp": "1712345678901"
+          },
+          "body": {
+            "id": "evt_100_2019102201549020043_8321220011893766",
+            "name": "payment_intent.created",
+            "accountId": "78814faa-1b30-4598-a9c8-f0583db8d09d",
+            "data": {
+              "object": {
+                "request_id": "d6a92e2a-02e5-c37b-c977-13796ec7443a",
+                "id": "int_aaaat9w2hgh8mzi1111",
+                "merchant_order_id": "0000000000",
+                "amount": 16.66,
+                "currency": "USD",
+                "captured_amount": 0,
+                "payment_method_options": {
+                  "card": {
+                    "risk_control": {
+                      "three_domain_secure_action": "FORCE_3DS",
+                      "three_ds_action": "FORCE_3DS"
+                    },
+                    "three_ds_action": "FORCE_3DS"
+                  }
+                },
+                "status": "REQUIRES_PAYMENT_METHOD",
+                "created_at": "2023-01-13T07:32:05+0000",
+                "updated_at": "2023-01-13T07:32:05+0000"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_evt_int_created",
+      "assert": {
+        "event_type": {
+          "equals": "PAYMENT_INTENT_PROCESSING"
+        }
+      },
+      "display_name": "Handle Event | Airwallex payment_intent.created (verbatim spec 15.9.1 fixture)"
+    },
+    "airwallex_payment_attempt_received": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "x-timestamp": "1712345678902"
+          },
+          "body": {
+            "id": "evt_100_2019102201549020043_8321220011893766",
+            "name": "payment_attempt.received",
+            "accountId": "78814faa-1b30-4598-a9c8-f0583db8d09d",
+            "data": {
+              "object": {
+                "id": "att_hkpdcpcvbgh8mw11111_wkgwfs",
+                "payment_intent_id": "int_hkpdcpcvbgh8mwk1111",
+                "payment_consent_id": "cst_hkpdnqn5bgh8mw1111",
+                "currency": "KRW",
+                "amount": 62723,
+                "payment_method": {
+                  "id": "mtd_hkpdcpcvbgh8m111111",
+                  "customer_id": "cus_hkpdk7f98gh8ir1111",
+                  "type": "card",
+                  "card": {
+                    "bin": "53651045",
+                    "brand": "mastercard",
+                    "card_type": "DEBIT",
+                    "expiry_month": "09",
+                    "expiry_year": "2027",
+                    "fingerprint": "111e4Y759jpc5eC3AAAAaaaa/8=",
+                    "is_commercial": false,
+                    "issuer_country_code": "KR",
+                    "issuer_name": "KB KOOKMIN CARD CO., LTD",
+                    "last4": "1111",
+                    "name": "",
+                    "number_type": "PAN"
+                  },
+                  "status": "CREATED",
+                  "created_at": "2023-01-13T07:29:08+0000",
+                  "updated_at": "2023-01-13T07:29:08+0000"
+                },
+                "authentication_data": {
+                  "avs_result": "U",
+                  "cvc_result": "U",
+                  "ds_data": {},
+                  "fraud_data": {
+                    "score": "0"
+                  }
+                },
+                "captured_amount": 0,
+                "refunded_amount": 0,
+                "settle_via": "airwallex",
+                "status": "RECEIVED",
+                "created_at": "2023-01-13T07:29:08+0000",
+                "updated_at": "2023-01-13T07:29:08+0000"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_evt_att_received",
+      "assert": {
+        "event_type": {
+          "equals": "PAYMENT_INTENT_PROCESSING"
+        }
+      },
+      "display_name": "Handle Event | Airwallex payment_attempt.received (att_/int_ trap guard, verbatim spec 15.9.2 fixture)"
+    },
+    "airwallex_refund_accepted": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "x-timestamp": "1712345678903"
+          },
+          "body": {
+            "id": "evt_100_2019102201549020043_8321220011893766",
+            "name": "refund.accepted",
+            "accountId": "78814faa-1b30-4598-a9c8-f0583db8d09d",
+            "data": {
+              "object": {
+                "request_id": "GN230113463059337228",
+                "id": "rfd_aaaanqn5bgh8mnssssh_ga04nr",
+                "payment_attempt_id": "att_hkpdxmj6wggosgaaniy_ga04nr",
+                "payment_intent_id": "int_hkpdxmj6wggosga04nr",
+                "amount": 21.49,
+                "currency": "SGD",
+                "reason": "Return good",
+                "status": "ACCEPTED",
+                "created_at": "2023-01-13T07:20:02+0000",
+                "updated_at": "2023-01-13T07:20:02+0000"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_evt_ref_accepted",
+      "assert": {
+        "event_type": {
+          "equals": "WEBHOOK_REFUND_PROCESSING"
+        }
+      },
+      "display_name": "Handle Event | Airwallex refund.accepted stays Pending (verbatim spec 15.9.3 fixture)"
+    },
+    "airwallex_payment_dispute_requires_response": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "x-timestamp": "1712345678904"
+          },
+          "body": {
+            "id": "04e0e84622d7b3add4f712dea5abcbeb",
+            "name": "payment_dispute.requires_response",
+            "account_id": "acct_BGEVPKSxP9OjzQGbwxVEKA",
+            "data": {
+              "object": {
+                "amount": 10,
+                "currency": "AUD",
+                "due_at": "2023-10-30T20:00:00+0000",
+                "id": "dst_sgstmr5zzgpg1wsjcwo",
+                "stage": "CHARGEBACK",
+                "status": "REQUIRES_RESPONSE"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_evt_disp_requires_response",
+      "assert": {
+        "event_type": {
+          "equals": "WEBHOOK_DISPUTE_OPENED"
+        }
+      },
+      "display_name": "Handle Event | Airwallex payment_dispute.requires_response (verbatim spec 15.9.4 fixture)"
+    }
+  }
+}

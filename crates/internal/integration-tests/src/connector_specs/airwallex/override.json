@@ -5,5 +5,19 @@
         "request_extended_authorization": true
       }
     }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "assert": {
+        "status": null,
+        "error": null,
+        "error.error_code": {
+          "contains": "MISSING_REQUIRED_FIELD"
+        },
+        "error.error_message": {
+          "contains": "connector_order_id"
+        }
+      }
+    }
   }
 }

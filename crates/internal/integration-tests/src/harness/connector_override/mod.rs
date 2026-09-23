@@ -284,6 +284,17 @@ fn signature_context<'a>(
                 .and_then(Value::as_str),
             ..Default::default()
         },
+        // Airwallex signs `x-timestamp header bytes ++ raw body bytes`. The header value comes
+        // from the scenario's `x-timestamp` header; the i64→decimal render below must equal the
+        // header's literal characters (protocol timestamps are decimal digits — anything else
+        // in that header is a fixture bug the HMAC comparison would catch).
+        "airwallex" => crate::webhook_signatures::SignatureContext {
+            timestamp: grpc_req
+                .pointer("/request_details/headers/x-timestamp")
+                .and_then(Value::as_str)
+                .and_then(|raw| raw.parse::<i64>().ok()),
+            ..Default::default()
+        },
         _ => crate::webhook_signatures::SignatureContext::default(),
     }
 }
