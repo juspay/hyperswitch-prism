@@ -9027,6 +9027,7 @@ dependencies = [
  "tonic 0.14.5",
  "tracing",
  "tracing-kafka",
+ "tracing-subscriber",
  "ucs_common_enums",
  "url 2.5.8",
  "utoipa",

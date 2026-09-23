@@ -2522,7 +2522,7 @@ pub(crate) use frm_flow_not_implemented;
 /// Emits a `ConnectorIntegrationV2<$flow, $resource_common_data, $request, $response>`
 /// impl with:
 /// - `get_call_connector_action` → `HandleResponseWithoutBuildRequest`
-/// - `build_request_v2` → `Ok(None)`
+/// - `build_request_v2` → runs `other_functions.validate_request` if given, then `Ok(None)`
 /// - `get_url` → `Err(IntegrationError::NotImplemented(..))` (unreachable)
 /// - `handle_response_v2` → forwards to `$handle_response`
 ///
@@ -2537,6 +2537,17 @@ pub(crate) use frm_flow_not_implemented;
 ///    res: Response)
 ///  -> CustomResult<RouterDataV2<$flow, $resource_common_data, $request, $response>, ConnectorError>
 /// ```
+///
+/// An optional trailing `other_functions: { validate_request: $validate_request }`
+/// block passes a connector-owned validation function that `build_request_v2` runs
+/// before returning `Ok(None)`. The executor still calls `build_request_v2` first for
+/// these flows, so this is where a connector rejects a bad config or request with an
+/// `IntegrationError` instead of the `ConnectorError` `handle_response_v2` can only
+/// produce. Its signature must match:
+/// ```text
+/// fn(req: &RouterDataV2<$flow, $resource_common_data, $request, $response>)
+///  -> CustomResult<(), IntegrationError>
+/// ```
 macro_rules! macro_connector_local_flow_implementation {
     (
         connector: $connector:ident,
@@ -2546,7 +2557,11 @@ macro_rules! macro_connector_local_flow_implementation {
         flow_response: $response:ty,
         handle_response: $handle_response:path,
         generic_type: $g:tt,
-        [$($b:tt)*] $(,)?
+        [$($b:tt)*]
+        $(, other_functions: {
+            validate_request: $validate_request:path $(,)?
+        })?
+        $(,)?
     ) => {
         impl<$g: $($b)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
@@ -2562,7 +2577,7 @@ macro_rules! macro_connector_local_flow_implementation {
 
             fn build_request_v2(
                 &self,
-                _req: &::domain_types::router_data_v2::RouterDataV2<
+                req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::$flow,
                     $resource_common_data,
                     $request,
@@ -2573,7 +2588,15 @@ macro_rules! macro_connector_local_flow_implementation {
                 ::domain_types::errors::IntegrationError,
             > {
                 // No outbound call: the whole flow is handled locally in
-                // `handle_response_v2`.
+                // `handle_response_v2`. A `validate_request` from `other_functions`
+                // runs first, so a bad config or request fails as an
+                // `IntegrationError` rather than the `ConnectorError`
+                // `handle_response_v2` can only produce.
+                $(
+                    let validate_request = $validate_request;
+                    validate_request(req)?;
+                )?
+                let _ = req; // unused when no `validate_request` is given
                 Ok(None)
             }
 

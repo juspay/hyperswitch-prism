@@ -6599,23 +6599,57 @@ impl ForeignTryFrom<ConnectorResponseData> for grpc_api_types::payments::Connect
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::GooglePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            card_type,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
                                         grpc_api_types::payments::GooglePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| cs.to_string()),
+                                            funding_source: funding_source.map(|fs| fs.to_string()),
+                                            card_type: card_type.map(|ct| ct.to_string()),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.map(|c| c.to_string()),
                                         }
                                     )
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::ApplePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
                                         grpc_api_types::payments::ApplePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| cs.to_string()),
+                                            funding_source: funding_source.map(|fs| fs.to_string()),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.map(|c| c.to_string()),
                                         }
                                     )
                                 ),
@@ -19278,7 +19312,7 @@ impl
             connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
