@@ -7192,7 +7192,10 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     status_code: status_code as u32,
                     response_headers,
                     state,
-                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    captured_amount: router_data_v2
+                        .resource_common_data
+                        .minor_amount_captured
+                        .map(|amount_captured| amount_captured.get_amount_as_i64()),
                     capturable_amount: router_data_v2
                         .resource_common_data
                         .minor_amount_capturable
@@ -8783,7 +8786,10 @@ pub fn generate_payment_sync_response(
                     network_transaction_id: network_txn_id,
                     network_txn_link_id,
                     amount,
-                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    captured_amount: router_data_v2
+                        .resource_common_data
+                        .minor_amount_captured
+                        .map(|amount_captured| amount_captured.get_amount_as_i64()),
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -8910,7 +8916,10 @@ pub fn generate_payment_sync_response(
                     network_transaction_id: None,
                     network_txn_link_id: None,
                     amount,
-                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    captured_amount: router_data_v2
+                        .resource_common_data
+                        .minor_amount_captured
+                        .map(|amount_captured| amount_captured.get_amount_as_i64()),
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -12282,7 +12291,10 @@ pub fn generate_payment_capture_response(
                     incremental_authorization_allowed,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
-                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    captured_amount: router_data_v2
+                        .resource_common_data
+                        .minor_amount_captured
+                        .map(|amount_captured| amount_captured.get_amount_as_i64()),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -16192,7 +16204,10 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         raw_connector_request,
                         typed_connector_request,
                         connector_response,
-                        captured_amount: router_data_v2.resource_common_data.amount_captured,
+                        captured_amount: router_data_v2
+                            .resource_common_data
+                            .minor_amount_captured
+                            .map(|amount_captured| amount_captured.get_amount_as_i64()),
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
