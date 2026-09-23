@@ -221,6 +221,7 @@ impl
             | Some(PayoutMethodData::Wallet(_))
             | Some(PayoutMethodData::BankRedirect(_))
             | Some(PayoutMethodData::Passthrough(_))
+            | Some(PayoutMethodData::GiftCard(_))
             | None => Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
                 connector: "Loonio",

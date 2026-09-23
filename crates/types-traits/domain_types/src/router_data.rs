@@ -4467,6 +4467,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Paysafe => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paysafe {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        base_url: None,
+                        account_id: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }
