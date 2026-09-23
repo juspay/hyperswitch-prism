@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.23.1
+
+### Features
+
+- **connector:** Checkout webhook, applePay, googlePay enhancement ([#2315](https://github.com/juspay/connector-service/pull/2315)) ([`7087d02`](https://github.com/juspay/connector-service/commit/7087d02d6a6e8d318fbe09c09f94d99ff4227753))
+
+**Full Changelog:** [`2026.09.23.0...2026.09.23.1`](https://github.com/juspay/connector-service/compare/2026.09.23.0...2026.09.23.1)
+
+- - -
+
 ## 2026.09.23.0
 
 ### Bug Fixes
