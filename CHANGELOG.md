@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.23.2
+
+### Bug Fixes
+
+- **KOUNT:** Added new fields to send to KOUNT ([#2152](https://github.com/juspay/connector-service/pull/2152)) ([`17ea7a6`](https://github.com/juspay/connector-service/commit/17ea7a64e50ee32cb70b1d4612752405532800ab))
+- **adyen:** Map successful AUTHORISATION webhook to PaymentIntentSuccess ([#2354](https://github.com/juspay/connector-service/pull/2354)) ([`edf2731`](https://github.com/juspay/connector-service/commit/edf2731645469a899ec8e269ab0c903508ff9c0e))
+- **connector:** [Adyen] scope Cancelled to Failure only for FRAUD-CANCELLED ([#2335](https://github.com/juspay/connector-service/pull/2335)) ([`88b9062`](https://github.com/juspay/connector-service/commit/88b90622709efbddf904c9e57dcb68363140aa43))
+- **cybersource:** Derive commerceIndicator for externally authenticated payments ([#2351](https://github.com/juspay/connector-service/pull/2351)) ([`403c4ab`](https://github.com/juspay/connector-service/commit/403c4ab60632a521018db427e34f80c9c0dd560c))
+
+**Full Changelog:** [`2026.09.23.1...2026.09.23.2`](https://github.com/juspay/connector-service/compare/2026.09.23.1...2026.09.23.2)
+
+- - -
+
 ## 2026.09.23.1
 
 ### Features
