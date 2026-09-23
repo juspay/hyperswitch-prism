@@ -674,26 +674,26 @@ impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
     fn foreign_try_from(
         ted: grpc_api_types::payouts::TedBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let bank_name = ted
-            .bank_name
-            .map(|bn| {
-                grpc_api_types::payouts::BankNames::try_from(bn)
-                    .map_err(|_| {
-                        error_stack::report!(IntegrationError::InvalidDataFormat {
-                            field_name: "bank_name",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(format!("Unknown bank name: {bn}")),
-                                suggested_action: Some(
-                                    "Provide a valid bank name for the TED payout method data"
-                                        .to_owned(),
-                                ),
-                                doc_url: None,
-                            },
+        let bank_name =
+            ted.bank_name
+                .map(|bn| {
+                    grpc_api_types::payouts::BankNames::try_from(bn)
+                        .map_err(|_| {
+                            error_stack::report!(IntegrationError::InvalidDataFormat {
+                                field_name: "bank_name",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!("Unknown bank name: {bn}")),
+                                    suggested_action: Some(
+                                        "Provide a valid bank name for the TED payout method data"
+                                            .to_owned(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
                         })
-                    })
-                    .and_then(|b| {
-                        common_enums::BankNames::try_from(b.as_str_name()).change_context(
-                            IntegrationError::InvalidDataFormat {
+                        .and_then(|b| {
+                            common_enums::BankNames::try_from(b.as_str_name())
+                                .change_context(IntegrationError::InvalidDataFormat {
                                 field_name: "bank_name",
                                 context: IntegrationErrorContext {
                                     additional_context: Some("Invalid bank name".to_owned()),
@@ -703,11 +703,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
                                     ),
                                     doc_url: None,
                                 },
-                            },
-                        )
-                    })
-            })
-            .transpose()?;
+                            })
+                        })
+                })
+                .transpose()?;
         Ok(payouts::payout_method_data::TedBankTransfer {
             bank_name,
             bank_code: ted.bank_code,
@@ -1518,34 +1517,39 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
                 .transpose()?,
             payout_method_type: value
                 .payout_method_type
-                .map(|raw| -> Result<Option<common_enums::PaymentMethodType>, error_stack::Report<IntegrationError>> {
-                    let pt = grpc_api_types::payments::PaymentMethodType::try_from(raw)
-                        .change_context(IntegrationError::InvalidDataFormat {
-                            field_name: "payout_method_type",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(format!(
-                                    "unknown PaymentMethodType value: {raw}"
-                                )),
-                                suggested_action: Some(
-                                    "Provide a valid payout_method_type".to_string(),
-                                ),
-                                doc_url: None,
-                            },
-                        })?;
-                    Option::<common_enums::PaymentMethodType>::foreign_try_from(pt)
-                        .change_context(IntegrationError::InvalidDataFormat {
-                            field_name: "payout_method_type",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "unsupported payout_method_type".to_string(),
-                                ),
-                                suggested_action: Some(
-                                    "Provide a valid payout_method_type".to_string(),
-                                ),
-                                doc_url: None,
-                            },
-                        })
-                })
+                .map(
+                    |raw| -> Result<
+                        Option<common_enums::PaymentMethodType>,
+                        error_stack::Report<IntegrationError>,
+                    > {
+                        let pt = grpc_api_types::payments::PaymentMethodType::try_from(raw)
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payout_method_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "unknown PaymentMethodType value: {raw}"
+                                    )),
+                                    suggested_action: Some(
+                                        "Provide a valid payout_method_type".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })?;
+                        Option::<common_enums::PaymentMethodType>::foreign_try_from(pt)
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payout_method_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "unsupported payout_method_type".to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "Provide a valid payout_method_type".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
+                    },
+                )
                 .transpose()?
                 .flatten(),
         })

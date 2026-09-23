@@ -705,9 +705,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
             self.id(),
             "payout_void",
             IntegrationErrorContext {
-                additional_context: Some(
-                    "Santander does not support voiding payouts".to_string(),
-                ),
+                additional_context: Some("Santander does not support voiding payouts".to_string()),
                 suggested_action: Some(
                     "Contact Santander support to cancel a payout after it has been authorized"
                         .to_string(),
@@ -758,7 +756,8 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = &auth.workspace_id;
         let endpoint = santander_endpoint_from_method_type(req.request.payout_method_type)?;
-        let doc_url = transformers::santander_doc_url_from_method_type(req.request.payout_method_type)?;
+        let doc_url =
+            transformers::santander_doc_url_from_method_type(req.request.payout_method_type)?;
         let connector_payout_id = req
             .request
             .connector_payout_id

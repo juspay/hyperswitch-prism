@@ -569,21 +569,19 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 
                 (None, None, None, Some(beneficiary))
             }
-            _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "payout method not supported".to_string(),
-                    connector: "santander",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("unsupported payout method type".to_string()),
-                        suggested_action: Some(
-                            "Use Pix (bank transfer, pix key, or pix EMV) or Ted as the payout method"
-                                .to_string(),
-                        ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                    },
-                }
-                .into())
+            _ => return Err(IntegrationError::NotSupported {
+                message: "payout method not supported".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some("unsupported payout method type".to_string()),
+                    suggested_action: Some(
+                        "Use Pix (bank transfer, pix key, or pix EMV) or Ted as the payout method"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                },
             }
+            .into()),
         };
 
         Ok(Self {
@@ -609,8 +607,7 @@ pub enum SantanderPayoutCreateRequest {
     Ted(Box<SantanderTedPayoutCreateRequest>),
 }
 
-impl
-    TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
+impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
     for SantanderPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -672,8 +669,7 @@ pub struct SantanderTedPayoutCreateRequest {
     pub purpose: Option<String>,
 }
 
-impl
-    TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
+impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
     for SantanderTedPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -716,28 +712,33 @@ impl
             }
         };
 
-        let bank_code = ted.bank_code.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "payout_method_data.bank_code",
-            context: IntegrationErrorContext {
-                additional_context: Some("missing required field: bank_code".to_string()),
-                suggested_action: Some(
-                    "Provide the COMPE bank code in payout_method_data for TED transfers"
-                        .to_string(),
-                ),
-                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
-            },
-        })?;
+        let bank_code = ted
+            .bank_code
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.bank_code",
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: bank_code".to_string()),
+                    suggested_action: Some(
+                        "Provide the COMPE bank code in payout_method_data for TED transfers"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
 
-        let tax_id = ted.tax_id.as_ref().ok_or(IntegrationError::MissingRequiredField {
-            field_name: "payout_method_data.tax_id",
-            context: IntegrationErrorContext {
-                additional_context: Some("missing required field: tax_id".to_string()),
-                suggested_action: Some(
-                    "Provide a valid CPF or CNPJ tax_id in payout_method_data".to_string(),
-                ),
-                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
-            },
-        })?;
+        let tax_id = ted
+            .tax_id
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.tax_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: tax_id".to_string()),
+                    suggested_action: Some(
+                        "Provide a valid CPF or CNPJ tax_id in payout_method_data".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
 
         let legal_entity_identifier = if cpf_cnpj::cpf::validate(tax_id.peek()) {
             SantanderDocumentType::CPF
@@ -764,18 +765,21 @@ impl
                 .collect::<String>(),
         );
 
-        let name = ted.account_holder_name.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "payout_method_data.account_holder_name",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "missing required field: account_holder_name".to_string(),
-                ),
-                suggested_action: Some(
-                    "Provide the beneficiary account holder name in payout_method_data".to_string(),
-                ),
-                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
-            },
-        })?;
+        let name = ted
+            .account_holder_name
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.account_holder_name",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "missing required field: account_holder_name".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the beneficiary account holder name in payout_method_data"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
 
         let account_type = ted
             .bank_account_type
@@ -899,7 +903,8 @@ impl
                         doc_url: Some(doc_url.to_string()),
                     },
                 })?;
-                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
+                let branch =
+                    parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
                 let bank_account_number = bank_account_number.expose();
                 let number = parse_digits_i64(
                     &bank_account_number,
@@ -923,7 +928,8 @@ impl
                         doc_url: Some(doc_url.to_string()),
                     },
                 })?;
-                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
+                let branch =
+                    parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
                 let bank_account_number = bank_account_number.expose();
                 let number = parse_digits_i64(
                     &bank_account_number,
