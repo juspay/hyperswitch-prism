@@ -2025,12 +2025,27 @@ message AdditionalPaymentData {
 message GooglePayConnectorResponse {
   optional string auth_code =
       1; // Unique authorisation code generated for the payment
+  optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
+  optional string card_bin = 3; // Bin of the underlying card
+  optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
+  optional string card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional string funding_source = 6; // The card's funding source type
+  optional string card_type = 7; // The card type (credit/debit/prepaid/charge)
+  optional string issuer_name = 8; // The name of the card issuer
+  optional string issuer_country = 9; // The country of the card issuer (ISO alpha-2)
 }
 
 // Additional payment method data for Apple Pay
 message ApplePayConnectorResponse {
   optional string auth_code =
       1; // Unique authorisation code generated for the payment
+  optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
+  optional string card_bin = 3; // Bin of the underlying card
+  optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
+  optional string card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional string funding_source = 6; // The card's funding source type
+  optional string issuer_name = 7; // The name of the card issuer
+  optional string issuer_country = 8; // The country of the card issuer (ISO alpha-2)
 }
 
 // Customer information for payments
