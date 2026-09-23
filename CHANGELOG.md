@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.23.0
+
+### Bug Fixes
+
+- **grpc-server:** Resolve secondary connector families in card-carrying payment-method arms ([#2346](https://github.com/juspay/connector-service/pull/2346)) ([`468e0a6`](https://github.com/juspay/connector-service/commit/468e0a60dddfe616b9e37242085bc54a6b606992))
+
+**Full Changelog:** [`2026.09.22.1...2026.09.23.0`](https://github.com/juspay/connector-service/compare/2026.09.22.1...2026.09.23.0)
+
+- - -
+
 ## 2026.09.22.1
 
 ### Bug Fixes
