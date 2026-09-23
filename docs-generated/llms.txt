@@ -691,7 +691,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
 payment_methods: PaySafeCard
-flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize, void
+flows: authenticate, authorize, capture, customer_create, get, handle_event, parse_event, pre_authenticate, refund, refund_get, token_authorize, void
 examples_python: none
 
 ## Paytm
