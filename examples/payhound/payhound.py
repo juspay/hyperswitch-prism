@@ -20,6 +20,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
             base_url="YOUR_BASE_URL",
+            hosted_invoice_base_url="YOUR_HOSTED_INVOICE_BASE_URL",
         ),
     ),
 )
