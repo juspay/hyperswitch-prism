@@ -137,14 +137,14 @@ impl AmountConvertor for MinorUnitForConnector {
         amount: MinorUnit,
         _currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(ConnectorMinorUnit(amount))
+        Ok(ConnectorMinorUnit(amount.as_i64()))
     }
     fn convert_back(
         &self,
         amount: ConnectorMinorUnit,
         _currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        Ok(amount.0)
+        Ok(MinorUnit::from_i64(amount.0))
     }
 }
 
@@ -153,25 +153,16 @@ impl AmountConvertor for MinorUnitForConnector {
 /// This keeps connector request/response structs from using domain `MinorUnit`
 /// directly while preserving connector payloads that expect raw numeric minor
 /// units. Connectors obtain this type **only** via `AmountConvertor::convert`.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema, PartialOrd)]
-pub struct ConnectorMinorUnit(MinorUnit);
-
-impl Serialize for ConnectorMinorUnit {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_i64(self.0 .0)
-    }
-}
-
-impl<'de> Deserialize<'de> for ConnectorMinorUnit {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = <i64 as Deserialize>::deserialize(deserializer)?;
-        Ok(Self(MinorUnit(value)))
-    }
-}
+///
+/// Wraps a plain `i64` rather than `MinorUnit` — this type is the connector-
+/// facing wire representation, and its layout should not be coupled to
+/// `MinorUnit`'s internal representation.
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+pub struct ConnectorMinorUnit(i64);
 
 impl Display for ConnectorMinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0 .0)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -179,7 +170,7 @@ impl Sub for ConnectorMinorUnit {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0.sub(rhs.0))
+        Self(self.0 - rhs.0)
     }
 }
 
@@ -656,7 +647,7 @@ impl Money {
         currency: enums::Currency,
     ) -> Self {
         Self {
-            amount: amount.0,
+            amount: MinorUnit::from_i64(amount.0),
             currency,
         }
     }
