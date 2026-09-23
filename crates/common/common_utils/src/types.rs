@@ -181,21 +181,20 @@ impl Sub for ConnectorMinorUnit {
 /// proto/domain boundary crates can create or inspect raw values. Connector
 /// code receives `MinorUnit` in domain structs but can only pass it through
 /// `AmountConvertor`.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema, PartialOrd)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub struct MinorUnit(i64);
-
-impl Serialize for MinorUnit {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_i64(self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for MinorUnit {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = <i64 as Deserialize>::deserialize(deserializer)?;
-        Ok(Self(value))
-    }
-}
 
 impl MinorUnit {
     // ── internal (crate-only) constructors/extractors ──────────────────
