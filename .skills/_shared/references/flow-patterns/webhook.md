@@ -369,6 +369,26 @@ connector's `crates/internal/integration-tests/src/connector_specs/<name>/specs.
 `connector_specs/<name>/webhook_payload.json`, or the check fails. Declaring the suite and
 skipping the fixture is a hard error; not declaring the suite imposes no requirement.
 
+**The global `EventService/HandleEvent` suite can assert a field your connector cannot produce.**
+`EventServiceHandleResponse` (`events.proto`) does not have an `event_status` field, but the
+global suite's `payment_succeeded`/`payment_failed`/`refund_succeeded`/`invalid_signature`
+scenarios (`crates/internal/integration-tests/src/global_suites/EventService_HandleEvent/scenario.json`)
+assert one anyway — this is unanswerable by any connector, not a gap in your implementation. Null
+that assert in `<connector>/override.json` rather than treating it as a bug to chase; the working
+precedent is `paypal/override.json`'s `EventService/HandleEvent` block (same 4 scenarios, `assert:
+{event_status: null}`). If you haven't provisioned a real `webhook_secret` for this connector
+(see next paragraph), also null `source_verified` the same way (`must_not_exist: true`) so that
+assert doesn't fail for a reason unrelated to your webhook code.
+
+Positive `source_verified` coverage for the global suite requires a `webhook_secret` field in
+this connector's `creds.json`/`creds_dummy.json` block (flat, sibling to `api_key`/etc.) if
+`verify_webhook_source` is implemented — the test harness (`connector_override/mod.rs`
+`load_webhook_secret`) looks it up by the exact key named in your `webhook_payload.json`'s
+`_webhook_config.webhook_secret_key`. Without it, `source_verified` can never be positively
+exercised by the global suite, only by your connector-private fixtures (which can be pre-signed
+with a probe secret out-of-band) — this is a template/provisioning gap common to the harness, not
+unique to any one connector, so don't assume it's already handled elsewhere.
+
 ---
 
 ## Implementation Checklist
@@ -390,3 +410,9 @@ skipping the fixture is a hard error; not declaring the suite imposes no require
       reported, not enforced
 - [ ] `sample_webhook_body` overridden with a realistic payload
 - [ ] If `specs.json` declares `EventService/HandleEvent`, `webhook_payload.json` exists
+- [ ] If the global `HandleEvent` suite asserts a field your response mapping can't produce
+      (e.g. `event_status` — check `events.proto`), `override.json` nulls it for
+      `payment_succeeded`/`payment_failed`/`refund_succeeded`/`invalid_signature` — see
+      `paypal/override.json`'s `EventService/HandleEvent` block for the precedent
+- [ ] `webhook_secret` present in `creds.json`/`creds_dummy.json` if `verify_webhook_source` is
+      implemented, otherwise `source_verified` can never be positively exercised by the global suite

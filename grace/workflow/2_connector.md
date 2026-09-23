@@ -704,10 +704,16 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
 6. **Reappearing fingerprint** (`r<N>.json .bugs.reappeared`): first time → RCA with `PREVIOUS_ORIGIN`, which moves the
    origin exactly one stage upstream (`2.6e_rca.md` "Phase 4: Escalation (`{PREVIOUS_ORIGIN}`)"); second time, or a
    hunk reversing an earlier fix (RCA compares snapshots) → `unresolved` + withdraw brief if the unit's code is not shared.
+6b. **Incidental reconciliation**: before authoring this round's `unresolved` moves, check every still-`unresolved`
+   bug whose fix did not go through this round's RCA chain (i.e. no `rca→fixing→retest` entry for it this round) —
+   if this round's sweep independently re-exercised that bug's own `checks[]`/`check_id` set and it now passes,
+   author `unresolved→retest` for it (`2.6d_test_exec.md`'s STATUS_UPDATES grammar), citing the passing check's
+   evidence in `note`; 2.6d's `retest→fixed` handling then completes the transition in the same round. Do not
+   invent an RCA round to do this — that's the whole point of this route existing separately from item 7's chain.
 7. **Status updates** before the retest spawn, `test/status_updates/u<bump status_update>.json` (shape:
    `2.6d_test_exec.md` "Phase 1: Bookkeeping (INGEST, STATUS_UPDATES)"): per bug of `rca/r<N>.json` `open→rca`,
    `rca→<proposed_status>`, then `fixing→retest` (chain completed) or `fixing→unresolved` (dropped); plus the
-   `unresolved` moves of 4–6. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
+   `unresolved` moves of 4–6b. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
    An entry's `proposed_status` is **either a single status for all of its `bug_ids[]`, or an object keyed by bug id**
    (2.6e writes the object form when one entry clusters bugs that end differently) — read it as
    `(if (.proposed_status|type)=="object" then .proposed_status[$b] else .proposed_status end)`, or the file is

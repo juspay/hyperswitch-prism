@@ -161,6 +161,16 @@ arm silently maps it to whatever the arm happens to say, which is how a declined
       match the trait (`E0407`). The real signature is in
       `crates/types-traits/interfaces/src/api.rs:25`
 - [ ] No credentials appear in error messages or logs
+- [ ] Every value sourced from a `Secret<String>` (`.expose()`/`.peek()`) that ends up in a
+      `Vec<(String, Maskable<String>)>` (`get_headers`, `build_headers`, `get_auth_header`) —
+      or in a `format!(...)` built from one, e.g. `format!("Bearer {access_token}")` — uses
+      `.into_masked()` (from `hyperswitch_masking::Mask`), never bare `.into()`.
+      `impl From<T> for Maskable<T>` builds `Maskable::Normal`, which the events pipeline logs
+      **in clear**. Wrong: `auth.api_key.expose().to_string().into()`. Right:
+      `auth.api_key.peek().to_string().into_masked()` (or wrap an existing `Secret<String>`
+      directly as `Maskable::Masked(...)`). A real leak from exactly this mistake shipped in
+      the Airwallex connector (2026-09) — 449+ log lines carrying plaintext `x-api-key` /
+      `x-client-id` / bearer tokens.
 - [ ] All flows use the same authentication pattern consistently
 
 ---
