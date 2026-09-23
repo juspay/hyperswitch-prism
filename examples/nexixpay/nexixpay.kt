@@ -11,7 +11,6 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentMethodAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
@@ -26,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NexixpayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "pre_authenticate", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -103,34 +102,6 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details.
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-    }.build()
-    val response = client.pre_authenticate(request)
     println("Status: ${response.status.name}")
 }
 
@@ -248,12 +219,11 @@ fun main(args: Array<String>) {
     when (flow) {
         "capture" -> capture(txnId)
         "get" -> get(txnId)
-        "preAuthenticate" -> preAuthenticate(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, preAuthenticate, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

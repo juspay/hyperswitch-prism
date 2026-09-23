@@ -2,7 +2,7 @@
   "connector": "worldpayxml",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for worldpayxml"
       }
@@ -776,13 +776,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for worldpayxml"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported"
       }
     },

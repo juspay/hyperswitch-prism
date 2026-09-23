@@ -11,7 +11,6 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentMethodAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
@@ -28,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.CybersourceConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -229,41 +228,6 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
 }
 
-// Flow: PaymentMethodAuthenticationService.Authenticate
-fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-        continueRedirectionUrl = "https://example.com/3ds-continue"
-        redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
-            params = "probe_redirect_params"
-            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
-        }
-    }.build()
-    val response = client.authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -307,64 +271,6 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
         reason = "incremental_auth_probe"  // Optional Fields.
     }.build()
     val response = client.incremental_authorization(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodAuthenticationService.PostAuthenticate
-fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePostAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
-            params = "probe_redirect_params"
-            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
-        }
-    }.build()
-    val response = client.post_authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details.
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-    }.build()
-    val response = client.pre_authenticate(request)
     println("Status: ${response.status.name}")
 }
 
@@ -594,13 +500,10 @@ fun main(args: Array<String>) {
         "processRefund" -> processRefund(txnId)
         "processVoidPayment" -> processVoidPayment(txnId)
         "processGetPayment" -> processGetPayment(txnId)
-        "authenticate" -> authenticate(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "incrementalAuthorization" -> incrementalAuthorization(txnId)
-        "postAuthenticate" -> postAuthenticate(txnId)
-        "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
@@ -611,6 +514,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
     }
 }

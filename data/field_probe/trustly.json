@@ -2,7 +2,7 @@
   "connector": "trustly",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for trustly"
       }
@@ -581,13 +581,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "post_authenticate flow not supported by trustly connector"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: pre_authenticate flow for trustly"
       }

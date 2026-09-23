@@ -2,7 +2,7 @@
   "connector": "globalpayments_realex",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: redirect_response.payload — Missing required field: redirect_response.payload"
       }
@@ -614,13 +614,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: continue_redirection_url — Missing required field: continue_redirection_url"
       }

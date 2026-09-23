@@ -2,7 +2,7 @@
   "connector": "redsys",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {
@@ -633,13 +633,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for redsys"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {

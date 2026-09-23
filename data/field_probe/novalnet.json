@@ -2,7 +2,7 @@
   "connector": "novalnet",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "authenticate flow not supported by novalnet connector"
       }
@@ -847,13 +847,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "post_authenticate flow not supported by novalnet connector"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "pre_authenticate flow not supported by novalnet connector"
       }

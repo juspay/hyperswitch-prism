@@ -2,7 +2,7 @@
   "connector": "worldpay",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for worldpay"
       }
@@ -719,13 +719,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: redirect_response.params — Missing required field: redirect_response.params"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: redirect_response.params — Missing required field: redirect_response.params"
       }

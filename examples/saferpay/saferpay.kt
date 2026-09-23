@@ -11,7 +11,6 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentMethodAuthenticationClient
 import payments.RefundClient
 import payments.Currency
 import payments.ConnectorConfig
@@ -21,7 +20,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.SaferpayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "pre_authenticate", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -87,34 +86,6 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details.
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-    }.build()
-    val response = client.pre_authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: RefundService.Get
 fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RefundClient(config)
@@ -144,9 +115,8 @@ fun main(args: Array<String>) {
     when (flow) {
         "capture" -> capture(txnId)
         "get" -> get(txnId)
-        "preAuthenticate" -> preAuthenticate(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, preAuthenticate, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, refundGet, void")
     }
 }

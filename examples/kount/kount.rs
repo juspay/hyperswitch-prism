@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token", "pre_authenticate"];
+pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -41,13 +41,6 @@ pub fn build_create_server_authentication_token_request(
     }
 }
 
-pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
-{
-    PaymentMethodAuthenticationServicePreAuthenticateRequest {
-        ..Default::default()
-    }
-}
-
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 #[allow(dead_code)]
 pub async fn process_create_server_authentication_token(
@@ -64,18 +57,6 @@ pub async fn process_create_server_authentication_token(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-#[allow(dead_code)]
-pub async fn process_pre_authenticate(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -87,9 +68,11 @@ async fn main() {
         "process_create_server_authentication_token" => {
             process_create_server_authentication_token(&client, "txn_001").await
         }
-        "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_pre_authenticate", flow);
+            eprintln!(
+                "Unknown flow: {}. Available: process_create_server_authentication_token",
+                flow
+            );
             return;
         }
     };

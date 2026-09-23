@@ -2,7 +2,7 @@
   "connector": "worldpayraft",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for worldpayraft"
       }
@@ -600,13 +600,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for worldpayraft"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: pre_authenticate flow for worldpayraft"
       }
