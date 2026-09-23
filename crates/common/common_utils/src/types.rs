@@ -614,20 +614,6 @@ impl Money {
         Self { amount, currency }
     }
 
-    /// Construct from a [`ConnectorMinorUnit`] and a currency.
-    ///
-    /// Connectors use this to build `Money` values from converted connector
-    /// response amounts without needing `MinorUnitProtoAccess`.
-    pub fn from_connector_minor_unit(
-        amount: ConnectorMinorUnit,
-        currency: enums::Currency,
-    ) -> Self {
-        Self {
-            amount: MinorUnit::from_i64(amount.0),
-            currency,
-        }
-    }
-
     /// Convert the internal amount using an [`AmountConvertor`].
     ///
     /// This allows connectors to obtain a converted representation of the
