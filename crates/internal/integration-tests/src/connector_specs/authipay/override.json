@@ -1,4 +1,45 @@
 {
+  "PaymentService/Reverse": {
+    "reverse_full_payment": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE"
+          ]
+        }
+      }
+    },
+    "reverse_with_reason": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE"
+          ]
+        }
+      }
+    },
+    "reverse_fail_invalid_transaction_id": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "VOIDED_POST_CAPTURE",
+            "FAILED",
+            "PROCESSING_ERROR"
+          ]
+        },
+        "error": null
+      }
+    }
+  },
   "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {
       "grpc_req": {

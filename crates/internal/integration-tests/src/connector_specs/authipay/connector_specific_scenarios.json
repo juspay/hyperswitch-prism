@@ -52,9 +52,9 @@
      "currency": "USD"
     },
     "payment_method": {
-     "upi": {
-      "upi_collect": {
-       "vpa_id": "auto_generate"
+     "upi_collect": {
+      "vpa_id": {
+       "value": "someone@upi"
       }
      }
     }
@@ -110,7 +110,10 @@
      "must_not_exist": true
     },
     "event_type": {
-     "one_of": []
+     "must_not_exist": true
+    },
+    "error": {
+     "must_exist": true
     }
    },
    "display_name": "Handle Event | unknown hash_algorithm refused"

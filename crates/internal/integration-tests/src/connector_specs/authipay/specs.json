@@ -14,6 +14,9 @@
   ],
   "supported_payment_methods": ["card"],
   "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_fail_payment": "SANDBOX_BEHAVIOR: Authipay (Fiserv IPG) sandbox approves the standard decline-test card 4000000000000002 (HTTP 200, CHARGED) — no decline trigger is available for this BIN in test mode, so the scenario asserting an error cannot be satisfied. Same sandbox behavior documented for fiserv. The connector's error-path mapping is exercised by no3ds_fail_payment's sibling negative scenarios (webhook_unknown_hash_algorithm, post_authenticate_missing_cres, preauthenticate_non_card_refused) and by real 4xx handling in authorize/Capture suites."
+    },
     "EventService/HandleEvent": {
       "refund_succeeded": "CONNECTOR_API_LACKS: spec ### IncomingWebhook payload table — Authipay sends exactly one OMS transaction-notification shape whose txntype field (ORIGINAL/RETURN) distinguishes payment from refund; there is no refund-specific webhook event definition separate from txntype=RETURN. The global refund_succeeded scenario asserts refund-id semantics the OMS refnumber does not map onto, so the refund notification path is covered by the connector scenario webhook_refund_txntype_return in connector_specific_scenarios.json instead."
     }

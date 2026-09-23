@@ -4889,9 +4889,15 @@ fn execute_single_scenario_with_context(
 ) -> Result<ExecutedScenario, ScenarioError> {
     run_test(Some(suite), Some(scenario), Some(connector))?;
 
-    let base_scenario = load_scenario(suite, scenario)?;
-    let mut effective_req = base_scenario.grpc_req;
-    let mut assertions = base_scenario.assert_rules;
+    // Connector-private scenarios are property of this suite at runtime (they
+    // were merged into `scenarios` by the caller) but have no entry in the
+    // global suite file, so `load_scenario` alone would report them as not
+    // found — the whole-suite run must fall back to the merged view, the same
+    // way `load_effective_scenario_for_connector` does for a named run.
+    let (base_req, base_assertions) =
+        load_effective_scenario_for_connector(suite, scenario, connector)?;
+    let mut effective_req = base_req;
+    let mut assertions = base_assertions;
 
     // Normalize legacy empty placeholders to auto_generate sentinels where needed.
     prepare_context_placeholders(suite, connector, &mut effective_req);
