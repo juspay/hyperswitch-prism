@@ -2,7 +2,7 @@
   "connector": "paydotcom",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: authentication_data.transaction_id. Pay.com's linked authentication session authenticates a Charge or Hold that PreAuthenticate must have created first; its id arrives on the PreAuthenticate response's authentication_data. — Missing required field: authentication_data.transaction_id. Pay.com's linked authentication session authenticates a Charge or Hold that PreAuthenticate must have created first; its id arrives on the PreAuthenticate response's authentication_data."
       }
@@ -706,13 +706,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for paydotcom"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {

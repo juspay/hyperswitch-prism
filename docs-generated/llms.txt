@@ -75,7 +75,7 @@ connector_id: authipay
 doc: docs/connectors/authipay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, reverse, void
+flows: authorize, capture, get, handle_event, parse_event, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, reverse, void
 examples_python: examples/authipay/authipay.py
 
 ## Authorize.net
@@ -522,7 +522,7 @@ examples_python: examples/juspay/juspay.py
 connector_id: kount
 doc: docs/connectors/kount.md
 scenarios: none
-payment_methods: none
+payment_methods: Card
 flows: create_server_authentication_token, pre_authenticate
 examples_python: none
 
@@ -602,7 +602,7 @@ examples_python: examples/nexinets/nexinets.py
 connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
 scenarios: none
-payment_methods: none
+payment_methods: Card
 flows: capture, get, pre_authenticate, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: none
 
@@ -706,7 +706,7 @@ examples_python: examples/paypal/paypal.py
 connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
-payment_methods: PaySafeCard
+payment_methods: Card, PaySafeCard
 flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize, void
 examples_python: none
 
@@ -826,7 +826,7 @@ examples_python: examples/razorpayv2/razorpayv2.py
 connector_id: redsys
 doc: docs/connectors/redsys.md
 scenarios: none
-payment_methods: none
+payment_methods: Card
 flows: authenticate, capture, get, pre_authenticate, refund, refund_get, void
 examples_python: none
 
@@ -850,7 +850,7 @@ examples_python: examples/revolv3/revolv3.py
 connector_id: saferpay
 doc: docs/connectors/saferpay.md
 scenarios: none
-payment_methods: none
+payment_methods: Card
 flows: capture, get, pre_authenticate, refund_get, void
 examples_python: none
 

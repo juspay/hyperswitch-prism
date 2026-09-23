@@ -2,7 +2,7 @@
   "connector": "adyen",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for adyen"
       }
@@ -2414,13 +2414,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for adyen"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: pre_authenticate flow for adyen"
       }

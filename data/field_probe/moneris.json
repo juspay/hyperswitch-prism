@@ -2,7 +2,7 @@
   "connector": "moneris",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "authenticate flow not supported by moneris connector"
       }
@@ -757,7 +757,7 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {
@@ -805,7 +805,7 @@
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {

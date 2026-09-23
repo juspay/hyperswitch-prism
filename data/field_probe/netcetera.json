@@ -2,7 +2,7 @@
   "connector": "netcetera",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Invalid connector configuration: netcetera.endpoint_prefix"
       }
@@ -552,13 +552,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Invalid connector configuration: netcetera.endpoint_prefix"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Invalid connector configuration: netcetera.endpoint_prefix"
       }

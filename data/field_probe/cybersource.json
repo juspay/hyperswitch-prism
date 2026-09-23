@@ -2,7 +2,7 @@
   "connector": "cybersource",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {
@@ -973,7 +973,7 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {
@@ -1017,7 +1017,7 @@
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {

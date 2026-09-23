@@ -2,7 +2,7 @@
   "connector": "fiservcommercehub",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "authenticate flow not supported by fiservcommercehub connector"
       }
@@ -625,13 +625,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "post_authenticate flow not supported by fiservcommercehub connector"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "pre_authenticate flow not supported by fiservcommercehub connector"
       }

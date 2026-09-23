@@ -2,7 +2,7 @@
   "connector": "rapyd",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: authenticate flow for rapyd"
       }
@@ -820,13 +820,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: post_authenticate flow for rapyd"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_implemented",
         "error": "This feature is not implemented: pre_authenticate flow for rapyd"
       }

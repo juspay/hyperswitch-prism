@@ -2,7 +2,7 @@
   "connector": "ilixium",
   "flows": {
     "authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "authenticate flow not supported by ilixium connector"
       }
@@ -627,13 +627,13 @@
       }
     },
     "post_authenticate": {
-      "default": {
+      "Card": {
         "status": "not_supported",
         "error": "post_authenticate flow not supported by ilixium connector"
       }
     },
     "pre_authenticate": {
-      "default": {
+      "Card": {
         "status": "error",
         "error": "Stuck on field: connector_request_reference_id — Missing required field: connector_request_reference_id"
       }

@@ -133,7 +133,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L40) · [Kotlin](../../examples/kount/kount.kt#L40) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L35) · [Kotlin](../../examples/kount/kount.kt#L39) · [Rust](../../examples/kount/kount.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -144,4 +144,10 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L49) · [Kotlin](../../examples/kount/kount.kt#L50) · [Rust](../../examples/kount/kount.rs)
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ✓ |
+
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts) · [Kotlin](../../examples/kount/kount.kt) · [Rust](../../examples/kount/kount.rs)
