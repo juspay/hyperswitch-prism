@@ -5745,10 +5745,20 @@ pub(crate) fn get_adyen_refund_webhook_event(
 
 pub(crate) fn get_adyen_webhook_event_type(
     code: WebhookEventCode,
+    is_success: String,
 ) -> Result<EventType, WebhookError> {
     match code {
+        // Adyen sends the same AUTHORISATION eventCode for both success and
+        // failure, distinguished only by `success` -- mirrors
+        // get_adyen_payment_webhook_event's Authorized/Failure split below.
+        // Most Adyen integrations auto-capture, so a successful AUTHORISATION
+        // is the final settlement signal, not just an intermediate auth step.
         WebhookEventCode::Authorisation | WebhookEventCode::RecurringContract => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentSuccess)
+            } else {
+                Ok(EventType::PaymentIntentFailure)
+            }
         }
         WebhookEventCode::AuthorisationAdjustment => {
             Ok(EventType::PaymentIntentAuthorizationSuccess)
