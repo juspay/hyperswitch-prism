@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 128
+# Connectors: 129
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 128
+  total_connectors: 129
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -668,6 +668,14 @@ doc: docs/connectors/payhere.md
 scenarios: none
 payment_methods: none
 flows: create_server_authentication_token, handle_event, parse_event, verify_redirect
+examples_python: none
+
+## Payhound
+connector_id: payhound
+doc: docs/connectors/payhound.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event
 examples_python: none
 
 ## Payload
