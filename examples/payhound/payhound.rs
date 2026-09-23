@@ -24,6 +24,7 @@ fn build_client() -> ConnectorClient {
                         "YOUR_API_SECRET".to_string(),
                     )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    hosted_invoice_base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     ..Default::default()
                 },
             )),

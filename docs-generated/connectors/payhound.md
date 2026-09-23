@@ -27,6 +27,7 @@ config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
             base_url="YOUR_BASE_URL",
+            hosted_invoice_base_url="YOUR_HOSTED_INVOICE_BASE_URL",
         ),
     ),
 )
@@ -52,6 +53,7 @@ const config = ConnectorConfig.create({
             apiKey: { value: 'YOUR_API_KEY' },
             apiSecret: { value: 'YOUR_API_SECRET' },
             baseUrl: 'YOUR_BASE_URL',
+            hostedInvoiceBaseUrl: 'YOUR_HOSTED_INVOICE_BASE_URL',
         }
     },
 });
@@ -73,6 +75,7 @@ val config = ConnectorConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
                 .setBaseUrl("YOUR_BASE_URL")
+                .setHostedInvoiceBaseUrl("YOUR_HOSTED_INVOICE_BASE_URL")
                 .build())
             .build()
     )
@@ -96,6 +99,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                hosted_invoice_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
         }),
@@ -130,4 +134,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payhound/payhound.py) · [TypeScript](../../examples/payhound/payhound.ts#L65) · [Kotlin](../../examples/payhound/payhound.kt#L53) · [Rust](../../examples/payhound/payhound.rs)
+**Examples:** [Python](../../examples/payhound/payhound.py) · [TypeScript](../../examples/payhound/payhound.ts#L66) · [Kotlin](../../examples/payhound/payhound.kt#L54) · [Rust](../../examples/payhound/payhound.rs)
