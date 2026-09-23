@@ -6,8 +6,9 @@
 //! and [`Money`]. These operations are only needed at the proto ↔ domain
 //! boundary (in `domain_types` and `grpc-server`).
 //!
-//! A CI lint enforces that `crates/integrations/connector-integration/`
-//! never contains `use ...::proto_boundary`.
+//! `crates/integrations/connector-integration/` must never contain
+//! `use ...::proto_boundary` — a CI lint enforcing this is planned as a
+//! follow-up.
 
 use common_enums::enums;
 

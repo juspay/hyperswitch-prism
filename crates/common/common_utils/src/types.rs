@@ -1,6 +1,6 @@
 //! Types that can be used in other crates
 
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, ops::Sub, str::FromStr};
 
 use common_enums::enums;
 use error_stack::ResultExt;
@@ -175,12 +175,21 @@ impl Display for ConnectorMinorUnit {
     }
 }
 
+impl Sub for ConnectorMinorUnit {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0.sub(rhs.0))
+    }
+}
+
 /// This Unit struct represents MinorUnit in which core amount works.
 ///
 /// The inner field is **private**. Construction and extraction are gated behind
-/// the `proto-conversion` cargo feature so that only the proto/domain boundary
-/// crates can create or inspect raw values. Connector code receives `MinorUnit`
-/// in domain structs but can only pass it through `AmountConvertor`.
+/// the [`crate::proto_boundary::MinorUnitProtoAccess`] trait, so only the
+/// proto/domain boundary crates can create or inspect raw values. Connector
+/// code receives `MinorUnit` in domain structs but can only pass it through
+/// `AmountConvertor`.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema, PartialOrd)]
 pub struct MinorUnit(i64);
 
@@ -641,7 +650,7 @@ impl Money {
     /// Construct from a [`ConnectorMinorUnit`] and a currency.
     ///
     /// Connectors use this to build `Money` values from converted connector
-    /// response amounts without needing `proto-conversion`.
+    /// response amounts without needing `MinorUnitProtoAccess`.
     pub fn from_connector_minor_unit(
         amount: ConnectorMinorUnit,
         currency: enums::Currency,

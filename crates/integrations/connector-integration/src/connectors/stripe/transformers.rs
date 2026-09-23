@@ -3332,17 +3332,7 @@ pub fn get_connector_metadata(
                             sepa_bank_instructions,
                             bacs_bank_instructions,
                             receiver: {
-                                // ConnectorMinorUnit does not implement Sub; compute
-                                // the received amount through serialized i64 values.
-                                let total = amount.to_string().parse::<i64>().unwrap_or(0);
-                                let remaining = response
-                                    .amount_remaining
-                                    .to_string()
-                                    .parse::<i64>()
-                                    .unwrap_or(0);
-                                let received_str = (total - remaining).to_string();
-                                let received: ConnectorMinorUnit =
-                                    serde_json::from_str(&received_str).unwrap_or_default();
+                                let received = amount - response.amount_remaining;
                                 SepaAndBacsReceiver {
                                     amount_received: received,
                                     amount_remaining: response.amount_remaining,
