@@ -482,7 +482,7 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Serialize)]
 pub struct RazorpayV2RefundRequest {
-    pub amount: i64,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -505,9 +505,8 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &RazorpayV2RouterData<&RefundsData, U>) -> Result<Self, Self::Error> {
-        let amount_in_minor_units = item.amount.to_string().parse::<i64>().unwrap_or(0);
         Ok(Self {
-            amount: amount_in_minor_units,
+            amount: item.amount,
         })
     }
 }

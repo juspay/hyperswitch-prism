@@ -1030,6 +1030,8 @@ fn wallet_details_to_payment_method_details(
     wallet: &QwikcilverWalletDetails,
     currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
+    // Best-effort display field: a wallet balance we can't convert is shown as
+    // absent rather than failing the whole PaymentMethodDetails response.
     let balance = wallet.balance.zip(currency).and_then(|(b, c)| {
         crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
     });

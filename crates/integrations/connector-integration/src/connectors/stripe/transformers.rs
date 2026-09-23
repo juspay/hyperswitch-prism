@@ -3246,25 +3246,25 @@ where
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|a| {
+                StripeAmountConvertor::convert_back(
+                    a,
+                    item.response.currency.parse().unwrap_or_default(),
+                )
+            })
+            .transpose()
+            .ok()
+            .flatten();
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.to_string().parse::<i64>().unwrap_or(0)),
-                minor_amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|a| {
-                        StripeAmountConvertor::convert_back(
-                            a,
-                            item.response.currency.parse().unwrap_or_default(),
-                        )
-                    })
-                    .transpose()
-                    .ok()
-                    .flatten(),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
+                minor_amount_captured,
                 connector_response: connector_response_data,
                 minor_amount_capturable: minor_amount_capturable
                     .map(|a| {
@@ -3576,25 +3576,25 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
             currency: currency_enum,
         };
 
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|a| {
+                StripeAmountConvertor::convert_back(
+                    a,
+                    item.response.currency.parse().unwrap_or_default(),
+                )
+            })
+            .transpose()
+            .ok()
+            .flatten();
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.to_string().parse::<i64>().unwrap_or(0)),
-                minor_amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|a| {
-                        StripeAmountConvertor::convert_back(
-                            a,
-                            item.response.currency.parse().unwrap_or_default(),
-                        )
-                    })
-                    .transpose()
-                    .ok()
-                    .flatten(),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
+                minor_amount_captured,
                 connector_response: connector_response_data,
                 ..item.router_data.resource_common_data
             },

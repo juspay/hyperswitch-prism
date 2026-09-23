@@ -225,6 +225,8 @@ fn build_travel_data(
                     .or_else(|| airline.flight_date.clone()),
                 air_class: s.class_of_service.clone(),
                 fare: s.fare_amount.as_ref().map(|m| TravelhubTravelFare {
+                    // Best-effort display field: a fare amount we can't convert is
+                    // shown as absent rather than failing the whole itinerary segment.
                     amount: m.convert(&MinorUnitForConnector).ok(),
                     currency: Some(m.currency()),
                     fare_class: s.class_of_service.clone(),
