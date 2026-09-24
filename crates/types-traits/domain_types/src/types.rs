@@ -1405,6 +1405,41 @@ impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::U
     }
 }
 
+impl ForeignFrom<common_enums::FundingSource> for grpc_api_types::payments::FundingSource {
+    fn foreign_from(value: common_enums::FundingSource) -> Self {
+        match value {
+            common_enums::FundingSource::Credit => Self::Credit,
+            common_enums::FundingSource::Debit => Self::Debit,
+            common_enums::FundingSource::Prepaid => Self::Prepaid,
+            common_enums::FundingSource::ChargeCard => Self::ChargeCard,
+            common_enums::FundingSource::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardSegmentType> for grpc_api_types::payments::CardSegmentType {
+    fn foreign_from(value: common_enums::CardSegmentType) -> Self {
+        match value {
+            common_enums::CardSegmentType::Business => Self::Business,
+            common_enums::CardSegmentType::Commercial => Self::Commercial,
+            common_enums::CardSegmentType::Consumer => Self::Consumer,
+            common_enums::CardSegmentType::Government => Self::Government,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardType> for grpc_api_types::payments::CardType {
+    fn foreign_from(value: common_enums::CardType) -> Self {
+        match value {
+            common_enums::CardType::Credit => Self::Credit,
+            common_enums::CardType::Debit => Self::Debit,
+            common_enums::CardType::Prepaid => Self::Prepaid,
+            common_enums::CardType::Store => Self::Store,
+            common_enums::CardType::ChargeCard => Self::ChargeCard,
+        }
+    }
+}
+
 impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
     for grpc_api_types::payments::PaymentMethod
 {
@@ -6598,23 +6633,76 @@ impl ForeignTryFrom<ConnectorResponseData> for grpc_api_types::payments::Connect
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::GooglePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            card_type,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
                                         grpc_api_types::payments::GooglePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| {
+                                                let grpc_segment_type: grpc_api_types::payments::CardSegmentType = ForeignFrom::foreign_from(cs);
+                                                grpc_segment_type as i32
+                                            }),
+                                            funding_source: funding_source.map(|fs| {
+                                                let grpc_funding_source: grpc_api_types::payments::FundingSource = ForeignFrom::foreign_from(fs);
+                                                grpc_funding_source as i32
+                                            }),
+                                            card_type: card_type.map(|ct| {
+                                                let grpc_card_type: grpc_api_types::payments::CardType = ForeignFrom::foreign_from(ct);
+                                                grpc_card_type as i32
+                                            }),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.and_then(|c| {
+                                                grpc_api_types::payments::CountryAlpha2::foreign_try_from(c).ok().map(|v| v as i32)
+                                            }),
                                         }
                                     )
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::ApplePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
                                         grpc_api_types::payments::ApplePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| {
+                                                let grpc_segment_type: grpc_api_types::payments::CardSegmentType = ForeignFrom::foreign_from(cs);
+                                                grpc_segment_type as i32
+                                            }),
+                                            funding_source: funding_source.map(|fs| {
+                                                let grpc_funding_source: grpc_api_types::payments::FundingSource = ForeignFrom::foreign_from(fs);
+                                                grpc_funding_source as i32
+                                            }),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.and_then(|c| {
+                                                grpc_api_types::payments::CountryAlpha2::foreign_try_from(c).ok().map(|v| v as i32)
+                                            }),
                                         }
                                     )
                                 ),
@@ -19397,7 +19485,7 @@ impl
             connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
