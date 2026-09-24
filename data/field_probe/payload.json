@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by payload connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
@@ -55,28 +55,28 @@
         }
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "ApplePay": {
         "status": "not_implemented",
@@ -87,56 +87,56 @@
         "error": "This feature is not implemented: Payment method"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Bacs": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Payload"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Becs": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Payload"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Card": {
         "status": "supported",
@@ -187,76 +187,76 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -267,156 +267,156 @@
         "error": "This feature is not implemented: Payment method"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -427,116 +427,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Sepa": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Payload"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Payload"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Wallet is not supported by Payload"
+        "status": "error",
+        "error": "Wallet"
       }
     },
     "capture": {
@@ -597,20 +597,20 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by payload connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by payload connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by payload connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -642,14 +642,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by payload connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by payload connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -659,14 +659,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by payload connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by payload connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -705,8 +705,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by payload connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -735,14 +735,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by payload connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by payload connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
@@ -892,8 +892,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by payload connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -961,8 +961,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by payload connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -1058,8 +1058,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "error",
+        "error": "Payment method"
       }
     },
     "verify_redirect": {

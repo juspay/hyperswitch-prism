@@ -82,8 +82,8 @@
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through worldpay is not supported by Worldpay"
+        "status": "error",
+        "error": "Selected payment method through worldpay"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -291,8 +291,8 @@
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through worldpay is not supported by Worldpay"
+        "status": "error",
+        "error": "Selected payment method through worldpay"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -596,8 +596,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by worldpay connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
@@ -614,26 +614,26 @@
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by worldpay connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by worldpay connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by worldpay connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by worldpay connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -643,14 +643,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by worldpay connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by worldpay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -815,8 +815,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by worldpay connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {

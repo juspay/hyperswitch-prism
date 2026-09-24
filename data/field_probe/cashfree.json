@@ -511,8 +511,8 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by cashfree connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
@@ -558,8 +558,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by cashfree connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -594,8 +594,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by cashfree connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -700,8 +700,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by cashfree connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

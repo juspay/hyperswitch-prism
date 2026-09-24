@@ -52,19 +52,19 @@
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
@@ -87,24 +87,24 @@
         "error": "This feature is not implemented: Wallet not supported"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
+        "status": "error",
+        "error": "Only ACH Bank Debit is supported"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
+        "status": "error",
+        "error": "Only ACH Bank Debit is supported"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
@@ -112,11 +112,11 @@
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -124,15 +124,15 @@
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Card": {
         "status": "supported",
@@ -188,11 +188,11 @@
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -204,7 +204,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -212,7 +212,7 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
@@ -220,19 +220,19 @@
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "GCash": {
         "status": "not_implemented",
@@ -240,7 +240,7 @@
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Givex": {
         "status": "not_implemented",
@@ -256,7 +256,7 @@
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Decrypted Google Pay token is not supported for JPMorgan; use encrypted flow is not supported by jpmorgan"
+        "error": "Decrypted Google Pay token is not supported for JPMorgan; use encrypted flow"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -264,31 +264,31 @@
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "KakaoPay": {
         "status": "not_implemented",
@@ -296,11 +296,11 @@
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
@@ -308,15 +308,15 @@
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "MbWay": {
         "status": "not_implemented",
@@ -328,7 +328,7 @@
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -340,39 +340,39 @@
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -380,23 +380,23 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -420,7 +420,7 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
@@ -428,23 +428,23 @@
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "RevolutPay": {
         "status": "not_implemented",
@@ -460,23 +460,23 @@
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
+        "status": "error",
+        "error": "Only ACH Bank Debit is supported"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
+        "status": "error",
+        "error": "Only ACH Bank Debit is supported"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Skrill": {
         "status": "not_implemented",
@@ -484,7 +484,7 @@
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Swish": {
         "status": "not_implemented",
@@ -496,7 +496,7 @@
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Twint": {
         "status": "not_implemented",
@@ -504,15 +504,15 @@
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Vipps": {
         "status": "not_implemented",
@@ -524,7 +524,7 @@
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by Jpmorgan"
+        "error": "Payment method not supported"
       },
       "Wero": {
         "status": "not_implemented",
@@ -654,8 +654,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by jpmorgan connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

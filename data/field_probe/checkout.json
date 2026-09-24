@@ -66,8 +66,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Apple Pay payload that is still encrypted is not supported by checkout"
+        "status": "error",
+        "error": "Apple Pay payload that is still encrypted"
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -278,8 +278,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Google Pay payload that is still encrypted is not supported by checkout"
+        "status": "error",
+        "error": "Google Pay payload that is still encrypted"
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -683,8 +683,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by checkout connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -886,8 +886,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by checkout connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -942,8 +942,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by checkout connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

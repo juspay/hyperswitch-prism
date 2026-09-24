@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8)"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6)"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6)"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8)"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8)"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Card": {
         "status": "error",
@@ -102,19 +102,19 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(12) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(12)"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(12) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(12)"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Givex": {
         "status": "not_implemented",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6)"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(16) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(16)"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -342,87 +342,87 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8)"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9)"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8)"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15)"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7)"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "UpiCollect": {
         "status": "error",
@@ -438,19 +438,19 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(4) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(4)"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5)"
       }
     },
     "capture": {
@@ -461,8 +461,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
@@ -488,32 +488,32 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -523,14 +523,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -546,8 +546,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -615,8 +615,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by pinelabs_online connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -628,7 +628,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method not supported for PineLabs Online: Discriminant(17) is not supported by PinelabsOnline"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(17)"
       }
     },
     "token_setup_recurring": {

@@ -10,63 +10,63 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "BillDeskRedirect": {
         "status": "supported",
@@ -107,35 +107,35 @@
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Card": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "CashfreeRedirect": {
         "status": "supported",
@@ -176,11 +176,11 @@
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -188,11 +188,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -200,7 +200,7 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "EaseBuzzRedirect": {
         "status": "supported",
@@ -241,27 +241,27 @@
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Givex": {
         "status": "not_implemented",
@@ -269,59 +269,59 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "LazyPayRedirect": {
         "status": "supported",
@@ -362,27 +362,27 @@
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -390,11 +390,11 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Netbanking": {
         "status": "supported",
@@ -437,31 +437,31 @@
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -469,23 +469,23 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "PayURedirect": {
         "status": "supported",
@@ -526,11 +526,11 @@
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -542,7 +542,7 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "PhonePeRedirect": {
         "status": "supported",
@@ -583,79 +583,79 @@
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "UpiCollect": {
         "status": "supported",
@@ -772,19 +772,19 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+        "error": "Wallet type not supported by PayU. PayU only supports specific Indian wallet redirect flows."
       }
     },
     "capture": {
@@ -867,14 +867,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by payu connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by payu connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -884,14 +884,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by payu connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by payu connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -924,8 +924,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by payu connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -953,7 +953,7 @@
     "proxy_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       }
     },
     "proxy_setup_recurring": {
@@ -1026,8 +1026,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by payu connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -1039,7 +1039,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
       }
     },
     "token_setup_recurring": {

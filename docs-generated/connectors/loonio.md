@@ -134,7 +134,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ⚠ |
-| Bancontact | x |
+| Bancontact | ? |
 | Apple Pay | ⚠ |
 | Apple Pay Dec | ⚠ |
 | Apple Pay SDK | ⚠ |
@@ -170,28 +170,28 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | UPI Collect | ⚠ |
 | UPI Intent | ⚠ |
 | UPI QR | ⚠ |
-| Thailand | x |
-| Czech | x |
-| Finland | x |
-| FPX | x |
-| Poland | x |
-| Slovakia | x |
-| UK | x |
+| Thailand | ? |
+| Czech | ? |
+| Finland | ? |
+| FPX | ? |
+| Poland | ? |
+| Slovakia | ? |
+| UK | ? |
 | PIS | ⚠ |
-| Generic | x |
+| Generic | ? |
 | WebPay | ⚠ |
-| Local | x |
-| iDEAL | x |
-| Sofort | x |
-| Trustly | x |
-| Giropay | x |
-| EPS | x |
-| Przelewy24 | x |
+| Local | ? |
+| iDEAL | ? |
+| Sofort | ? |
+| Trustly | ? |
+| Giropay | ? |
+| EPS | ? |
+| Przelewy24 | ? |
 | PSE | ⚠ |
-| BLIK | x |
+| BLIK | ? |
 | Interac | ✓ |
-| Bizum | x |
-| EFT | x |
+| Bizum | ? |
+| EFT | ? |
 | DuitNow | ⚠ |
 | ACH | ⚠ |
 | SEPA | ⚠ |

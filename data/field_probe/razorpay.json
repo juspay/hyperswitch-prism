@@ -574,8 +574,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by razorpay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -623,8 +623,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by razorpay connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -683,8 +683,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by razorpay connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -739,8 +739,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by razorpay connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -768,8 +768,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by razorpay connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

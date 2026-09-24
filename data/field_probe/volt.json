@@ -9,288 +9,288 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "OpenBanking": {
         "status": "supported",
@@ -387,32 +387,32 @@
         }
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -423,122 +423,122 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       }
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by volt connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
@@ -549,8 +549,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by volt connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
@@ -576,26 +576,26 @@
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by volt connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by volt connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by volt connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by volt connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -605,14 +605,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by volt connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by volt connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -656,8 +656,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by volt connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -684,8 +684,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       }
     },
     "proxy_setup_recurring": {
@@ -749,14 +749,14 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_supported",
-        "error": "refund_sync flow not supported by volt connector"
+        "status": "error",
+        "error": "refund_sync flow"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by volt connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -767,8 +767,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through Volt is not supported by Volt"
+        "status": "error",
+        "error": "Selected payment method through Volt"
       }
     },
     "token_setup_recurring": {

@@ -9,32 +9,32 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "ApplePay": {
         "status": "supported",
@@ -125,56 +125,56 @@
         }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Card": {
         "status": "supported",
@@ -212,76 +212,76 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "GooglePay": {
         "status": "supported",
@@ -371,156 +371,156 @@
         }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -531,116 +531,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected wallet is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected wallet"
       }
     },
     "capture": {
@@ -704,8 +704,8 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by worldpayxml connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
@@ -727,8 +727,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by worldpayxml connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -1024,14 +1024,14 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "error",
+        "error": "Selected payment method"
       }
     },
     "verify_redirect": {

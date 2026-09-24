@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by glomopay connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
@@ -542,14 +542,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by glomopay connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by glomopay connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -559,14 +559,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by glomopay connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by glomopay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -644,14 +644,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by glomopay connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by glomopay connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
@@ -761,8 +761,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by glomopay connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -790,8 +790,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by glomopay connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

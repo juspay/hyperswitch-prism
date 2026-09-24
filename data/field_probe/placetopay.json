@@ -527,8 +527,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by placetopay connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
@@ -580,8 +580,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by placetopay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

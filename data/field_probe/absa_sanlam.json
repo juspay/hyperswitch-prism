@@ -9,328 +9,328 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -341,116 +341,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       }
     },
     "capture": {
@@ -461,50 +461,50 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -514,14 +514,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -552,8 +552,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -594,8 +594,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       }
     },
     "proxy_setup_recurring": {
@@ -635,8 +635,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -647,8 +647,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+        "status": "error",
+        "error": "Selected payment method through AbsaSanlam"
       }
     },
     "token_setup_recurring": {
@@ -664,8 +664,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by absa_sanlam connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

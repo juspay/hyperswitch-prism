@@ -455,8 +455,8 @@
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by calida connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
@@ -520,8 +520,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by calida connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -569,8 +569,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by calida connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -652,8 +652,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by calida connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -681,8 +681,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by calida connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

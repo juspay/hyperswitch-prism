@@ -676,8 +676,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by bankofamerica connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

@@ -1304,14 +1304,14 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by stripe connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by stripe connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
@@ -1373,8 +1373,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by stripe connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -1599,8 +1599,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by stripe connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -1657,8 +1657,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by stripe connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

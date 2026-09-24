@@ -9,92 +9,92 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Card": {
         "status": "supported",
@@ -130,236 +130,236 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -370,116 +370,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       }
     },
     "capture": {
@@ -511,14 +511,14 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by worldpayvantiv connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by worldpayvantiv connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
@@ -529,14 +529,14 @@
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by worldpayvantiv connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by worldpayvantiv connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
@@ -564,8 +564,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by worldpayvantiv connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -763,8 +763,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by worldpayvantiv"
+        "status": "error",
+        "error": "Payment method"
       }
     },
     "token_setup_recurring": {

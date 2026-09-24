@@ -879,8 +879,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by airwallex connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -1074,8 +1074,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by airwallex connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -1092,8 +1092,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "SetupMandate Payment Method (only Card supported) is not supported by Airwallex"
+        "status": "error",
+        "error": "SetupMandate Payment Method (only Card supported)"
       }
     },
     "verify_redirect": {

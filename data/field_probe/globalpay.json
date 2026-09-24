@@ -687,8 +687,8 @@
         "error": "This feature is not implemented: Wallet payment method not supported. GlobalPay Authorize supports PaypalRedirect and GooglePay wallets; received an unsupported wallet variant"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Sofort is not supported by globalpay. Sofort was discontinued by Klarna in 2024 and is no longer supported by GlobalPay"
+        "status": "error",
+        "error": "Sofort. Sofort was discontinued by Klarna in 2024 and is no longer supported by GlobalPay"
       },
       "Swish": {
         "status": "not_implemented",
@@ -857,8 +857,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by globalpay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

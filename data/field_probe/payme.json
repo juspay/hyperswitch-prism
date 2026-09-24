@@ -9,92 +9,92 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Card": {
         "status": "supported",
@@ -136,236 +136,236 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -376,116 +376,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       }
     },
     "capture": {
@@ -512,8 +512,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by payme connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
@@ -539,14 +539,14 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by payme connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by payme connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -563,14 +563,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by payme connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by payme connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -580,14 +580,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by payme connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by payme connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -619,8 +619,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by payme connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -753,8 +753,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by payme connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -765,8 +765,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+        "status": "error",
+        "error": "Payment method not yet implemented for Payme"
       }
     },
     "token_setup_recurring": {

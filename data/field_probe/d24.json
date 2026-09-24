@@ -233,8 +233,8 @@
         "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::CardRedirect(Webpay {}) and PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) — no card data is sent to /v3/deposits"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "LocalBankTransfer in billing country CL (Directa24 bank transfer is offered in MX and BR only) is not supported by d24"
+        "status": "error",
+        "error": "LocalBankTransfer in billing country CL (Directa24 bank transfer is offered in MX and BR only)"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
@@ -560,8 +560,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by d24 connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

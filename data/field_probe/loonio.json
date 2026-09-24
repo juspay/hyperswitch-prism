@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by loonio connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
@@ -57,8 +57,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -73,12 +73,12 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -145,12 +145,12 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "FamilyMart": {
         "status": "not_implemented",
@@ -161,8 +161,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Givex": {
         "status": "not_implemented",
@@ -185,8 +185,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -263,8 +263,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -299,44 +299,44 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -387,8 +387,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Pse": {
         "status": "not_implemented",
@@ -439,8 +439,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Swish": {
         "status": "not_implemented",
@@ -451,8 +451,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through Loonio is not supported by Loonio"
+        "status": "error",
+        "error": "Selected payment method through Loonio"
       },
       "Twint": {
         "status": "not_implemented",
@@ -489,56 +489,56 @@
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by loonio connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by loonio connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by loonio connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by loonio connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by loonio connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by loonio connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by loonio connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by loonio connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by loonio connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -548,14 +548,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by loonio connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by loonio connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -589,8 +589,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by loonio connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -605,14 +605,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by loonio connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by loonio connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
@@ -635,8 +635,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by loonio connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -658,8 +658,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by loonio connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -687,8 +687,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by loonio connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }
