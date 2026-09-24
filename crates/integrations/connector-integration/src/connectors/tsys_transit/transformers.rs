@@ -4294,7 +4294,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: amount_captured.unwrap_or(router_data.request.amount),
+                    amount: amount_captured
+                        .or(minor_amount_capturable.map(|m| m.get_amount_as_i64()))
+                        .unwrap_or(router_data.request.amount),
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),
