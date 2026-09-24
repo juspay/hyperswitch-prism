@@ -2966,41 +2966,29 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
         item: ResponseRouterData<PaypalCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
-        let amount_captured = match status {
-            common_enums::AttemptStatus::Pending
-            | common_enums::AttemptStatus::Authorized
-            | common_enums::AttemptStatus::Failure
-            | common_enums::AttemptStatus::RouterDeclined
-            | common_enums::AttemptStatus::AuthenticationFailed
-            | common_enums::AttemptStatus::CaptureFailed
-            | common_enums::AttemptStatus::Started
-            | common_enums::AttemptStatus::AuthenticationPending
-            | common_enums::AttemptStatus::AuthenticationSuccessful
-            | common_enums::AttemptStatus::AuthorizationFailed
-            | common_enums::AttemptStatus::Authorizing
-            | common_enums::AttemptStatus::VoidInitiated
-            | common_enums::AttemptStatus::CodInitiated
-            | common_enums::AttemptStatus::CaptureInitiated
-            | common_enums::AttemptStatus::VoidFailed
-            | common_enums::AttemptStatus::AutoRefunded
-            | common_enums::AttemptStatus::Unresolved
-            | common_enums::AttemptStatus::Unspecified
-            | common_enums::AttemptStatus::PaymentMethodAwaited
-            | common_enums::AttemptStatus::ConfirmationAwaited
-            | common_enums::AttemptStatus::DeviceDataCollectionPending
-            | common_enums::AttemptStatus::Voided
-            | common_enums::AttemptStatus::VoidedPostCapture
-            | common_enums::AttemptStatus::VoidPostCaptureInitiated
-            | common_enums::AttemptStatus::Expired
-            | common_enums::AttemptStatus::Unknown
-            | common_enums::AttemptStatus::PartiallyAuthorized => 0,
+        // Single source of truth for "did this capture settle" - both the
+        // deprecated i64 mirror and the typed MinorUnit are derived from it,
+        // so they can never disagree with each other.
+        let is_settled = matches!(
+            status,
             common_enums::AttemptStatus::Charged
-            | common_enums::AttemptStatus::PartialCharged
-            | common_enums::AttemptStatus::PartialChargedAndChargeable
-            | common_enums::AttemptStatus::IntegrityFailure => {
-                item.router_data.request.amount_to_capture
-            }
+                | common_enums::AttemptStatus::PartialCharged
+                | common_enums::AttemptStatus::PartialChargedAndChargeable
+                | common_enums::AttemptStatus::IntegrityFailure
+        );
+        let amount_captured = if is_settled {
+            item.router_data.request.amount_to_capture
+        } else {
+            0
         };
+        // Some(0), not None, in the non-settled case - matches amount_captured's
+        // existing 0 sentinel exactly rather than introducing a second, unverified
+        // behavior change (present-with-zero vs. absent) alongside this fix.
+        let minor_amount_captured = Some(if is_settled {
+            item.router_data.request.minor_amount_to_capture
+        } else {
+            Default::default()
+        });
         let connector_payment_id: PaypalMeta = match to_connector_meta(
             item.router_data
                 .request
@@ -3030,6 +3018,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 amount_captured: Some(amount_captured),
+                minor_amount_captured,
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
