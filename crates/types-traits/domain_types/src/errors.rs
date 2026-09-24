@@ -348,7 +348,24 @@ impl IntegrationError {
 impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationError {
     fn switch(&self) -> grpc_api_types::payments::IntegrationError {
         let context = self.integration_context();
-        let base_message = self.to_string();
+
+        // Variants that are about a specific connector send the connector separately and keep it
+        // out of the message. `Display` bakes it in, which leaves the caller no way to attribute
+        // the error except by parsing the sentence, and no way to re-render it without repeating
+        // the name. Every other variant keeps its `Display` output.
+        let (base_message, connector) = match self {
+            Self::NotSupported {
+                message, connector, ..
+            }
+            | Self::CurrencyNotSupported {
+                message, connector, ..
+            } => (message.clone(), Some((*connector).to_string())),
+            Self::FlowNotSupported {
+                flow, connector, ..
+            } => (format!("{flow} flow"), Some(connector.clone())),
+            _ => (self.to_string(), None),
+        };
+
         let error_message = combine_error_message_with_context(
             &base_message,
             context.additional_context.as_deref(),
@@ -359,6 +376,7 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationErro
             error_code: self.error_code().to_string(),
             suggested_action: context.suggested_action.clone(),
             doc_url: doc_url_for_error_code(self.error_code()),
+            connector,
         }
     }
 }
@@ -689,6 +707,8 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {
             error_code: self.as_ref().to_string(),
             suggested_action: None,
             doc_url: None,
+            // Webhook errors are not scoped to a connector at this layer.
+            connector: None,
         }
     }
 }

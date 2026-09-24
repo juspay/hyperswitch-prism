@@ -21,6 +21,7 @@ pub fn ffi_headers_to_masked_metadata(
                 error_code: "MISSING_REQUIRED_HEADER".to_string(),
                 suggested_action: None,
                 doc_url: None,
+                connector: None,
             }
         }
         ucs_interface_common::error::InterfaceError::InvalidHeaderValue { key, reason } => {
@@ -29,6 +30,7 @@ pub fn ffi_headers_to_masked_metadata(
                 error_code: "INVALID_HEADER_VALUE".to_string(),
                 suggested_action: None,
                 doc_url: None,
+                connector: None,
             }
         }
     })

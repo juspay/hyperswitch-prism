@@ -50,6 +50,7 @@ mod uniffi_bindings_inner {
                         error_code: "DECODE_FAILED".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })),
                 }
                 .encode_to_vec();
@@ -107,6 +108,7 @@ mod uniffi_bindings_inner {
                         error_code: "ENCODING_FAILED".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })),
                 }
                 .encode_to_vec();
@@ -127,6 +129,7 @@ mod uniffi_bindings_inner {
                         error_code: "RE_DECODE_FAILED".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })),
                 }
                 .encode_to_vec(),
@@ -287,6 +290,7 @@ mod uniffi_bindings_inner {
                         error_code: "DECODE_FAILED".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })),
                 }
                 .encode_to_vec();
@@ -357,6 +361,7 @@ mod uniffi_bindings_inner {
                         error_code: "DECODE_FAILED".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })),
                 }
                 .encode_to_vec();

@@ -30,6 +30,7 @@ pub fn build_ffi_request_bytes(
             error_code: "BODY_ENCODING_FAILED".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?
         .unwrap_or((None, None));
 
@@ -100,6 +101,7 @@ pub fn parse_ffi_options_for_req(options_bytes: Vec<u8>) -> Result<FfiOptions, I
             error_code: "EMPTY_OPTIONS".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         });
     }
     FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| IntegrationError {
@@ -107,6 +109,7 @@ pub fn parse_ffi_options_for_req(options_bytes: Vec<u8>) -> Result<FfiOptions, I
         error_code: "DECODE_FAILED".to_string(),
         suggested_action: None,
         doc_url: None,
+        connector: None,
     })
 }
 
@@ -150,6 +153,7 @@ pub fn parse_metadata(
             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?;
 
     // 2. Infer connector from which oneof variant is set
@@ -161,6 +165,7 @@ pub fn parse_metadata(
             error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?;
 
     let connector = ConnectorVariant::foreign_try_from(config_variant.clone()).map_err(
@@ -197,6 +202,7 @@ pub fn parse_webhook_metadata(
             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?;
 
     let config_variant = proto_config
@@ -209,6 +215,7 @@ pub fn parse_webhook_metadata(
             error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
             suggested_action: None,
             doc_url: None,
+                        connector: None,
         })?;
 
     // Extract connector identity from the oneof variant.
@@ -219,6 +226,7 @@ pub fn parse_webhook_metadata(
             error_code: "INVALID_CONNECTOR_CONFIG_VARIANT".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         },
     )?;
 

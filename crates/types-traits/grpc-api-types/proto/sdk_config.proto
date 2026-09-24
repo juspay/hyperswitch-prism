@@ -169,6 +169,7 @@ message IntegrationError {
   string error_code = 2;              // Machine-readable code for programmatic handling (e.g., "MISSING_REQUIRED_FIELD")
   optional string suggested_action = 3;        // Actionable guidance for developers to resolve the error (e.g., "Provide the 'card_exp' field in your request")
   optional string doc_url = 4;                 // documentation url for reference
+  optional string connector = 5;               // Connector the error is about, when it is about one (e.g., "worldpayxml"). Set so the caller can attribute the error without parsing error_message.
 }
 
 // Error when parsing connector HTTP response → SDK response (FFI boundary).

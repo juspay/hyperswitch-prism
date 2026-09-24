@@ -48,6 +48,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })?;
                 $req_svc::<DefaultPCIHolder>(
                     request.payload,
@@ -61,6 +62,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             suggested_action: None,
                             doc_url: None,
+                        connector: None,
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                 )
@@ -126,6 +128,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })?;
                 $req_svc(
                     request.payload,
@@ -139,6 +142,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             suggested_action: None,
                             doc_url: None,
+                        connector: None,
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                 )
@@ -204,6 +208,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })?;
                 $req_svc(
                     request.payload,
@@ -217,6 +222,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             suggested_action: None,
                             doc_url: None,
+                        connector: None,
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                 )
@@ -282,6 +288,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE_FOR_PAYOUT".to_string(),
                         suggested_action: None,
                         doc_url: None,
+                        connector: None,
                     })?;
                 $req_svc(
                     request.payload,
@@ -295,6 +302,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             suggested_action: None,
                             doc_url: None,
+                        connector: None,
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                 )
@@ -369,6 +377,7 @@ pub fn parse_event_handler(
             error_code: "INVALID_CONNECTOR_TYPE".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?;
     crate::services::payments::parse_event_transformer(
         request.payload,
@@ -398,6 +407,7 @@ pub fn handle_event_handler(
             error_code: "INVALID_CONNECTOR_TYPE".to_string(),
             suggested_action: None,
             doc_url: None,
+            connector: None,
         })?;
     crate::services::payments::handle_event_transformer(
         request.payload,
