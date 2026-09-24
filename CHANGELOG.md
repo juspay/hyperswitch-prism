@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.24.0
+
+### Bug Fixes
+
+- **logs:** Record golden-line response fields on the span that declares them ([#2355](https://github.com/juspay/connector-service/pull/2355)) ([`f59af68`](https://github.com/juspay/connector-service/commit/f59af68d9bddfccc8a1968845c06c916cd65117e))
+
+**Full Changelog:** [`2026.09.23.2...2026.09.24.0`](https://github.com/juspay/connector-service/compare/2026.09.23.2...2026.09.24.0)
+
+- - -
+
 ## 2026.09.23.2
 
 ### Bug Fixes
