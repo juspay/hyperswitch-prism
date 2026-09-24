@@ -731,9 +731,10 @@ category: UCS_PATTERN_VIOLATION
 severity: CRITICAL
 connector: general
 flow: All
-applicability: ALL_CONNECTORS
+applicability: worldpay (source_pr #216) only — do NOT generalise
 date_added: 2025-10-14
-status: Active
+status: Superseded
+superseded_by: grace/rulesbook/codegen/.gracerules_add_flow "## FLOW-GROUP MAP (Authoritative)" — LEG-COUNT PROCEDURE
 frequency: 1
 impact: High
 tags: [ucs-architecture, amount-conversion, framework, critical]
@@ -911,7 +912,7 @@ THEN suggest: "Replace primitive type with domain_types::MinorUnit"
 
 ---
 
-### UCS-003: Separate 3DS authentication into Pre-Authenticate and Post-Authenticate flows
+### UCS-003: Model exactly the 3DS calls the connector documents (SUPERSEDED — was: always split into Pre/Post)
 
 **Metadata:**
 ```yaml
@@ -931,11 +932,26 @@ source_connector: worldpay
 reviewer: jarnura
 ```
 
-**Issue Description:**
-Handling all 3DS authentication logic (both device data collection and challenge response) in a single `Authenticate` flow violates the UCS state machine pattern for 3DS. The two distinct phases must be modeled as separate flows: `PreAuthenticate` for device data collection and `PostAuthenticate` for challenge handling.
+> **SUPERSEDED — read this first.** As originally written this rule generalised one connector's shape
+> into a requirement for all of them, and that generalisation is false. UCS does **not** require two
+> authentication flows. A connector implements exactly the pre-payment calls its own API documents:
+> of the 20 UCS connectors with any authentication marker, 8 use one leg, 6 use two and only `getnet`
+> uses three; in Hyperswitch ~62 of ~154 connectors need none at all. Splitting one documented call
+> into two UCS legs is a bug, and so is merging two documented calls into one. Worse, following this
+> rule mechanically produces a marker with no call behind it — dead code that
+> `next_authentication_step` never returns (`worldpay`, the very connector this rule came from, has
+> exactly that defect today). Decide the leg count with the **LEG-COUNT PROCEDURE** in
+> `grace/rulesbook/codegen/.gracerules_add_flow` §FLOW-GROUP MAP, and never map the charging call to
+> `PostAuthenticate` — that arm of the composite loop has no break, so `Authorize` runs after it and
+> charges a second time.
+
+**Issue Description (as originally filed, for worldpay):**
+Worldpay's 3DS integration has two distinct pre-payment calls — `3dsDeviceData` for device-data
+collection and `3dsChallenges` for the challenge result — and the original implementation collapsed
+both into a single `Authenticate` flow. For *that* connector, two legs is the correct shape.
 
 **Context / When This Applies:**
-This applies when implementing 3DS (3D Secure) authentication support for connectors. The connector may call it "authentication" generically, but UCS requires separating the two phases:
+This applies to connectors whose documentation genuinely shows two separate pre-payment authentication calls, as worldpay's does. Confirm that from the docs before splitting anything; the connector calling it "authentication" generically is not evidence either way:
 - PreAuthenticate: Initiating 3DS, collecting device data (3dsDeviceData), fingerprinting
 - PostAuthenticate: Handling the challenge response (3dsChallenges) after user authentication
 
@@ -1000,16 +1016,22 @@ Modeling them as separate flows ensures:
 6. In `PostAuthenticate` transformer, handle `3dsChallenges` from router_data
 7. Update status mapping to reflect the two-phase authentication
 
-**Auto-Fix Rule:**
+**Auto-Fix Rule (replaced — the original fired on every connector and pushed toward more legs):**
 ```
-IF flow contains single "Authenticate" AND connector supports 3DS
-THEN suggest: "Split into PreAuthenticate (device data) and PostAuthenticate (challenge) flows"
+IF a 3DS implementation registers an authentication marker with no documented call behind it
+THEN remove the marker (leave it in not_implemented:/not_supported:) and re-run the LEG-COUNT PROCEDURE.
+
+Do NOT split a single documented Authenticate call into two UCS legs, and do NOT merge two
+documented calls into one. Model exactly what the connector documents.
+The charging call is always Authorize, never PostAuthenticate.
 ```
 
 **Related Patterns:**
-- See: FB-200 series (Flow-Specific Best Practices when populated)
-- See: guides/patterns/pattern_authenticate.md
-- Reference: UCS 3DS state machine documentation
+- Authoritative: `grace/rulesbook/codegen/.gracerules_add_flow` §FLOW-GROUP MAP — LEG-COUNT PROCEDURE
+- See: `guides/patterns/pattern_authentication_dispatch.md` (which leg may move money; loop termination)
+- See: `guides/patterns/pattern_authenticate.md` "Pattern C — Skipped" and
+  `guides/patterns/pattern_postauthenticate.md` Appendix A (per-connector leg roster)
+- Enforced by: `grace/rulesbook/codegen/tools/threeds_gate.py` checks TDS-01/TDS-02/TDS-03
 
 **Lessons Learned:**
 - Even if the connector API has a single "authenticate" endpoint, UCS requires modeling as two flows

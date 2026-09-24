@@ -202,24 +202,16 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
 
   // For Get / sync flows: re-poll until status reaches a terminal value
   // or this budget elapses. Set when the sandbox auto-settles after a delay.
-  "sync_poll_until_terminal_seconds": 30,
-
-  // Per-connector additions to suite_spec's depends_on. Prepended at runtime.
-  // Useful for connectors whose Authorize requires upstream context that
-  // isn't part of the standard global chain.
-  "additional_dependencies": {
-    "PaymentService/Authorize": [
-      {
-        "suite": "PaymentMethodAuthenticationService/PreAuthenticate",
-        "scenario": "threeds_card_pre_authenticate",
-        "context_map": {
-          "authentication_data": "res.authentication_data"
-        }
-      }
-    ]
-  }
+  "sync_poll_until_terminal_seconds": 30
 }
 ```
+
+> **There is no `additional_dependencies` key.** Earlier revisions of this file documented one; no code
+> reads it, so a `specs.json` that sets it is silently ignored. Suite dependencies live only in the
+> global `global_suites/<Service>_<Flow>/suite_spec.json` `depends_on`, which every connector shares. A
+> connector that genuinely needs a different prerequisite chain needs a connector-specific scenario in
+> `connector_specific_scenarios.json`, or a change to the global suite — not a per-connector override of
+> the chain.
 
 ### `connector_specs/<connector>/override.json`
 
@@ -416,7 +408,8 @@ cargo run --bin check_coverage
 - `docs/connector-overrides.md` — override.json patch rules
 - `docs/code-walkthrough.md` — how the harness builds a request
 - `docs/context-mapping.md` — dependency context propagation
-- `grace/workflow/2.6d_test_exec.md` — how the GRACE test phase runs this harness for a connector
+- `grace/workflow/2.6d_test_exec.md` — how a GRACE run executes this harness, and how it reads `report.json`
+- `grace/workflow/2.3b_codegen_unit.md` Phase 2t — how a GRACE run authors a connector's scenarios here
 
 ## Support
 

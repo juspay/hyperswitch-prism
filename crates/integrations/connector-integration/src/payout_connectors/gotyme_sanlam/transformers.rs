@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
-use crate::{
-    connectors::sanlam_common::transformers::AbsaSanlamBankNames, types::ResponseRouterData,
-};
-use common_enums::PayoutStatus;
+use crate::types::ResponseRouterData;
+use common_enums::{BankNames, PayoutStatus};
 use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
@@ -79,11 +77,116 @@ pub struct GotymeSanlamPayoutTransferPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_name: Option<AbsaSanlamBankNames>,
+    pub bank_name: Option<GotymeSanlamBankNames>,
     pub amount: StringMajorUnit,
     pub idempotency_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GotymeSanlamBankNames {
+    Absa,
+    AccessBank,
+    Albaraka,
+    ChinaConstructionBank,
+    Discovery,
+    EnlBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    JpMorganChase,
+    MtnBanking,
+    Olympus,
+    OldMutual,
+    PermanentBank,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
+    Ubank,
+    VbsMutualBank,
+    BankZero,
+    BidvestBank,
+    BidvestBankAlliances,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    Ithala,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PostBank,
+    Nedbank,
+    Capitec,
+    CapitecBusiness,
+    AfricanBank,
+    AfricanBankBusiness,
+    IciciBank,
+    StandardCharteredBank,
+    BankOfChina,
+    BnpParibas,
+    Citi,
+    RoyalBankOfScotland,
+    HsbcBank,
+}
+
+impl TryFrom<BankNames> for GotymeSanlamBankNames {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank: BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            BankNames::Absa => Ok(Self::Absa),
+            BankNames::AccessBank => Ok(Self::AccessBank),
+            BankNames::Albaraka => Ok(Self::Albaraka),
+            BankNames::ChinaConstructionBank => Ok(Self::ChinaConstructionBank),
+            BankNames::Discovery => Ok(Self::Discovery),
+            BankNames::EnlBank => Ok(Self::EnlBank),
+            BankNames::FirstNationalBank => Ok(Self::FirstNationalBank),
+            BankNames::GotymeBank => Ok(Self::GotymeBank),
+            BankNames::HabibOverseas => Ok(Self::HabibOverseas),
+            BankNames::HbzBank => Ok(Self::HbzBank),
+            BankNames::Investec => Ok(Self::Investec),
+            BankNames::JpMorganChase => Ok(Self::JpMorganChase),
+            BankNames::MtnBanking => Ok(Self::MtnBanking),
+            BankNames::Olympus => Ok(Self::Olympus),
+            BankNames::OldMutual => Ok(Self::OldMutual),
+            BankNames::PermanentBank => Ok(Self::PermanentBank),
+            BankNames::SocieteGenerale => Ok(Self::SocieteGenerale),
+            BankNames::StandardBank => Ok(Self::StandardBank),
+            BankNames::StateBankOfIndia => Ok(Self::StateBankOfIndia),
+            BankNames::Ubank => Ok(Self::Ubank),
+            BankNames::VbsMutualBank => Ok(Self::VbsMutualBank),
+            BankNames::BankZero => Ok(Self::BankZero),
+            BankNames::BidvestBank => Ok(Self::BidvestBank),
+            BankNames::BidvestBankAlliances => Ok(Self::BidvestBankAlliances),
+            BankNames::FbcFidelityBank => Ok(Self::FbcFidelityBank),
+            BankNames::FinbondEpe => Ok(Self::FinbondEpe),
+            BankNames::FinbondMutualBank => Ok(Self::FinbondMutualBank),
+            BankNames::Ithala => Ok(Self::Ithala),
+            BankNames::PeoplesBankPepBank => Ok(Self::PeoplesBankPepBank),
+            BankNames::PeoplesBank => Ok(Self::PeoplesBank),
+            BankNames::PostBank => Ok(Self::PostBank),
+            BankNames::Nedbank => Ok(Self::Nedbank),
+            BankNames::Capitec => Ok(Self::Capitec),
+            BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
+            BankNames::AfricanBank => Ok(Self::AfricanBank),
+            BankNames::AfricanBankBusiness => Ok(Self::AfricanBankBusiness),
+            BankNames::IciciBank => Ok(Self::IciciBank),
+            BankNames::StandardCharteredBank => Ok(Self::StandardCharteredBank),
+            BankNames::BankOfChina => Ok(Self::BankOfChina),
+            BankNames::BnpParibas => Ok(Self::BnpParibas),
+            BankNames::Citi => Ok(Self::Citi),
+            BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            BankNames::HsbcBank => Ok(Self::HsbcBank),
+            bank => Err(IntegrationError::NotSupported {
+                message: format!("Invalid BankName for GotymeSanlam payout: {bank:?}"),
+                connector: "GotymeSanlam",
+                context: Default::default(),
+            })?,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -199,7 +302,7 @@ impl
             Some(PayoutMethodData::Bank(Bank::Payshap(payshap))) => {
                 let bank_name = payshap
                     .bank_name
-                    .map(AbsaSanlamBankNames::try_from)
+                    .map(GotymeSanlamBankNames::try_from)
                     .transpose()?;
 
                 Ok(Self {
