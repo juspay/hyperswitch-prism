@@ -348,7 +348,18 @@ impl IntegrationError {
 impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationError {
     fn switch(&self) -> grpc_api_types::payments::IntegrationError {
         let context = self.integration_context();
-        let base_message = self.to_string();
+
+        // Variants that name a connector keep it out of the message. `Display` bakes it in,
+        // which leaves the caller repeating the name when it re-renders the error with the
+        // connector it already knows. Every other variant keeps its `Display` output.
+        let base_message = match self {
+            Self::NotSupported { message, .. } | Self::CurrencyNotSupported { message, .. } => {
+                message.clone()
+            }
+            Self::FlowNotSupported { flow, .. } => format!("{flow} flow"),
+            _ => self.to_string(),
+        };
+
         let error_message = combine_error_message_with_context(
             &base_message,
             context.additional_context.as_deref(),
