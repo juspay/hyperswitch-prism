@@ -916,7 +916,13 @@ pub enum RegulatedName {
 impl Currency {
     pub fn to_currency_base_unit(self, amount: i64) -> Result<String, CurrencyError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
-        Ok(format!("{amount_f64:.2}"))
+        // Render the amount using the currency's own exponent, so that currencies with more
+        // than two decimals (BHD, JOD, KWD, OMR, TND, CLF) are not silently rounded.
+        // Currencies with a smaller exponent keep the two-decimal rendering:
+        // `to_currency_base_unit_with_zero_decimal_check` is the entry point for callers that
+        // need a bare integer for zero-decimal currencies.
+        let precision = usize::from(self.number_of_digits_after_decimal_point()?.max(2));
+        Ok(format!("{amount_f64:.precision$}"))
     }
 
     pub fn to_currency_base_unit_asf64(self, amount: i64) -> Result<f64, CurrencyError> {

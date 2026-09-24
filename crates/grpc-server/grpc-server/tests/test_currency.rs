@@ -176,6 +176,53 @@ mod tests {
     }
 
     #[test]
+    fn test_to_currency_base_unit_respects_currency_exponent() {
+        // The base unit string has to carry every decimal the currency actually has,
+        // otherwise the amount sent to the connector is rounded away from the amount the
+        // caller asked for. These expectations mirror `test_amount_conversion_precision`,
+        // which pins the same conversion for the `StringMajorUnit` path.
+        let test_cases = vec![
+            // Two decimal currencies
+            (Currency::USD, 1_i64, "0.01"),
+            (Currency::USD, 100, "1.00"),
+            (Currency::USD, 12345, "123.45"),
+            // Three decimal currencies
+            (Currency::BHD, 1234, "1.234"),
+            (Currency::JOD, 12345, "12.345"),
+            (Currency::KWD, 12345, "12.345"),
+            (Currency::OMR, 1, "0.001"),
+            (Currency::TND, 1000, "1.000"),
+            // Four decimal currencies
+            (Currency::CLF, 1234, "0.1234"),
+            (Currency::CLF, 12345, "1.2345"),
+        ];
+
+        for (currency, amount, expected) in test_cases {
+            assert_eq!(
+                currency.to_currency_base_unit(amount).unwrap(),
+                expected,
+                "unexpected base unit for {currency:?} with minor amount {amount}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_zero_decimal_currency_base_unit_rendering() {
+        // Zero decimal currencies keep the two decimal rendering on this path. Callers that
+        // need a bare integer use `to_currency_base_unit_with_zero_decimal_check`.
+        assert_eq!(
+            Currency::JPY.to_currency_base_unit(1000).unwrap(),
+            "1000.00"
+        );
+        assert_eq!(
+            Currency::JPY
+                .to_currency_base_unit_with_zero_decimal_check(1000)
+                .unwrap(),
+            "1000"
+        );
+    }
+
+    #[test]
     fn test_currency_error_message() {
         // Since all current currencies should be classified, we can't easily test
         // the error case without adding a fake currency. Instead, let's verify
