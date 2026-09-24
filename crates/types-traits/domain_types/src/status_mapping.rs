@@ -949,7 +949,7 @@ macro_rules! impl_refund_flow_status_mapping_ctx {
             success_sample: $success,
             failure_sample: $failure,
             $body
-        }how many more left
+        }
         $crate::__impl_runtime_refund_status_mapping!(
             [$($($generic)*)?],
             $connector, $flow, $request, $response,
