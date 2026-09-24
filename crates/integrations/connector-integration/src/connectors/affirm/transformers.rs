@@ -802,6 +802,15 @@ pub struct AffirmRefundResponse {
     pub amount: Option<MinorUnit>,
 }
 
+impl AffirmRefundResponse {
+    pub fn flow_status(&self) -> AffirmRefundStatus {
+        match self.event_type.as_str() {
+            "refund" => AffirmRefundStatus::Refunded,
+            _ => AffirmRefundStatus::Pending,
+        }
+    }
+}
+
 impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -840,6 +849,16 @@ pub struct AffirmRSyncResponse {
     pub status: AffirmTransactionStatus,
     pub amount_refunded: Option<MinorUnit>,
     pub events: Option<Vec<AffirmEvent>>,
+}
+
+impl AffirmRSyncResponse {
+    pub fn has_refund_event(&self, connector_refund_id: &str) -> bool {
+        self.events.as_ref().is_some_and(|events| {
+            events
+                .iter()
+                .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
+        })
+    }
 }
 
 impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>

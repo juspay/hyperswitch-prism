@@ -112,6 +112,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GigadatTransactionStatus,
     success:   StatusSuccess   => Charged,
     failure:   StatusFailed    => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GigadatPaymentsResponse,
+        source: |_response| transformers::GigadatTransactionStatus::StatusPending,
+        context: |_request, _response| (),
+    },
     {
         StatusInited   => Pending,
         StatusPending  => Pending,
@@ -133,6 +139,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GigadatTransactionStatus,
     success:   StatusSuccess   => Charged,
     failure:   StatusFailed    => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GigadatSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         StatusInited   => Pending,
         StatusPending  => Pending,
@@ -155,6 +167,18 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    gigadat::GigadatRefundStatus,
     success:   Success  => Success,
     failure:   Failure  => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GigadatRefundResponse,
+        source: |response| {
+            if response.success {
+                gigadat::GigadatRefundStatus::Success
+            } else {
+                gigadat::GigadatRefundStatus::Failure
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
     }

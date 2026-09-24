@@ -73,6 +73,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Authorized  => Authorized,
     failure:   Failed      => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: FiservPaymentsResponse,
+        source: |response| response.gateway_response.transaction_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Succeeded   => Charged,
         Captured    => Charged,
@@ -94,6 +100,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Succeeded   => Charged,
     failure:   Failed      => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: FiservSyncResponse,
+        source: |response| response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default(),
+        context: |_request, _response| (),
+    },
     {
         Authorized  => Authorized,
         Captured    => Charged,
@@ -114,6 +126,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Voided      => Voided,
     failure:   Failed      => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: FiservVoidResponse,
+        source: |response| response.gateway_response.transaction_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Authorized  => VoidInitiated,
         Succeeded   => VoidFailed,
@@ -134,6 +152,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Succeeded   => Success,
     failure:   Failed      => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FiservRefundSyncResponse,
+        source: |response| response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default(),
+        context: |_request, _response| (),
+    },
     {
         Captured    => Success,
         Authorized  => Success,
@@ -154,6 +178,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Succeeded   => Success,
     failure:   Failed      => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FiservRefundResponse,
+        source: |response| response.gateway_response.transaction_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Captured    => Success,
         Authorized  => Success,
@@ -174,6 +204,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FiservPaymentStatus,
     success:   Captured    => Charged,
     failure:   Failed      => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: FiservCaptureResponse,
+        source: |response| response.gateway_response.transaction_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Authorized  => Pending,
         Succeeded   => Charged,

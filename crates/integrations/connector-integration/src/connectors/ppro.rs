@@ -139,6 +139,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
+    extractors: { request: PaymentsAuthorizeData<T>, response: PproAuthorizeResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -169,6 +170,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
+    extractors: { request: PaymentsSyncData, response: PproPSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -195,6 +197,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Voided               => Voided,
     failure:   Failed               => Failure,
+    extractors: { request: PaymentVoidData, response: PproVoidResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -221,6 +224,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Captured             => Charged,
     failure:   Failed               => CaptureFailed,
+    extractors: { request: PaymentsCaptureData, response: PproCaptureResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -247,6 +251,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    PproRefundStatus,
     success:   RefundSettled => Success,
     failure:   Failed        => Failure,
+    extractors: { request: RefundsData, response: PproRefundResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         Refunded  => Success,
         Pending   => Pending,
@@ -266,6 +271,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    PproRefundStatus,
     success:   RefundSettled => Success,
     failure:   Failed        => Failure,
+    extractors: { request: RefundSyncData, response: PproRSyncResponse, source: |response| match response.status { PproPaymentStatus::RefundSettled | PproPaymentStatus::Refunded => PproRefundStatus::RefundSettled, PproPaymentStatus::Failed => PproRefundStatus::Failed, _ => PproRefundStatus::Pending }, context: |_request, _response| (), },
     {
         Refunded  => Success,
         Pending   => Pending,
@@ -285,6 +291,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
+    extractors: { request: SetupMandateRequestData<T>, response: PproAgreementResponse, source: |response| match response.status { PproAgreementStatus::Active => PproPaymentStatus::Success, PproAgreementStatus::AuthenticationPending => PproPaymentStatus::AuthenticationPending, PproAgreementStatus::Initializing => PproPaymentStatus::AuthorizationProcessing, PproAgreementStatus::Failed => PproPaymentStatus::Failed, PproAgreementStatus::Revoked => PproPaymentStatus::Voided }, context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -311,6 +318,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
+    extractors: { request: RepeatPaymentData<T>, response: PproPaymentsResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
