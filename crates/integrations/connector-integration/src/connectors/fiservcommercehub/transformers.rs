@@ -127,7 +127,8 @@ pub enum FiservcommercehubWalletType {
 }
 
 /// Whether the account number in the encrypted block is a Device PAN (DPAN, wallet token)
-/// or a Funding PAN (FPAN, physical card number). Wallets always yield DPAN.
+/// or a Funding PAN (FPAN, physical card number). Production wallet tokens are DPAN;
+/// sandbox/test cards that carry no cryptogram are FPAN.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservcommercehubWalletAccountType {
@@ -171,10 +172,13 @@ struct DecryptedWalletEncryptedBlock {
 /// `encryptionBlockFields`. Each descriptor records the exact character count of that
 /// field so Fiserv can parse the block back apart.
 ///
-/// Field order: cavv → xid (optional, omitted when absent) → card.cardData →
-///              card.expirationMonth → card.expirationYear
+/// Field order: cavv (optional, omitted when absent) → xid (optional, omitted when absent)
+///              → card.cardData → card.expirationMonth → card.expirationYear
+///
+/// `cavv` is omitted when `None` — Google Pay test cards do not carry a cryptogram;
+/// production tokens always provide one.
 fn encrypt_decrypted_wallet_data(
-    cavv: &Secret<String>,
+    cavv: Option<&Secret<String>>,
     xid: Option<&str>,
     dpan: &Secret<String>,
     exp_month: &str,
@@ -182,14 +186,16 @@ fn encrypt_decrypted_wallet_data(
     key_id: String,
     public_key_der: &[u8],
 ) -> Result<DecryptedWalletEncryptedBlock, error_stack::Report<errors::IntegrationError>> {
-    let cavv_str = cavv.peek();
     let dpan_str = dpan.peek();
 
     let mut plain_block = String::new();
     let mut field_descriptors: Vec<String> = Vec::new();
 
-    plain_block.push_str(cavv_str);
-    field_descriptors.push(format!("cavv:{}", cavv_str.len()));
+    if let Some(cavv_secret) = cavv {
+        let cavv_str = cavv_secret.peek();
+        plain_block.push_str(cavv_str);
+        field_descriptors.push(format!("cavv:{}", cavv_str.len()));
+    }
 
     if let Some(xid_str) = xid.filter(|s| !s.is_empty()) {
         plain_block.push_str(xid_str);
@@ -367,7 +373,7 @@ fn build_decrypted_wallet_source(
             // cryptographic authentication value). Sending `transaction_identifier` as XID
             // causes Fiserv to return error code 100: "source.xid | Invalid or Missing Field Data".
             let encrypted_block = encrypt_decrypted_wallet_data(
-                &payment_cryptogram,
+                Some(&payment_cryptogram),
                 None,
                 &device_primary_account_number,
                 &expiration_month,
@@ -422,27 +428,6 @@ fn build_decrypted_wallet_source(
                 }
             };
 
-            // Sensitive: the cryptogram (CAVV) is required; treat it as Secret until peeked
-            // inside the encryption function.
-            let payment_cryptogram = decrypted_gpay.cryptogram.clone().ok_or_else(|| {
-                error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                    field_name: "google_pay.cryptogram",
-                    context: errors::IntegrationErrorContext {
-                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
-                        suggested_action: Some(
-                            "The Google Pay decrypted payload must contain a cryptogram (CAVV) \
-                                 for Fiserv CommerceHub's DecryptedWallet flow"
-                                .to_string(),
-                        ),
-                        additional_context: Some(
-                            "GooglePayDecryptedData.cryptogram is None; \
-                                 Fiserv requires cavv in the encrypted block"
-                                .to_string(),
-                        ),
-                    },
-                })
-            })?;
-
             let device_primary_account_number = Secret::new(
                 decrypted_gpay
                     .application_primary_account_number
@@ -471,7 +456,7 @@ fn build_decrypted_wallet_source(
 
             // Google Pay decrypted data has no separate transaction identifier (XID).
             let encrypted_block = encrypt_decrypted_wallet_data(
-                &payment_cryptogram,
+                decrypted_gpay.cryptogram.as_ref(),
                 None,
                 &device_primary_account_number,
                 &expiration_month,
@@ -479,6 +464,11 @@ fn build_decrypted_wallet_source(
                 key_id,
                 public_key_der,
             )?;
+            let account_type = if decrypted_gpay.cryptogram.is_some() {
+                FiservcommercehubWalletAccountType::Dpan
+            } else {
+                FiservcommercehubWalletAccountType::Fpan
+            };
 
             let source = FiservcommercehubSourceData::DecryptedWallet(
                 FiservcommercehubDecryptedWalletSource {
@@ -490,8 +480,7 @@ fn build_decrypted_wallet_source(
                         encryption_block_fields: encrypted_block.encryption_block_fields,
                         encryption_target: DECRYPTED_WALLET_ENCRYPTION_TARGET.to_string(),
                     },
-                    // Google Pay provides a DPAN (network token), not the raw FPAN.
-                    account_type: FiservcommercehubWalletAccountType::Dpan,
+                    account_type,
                 },
             );
 
