@@ -343,3 +343,5 @@ pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
 
 pub mod merchante;
 pub use self::merchante::Merchante;
+pub mod payhound;
+pub use self::payhound::Payhound;

@@ -922,6 +922,7 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  PAYHOUND = 153;
 }
 
 // Payment method types
@@ -6020,6 +6021,12 @@ message PayhereConfig {
   optional string base_url = 50;
 }
 
+message PayhoundConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6372,6 +6379,8 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // PAYHOUND = 153
+    PayhoundConfig payhound = 164;
   }
 }
 

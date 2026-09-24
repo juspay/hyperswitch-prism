@@ -89,7 +89,12 @@ fn replace_uuids(s: &str) -> String {
     result
 }
 
-/// Replace timestamp patterns (13+ consecutive digits)
+/// Replace timestamp patterns (runs of exactly 13 or 14 consecutive digits).
+///
+/// Note this is exactly-13-or-14, not "13 or more": longer runs are left alone so that
+/// 16-digit card numbers are never rewritten.  Volatile values outside that width — a
+/// 10-digit second-epoch, or a 16-digit microsecond-epoch nonce — must be normalized by
+/// name in `replace_json_dynamic_fields` instead.
 fn replace_timestamps(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut result = String::with_capacity(s.len());
@@ -487,6 +492,29 @@ fn test_normalize_content() {
     assert!(!output.contains("6700473c"), "Original UUID should be gone");
 }
 
+/// A 16-digit microsecond-epoch nonce is length-indistinguishable from a card number, so
+/// `normalize_content` leaves it alone by design.  It must be pinned by header name, or the
+/// probe artifact changes on every run and CI's auto-commit bot pushes forever.
+#[test]
+fn test_normalize_microsecond_nonce_header_is_stable() {
+    let first = normalize_header_value("x-mb-nonce", "1787653903953457".to_string());
+    let second = normalize_header_value("x-mb-nonce", "1787657036973225".to_string());
+    assert_eq!(
+        first, second,
+        "two different microsecond nonces must normalize to the same value"
+    );
+    assert!(!first.contains("1787653903953457"), "raw nonce leaked");
+
+    // The card-number guard this works around must stay intact: a bare 16-digit run in a
+    // body is still copied verbatim, so PANs are never rewritten by the length heuristic.
+    let pan = normalize_content(r#"{"number":"4111111111111111"}"#);
+    assert!(
+        pan.contains("4111111111111111"),
+        "16-digit runs must not be rewritten by length, got: {}",
+        pan
+    );
+}
+
 /// Normalize a single HTTP header value, taking the header name into account.
 /// Some headers (salt, idempotency-key) always carry random values that can't
 /// be detected from the value string alone.
@@ -498,6 +526,12 @@ pub(crate) fn normalize_header_value(name: &str, value: String) -> String {
         "timestamp" => "0000000000".to_string(),
         "date" => "2020-01-01T00:00:00+00:00".to_string(),
         "x-gid-aux-pop" => "signature".to_string(),
+        // Payhound's nonce is a microsecond-resolution epoch, so it is 16 digits wide.
+        // `normalize_content` cannot catch it: `replace_timestamps` rewrites runs of
+        // exactly 13 or 14 digits and deliberately leaves 16-digit runs alone so that
+        // card numbers are never touched.  Left unnormalized it flaps on every probe
+        // run, so the regenerated artifact never matches the committed one.
+        "x-mb-nonce" => "1000000000000000".to_string(),
         _ => normalize_content(&value),
     }
 }

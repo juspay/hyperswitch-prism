@@ -473,6 +473,15 @@ pub fn build_connector_config(
                 ..Default::default()
             })),
         }),
+        "payhound" => Ok(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Payhound(
+                PayhoundConfig {
+                    api_key: Some(Secret::new(get_val(creds, "api_key")?)),
+                    api_secret: Some(Secret::new(get_val(creds, "api_secret")?)),
+                    ..Default::default()
+                },
+            )),
+        }),
         "payload" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Payload(PayloadConfig {
                 ..Default::default()

@@ -48,9 +48,6 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
-    "globalpayments_realex": {
-      "reason": "GlobalpaymentsRealex sandbox credentials are not configured in CI; live sandbox verification for the six XML flows is attached to PR #2204. The 3DS2 legs past /protocol-versions cannot be exercised: the sandbox account is not entitled for 3D Secure."
-    },
     "globalpayments_heartland": {
       "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
     },
@@ -94,6 +91,9 @@
     },
     "payhere": {
       "reason": "No PayHere sandbox credentials (App ID/App Secret/Merchant ID/Merchant Secret) are configured in CI, so certification cannot run. Remove this entry once credentials are added so CI starts certifying it."
+    },
+    "payhound": {
+      "reason": "Payhound's sandbox is a canned stub: it authenticates the HMAC-SHA512 request and returns 201, but ignores the submitted body and echoes a fixed fixture invoice (a POST with price 12.34 comes back as merchant_amount 20.00), and GET /api/v1/invoices/{id} returns that same fixture for any id, including a deliberately bogus one. Certification that asserts request or response field values therefore cannot pass against it. What is proven instead: Authorize end to end from Hyperswitch through UCS to the live sandbox (201, real invoice id, redirect to pay.payhound.com), and incoming webhooks through UCS EventService with a real HMAC-SHA512 callback signature - one positive plus six negative controls (tampered signature, tampered body, tampered callback-id, missing signature, wrong secret, no credentials) all failing closed. Remove this entry once a non-canned Payhound environment is available."
     },
     "payload": {},
     "payme": {},
