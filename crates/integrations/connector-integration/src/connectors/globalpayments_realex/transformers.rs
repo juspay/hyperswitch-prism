@@ -3846,6 +3846,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         };
 
         Ok(Self {
@@ -4297,6 +4301,10 @@ impl Gp3ds2AuthenticationResponse {
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         }
     }
 
@@ -4749,6 +4757,10 @@ mod tests {
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         }
     }
 

@@ -205,10 +205,7 @@ globalpayments_realex.base_url = "https://api.sandbox.realexpayments.com/"
 # auth scheme (`Authorization: securehash`) from the XML gateway above. See
 # the 3DS2 section of connectors/globalpayments_realex/transformers.rs.
 globalpayments_realex.secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
-# {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix, substituted
-# per-request in connectors/netcetera.rs (resolve_netcetera_base_url) from the merchant's
-# `endpoint_prefix` forwarded on connector_feature_data.
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server"
 flywire.base_url = "https://api-platform-sandbox.flywire.com"
 
 # Generic Events Configuration

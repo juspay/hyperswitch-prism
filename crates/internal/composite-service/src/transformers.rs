@@ -734,6 +734,16 @@ impl
             capture_method: item.capture_method,
             webhook_url: item.webhook_url.clone(),
             domain_data: item.domain_data.clone(),
+            // The 3DS request fields are not surfaced on CompositeAuthorizeRequest, so the
+            // composite path cannot drive external 3DS authentication.
+            merchant_details: None,
+            acquirer_details: None,
+            device_channel: None,
+            sdk_information: None,
+            three_ds_requestor_challenge_indicator: None,
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         }
     }
 }

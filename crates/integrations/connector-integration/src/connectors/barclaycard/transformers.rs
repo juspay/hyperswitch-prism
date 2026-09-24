@@ -2031,6 +2031,10 @@ fn get_authentication_data_for_validation_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        acs_signed_content: None,
+        acs_reference_number: None,
+        directory_server_id: None,
+        scheme_id: None,
     }
 }
 
@@ -2065,6 +2069,10 @@ fn get_authentication_data_for_authenticate_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        acs_signed_content: None,
+        acs_reference_number: None,
+        directory_server_id: None,
+        scheme_id: None,
     }
 }
 

@@ -25,12 +25,22 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 
 // ── MerchantDetails conversion ────────────────────────────────────────────────
 
-impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
-    fn foreign_from(value: grpc_api_types::payments::MerchantDetails) -> Self {
-        Self {
+impl ForeignTryFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::MerchantDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_country_code = value
+            .merchant_country_code
+            .map(|_| crate::types::convert_optional_country_alpha2(value.merchant_country_code()))
+            .transpose()?
+            .flatten();
+        Ok(Self {
             merchant_id: value.merchant_id,
             merchant_category_code: value.merchant_category_code,
-        }
+            merchant_name: value.merchant_name,
+            merchant_country_code,
+        })
     }
 }
 
@@ -328,7 +338,10 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
             mandate_details,
-            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
+            merchant_details: value
+                .merchant_details
+                .map(MerchantDetails::foreign_try_from)
+                .transpose()?,
             payment_method_type,
         })
     }
@@ -601,7 +614,10 @@ impl
             payment_status,
             merchant_transaction_id: payment_details.merchant_transaction_id,
             frm_decision,
-            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
+            merchant_details: value
+                .merchant_details
+                .map(MerchantDetails::foreign_try_from)
+                .transpose()?,
             connector_feature_data,
         })
     }
@@ -683,7 +699,10 @@ impl
             merchant_refund_id: refund.merchant_refund_id,
             refund_reason: refund.refund_reason,
             frm_decision,
-            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
+            merchant_details: value
+                .merchant_details
+                .map(MerchantDetails::foreign_try_from)
+                .transpose()?,
             connector_feature_data,
         })
     }

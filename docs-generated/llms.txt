@@ -587,7 +587,7 @@ connector_id: netcetera
 doc: docs/connectors/netcetera.md
 scenarios: none
 payment_methods: none
-flows: 
+flows: authenticate, post_authenticate, pre_authenticate
 examples_python: none
 
 ## Nexinets
