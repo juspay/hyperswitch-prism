@@ -64,8 +64,15 @@ ENV SCCACHE_CACHE_SIZE=5G
 # is fail-closed inert — deja.mode defaults to Disabled and every boundary is a
 # pure passthrough — so this image behaves identically to a non-deja build until
 # CS__DEJA__MODE=record|replay is set on the pod.
+#
+# Scoped to `grpc-server`, matching the `cargo build` below. Without `-p` this
+# cooks dependencies for all 24 workspace members, including crates the image
+# never ships — `ffi`, `uniffi-bindgen`, `integration-tests`, `field-probe`, the
+# SDKs — and their build-only trees (`uniffi`, `proptest`, `inquire`, `rayon`).
+# The cached layer is only ever consumed by the `grpc-server` build in the next
+# stage, so cooking the rest costs build time and peak memory for nothing.
 RUN --mount=type=cache,target=/sccache \
-    cargo chef cook --profile ${CARGO_BUILD_PROFILE} --features kafka,connector-request-kafka,otel,log-transformations,deja --recipe-path recipe.json
+    cargo chef cook --profile ${CARGO_BUILD_PROFILE} --features kafka,connector-request-kafka,otel,log-transformations,deja --recipe-path recipe.json -p grpc-server
 
 # Install additional build-time dependencies
 RUN apt-get update \

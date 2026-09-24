@@ -8,8 +8,12 @@ return_raw_and_typed_connector_data = true
 
 [log.console]
 enabled = true
-level = "TRACE"
-log_format = "default"
+# TRACE emits every span and event on every request, which is far more than a
+# deployed environment needs and expensive at payment volumes. `json` keeps the
+# output parseable by log aggregators; `default` is the human-readable format
+# and is kept in development.toml.
+level = "DEBUG"
+log_format = "json"
 
 [server]
 host = "0.0.0.0"
