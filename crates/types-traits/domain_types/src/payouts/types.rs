@@ -1895,7 +1895,7 @@ impl
                     expires_in: None,
                 }
             }),
-            test_mode: None,
+            test_mode: value.test_mode,
             description: None,
             merchant_request_id: value.merchant_request_id.clone(),
         })
