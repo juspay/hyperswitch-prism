@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.24.1
+
+### Bug Fixes
+
+- **framework:** Use enum for Card, Funding Source, Country ([#2363](https://github.com/juspay/connector-service/pull/2363)) ([`4be446d`](https://github.com/juspay/connector-service/commit/4be446daa3f7de97113beed5f6e7d6192e301fb1))
+
+**Full Changelog:** [`2026.09.24.0...2026.09.24.1`](https://github.com/juspay/connector-service/compare/2026.09.24.0...2026.09.24.1)
+
+- - -
+
 ## 2026.09.24.0
 
 ### Bug Fixes
