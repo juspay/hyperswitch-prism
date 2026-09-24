@@ -543,11 +543,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let account_type = request.get_account_type()?;
         let phone = request.get_phone()?;
-        let first_name = request.get_first_name()?;
-        let last_name = request.get_last_name()?;
-        let dob_day = request.get_dob_day()?;
-        let dob_month = request.get_dob_month()?;
-        let dob_year = request.get_dob_year()?;
+
+        // Name and date of birth describe a natural person, so they are only sent on
+        // `individual[…]` and only required for an individual account. Requiring them
+        // for a company makes a company recipient impossible to create.
+        let (first_name, last_name, dob_day, dob_month, dob_year) = match is_company {
+            true => (None, None, None, None, None),
+            false => (
+                Some(request.get_first_name()?),
+                Some(request.get_last_name()?),
+                Some(request.get_dob_day()?),
+                Some(request.get_dob_month()?),
+                Some(request.get_dob_year()?),
+            ),
+        };
+
         let business_profile_mcc = request.get_business_profile_mcc_i32()?;
         let business_profile_url = request.get_business_profile_url()?;
         let business_profile_name = request.get_business_profile_name()?;
@@ -603,17 +613,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             company_tax_id: id_number.clone().filter(|_| is_company),
             company_owners_provided: None,
 
-            individual_first_name: (!is_company).then_some(first_name),
-            individual_last_name: (!is_company).then_some(last_name),
-            individual_dob_day: (!is_company).then_some(dob_day),
-            individual_dob_month: (!is_company).then_some(dob_month),
-            individual_dob_year: (!is_company).then_some(dob_year),
+            individual_first_name: first_name,
+            individual_last_name: last_name,
+            individual_dob_day: dob_day,
+            individual_dob_month: dob_month,
+            individual_dob_year: dob_year,
             individual_address_line1: addr_line1.filter(|_| !is_company),
             individual_address_line2: addr_line2.filter(|_| !is_company),
             individual_address_postal_code: addr_zip.filter(|_| !is_company),
             individual_address_city: addr_city.filter(|_| !is_company),
             individual_address_state: addr_state.filter(|_| !is_company),
-            individual_email: email,
+            // Stripe rejects any `individual[…]` parameter on a company account, so the
+            // email only rides on `individual[email]` for an individual account. The
+            // top-level `email` above carries it either way.
+            individual_email: email.filter(|_| !is_company),
             individual_phone: (!is_company).then_some(phone),
             individual_id_number: id_number.filter(|_| !is_company),
             individual_ssn_last_4: ssn_last_4.filter(|_| !is_company),

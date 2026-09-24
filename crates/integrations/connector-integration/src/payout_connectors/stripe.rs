@@ -247,24 +247,38 @@ macros::create_all_prerequisites!(
             ])
         }
 
-        /// Base payout headers plus `Stripe-Account` when the flow runs against a
-        /// connected account. The `acct_…` rides on `customer.connector_customer_id`.
+        /// Base payout headers plus `Stripe-Account`. The `acct_…` rides on
+        /// `customer.connector_customer_id`. The flows that call this act on the
+        /// connected account, so a missing account id is an error: without the header
+        /// Stripe would silently run the call against the platform account instead.
         pub fn build_connect_headers(
             &self,
             connector_config: &ConnectorSpecificConfig,
             customer: Option<&PayoutCustomer>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let account_id = customer
+                .and_then(|customer| customer.connector_customer_id.as_ref())
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "This flow runs against the Stripe connected account, so the `acct_…` \
+                             id is required for the Stripe-Account header"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Run PayoutCreateRecipient first so the connected account id is available"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?;
+
             let mut headers = self.build_payout_headers(connector_config)?;
-            headers.extend(
-                customer
-                    .and_then(|customer| customer.connector_customer_id.as_ref())
-                    .map(|account_id| {
-                        (
-                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            Secret::new(account_id.clone()).into_masked(),
-                        )
-                    }),
-            );
+            headers.push((
+                headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                Secret::new(account_id.clone()).into_masked(),
+            ));
             Ok(headers)
         }
     }
