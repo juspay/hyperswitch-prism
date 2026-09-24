@@ -19156,33 +19156,6 @@ impl<
                     ))),
                 });
 
-        // Contract selection: a caller that sends any typed 3DS field (17-24) is on the typed
-        // contract and `metadata` is never consulted for 3DS values. A caller that sends none is
-        // a legacy caller and gets the pre-typed behaviour unchanged.
-        // DEPRECATED (remove on or after 2026-10-23): the legacy JSON-in-`metadata` transport.
-        let uses_typed_contract = value.merchant_details.is_some()
-            || value.acquirer_details.is_some()
-            || value.device_channel.is_some()
-            || value.sdk_information.is_some()
-            || value.three_ds_requestor_challenge_indicator.is_some()
-            || value.three_ds_requestor_authentication_indicator.is_some()
-            || value.message_category.is_some()
-            || value.threeds_completion_indicator.is_some();
-        let legacy_sdk_metadata = if uses_typed_contract {
-            None
-        } else {
-            value
-                .metadata
-                .as_ref()
-                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
-        };
-        if legacy_sdk_metadata.is_some() {
-            tracing::warn!(
-                netcetera_legacy_3ds_transport = true,
-                "3DS device_channel / sdk_information read from the deprecated metadata JSON"
-            );
-        }
-
         Ok(Self {
             payment_method_data,
             amount: amount.amount,
@@ -19236,19 +19209,18 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
-            sdk_information: match value.sdk_information {
-                Some(sdk) => Some(connector_types::SdkInformation::foreign_try_from(sdk)?),
-                None => legacy_sdk_metadata
-                    .as_ref()
-                    .and_then(|m| m.sdk_information.clone()),
-            },
-            device_channel: match value.device_channel {
-                Some(raw) => Some(connector_types::DeviceChannel::foreign_try_from(
+            sdk_information: value
+                .sdk_information
+                .map(connector_types::SdkInformation::foreign_try_from)
+                .transpose()?,
+            device_channel: value
+                .device_channel
+                .map(|raw| {
                     grpc_api_types::payments::DeviceChannel::try_from(raw)
-                        .map_err(|_| unknown_enum_value("device_channel"))?,
-                )?),
-                None => legacy_sdk_metadata.as_ref().and_then(|m| m.device_channel),
-            },
+                        .map_err(|_| unknown_enum_value("device_channel"))
+                        .and_then(connector_types::DeviceChannel::foreign_try_from)
+                })
+                .transpose()?,
             merchant_details: value
                 .merchant_details
                 .map(crate::frm::frm_types::MerchantDetails::foreign_try_from)
@@ -19310,16 +19282,6 @@ fn unknown_enum_value(field_name: &'static str) -> error_stack::Report<Integrati
         field_name,
         context: IntegrationErrorContext::default(),
     })
-}
-
-/// DEPRECATED transport (remove on or after 2026-10-23) for `device_channel` / `sdk_information`:
-/// callers that predate the typed `PaymentMethodAuthenticationServiceAuthenticateRequest`
-/// fields serialised them as JSON inside the opaque `metadata` string. Read only when the
-/// request carries none of the typed 3DS fields.
-#[derive(serde::Deserialize)]
-struct AuthenticateSdkMetadata {
-    device_channel: Option<connector_types::DeviceChannel>,
-    sdk_information: Option<connector_types::SdkInformation>,
 }
 
 impl<

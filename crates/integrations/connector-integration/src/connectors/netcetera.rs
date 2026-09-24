@@ -7,8 +7,6 @@
 // transformer request/response bodies are minimal stubs; the real EMVCo 3DS
 // request/response porting is a separate, later step.
 
-// DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
-pub(crate) mod legacy_blob_transport;
 pub mod netcetera_types;
 pub mod transformers;
 

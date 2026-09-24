@@ -394,21 +394,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .and_then(|browser| browser.ip_address);
 
-        // Contract selection: exactly one transport, never mixed. See `MerchantSideObjects`.
-        let merchant_side =
-            match super::legacy_blob_transport::legacy_merchant_side(request, common_data)? {
-                // DEPRECATED (remove on or after 2026-10-23): see `legacy_blob_transport`.
-                Some(legacy) => legacy,
-                None => {
-                    build_merchant_side(request, common_data, &item.router_data.connector_config)
-                }
-            };
         let MerchantSideObjects {
             acquirer,
             merchant,
             three_ds_requestor_url,
             challenge_indicator,
-        } = merchant_side;
+        } = build_merchant_side(request, common_data, &item.router_data.connector_config);
 
         let authentication_indicator = request
             .three_ds_requestor_authentication_indicator
