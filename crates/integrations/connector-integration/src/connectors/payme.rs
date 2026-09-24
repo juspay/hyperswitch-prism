@@ -51,12 +51,6 @@ domain_types::impl_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Authorized   => Authorized,
     failure:   Failed       => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
-    },
     {
         Initial      => Pending,
         Completed    => Charged,
@@ -79,18 +73,6 @@ domain_types::impl_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Completed    => Charged,
     failure:   Failed       => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: PaymeSyncResponse,
-        source: |response| {
-            response
-                .items
-                .first()
-                .and_then(|item| item.sale_status.clone())
-                .unwrap_or(payme::SaleStatus::Initial)
-        },
-        context: |_request, _response| (),
-    },
     {
         Initial      => Pending,
         Authorized   => Authorized,
@@ -113,12 +95,6 @@ domain_types::impl_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Voided       => Voided,
     failure:   Failed       => Failure,
-    extractors: {
-        request: PaymentVoidData,
-        response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
-    },
     {
         Initial      => Pending,
         Completed    => VoidFailed,
@@ -141,12 +117,6 @@ domain_types::impl_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Completed    => Charged,
     failure:   Failed       => CaptureFailed,
-    extractors: {
-        request: PaymentsCaptureData,
-        response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
-    },
     {
         Initial      => Pending,
         Authorized   => Pending,
@@ -170,12 +140,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Refunded      => Success,
     failure:   Failed        => Failure,
-    extractors: {
-        request: RefundsData,
-        response: PaymeRefundResponse,
-        source: |response| response.refund_status.clone().unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
-    },
     {
         PartialRefund  => Success,
         Completed      => Success,
@@ -198,12 +162,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    payme::SaleStatus,
     success:   Refunded      => Success,
     failure:   Failed        => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: PaymeRSyncResponse,
-        source: |response| response.items.first().and_then(|item| item.sale_status.clone()).unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
-    },
     {
         PartialRefund  => Success,
         Completed      => Success,

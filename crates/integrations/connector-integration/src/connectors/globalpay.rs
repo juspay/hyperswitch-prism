@@ -226,12 +226,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Preauthorized => Authorized,
     failure:   Declined      => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: GlobalpayAuthorizeResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Captured  => Charged,
         Failed    => Failure,
@@ -255,12 +249,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Captured      => Charged,
     failure:   Declined      => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: GlobalpayPSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Preauthorized => Authorized,
         Failed        => Failure,
@@ -289,12 +277,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Reversed      => Voided,
     failure:   Declined      => Failure,
-    extractors: {
-        request: PaymentVoidData,
-        response: GlobalpayVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Preauthorized => VoidInitiated,
         Captured      => VoidFailed,
@@ -318,12 +300,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Captured      => Charged,
     failure:   Declined      => CaptureFailed,
-    extractors: {
-        request: PaymentsCaptureData,
-        response: GlobalpayCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Preauthorized => Pending,
         Failed        => CaptureFailed,
@@ -348,12 +324,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    globalpay::GlobalpayRefundStatus,
     success:   Captured      => Success,
     failure:   Declined      => Failure,
-    extractors: {
-        request: RefundsData,
-        response: GlobalpayRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Funded        => Success,
         Pending       => Pending,
@@ -377,12 +347,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    globalpay::GlobalpayRefundStatus,
     success:   Funded        => Success,
     failure:   Failed        => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: GlobalpayRSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Captured      => Success,
         Pending       => Pending,
@@ -407,13 +371,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Captured      => Charged,
     failure:   Declined      => Failure,
-    extractors: {
-        request: SetupMandateRequestData<T>,
-        response: GlobalpaySetupMandateResponse,
-        // Successful tokenization has no response status and maps to Charged.
-        source: |_response| globalpay::GlobalpayPaymentStatus::Captured,
-        context: |_request, _response| (),
-    },
     {
         Preauthorized => Pending,
         Failed    => Failure,
@@ -437,12 +394,6 @@ domain_types::impl_flow_status_mapping! {
     source:    globalpay::GlobalpayPaymentStatus,
     success:   Captured      => Charged,
     failure:   Declined      => Failure,
-    extractors: {
-        request: RepeatPaymentData<T>,
-        response: GlobalpayRepeatPaymentResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Preauthorized => Authorized,
         Failed        => Failure,

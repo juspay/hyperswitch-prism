@@ -149,12 +149,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::CryptopayPaymentStatus,
     success:   Completed  => Charged,
     failure:   Cancelled  => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: CryptopayPaymentsResponse,
-        source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         New        => AuthenticationPending,
         Unresolved => Unresolved,
@@ -172,12 +166,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::CryptopayPaymentStatus,
     success:   Completed  => Charged,
     failure:   Cancelled  => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: CryptopayPaymentsSyncResponse,
-        source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         New        => AuthenticationPending,
         Unresolved => Unresolved,

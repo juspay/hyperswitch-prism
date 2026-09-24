@@ -680,12 +680,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GlomopayPaymentStatus,
     success:   Success        => Charged,
     failure:   Failed         => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: GlomopayAuthorizeResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
-    },
     {
         InProgress    => AuthenticationPending,
         ActionRequired => Pending,
@@ -704,12 +698,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GlomopayPaymentStatus,
     success:   Success        => Charged,
     failure:   Failed         => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: GlomopayPaymentSyncResponse,
-        source: |response| response.data.first().map(|payment| payment.status).unwrap_or(transformers::GlomopayPaymentStatus::Pending),
-        context: |_request, _response| (),
-    },
     {
         InProgress    => AuthenticationPending,
         ActionRequired => Pending,
@@ -728,12 +716,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GlomopayRefundStatus,
     success:   Success        => Success,
     failure:   Failed         => Failure,
-    extractors: {
-        request: RefundsData,
-        response: GlomopayRefundResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
-    },
     {
         Pending       => Pending,
         ActionRequired => Pending,
@@ -745,31 +727,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    flow: RSync,
-    source: transformers::GlomopayRefundStatus,
-    context: Option<transformers::GlomopayRefundStatus>,
-    params: [status, matched_status],
-    success_sample: Some(transformers::GlomopayRefundStatus::Success),
-    failure_sample: Some(transformers::GlomopayRefundStatus::Failed),
-    extractors: {
-        request: RefundSyncData,
-        response: GlomopayRefundSyncResponse,
-        source: |_response| transformers::GlomopayRefundStatus::Pending,
-        context: |request, response| response.data.iter()
-            .find(|refund| refund.id == request.connector_refund_id)
-            .map(|refund| refund.status),
-    },
+    flow:      RSync,
+    source:    transformers::GlomopayRefundStatus,
+    success:   Success        => Success,
+    failure:   Failed         => Failure,
     {
-        match matched_status.unwrap_or(status) {
-            transformers::GlomopayRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::GlomopayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::GlomopayRefundStatus::Pending
-            | transformers::GlomopayRefundStatus::ActionRequired
-            | transformers::GlomopayRefundStatus::UnderReview => common_enums::RefundStatus::Pending,
-        }
+        Pending       => Pending,
+        ActionRequired => Pending,
+        UnderReview   => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

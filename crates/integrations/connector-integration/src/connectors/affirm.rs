@@ -96,12 +96,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::AffirmTransactionStatus,
     success:   Captured          => Charged,
     failure:   Declined          => Failure,
-    extractors: {
-        request:  PaymentsSyncData,
-        response: AffirmSyncResponse,
-        source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
-    },
     {
         Authorized        => Authorized,
         PartiallyCaptured => PartialCharged,
@@ -171,12 +165,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::AffirmRefundStatus,
     success:   Refunded => Success,
     failure:   Failed   => Failure,
-    extractors: {
-        request: RefundsData,
-        response: AffirmRefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     { Pending => Pending, }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -184,28 +172,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
-    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector:       Affirm<T>,
-    flow:            RSync,
-    source:          transformers::AffirmTransactionStatus,
-    context:         bool,
-    params:          [status, refund_event_found],
-    success_status:  Refunded,
-    failure_status:  Declined,
-    extractors: {
-        request: RefundSyncData,
-        response: AffirmRSyncResponse,
-        source: |response| response.status.clone(),
-        context: |request, response| response.has_refund_event(&request.connector_refund_id),
-    },
-    {
-        match (refund_event_found, status) {
-            (true, _) | (_, transformers::AffirmTransactionStatus::Refunded) => common_enums::RefundStatus::Success,
-            (_, transformers::AffirmTransactionStatus::Declined | transformers::AffirmTransactionStatus::Voided) => common_enums::RefundStatus::Failure,
-            _ => common_enums::RefundStatus::Pending,
-        }
-    }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      RSync,
+    source:    transformers::AffirmRefundStatus,
+    success:   Refunded => Success,
+    failure:   Failed   => Failure,
+    { Pending => Pending, }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Affirm<T>

@@ -215,49 +215,6 @@ pub enum HipaySyncResponse {
     },
 }
 
-impl HipaySyncResponse {
-    pub(super) fn flow_status(&self) -> HipayPaymentStatus {
-        let Self::Response { status, .. } = self else {
-            return HipayPaymentStatus::Refused;
-        };
-        match *status {
-            9 => HipayPaymentStatus::AuthenticationFailed,
-            10 => HipayPaymentStatus::Blocked,
-            11 => HipayPaymentStatus::Denied,
-            12 => HipayPaymentStatus::AuthorizedAndPending,
-            13 => HipayPaymentStatus::Refused,
-            14 => HipayPaymentStatus::Expired,
-            15 => HipayPaymentStatus::Cancelled,
-            16 => HipayPaymentStatus::Authorized,
-            17 => HipayPaymentStatus::CaptureRequested,
-            18 => HipayPaymentStatus::Captured,
-            19 => HipayPaymentStatus::PartiallyCaptured,
-            29 => HipayPaymentStatus::ChargedBack,
-            73 => HipayPaymentStatus::CaptureRefused,
-            74 => HipayPaymentStatus::AwaitingTerminal,
-            75 => HipayPaymentStatus::AuthorizationCancellationRequested,
-            77 => HipayPaymentStatus::ChallengeRequested,
-            78 => HipayPaymentStatus::SoftDeclined,
-            200 => HipayPaymentStatus::PendingPayment,
-            1 => HipayPaymentStatus::Created,
-            5 => HipayPaymentStatus::UnableToAuthenticate,
-            6 => HipayPaymentStatus::CardholderAuthenticated,
-            7 => HipayPaymentStatus::AuthenticationAttempted,
-            8 => HipayPaymentStatus::CouldNotAuthenticate,
-            20 => HipayPaymentStatus::Collected,
-            21 => HipayPaymentStatus::PartiallyCollected,
-            22 => HipayPaymentStatus::Settled,
-            23 => HipayPaymentStatus::PartiallySettled,
-            40 => HipayPaymentStatus::AuthenticationRequested,
-            41 => HipayPaymentStatus::Authenticated,
-            51 => HipayPaymentStatus::AcquirerNotFound,
-            61 => HipayPaymentStatus::RiskAccepted,
-            63 => HipayPaymentStatus::AuthorizationRefused,
-            _ => HipayPaymentStatus::Refused,
-        }
-    }
-}
-
 // HiPay v3 Refund Sync Response - JSON structure matching v3 transaction API
 // Same endpoint as PSync but for refund transactions
 #[derive(Debug, Serialize, Deserialize)]
@@ -480,7 +437,7 @@ pub struct PaymentOrder {
 // Authorize Response - matches HiPay's order API response (camelCase from HiPay API)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HipayPaymentsResponse {
-    pub(super) status: HipayPaymentStatus,
+    status: HipayPaymentStatus,
     message: String,
     order: PaymentOrder,
     #[serde(default)]
@@ -493,7 +450,7 @@ pub struct HipayPaymentsResponse {
 // Generic Maintenance Response for Capture/Void/Refund operations (camelCase from HiPay API)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HipayMaintenanceResponse<S> {
-    pub(super) status: S,
+    status: S,
     message: String,
     #[serde(rename = "transactionReference")]
     transaction_reference: String,

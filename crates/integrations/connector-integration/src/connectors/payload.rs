@@ -71,12 +71,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Authorized  => Authorized,
     failure:   Declined    => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: PayloadAuthorizeResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Processed  => Charged,
         Processing => Pending,
@@ -95,12 +89,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Processed   => Charged,
     failure:   Declined    => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: PayloadPSyncResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Authorized => Authorized,
         Processing => Pending,
@@ -119,12 +107,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Voided      => Voided,
     failure:   Declined    => Failure,
-    extractors: {
-        request: PaymentVoidData,
-        response: PayloadVoidResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Authorized => VoidInitiated,
         Processed  => VoidFailed,
@@ -143,12 +125,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    responses::RefundStatus,
     success:   Processed   => Success,
     failure:   Declined    => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: PayloadRSyncResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
-    },
     {
         Processing =>  Pending,
         Rejected   => Failure,
@@ -165,12 +141,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    responses::RefundStatus,
     success:   Processed   => Success,
     failure:   Declined    => Failure,
-    extractors: {
-        request: RefundsData,
-        response: PayloadRefundResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
-    },
     {
         Processing => Pending,
         Rejected   => Failure,
@@ -187,12 +157,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Processed   => Charged,
     failure:   Declined    => CaptureFailed,
-    extractors: {
-        request: PaymentsCaptureData,
-        response: PayloadCaptureResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Authorized => Pending,
         Processing => Pending,
@@ -226,12 +190,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Processed   => Charged,
     failure:   Declined    => Failure,
-    extractors: {
-        request: SetupMandateRequestData<T>,
-        response: PayloadSetupMandateResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Authorized => Pending,
         Processing => Pending,
@@ -250,12 +208,6 @@ domain_types::impl_flow_status_mapping! {
     source:    responses::PayloadPaymentStatus,
     success:   Processed   => Charged,
     failure:   Declined    => Failure,
-    extractors: {
-        request: RepeatPaymentData<T>,
-        response: PayloadRepeatPaymentResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
-    },
     {
         Authorized => Authorized,
         Processing => Pending,

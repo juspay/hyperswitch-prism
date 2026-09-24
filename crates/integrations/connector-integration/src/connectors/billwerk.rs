@@ -79,12 +79,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: BillwerkPaymentsResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Pending    => Pending,
@@ -104,12 +98,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: BillwerkPaymentsSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Pending    => Pending,
@@ -129,12 +117,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Cancelled  => Voided,
     failure:   Failed     => VoidFailed,
-    extractors: {
-        request: PaymentVoidData,
-        response: BillwerkPaymentsVoidResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => VoidInitiated,
         Pending    => VoidInitiated,
@@ -154,12 +136,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Settled    => Charged,
     failure:   Failed     => CaptureFailed,
-    extractors: {
-        request: PaymentsCaptureData,
-        response: BillwerkCaptureResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => CaptureInitiated,
         Pending    => CaptureInitiated,
@@ -179,12 +155,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    billwerk::RefundState,
     success:   Refunded   => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundsData,
-        response: BillwerkRefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Processing => Pending,
     }
@@ -201,12 +171,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    billwerk::RefundState,
     success:   Refunded   => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: BillwerkRSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Processing => Pending,
     }
@@ -223,12 +187,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
-    extractors: {
-        request: SetupMandateRequestData<T>,
-        response: BillwerkSetupMandateResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Pending    => Pending,
@@ -248,12 +206,6 @@ domain_types::impl_flow_status_mapping! {
     source:    billwerk::BillwerkPaymentState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RepeatPaymentData<T>,
-        response: BillwerkRepeatPaymentResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Pending    => Pending,

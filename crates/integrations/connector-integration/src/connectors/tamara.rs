@@ -184,7 +184,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TamaraPaymentStatus,
     success:   Authorised        => Authorized,
     failure:   Declined          => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: TamaraPaymentsResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         FullyCaptured    => Charged,
         PartiallyCaptured => PartialCharged,
@@ -421,7 +420,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TamaraPaymentStatus,
     success:   FullyCaptured     => Charged,
     failure:   Declined          => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: TamaraCaptureResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         PartiallyCaptured => PartialCharged,
         Canceled         => CaptureFailed,
@@ -444,7 +442,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TamaraPaymentStatus,
     success:   FullyCaptured     => Charged,
     failure:   Declined          => Failure,
-    extractors: { request: PaymentsSyncData, response: TamaraPSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         PartiallyCaptured => PartialCharged,
         Authorised       => Authorized,
@@ -467,7 +464,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TamaraPaymentStatus,
     success:   Canceled          => Voided,
     failure:   Declined          => Failure,
-    extractors: { request: PaymentVoidData, response: TamaraVoidResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         Updated          => Voided,
         Authorised       => VoidInitiated,
@@ -490,7 +486,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::TamaraRefundStatus,
     success:   FullyRefunded     => Success,
     failure:   Declined          => Failure,
-    extractors: { request: RefundsData, response: TamaraRefundResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         PartiallyRefunded => Success,
         Expired          => Failure,
@@ -515,7 +510,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::TamaraRefundStatus,
     success:   FullyRefunded     => Success,
     failure:   Declined          => Failure,
-    extractors: { request: RefundSyncData, response: TamaraRSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         PartiallyRefunded => Success,
         Expired          => Failure,

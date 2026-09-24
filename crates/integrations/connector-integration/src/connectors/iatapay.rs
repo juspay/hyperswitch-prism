@@ -65,12 +65,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::IatapayPaymentStatus,
     success:   Authorized         => Charged,
     failure:   Failed             => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: IatapayPaymentsResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Created                   => AuthenticationPending,
         Initiated                 => Pending,
@@ -91,12 +85,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::IatapayPaymentStatus,
     success:   Authorized         => Charged,
     failure:   Failed             => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: IatapaySyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Created                   => AuthenticationPending,
         Initiated                 => Pending,
@@ -118,12 +106,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::IatapayRefundStatus,
     success:   Settled    => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundsData,
-        response: IatapayRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Locked     => Pending,
@@ -144,12 +126,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::IatapayRefundStatus,
     success:   Settled    => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: IatapayRefundSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Created    => Pending,
         Locked     => Pending,

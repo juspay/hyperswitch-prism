@@ -402,7 +402,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ForteAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
     Complete,
@@ -515,20 +515,6 @@ pub struct FortePaymentsResponse {
     pub card: Option<CardResponse>,
     pub echeck: Option<EcheckResponse>,
     pub response: ResponseStatus,
-}
-
-impl FortePaymentsResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match (&self.response.response_code, &self.action) {
-            (ForteResponseCode::A01, ForteAction::Authorize) => FortePaymentStatus::Authorized,
-            (ForteResponseCode::A01, ForteAction::Verify | ForteAction::Capture) => {
-                FortePaymentStatus::Complete
-            }
-            (ForteResponseCode::A01, ForteAction::Sale)
-            | (ForteResponseCode::A05 | ForteResponseCode::A06, _) => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -724,16 +710,6 @@ pub struct ForteCaptureResponse {
     pub response: CaptureResponseStatus,
 }
 
-impl ForteCaptureResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 => FortePaymentStatus::Complete,
-            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
-}
-
 impl<F, T> TryFrom<ResponseRouterData<ForteCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -821,16 +797,6 @@ pub struct ForteCancelResponse {
     pub authorization_code: String,
     pub entered_by: String,
     pub response: CancelResponseStatus,
-}
-
-impl ForteCancelResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 => FortePaymentStatus::Voided,
-            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<ForteCancelResponse, Self>>
@@ -964,17 +930,6 @@ pub struct RefundResponse {
     pub response: ResponseStatus,
 }
 
-impl RefundResponse {
-    pub fn flow_status(&self) -> RefundStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
-                RefundStatus::Ready
-            }
-            _ => RefundStatus::Failed,
-        }
-    }
-}
-
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -1000,12 +955,6 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 pub struct RefundSyncResponse {
     status: RefundStatus,
     transaction_id: String,
-}
-
-impl RefundSyncResponse {
-    pub fn flow_status(&self) -> RefundStatus {
-        self.status.clone()
-    }
 }
 
 impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>

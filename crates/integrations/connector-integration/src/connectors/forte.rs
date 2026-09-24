@@ -61,12 +61,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FortePaymentStatus,
     success:   Authorized => Authorized,
     failure:   Failed     => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
-        response: FortePaymentsResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Complete  => Charged,
         Ready     => Pending,
@@ -85,12 +79,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FortePaymentStatus,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
-    extractors: {
-        request: PaymentsSyncData,
-        response: FortePaymentsSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
-    },
     {
         Complete   => Charged,
         Authorized => Authorized,
@@ -109,12 +97,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FortePaymentStatus,
     success:   Voided     => Voided,
     failure:   Failed     => VoidFailed,
-    extractors: {
-        request: PaymentVoidData,
-        response: ForteCancelResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Complete   => VoidFailed,
         Authorized => VoidInitiated,
@@ -133,12 +115,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Complete   => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundSyncData,
-        response: RefundSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Ready => Pending,
     }
@@ -154,12 +130,6 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Complete   => Success,
     failure:   Failed     => Failure,
-    extractors: {
-        request: RefundsData,
-        response: RefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Ready => Pending,
     }
@@ -175,12 +145,6 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::FortePaymentStatus,
     success:   Complete   => Charged,
     failure:   Failed     => CaptureFailed,
-    extractors: {
-        request: PaymentsCaptureData,
-        response: ForteCaptureResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
-    },
     {
         Authorized => Pending,
         Ready      => Pending,

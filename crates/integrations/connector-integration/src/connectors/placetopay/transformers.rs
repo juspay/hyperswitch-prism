@@ -357,12 +357,6 @@ pub struct PlacetopayPaymentsResponse {
     authorization: Option<Secret<String>>,
 }
 
-impl PlacetopayPaymentsResponse {
-    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
-        self.status.status.clone()
-    }
-}
-
 // Authorize flow uses the unified payment response handling with capture method consideration
 impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
@@ -406,12 +400,6 @@ impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct PlacetopayVoidPcResponse(PlacetopayPaymentsResponse);
-
-impl PlacetopayVoidPcResponse {
-    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
-        self.0.flow_status()
-    }
-}
 
 impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
@@ -607,7 +595,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayRefundStatus {
     Ok,
@@ -648,12 +636,6 @@ pub struct PlacetopayRefundStatusResponse {
 pub struct PlacetopayRefundResponse {
     status: PlacetopayRefundStatusResponse,
     internal_reference: u64,
-}
-
-impl PlacetopayRefundResponse {
-    pub fn flow_status(&self) -> PlacetopayRefundStatus {
-        self.status.status.clone()
-    }
 }
 
 impl<F> TryFrom<ResponseRouterData<PlacetopayRefundResponse, Self>>
