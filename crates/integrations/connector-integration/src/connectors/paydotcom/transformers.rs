@@ -18,7 +18,8 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit},
+    AmountConvertor,
 };
 use domain_types::{
     connector_flow::{
@@ -169,6 +170,7 @@ mod paydotcom_currency {
 /// identical payload in this scope, only the URL differs (see `paydotcom.rs`).
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
+    /// Minor units, JSON integer.
     pub amount: ConnectorMinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
@@ -1828,8 +1830,10 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
 pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_refunded: Option<MinorUnit>,
+    #[serde(default)]
+    pub amount: Option<ConnectorMinorUnit>,
+    #[serde(default)]
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1856,8 +1860,10 @@ pub struct PaydotcomChargeResponse {
 pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_capturable: Option<MinorUnit>,
+    #[serde(default)]
+    pub amount: Option<ConnectorMinorUnit>,
+    #[serde(default)]
+    pub amount_capturable: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1966,7 +1972,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    pub fn amount(&self) -> Option<MinorUnit> {
+    pub fn amount(&self) -> Option<ConnectorMinorUnit> {
         match self {
             Self::Charge(charge) => charge.amount,
             Self::Hold(hold) => hold.amount,
@@ -2272,15 +2278,22 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
         item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let captured_amount = item.response.amount();
-        let authorized_amount = item.router_data.resource_common_data.amount.as_ref();
+        let authorized_amount = item
+            .router_data
+            .resource_common_data
+            .amount
+            .as_ref()
+            .and_then(|money| {
+                money
+                    .convert(&common_utils::types::MinorUnitForConnector)
+                    .ok()
+            });
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment
             // partially charged, not fully charged.
             AttemptStatus::Charged => match (captured_amount, authorized_amount) {
-                (Some(captured), Some(authorized))
-                    if authorized.is_greater_than_minor_unit(captured) =>
-                {
+                (Some(captured), Some(authorized)) if captured < authorized => {
                     AttemptStatus::PartialCharged
                 }
                 _ => AttemptStatus::Charged,
@@ -2300,12 +2313,26 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             _ => Ok(item.response.transaction_response(item.http_code)),
         };
 
+        // Convert the captured ConnectorMinorUnit back to MinorUnit for minor_amount_captured,
+        // using the currency from the capture response or falling back to the request currency.
+        let response_currency = match &item.response {
+            PaydotcomPaymentsResponse::Charge(ref charge) => charge.currency,
+            PaydotcomPaymentsResponse::Hold(ref hold) => hold.currency,
+            PaydotcomPaymentsResponse::AuthenticationSession(_) => None,
+        };
+        let currency = response_currency.or(Some(item.router_data.request.currency));
+        let minor_amount_captured = captured_amount.zip(currency).and_then(|(amount, cur)| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, cur)
+                .ok()
+        });
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(domain_types::utils::legacy_amount_as_i64),
-                minor_amount_captured: captured_amount,
+                amount_captured: None,
+                minor_amount_captured,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -2342,7 +2369,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
 pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",

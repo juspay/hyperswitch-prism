@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
@@ -112,7 +112,7 @@ pub struct PlacetopayPayment {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
     currency: common_enums::Currency,
-    total: MinorUnit,
+    total: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,7 +169,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: item.router_data.resource_common_data.get_description()?,
             amount: PlacetopayAmount {
                 currency: item.router_data.request.currency,
-                total: item.router_data.request.minor_amount,
+                total: item
+                    .connector
+                    .amount_converter
+                    .convert(
+                        item.router_data.request.minor_amount,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
             },
         };
 
