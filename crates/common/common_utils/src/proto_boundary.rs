@@ -26,15 +26,8 @@ pub trait MinorUnitProtoAccess {
     fn get_amount_as_i64(self) -> i64;
 }
 
-impl MinorUnitProtoAccess for MinorUnit {
-    fn new(value: i64) -> Self {
-        Self::from_i64(value)
-    }
-
-    fn get_amount_as_i64(self) -> i64 {
-        self.as_i64()
-    }
-}
+// The impl of `MinorUnitProtoAccess` for `MinorUnit` lives in `types.rs`,
+// co-located with the struct, so it can reach the private field directly.
 
 /// Raw field access for [`Money`].
 ///

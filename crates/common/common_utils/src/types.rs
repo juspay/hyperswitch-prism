@@ -14,7 +14,7 @@ use serde::Serialize;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::errors::ParsingError;
+use crate::{errors::ParsingError, proto_boundary::MinorUnitProtoAccess};
 
 /// Amount convertor trait for connector
 pub trait AmountConvertor: Send {
@@ -137,14 +137,14 @@ impl AmountConvertor for MinorUnitForConnector {
         amount: MinorUnit,
         _currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(ConnectorMinorUnit(amount.as_i64()))
+        Ok(ConnectorMinorUnit(amount.0))
     }
     fn convert_back(
         &self,
         amount: ConnectorMinorUnit,
         _currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        Ok(MinorUnit::from_i64(amount.0))
+        Ok(MinorUnit(amount.0))
     }
 }
 
@@ -196,27 +196,23 @@ impl Sub for ConnectorMinorUnit {
 )]
 pub struct MinorUnit(i64);
 
-impl MinorUnit {
-    // ── internal (crate-only) constructors/extractors ──────────────────
-    // These are used by AmountConvertor impls, convert_back, Sum, etc.
-    // within common_utils itself.
-
-    /// Crate-internal constructor.
-    pub(crate) fn from_i64(value: i64) -> Self {
+/// Proto/domain boundary access for [`MinorUnit`].
+///
+/// Kept here, co-located with the struct, so it can reach the private field
+/// directly instead of through crate-internal helper functions. Import this
+/// trait **only** in proto/domain boundary code — connector code must use
+/// [`AmountConvertor`] instead.
+impl MinorUnitProtoAccess for MinorUnit {
+    fn new(value: i64) -> Self {
         Self(value)
     }
 
-    /// Crate-internal extractor.
-    pub(crate) fn as_i64(self) -> i64 {
+    fn get_amount_as_i64(self) -> i64 {
         self.0
     }
+}
 
-    /// Construct from a raw i64 in tests.
-    #[cfg(test)]
-    pub fn test_new(value: i64) -> Self {
-        Self(value)
-    }
-
+impl MinorUnit {
     /// checks if the amount is greater than the given value
     pub fn is_greater_than(&self, value: i64) -> bool {
         self.0 > value
@@ -296,25 +292,6 @@ impl MinorUnit {
     }
 }
 
-#[allow(dead_code)]
-impl MinorUnit {
-    pub(crate) fn add(self, other: Self) -> Self {
-        Self(self.0 + other.0)
-    }
-
-    pub(crate) fn sub(self, other: Self) -> Self {
-        Self(self.0 - other.0)
-    }
-
-    pub(crate) fn mul_u16(self, factor: u16) -> Self {
-        Self(self.0 * i64::from(factor))
-    }
-
-    pub(crate) fn sum_iter(iter: impl Iterator<Item = Self>) -> Self {
-        iter.fold(Self(0), |a, b| a.add(b))
-    }
-}
-
 /// Connector specific types to send
 #[derive(
     Default,
@@ -348,7 +325,7 @@ impl StringMinorUnit {
         let amount_i64 = amount_decimal
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::from_i64(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
 }
 
@@ -392,7 +369,7 @@ impl FloatMajorUnit {
         let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::from_i64(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
 }
 
@@ -427,7 +404,7 @@ impl StringMajorUnit {
         let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::from_i64(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
     /// forms a new StringMajorUnit default unit i.e zero
     pub fn zero() -> Self {
@@ -535,7 +512,7 @@ impl StringTwoDecimalUnit {
 
         let minor = i64::try_from(scaled / divisor)
             .map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::from_i64(minor))
+        Ok(MinorUnit(minor))
     }
 }
 
@@ -553,7 +530,7 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
         amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        let minor = i128::from(amount.as_i64());
+        let minor = i128::from(amount.0);
         let scale = currency_scale(currency)?;
         let scaled = minor * 10_i128.pow(TWO_DECIMAL_EXPONENT);
         // A currency with more than two decimals cannot always be expressed with two
