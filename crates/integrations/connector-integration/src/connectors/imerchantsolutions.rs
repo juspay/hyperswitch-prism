@@ -268,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            amount_captured: minor_amount_captured.map(domain_types::utils::legacy_amount_as_i64),
             minor_amount_captured,
             network_txn_id: None,
             payment_method_update: None,

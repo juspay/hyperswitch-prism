@@ -22,7 +22,7 @@ use domain_types::{
     router_request_types::SyncRequestType,
     utils::{
         compute_capturable_amount, convert_amount, convert_back_amount_to_minor_units,
-        is_payment_failure,
+        is_payment_failure, legacy_amount_as_i64,
     },
 };
 use error_stack::ResultExt;
@@ -1469,7 +1469,7 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured: None,
+                            amount_captured: minor_amount_captured.map(legacy_amount_as_i64),
                             minor_amount_captured,
                             minor_amount_capturable,
                             ..router_data.resource_common_data

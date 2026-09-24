@@ -19,7 +19,9 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
-    utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
+    utils::{
+        get_unimplemented_payment_method_error_message, is_payment_failure, legacy_amount_as_i64,
+    },
 };
 
 use common_utils::consts;
@@ -254,7 +256,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_captured: None,
+                    amount_captured: amount_captured_in_minor_units.map(legacy_amount_as_i64),
                     minor_amount_captured: amount_captured_in_minor_units,
                     ..router_data.resource_common_data
                 },
@@ -401,7 +403,7 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
             (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_captured: None,
+                    amount_captured: amount_captured_in_minor_units.map(legacy_amount_as_i64),
                     minor_amount_captured: amount_captured_in_minor_units,
                     ..router_data.resource_common_data
                 },
@@ -472,7 +474,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
             match (amount_captured_in_minor_units, status) {
                 (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
                     connector_returned_payment_method_details: None,
-                    amount_captured: None,
+                    amount_captured: amount_captured_in_minor_units.map(legacy_amount_as_i64),
                     minor_amount_captured: amount_captured_in_minor_units,
                     status,
                     resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),

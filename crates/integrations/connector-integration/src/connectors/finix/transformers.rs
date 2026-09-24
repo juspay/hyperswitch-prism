@@ -24,6 +24,7 @@ use domain_types::{
         ConnectorSpecificConfig, ErrorResponse, FlowStatus,
     },
     router_data_v2::RouterDataV2,
+    utils::legacy_amount_as_i64,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -2317,7 +2318,7 @@ pub(super) fn build_finix_payment_webhook_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: None,
+        amount_captured: resource.captured_amount.map(legacy_amount_as_i64),
         minor_amount_captured: resource.captured_amount,
         network_txn_id: None,
         payment_method_update: None,

@@ -42,7 +42,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
     router_response_types::RedirectForm,
-    utils::{self as domain_utils, get_timestamp_in_milliseconds},
+    utils::{self as domain_utils, get_timestamp_in_milliseconds, legacy_amount_as_i64},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
@@ -4393,7 +4393,7 @@ where
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: None,
+                amount_captured: minor_amount_captured.map(legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
@@ -4516,7 +4516,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: None,
+                amount_captured: minor_amount_captured.map(legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
@@ -6891,7 +6891,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: None,
+                amount_captured: minor_amount_captured.map(legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
