@@ -6,6 +6,7 @@ pub mod connectors;
 pub mod default_implementations;
 pub mod frm_connectors;
 pub mod payout_connectors;
+pub mod sanity;
 pub mod surcharge_connectors;
 pub mod types;
 pub mod utils;

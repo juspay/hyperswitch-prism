@@ -19,6 +19,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 | `{CONNECTOR}` | Connector name, exact casing | `Braintree` |
 | `{FLOWS}` | Comma list or JSON array of units: flow marker (`crates/types-traits/domain_types/src/connector_flow.rs`), flow group, `IncomingWebhook`, or `Marker/PaymentMethod`. A single `{FLOW}` is a one-element list | `Refund,RSync,3DS,Authorize/Wallet` |
 | `{HS_REPO_PATH}` | Hyperswitch checkout; empty → HS surfaces `E2E_SKIPPED` | `/home/dev/hyperswitch` |
+| `{CREDS}` | Optional credentials from the operator: a JSON object, `key value` / `key=value` lines, or a path to either. Merged into the creds file by `2.0_preflight.md` Phase 2, never echoed. Absent **and** no entry in the creds file → the run is **alpha** (mock, below) | `api_key 8068…` |
 | `{RUN_ID}` | Optional: resume `grace/runs/{RUN_ID}/` (see Resume) | `braintree-a1b2c3` |
 | `{MAX_RUN_HOURS}` | R9 time budget; default 12 | `12` |
 | `{MIN_FREE_GB}` | S0 disk threshold; empty = `2.0_preflight.md` default | `80` |
@@ -117,7 +118,7 @@ Tree-writing stages append `claimed.tsv`.
 `ended_at` as active):
 
 ```
-{schema: 1, run_id, connector, connector_lc, units[], inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
+{schema: 1, run_id, connector, connector_lc, units[], mode (null until S0 | live | alpha), inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
  min_free_gb_runtime, parallel_hs_build}, started_at, deadline_at, ended_at, status (null | SUCCESS | FAILED | SKIPPED), stopped (null | cause),
  workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref, caps{<key>: n},
  counters{nn, exec_round, rca_rounds, status_update, review_rounds, amend_links, amend_techspec, amend_plan, amend_hs,
@@ -284,10 +285,19 @@ request or stages a harness root — the repo's harness owns all three, and the 
   PARALLEL_HS_BUILD: {PARALLEL_HS_BUILD}
 ```
 
-`ABORT_CREDS` → stop → SKIPPED. Other `ABORT_*` or `FAILED` → stop → FAILED. No PR either way. `DONE` → `rj` these
-five from `preflight.json` into `run.json`: `branch`, `base_sha`, `ports`, `workflow_dir` (= its
-`.workflow.dir`, fallback `grace/workflow`) and `hs_mode` (= its `.hs.mode`); start the
-warm-build waiter (cap `warm_build_wait_min`); → S1.
+`ABORT_CREDS` → stop → SKIPPED (it means a creds file that exists but is unusable — unreadable, not JSON, or the
+rejected legacy shape; *missing* credentials are not an abort, see below). Other `ABORT_*` or `FAILED` → stop →
+FAILED. No PR either way. `DONE` → `rj` these six from `preflight.json` into `run.json`: `branch`, `base_sha`,
+`ports`, `workflow_dir` (= its `.workflow.dir`, fallback `grace/workflow`), `hs_mode` (= its `.hs.mode`) and
+`mode` (= its `.mode`, `live` or `alpha`); start the warm-build waiter (cap `warm_build_wait_min`); → S1.
+
+**`mode: alpha`** — no credentials exist for this connector, so `2.0` synthesized placeholders and the run tests
+against a mock of the connector's own API built from its documentation (`2.6a_test_env.md` owns the process,
+`2.3b_codegen_unit.md` writes `{RUN_DIR}mock/mappings.json` from plan §8, `grace/rulesbook/codegen/tools/mock_connector.py`
+serves it). The pipeline is unchanged — same stages, same gates, same PR. What changes is the claim: every unit can
+reach only `DELIVERED_MOCK_ONLY`, and 2.8 registers the connector in `alpha_connectors.json` and says on the PR what
+a mock does and does not prove. Carry `mode` in every stage's context; a stage that reports a live result from an
+alpha run has mislabelled it.
 
 ### S1 wave — `2.1_links.md` × (common + each unit), `2.1a_hs_scout.md` (foreground)
 
@@ -662,6 +672,14 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    `scope.sections`, `AMEND_BRIEF`. 2.2 and 2.3a: one spawn per brief. 2.3b: after a 2.3a AMEND its S3 follow-up (S4),
    else `scope.units` with the brief, ∪ the 2.3a AMEND's `test_hooks_changed` (`u` brief) and the units of the
    brief's `retest.add_checks[]`.
+   **Do not spawn a unit the amended plan gives nothing to do.** After the plan AMEND returns, a unit of that set
+   whose plan revision carries no new or changed item — and whose work another unit's shared code already covers —
+   gets `ev SKIP S4:<NN>:<unit_fs> reason=unit:no_items` and no spawn. The spawn is not free: it reloads the plan and
+   the connector module to conclude `NO_CHANGE`. When the brief carries per-unit `fix[]` entries, "nothing to do" is
+   "no `fix[]` entry names this unit"; when it does not, the plan revision's own `amendments[].units` decides.
+   Several plan AMENDs may also be **one** spawn: briefs from the same RCA round that the planner must reconcile
+   against each other are cheaper and more coherent amended together, with each sub-brief cited and left
+   authoritative for its own bugs, than as one 2.3a spawn per brief against `amend_plan`.
 3. **NO_CHANGE propagation**: a target returning `NO_CHANGE` hands the `nc` brief (`upstream_no_change: true`) to the
    brief's later targets; live evidence decides.
 4. **Caps before each spawn** (R8): at cap, or an `amend_targets[]` stage returning `FAILED` → **drop**:
@@ -690,6 +708,12 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    `2.6d_test_exec.md` "Phase 1: Bookkeeping (INGEST, STATUS_UPDATES)"): per bug of `rca/r<N>.json` `open→rca`,
    `rca→<proposed_status>`, then `fixing→retest` (chain completed) or `fixing→unresolved` (dropped); plus the
    `unresolved` moves of 4–6. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
+   An entry's `proposed_status` is **either a single status for all of its `bug_ids[]`, or an object keyed by bug id**
+   (2.6e writes the object form when one entry clusters bugs that end differently) — read it as
+   `(if (.proposed_status|type)=="object" then .proposed_status[$b] else .proposed_status end)`, or the file is
+   written with an object as a status and 2.6d rejects every update in it. A bug that no check can observe
+   (log masking, a refusal only a direct caller can reach) never reaches `fixed` through a retest: move it
+   yourself with the evidence in `note`, and say which round's scan or transcript is that evidence.
 8. **Re-test** (`select_checks`): **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of
    every AMEND this round). That is the whole rule.
 
@@ -777,7 +801,7 @@ the `run.json` rows (id, result, attempt, started, ended), the `events.log` `SKI
 | Condition | STATUS |
 |---|---|
 | `pr/result.json .prStatus` `READY` or `PARTIAL` | `SUCCESS` |
-| S0 `ABORT_CREDS`; every unit `no_op` | `SKIPPED` |
+| S0 `ABORT_CREDS` (unusable creds file); every unit `no_op` | `SKIPPED` |
 | anything else (`INCOMPLETE`, `FAILED`, S7 `ABORT_*`, any stop) | `FAILED` |
 
 **`no_op` restore** (R4 carve-out): on `SKIPPED` because every unit is `no_op`, when `claimed_ucs` lists only
@@ -796,7 +820,8 @@ HS_PR: <pr/result.json .hsPrUrl | none required (HS_CHANGES_REQUIRED none) | not
 HS_CHANGES_REQUIRED: <.what of plan.json .hs_changes[] with withdrawn != true, joined with "; " | none | not assessed (plan.json .hs_changes is null)>
 REASON: <PR_STATUS and pr/status.json .reasons | stop cause | NO_TASK_TOOL>
 RUN_DIR: {RUN_DIR} | none
-UNITS: <unit>=<FLOW_STATUS>, …              (pr/status.json; no PR → UNRESOLVED, no_op units → no_op)
+UNITS: <unit>=<FLOW_STATUS>, …              (pr/status.json; no PR → UNRESOLVED, no_op units → no_op; alpha run → every unit DELIVERED_MOCK_ONLY)
+MODE: live | alpha                          (alpha: no credentials; answered by the documented-example mock, nothing proven against the live API)
 OPEN_BUGS: <bug_id>(<severity>,<status>), … | none
 ```
 

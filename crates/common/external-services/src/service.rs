@@ -11,7 +11,7 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
-    events::{record_json_fields_on_span, CompiledLogFields},
+    events::{record_json_fields_on_declaring_span, record_on_declaring_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -30,7 +30,6 @@ use domain_types::{
     errors::{
         report_common_api_client_to_flow, report_connector_request_to_flow,
         report_connector_response_to_flow, report_kafka_client_to_flow, ConnectorFlowError,
-        ResponseTransformationErrorContext,
     },
     IntegrationError,
 };
@@ -383,6 +382,34 @@ impl GetFlowStatus for domain_types::frm::frm_types::FrmFlowData {
     }
 }
 
+/// Marks a flow's status as having failed the (server-side) integrity check, for flow types
+/// whose status enum has a dedicated outcome for it. No-op by default: most flow types don't
+/// have this concept, and their status is left as whatever the connector actually reported.
+pub trait SetIntegrityFailureStatus {
+    fn set_integrity_failure_status(&mut self) {}
+}
+
+impl SetIntegrityFailureStatus for domain_types::connector_types::PaymentFlowData {
+    fn set_integrity_failure_status(&mut self) {
+        self.set_status(common_enums::AttemptStatus::IntegrityFailure);
+    }
+}
+impl SetIntegrityFailureStatus for domain_types::connector_types::RefundFlowData {
+    fn set_integrity_failure_status(&mut self) {
+        self.status = common_enums::RefundStatus::ManualReview;
+    }
+}
+impl SetIntegrityFailureStatus for domain_types::connector_types::DisputeFlowData {}
+impl SetIntegrityFailureStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {}
+impl SetIntegrityFailureStatus for domain_types::connector_types::VerifyWebhookSourceFlowData {}
+impl SetIntegrityFailureStatus for domain_types::payouts::payouts_types::PayoutFlowData {}
+impl SetIntegrityFailureStatus for domain_types::surcharge::surcharge_types::SurchargeFlowData {}
+impl SetIntegrityFailureStatus
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+}
+impl SetIntegrityFailureStatus for domain_types::frm::frm_types::FrmFlowData {}
+
 /// Stringify a unified `FlowStatus` into a bounded metric label (e.g. `payment_charged`).
 #[cfg(feature = "otel")]
 fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> String {
@@ -415,6 +442,11 @@ fn capture_connector_reply<E>(
         ),
     })
 }
+
+// Only `execute_connector_processing_step` (gated on `injector-client`) records JSON
+// fields on its own span; everything else goes through the declaring-span helpers.
+#[cfg(feature = "injector-client")]
+use common_utils::events::record_json_fields_on_span;
 
 /// Handles the connector response, processing both successful and error responses
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
@@ -450,17 +482,21 @@ where
     ResourceCommonData:
         Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
-    let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
+    let return_connector_data = event_params.is_none_or(|p| p.return_raw_and_typed_connector_data);
     match response {
         Ok(body) => {
             let response = match body {
                 Ok(body) => {
                     let status_code = body.status_code;
+                    // `status_code` is declared on the (déjà) span this function runs in and
+                    // feeds the tape; `res_code` and the `response.*` fields below belong to
+                    // the outgoing golden-log span, which may be an ancestor when the déjà
+                    // feature wraps this function in its own child span.
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
-                    tracing::Span::current().record("res_code", u64::from(status_code));
+                    record_on_declaring_span("res_code", &u64::from(status_code));
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -493,7 +529,7 @@ where
                         }
 
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_declaring_span(json_fields);
                         }
                     }
 
@@ -501,10 +537,22 @@ where
                     // Headers always reach response transformers; they stay on the
                     // response only when the deployment returns raw connector data,
                     // matching the exposure before headers were always captured.
-                    if !(all_keys_required.unwrap_or(true) && return_raw) {
+                    if !(all_keys_required.unwrap_or(true) && return_connector_data) {
                         handled_router_data
                             .resource_common_data
                             .set_connector_response_headers(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_raw_connector_request(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_response(None);
+                        handled_router_data
+                            .resource_common_data
+                            .set_typed_connector_request(None);
                     }
                     handled_router_data
                 }
@@ -533,7 +581,7 @@ where
                         );
                     }
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if all_keys_required.unwrap_or(true) && return_connector_data {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -577,19 +625,18 @@ where
                             json_fields.push(("response.headers", headers_json));
                         }
                         if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
+                            record_json_fields_on_declaring_span(json_fields);
                         }
                     }
-                    tracing::Span::current().record(
+                    record_on_declaring_span(
                         "response.error_message",
-                        tracing::field::display(&error_response.message),
+                        &tracing::field::display(&error_response.message),
                     );
-                    tracing::Span::current().record(
+                    record_on_declaring_span(
                         "response.status_code",
-                        tracing::field::display(error_response.status_code),
+                        &tracing::field::display(error_response.status_code),
                     );
-                    tracing::Span::current()
-                        .record("res_code", u64::from(error_response.status_code));
+                    record_on_declaring_span("res_code", &u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -608,15 +655,22 @@ where
                         );
                     }
                     {
-                        error_response.raw_connector_response = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_response();
-                        error_response.raw_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_raw_connector_request();
-                        error_response.typed_connector_request = updated_router_data
-                            .resource_common_data
-                            .get_typed_connector_request();
+                        if return_connector_data {
+                            error_response.raw_connector_response = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_response();
+                            error_response.raw_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_raw_connector_request();
+                            error_response.typed_connector_request = updated_router_data
+                                .resource_common_data
+                                .get_typed_connector_request();
+                        } else {
+                            error_response.raw_connector_response = None;
+                            error_response.raw_connector_request = None;
+                            error_response.typed_connector_response = None;
+                            error_response.typed_connector_request = None;
+                        }
                     }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(Box::new(error_response))
@@ -687,7 +741,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub org_id: &'a str,
-    pub return_raw_connector_data: bool,
+    pub return_raw_and_typed_connector_data: bool,
     pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
@@ -742,7 +796,8 @@ where
         + ConnectorResponseHeaders
         + ConnectorRequestReference
         + AdditionalHeaders
-        + GetFlowStatus,
+        + GetFlowStatus
+        + SetIntegrityFailureStatus,
 {
     let start = tokio::time::Instant::now();
     tracing::Span::current().record(
@@ -757,14 +812,26 @@ where
     let mut connector_reply: Option<(bytes::Bytes, Option<String>)> = None;
     let result = match (call_connector_action, transport_type) {
         (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
-            let response = Response {
-                headers: None,
-                response: bytes::Bytes::new(),
-                status_code: 200,
-            };
+            // The flow makes no outbound call, so `build_request_v2` is expected to
+            // return `None` and its value is discarded. It is still run first because it
+            // is the only request-phase hook these flows get: a connector can reject the
+            // request there with an `IntegrationError` (mapped by status, e.g. a bad
+            // merchant config -> FAILED_PRECONDITION) instead of having to report the
+            // failure from `handle_response_v2`, which can only produce a `ConnectorError`
+            // and therefore always reads as INTERNAL.
             connector
-                .handle_response_v2(&router_data, None, response)
-                .map_err(report_connector_response_to_flow)
+                .build_request_v2(&router_data)
+                .map_err(report_connector_request_to_flow)
+                .and_then(|_| {
+                    let response = Response {
+                        headers: None,
+                        response: bytes::Bytes::new(),
+                        status_code: 200,
+                    };
+                    connector
+                        .handle_response_v2(&router_data, None, response)
+                        .map_err(report_connector_response_to_flow)
+                })
         }
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
         (common_enums::CallConnectorAction::HandleResponse(_), _) => {
@@ -786,7 +853,7 @@ where
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
-                Some(request) if event_params.return_raw_connector_data => {
+                Some(request) if event_params.return_raw_and_typed_connector_data => {
                     updated_router_data
                         .resource_common_data
                         .set_raw_connector_request(Some(
@@ -1245,7 +1312,7 @@ where
     };
 
     let result_with_integrity_check = match result {
-        Ok(data) => {
+        Ok(mut data) => {
             if data
                 .resource_common_data
                 .get_typed_connector_response()
@@ -1261,21 +1328,22 @@ where
                     "typed_connector_response is missing on success path — connector's handle_response_v2 did not produce a typed response value"
                 );
             }
-            data.request
-                .check_integrity(&data.request.clone(), None)
-                .map_err(|err| {
-                    report_connector_response_to_flow(error_stack::report!(
-                        ConnectorError::IntegrityCheckFailed {
-                            context: ResponseTransformationErrorContext {
-                                http_status_code: None,
-                                additional_context: None,
-                            },
-                            field_names: err.field_names,
-                            connector_transaction_id: err.connector_transaction_id,
-                        }
-                    ))
-                })
-                .map(|()| data)
+            // Integrity mismatches no longer fail the RPC: hyperswitch runs its own client-side
+            // integrity check on every successful response (direct-connector or UCS alike) and
+            // already has tolerance logic (partial authorization, overcapture) that this
+            // server-side check doesn't have. Log for observability only, and always return the
+            // real connector response so hyperswitch's own check can evaluate the mismatch.
+            if let Err(err) = data.request.check_integrity(&data.request.clone(), None) {
+                tracing::warn!(
+                    connector = %event_params.connector_name,
+                    flow = %event_params.flow_name,
+                    field_names = %err.field_names,
+                    connector_transaction_id = ?err.connector_transaction_id,
+                    "Integrity check failed"
+                );
+                data.resource_common_data.set_integrity_failure_status();
+            }
+            Ok(data)
         }
         Err(err) => Err(err),
     };
