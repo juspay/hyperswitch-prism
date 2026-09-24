@@ -16,7 +16,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -820,13 +819,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Adyen HMAC message format: pspReference:originalReference:merchantAccountCode:merchantReference:amount.value:amount.currency:eventCode:success
+        let amount_value = common_utils::AmountConvertor::convert(
+            &common_utils::MinorUnitForConnector,
+            notif.amount.value,
+            notif.amount.currency,
+        )
+        .map(|a| a.to_string())
+        .map_err(|err| {
+            report!(WebhookError::WebhookAmountConversionFailed {
+                reason: format!("Failed to convert Adyen webhook amount: {err}"),
+            })
+        })?;
         let message = format!(
             "{}:{}:{}:{}:{}:{}:{}:{}",
             notif.psp_reference,
             notif.original_reference.as_deref().unwrap_or(""),
             notif.merchant_account_code,
             notif.merchant_reference,
-            notif.amount.value,
+            amount_value,
             notif.amount.currency,
             notif.event_code,
             notif.success

@@ -1,7 +1,7 @@
 pub mod aci_result_codes;
 pub mod transformers;
 
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{

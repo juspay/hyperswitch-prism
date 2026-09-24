@@ -271,7 +271,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let minor_amount = item.request.amount;
-        if minor_amount <= common_utils::types::MinorUnit::zero() {
+        if minor_amount <= common_utils::types::MinorUnit::default() {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext {

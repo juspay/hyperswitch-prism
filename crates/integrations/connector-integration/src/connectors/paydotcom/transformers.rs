@@ -18,7 +18,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -169,7 +169,7 @@ mod paydotcom_currency {
 /// identical payload in this scope, only the URL differs (see `paydotcom.rs`).
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
@@ -712,7 +712,7 @@ pub fn authorize_leg<T: PaymentMethodDataTypes>(
 #[allow(clippy::too_many_arguments)]
 fn build_create_resource_request<T: PaymentMethodDataTypes>(
     card: &Card<T>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     common: &PaymentFlowData,
     request_email: Option<common_utils::pii::Email>,
@@ -1214,8 +1214,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         is_manual_capture(item.request.capture_method)?;
 
         // Zero-amount card-on-file setup is the normal shape for this flow; default to
-        // MinorUnit::zero() rather than erroring before any wire call.
-        let minor_amount = item.request.minor_amount.unwrap_or_else(MinorUnit::zero);
+        // zero rather than erroring before any wire call.
+        let minor_amount = item.request.minor_amount.unwrap_or_default();
 
         let amount = value
             .connector
@@ -2272,18 +2272,15 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
         item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let captured_amount = item.response.amount();
-        let authorized_amount = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|money| money.amount);
+        let authorized_amount = item.router_data.resource_common_data.amount.as_ref();
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment
             // partially charged, not fully charged.
             AttemptStatus::Charged => match (captured_amount, authorized_amount) {
-                (Some(captured), Some(authorized)) if captured < authorized => {
+                (Some(captured), Some(authorized))
+                    if authorized.is_greater_than_minor_unit(captured) =>
+                {
                     AttemptStatus::PartialCharged
                 }
                 _ => AttemptStatus::Charged,
@@ -2307,7 +2304,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(|amount| amount.get_amount_as_i64()),
+                amount_captured: captured_amount.map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured: captured_amount,
                 ..item.router_data.resource_common_data
             },
@@ -2585,7 +2582,7 @@ pub struct PaydotcomRepeatPaymentRequest {
     pub off_session: bool,
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_reference_id: Option<String>,
     /// Variant B: explicit payment method id (e.g. `pm_card_…`). Masked in logs —

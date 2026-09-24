@@ -896,10 +896,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `send_payment="true"` and would make this a payment, whose outcome this
         // flow does not report; ignoring the amount would leave the merchant
         // believing the card was charged. Refuse instead.
-        if request
-            .minor_amount
-            .is_some_and(|amount| amount.get_amount_as_i64() != 0)
-        {
+        if request.minor_amount.is_some_and(|amount| !amount.is_zero()) {
             return Err(not_supported("SetupMandate with a non-zero amount"));
         }
 

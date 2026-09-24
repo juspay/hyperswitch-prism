@@ -553,19 +553,13 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                 let balance = acct.balances.current.zip(currency).and_then(|(amt, c)| {
                     super::PlaidAmountConvertor::convert_back(amt, c)
                         .ok()
-                        .map(|amount| common_utils::types::Money {
-                            amount,
-                            currency: c,
-                        })
+                        .map(|amount| common_utils::types::Money::from_minor_unit(amount, c))
                 });
                 let available_balance =
                     acct.balances.available.zip(currency).and_then(|(amt, c)| {
                         super::PlaidAmountConvertor::convert_back(amt, c)
                             .ok()
-                            .map(|amount| common_utils::types::Money {
-                                amount,
-                                currency: c,
-                            })
+                            .map(|amount| common_utils::types::Money::from_minor_unit(amount, c))
                     });
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
                 let bank_holder_type = acct.holder_category.as_ref().map(|hc| match hc {

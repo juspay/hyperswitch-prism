@@ -857,7 +857,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let reference = Some(router_data.request.connector_transaction_id.clone());
 
         Ok(Self {
-            replacement_amount: Some(MinorUnit::zero()), // 0 means full reversal according to Silverflow docs
+            replacement_amount: Some(MinorUnit::default()), // 0 means full reversal according to Silverflow docs
             reference,
         })
     }

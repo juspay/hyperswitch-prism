@@ -358,14 +358,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `minor_amount_capturable` is None on this path (domain_types hardcodes it);
         // derive partial vs full from the authorized amount in resource_common_data.amount.
         // Partial captures keep the residual balance (RVS:N). Full captures release it (RVS:Y).
-        let authorized = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|m| m.amount);
+        let authorized = item.router_data.resource_common_data.amount.as_ref();
         let is_partial = match authorized {
-            Some(auth_amount) => request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => {
+                auth_amount.is_greater_than_minor_unit(request.minor_amount_to_capture)
+            }
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -849,14 +846,10 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
 
         // `minor_amount_capturable` is None on the Capture path; derive partial/full
         // from the authorized amount in resource_common_data.amount instead.
-        let authorized = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|m| m.amount);
+        let authorized = item.router_data.resource_common_data.amount.as_ref();
         let is_partial = match authorized {
-            Some(auth_amount) => item.router_data.request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => auth_amount
+                .is_greater_than_minor_unit(item.router_data.request.minor_amount_to_capture),
             None => false,
         };
         let success_status = if is_partial {

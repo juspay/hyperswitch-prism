@@ -1,11 +1,6 @@
 //! Types that can be used in other crates
 
-use std::{
-    fmt::Display,
-    iter::Sum,
-    ops::{Add, Mul, Sub},
-    str::FromStr,
-};
+use std::{fmt::Display, ops::Sub, str::FromStr};
 
 use common_enums::enums;
 use error_stack::ResultExt;
@@ -19,7 +14,7 @@ use serde::Serialize;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::errors::ParsingError;
+use crate::{errors::ParsingError, proto_boundary::MinorUnitProtoAccess};
 
 /// Amount convertor trait for connector
 pub trait AmountConvertor: Send {
@@ -130,34 +125,65 @@ impl AmountConvertor for FloatMajorUnitForConnector {
     }
 }
 
-/// Connector required amount type
+/// Connector required amount type – outputs ConnectorMinorUnit so connectors
+/// never touch domain MinorUnit directly.
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct MinorUnitForConnector;
 
 impl AmountConvertor for MinorUnitForConnector {
-    type Output = MinorUnit;
+    type Output = ConnectorMinorUnit;
     fn convert(
         &self,
         amount: MinorUnit,
         _currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(amount)
+        Ok(ConnectorMinorUnit(amount.0))
     }
     fn convert_back(
         &self,
-        amount: MinorUnit,
+        amount: ConnectorMinorUnit,
         _currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        Ok(amount)
+        Ok(MinorUnit(amount.0))
     }
 }
 
-/// This Unit struct represents MinorUnit in which core amount works
+/// Connector payload amount that serializes as a minor-unit number.
+///
+/// This keeps connector request/response structs from using domain `MinorUnit`
+/// directly while preserving connector payloads that expect raw numeric minor
+/// units. Connectors obtain this type **only** via `AmountConvertor::convert`.
+///
+/// Wraps a plain `i64` rather than `MinorUnit` — this type is the connector-
+/// facing wire representation, and its layout should not be coupled to
+/// `MinorUnit`'s internal representation.
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+pub struct ConnectorMinorUnit(i64);
+
+impl Display for ConnectorMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Sub for ConnectorMinorUnit {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+/// This Unit struct represents MinorUnit in which core amount works.
+///
+/// The inner field is **private**. Construction and extraction are gated behind
+/// the [`crate::proto_boundary::MinorUnitProtoAccess`] trait, so only the
+/// proto/domain boundary crates can create or inspect raw values. Connector
+/// code receives `MinorUnit` in domain structs but can only pass it through
+/// `AmountConvertor`.
 #[derive(
     Default,
     Debug,
-    serde::Deserialize,
-    serde::Serialize,
     Clone,
     Copy,
     PartialEq,
@@ -165,29 +191,41 @@ impl AmountConvertor for MinorUnitForConnector {
     Hash,
     ToSchema,
     PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
 )]
+pub struct MinorUnit(i64);
 
-pub struct MinorUnit(pub i64);
-
-impl MinorUnit {
-    /// gets amount as i64 value will be removed in future
-    pub fn get_amount_as_i64(self) -> i64 {
-        self.0
-    }
-
-    /// forms a new minor default unit i.e zero
-    pub fn zero() -> Self {
-        Self(0)
-    }
-
-    /// forms a new minor unit from amount
-    pub fn new(value: i64) -> Self {
+/// Proto/domain boundary access for [`MinorUnit`].
+///
+/// Kept here, co-located with the struct, so it can reach the private field
+/// directly instead of through crate-internal helper functions. Import this
+/// trait **only** in proto/domain boundary code — connector code must use
+/// [`AmountConvertor`] instead.
+impl MinorUnitProtoAccess for MinorUnit {
+    fn new(value: i64) -> Self {
         Self(value)
     }
 
+    fn get_amount_as_i64(self) -> i64 {
+        self.0
+    }
+}
+
+impl MinorUnit {
     /// checks if the amount is greater than the given value
     pub fn is_greater_than(&self, value: i64) -> bool {
-        self.get_amount_as_i64() > value
+        self.0 > value
+    }
+
+    /// Returns true if the amount is positive (> 0)
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0
+    }
+
+    /// Returns true when the amount is zero.
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -254,40 +292,6 @@ impl MinorUnit {
     }
 }
 
-impl Display for MinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Add for MinorUnit {
-    type Output = Self;
-    fn add(self, a2: Self) -> Self {
-        Self(self.0 + a2.0)
-    }
-}
-
-impl Sub for MinorUnit {
-    type Output = Self;
-    fn sub(self, a2: Self) -> Self {
-        Self(self.0 - a2.0)
-    }
-}
-
-impl Mul<u16> for MinorUnit {
-    type Output = Self;
-
-    fn mul(self, a2: u16) -> Self::Output {
-        Self(self.0 * i64::from(a2))
-    }
-}
-
-impl Sum for MinorUnit {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self(0), |a, b| a + b)
-    }
-}
-
 /// Connector specific types to send
 #[derive(
     Default,
@@ -321,7 +325,7 @@ impl StringMinorUnit {
         let amount_i64 = amount_decimal
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::new(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
 }
 
@@ -365,7 +369,7 @@ impl FloatMajorUnit {
         let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::new(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
 }
 
@@ -400,7 +404,7 @@ impl StringMajorUnit {
         let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::new(amount_i64))
+        Ok(MinorUnit(amount_i64))
     }
     /// forms a new StringMajorUnit default unit i.e zero
     pub fn zero() -> Self {
@@ -508,7 +512,7 @@ impl StringTwoDecimalUnit {
 
         let minor = i64::try_from(scaled / divisor)
             .map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
-        Ok(MinorUnit::new(minor))
+        Ok(MinorUnit(minor))
     }
 }
 
@@ -526,7 +530,7 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
         amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        let minor = i128::from(amount.get_amount_as_i64());
+        let minor = i128::from(amount.0);
         let scale = currency_scale(currency)?;
         let scaled = minor * 10_i128.pow(TWO_DECIMAL_EXPONENT);
         // A currency with more than two decimals cannot always be expressed with two
@@ -555,12 +559,49 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
 }
 
 #[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema,
+    Default, Debug, Clone, PartialEq, Eq, Hash, ToSchema, serde::Serialize, serde::Deserialize,
 )]
-
 pub struct Money {
-    pub amount: MinorUnit,
-    pub currency: enums::Currency,
+    pub(crate) amount: MinorUnit,
+    pub(crate) currency: enums::Currency,
+}
+
+impl Money {
+    /// Access the currency.
+    pub fn currency(&self) -> enums::Currency {
+        self.currency
+    }
+
+    /// Returns true if the amount is positive.
+    pub fn is_positive(&self) -> bool {
+        self.amount.is_positive()
+    }
+
+    /// Compare this money's amount with a minor-unit amount in the same currency.
+    pub fn is_greater_than_minor_unit(&self, amount: MinorUnit) -> bool {
+        self.amount > amount
+    }
+
+    /// Construct from a [`MinorUnit`] and a currency.
+    ///
+    /// Unlike `new()`, this is **always available** (not feature-gated).
+    /// Connector response handlers use this to build `Money` from domain
+    /// `MinorUnit` values that were converted back from connector amounts.
+    pub fn from_minor_unit(amount: MinorUnit, currency: enums::Currency) -> Self {
+        Self { amount, currency }
+    }
+
+    /// Convert the internal amount using an [`AmountConvertor`].
+    ///
+    /// This allows connectors to obtain a converted representation of the
+    /// amount (e.g. `ConnectorMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`)
+    /// without directly accessing the private `MinorUnit` field.
+    pub fn convert<T>(
+        &self,
+        convertor: &dyn AmountConvertor<Output = T>,
+    ) -> Result<T, error_stack::Report<ParsingError>> {
+        convertor.convert(self.amount, self.currency)
+    }
 }
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.

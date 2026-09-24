@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::LazyLock};
+use std::str::FromStr;
 
 use crate::{
     connectors::redsys::{RedsysAmountConvertor, RedsysRouterData},
@@ -41,8 +41,8 @@ pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
 pub const REDSYS_ORDER_ID_METADATA_KEY: &str = "order_id";
 pub const REDSYS_ORDER_ID_MAX_LENGTH: usize = 12;
 
-static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
-    LazyLock::new(|| common_utils::types::MinorUnit::new(3000)); // €30
+/// Low Value Merchant threshold: €30 = 3000 minor units (cents).
+const LWV_THRESHOLD_MINOR_UNITS: i64 = 3000;
 
 type Error = Report<IntegrationError>;
 type ResponseError = Report<ConnectorError>;
@@ -1226,7 +1226,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     {
         return Ok(map_exemption_indicator(
             indicator,
-            request.amount <= *LWV_THRESHOLD,
+            !request.amount.is_greater_than(LWV_THRESHOLD_MINOR_UNITS),
         ));
     }
     // 2. Auto-detect: MIT for stored credential payments
@@ -1242,7 +1242,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     }
     // 4. Default: amount-based
     // For Redsys, both LWV and TRA are capped at €30
-    if request.amount <= *LWV_THRESHOLD {
+    if !request.amount.is_greater_than(LWV_THRESHOLD_MINOR_UNITS) {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
     } else {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Tra)
@@ -1561,8 +1561,7 @@ where
             }),
         }?;
 
-        let amount_to_capture =
-            common_utils::types::MinorUnit::new(router_data.request.amount_to_capture);
+        let amount_to_capture = router_data.request.minor_amount_to_capture;
 
         let capture_request = requests::RedsysOperationRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(
@@ -2037,7 +2036,7 @@ where
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
-        let refund_amount = common_utils::types::MinorUnit::new(router_data.request.refund_amount);
+        let refund_amount = router_data.request.minor_refund_amount;
 
         let refund_request = requests::RedsysOperationRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(

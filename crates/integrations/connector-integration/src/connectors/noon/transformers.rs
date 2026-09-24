@@ -476,9 +476,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1170,10 +1170,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data.connector.amount_converter.convert(
-            common_utils::types::MinorUnit::new(1),
-            data.router_data.request.currency,
-        );
+        // Noon requires a non-zero amount for setup mandate.
+        // The actual mandate amount comes from setup_mandate_details below.
+        // This nominal amount satisfies the API requirement, so a missing
+        // request amount falls back to 1 minor unit rather than 0 (built
+        // directly via ConnectorMinorUnit's Deserialize impl, since
+        // connector code cannot construct a domain MinorUnit outside
+        // AmountConvertor).
+        let amount = match data.router_data.request.minor_amount {
+            Some(minor_amount) => data
+                .connector
+                .amount_converter
+                .convert(minor_amount, data.router_data.request.currency),
+            None => serde_json::from_value(serde_json::json!(1)).change_context(
+                common_utils::errors::ParsingError::StructParseFailure(
+                    "failed to construct nominal ConnectorMinorUnit(1) fallback",
+                ),
+            ),
+        };
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {
@@ -1385,9 +1399,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),

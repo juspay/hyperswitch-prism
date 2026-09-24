@@ -16,6 +16,7 @@ pub mod macros;
 pub mod metadata;
 pub mod new_types;
 pub mod pii;
+pub mod proto_boundary;
 pub mod request;
 pub mod request_metrics;
 #[cfg(feature = "superposition")]
@@ -39,9 +40,9 @@ pub use superposition_config::{
     get_optional_nonempty_string, get_string, SuperpositionConfig, SuperpositionConfigError,
 };
 pub use types::{
-    AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
-    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
-    StringTwoDecimalUnitForConnector,
+    AmountConvertor, ConnectorMinorUnit, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit,
+    MinorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+    StringTwoDecimalUnit, StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;
 pub mod events;

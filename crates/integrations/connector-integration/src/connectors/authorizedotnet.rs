@@ -1,9 +1,7 @@
 pub mod transformers;
 
 use common_enums;
-use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit,
-};
+use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,

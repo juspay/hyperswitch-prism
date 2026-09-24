@@ -5,7 +5,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     date_time::{format_date, now, now_unix_millis, DateFormat},
     errors::CustomResult,
-    types::MinorUnit,
+    types::{ConnectorMinorUnit, MinorUnit},
 };
 use domain_types::payment_method_data::RawCardNumber;
 use domain_types::{
@@ -186,7 +186,7 @@ pub struct PayboxPaymentRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     pub reference: String,
@@ -542,7 +542,7 @@ pub struct PayboxCaptureRequest {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     #[serde(rename = "REFERENCE")]
@@ -706,7 +706,7 @@ pub struct PayboxVoidRequest {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     #[serde(rename = "REFERENCE")]
@@ -874,7 +874,7 @@ pub struct PayboxRefundRequest {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     #[serde(rename = "REFERENCE")]
@@ -1134,7 +1134,7 @@ pub struct PayboxSetupMandateRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     pub reference: String,
@@ -1212,7 +1212,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })?,
             None => connector
                 .amount_converter
-                .convert(MinorUnit::zero(), router_data.request.currency)
+                .convert(MinorUnit::default(), router_data.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1376,7 +1376,7 @@ pub struct PayboxRepeatPaymentRequest {
     #[serde(rename = "NUMQUESTION")]
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "DEVISE")]
     pub currency: String,
     pub reference: String,
