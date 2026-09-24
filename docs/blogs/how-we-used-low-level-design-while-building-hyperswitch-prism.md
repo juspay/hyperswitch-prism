@@ -4,7 +4,7 @@ Adding your first payment connector is fun. Adding your second is where you find
 
 Every processor wants something different: a different URL, a different HTTP method, a different JSON shape, a different idea of what a "card" looks like. If each connector is a pile of one-off code, connector #2 is a copy-paste of connector #1, and connector #50 is a maintenance nightmare.
 
-Hyperswitch Prism talks to 100+ connectors today. That's not because we're fast typists. It's because a handful of boring, well-known design patterns do the heavy lifting. This post walks through them.
+Hyperswitch Prism talks to 100+ connectors today. To keep that manageable, we used a handful of well-known design patterns. This post walks through them.
 
 ---
 
@@ -119,11 +119,11 @@ impl ConnectorData {
 
 *(Purists will point out that this is technically a "simple factory". The GoF Factory Method relies on subclasses overriding a creation method. The idea is the same: callers ask for a connector, and one place decides how to make it.)*
 
-The nice part is that Rust's `match` is exhaustive. Add a new variant to `ConnectorEnum` and forget the match arm, and the compiler won't let you ship it.
+Rust's `match` is exhaustive, so a new `ConnectorEnum` variant without a match arm doesn't compile.
 
 ## 4. Strategy: one contract, many connectors
 
-This is the heart of Prism. Every connector implements the same trait, so the core never has to care which one it's talking to:
+Every connector implements the same trait, so the core doesn't need to know which one it's talking to:
 
 ```rust
 // Strategy (Behavioral)
@@ -158,7 +158,7 @@ impl ConnectorIntegrationV2<PaymentRequest> for Adyen {
 }
 ```
 
-That's all Adyen has to say. It answers two questions, *which method?* and *which URL?*, and doesn't touch anything else.
+Adyen supplies only two things: the HTTP method and the URL.
 
 ## 5. Adapter (request): speaking each connector's language
 
@@ -209,7 +209,7 @@ Who actually puts the request together? The trait does, through a default method
     }
 ```
 
-This is the pattern we lean on the most. The *order* of steps is written once and shared by everyone. Connectors only plug in the parts that are genuinely theirs. When we want to change how every request is built, we change one method, not 100 connectors.
+The order of steps is written once and shared by every connector. Connectors only supply their own values. Changing how every request is built means changing one method, not 100 connectors.
 
 ## 7. Builder: assembling the request step by step
 
@@ -240,7 +240,7 @@ impl RequestBuilder {
 }
 ```
 
-It reads like a sentence, gives us sensible defaults (`POST`), and in the real Prism it grows to headers, bodies and certificates without the call site turning into a wall of arguments.
+Each step is named, and unset values fall back to defaults (`POST`). In Prism, the same builder also sets headers, bodies and certificates.
 
 ## 8. Adapter (response): bringing the answer home
 
@@ -290,13 +290,13 @@ impl TryFrom<AdyenPaymentResponse> for PaymentResponse {
 }
 ```
 
-This is where the real value is. Adyen says `"Authorised"`, another processor says `"succeeded"`, a third says `"APPROVED"`, and the merchant sees `Authorized` every time. Every connector has two adapters, one on the way in and one on the way out, and that's what lets the core treat 100+ processors as one.
+Adyen says `"Authorised"`, another processor says `"succeeded"`, a third says `"APPROVED"`, and the merchant sees `Authorized` in each case. Every connector has two adapters, one for the request and one for the response.
 
 ---
 
 ## The small bit of Rust glue
 
-One trick makes the Strategy easy to use. A blanket impl gives *every* connector a way to hand itself out as a strategy object, without writing a line:
+A blanket impl gives every connector a way to return itself as a strategy object, with no extra code per connector:
 
 ```rust
 impl<S, Req> ConnectorIntegrationAnyV2<Req> for S
@@ -388,15 +388,15 @@ Some(Request { method: POST, url: "https://api.adyen.io" })
 Ok(PaymentResponse { status: Authorized, connector_transaction_id: "8515131751004933" })
 ```
 
-Singleton, then the request Adapter, then Template Method + Builder, then the response Adapter. The diagram, running top to bottom.
+Singleton, then the request Adapter, then Template Method + Builder, then the response Adapter.
 
-*(Two honest simplifications: to keep the snippet short, this calls Adyen's adapters directly, and the HTTP call is mocked. In Prism, each connector owns its own transformations, so the core never names a specific connector, and the request really goes over the wire.)*
+*(Two simplifications: to keep the snippet short, this calls Adyen's adapters directly, and the HTTP call is mocked. In Prism, each connector owns its own transformations, so the core never names a specific connector, and the request really goes over the wire.)*
 
 ---
 
 ## The real test: connector #2
 
-This is the reason for all of it. Here's Stripe's strategy:
+Here's Stripe's strategy:
 
 ```rust
 pub struct Stripe;
@@ -417,7 +417,7 @@ That's the whole strategy: two answers, same as Adyen. To finish the job, we'd a
 
 What we wouldn't touch: the Singleton, the unified `Request`, the Template Method, the Builder, or the orchestration function. On the diagram, only the Strategy and the two Adapter boxes get a new entry. Everything else stays exactly the same.
 
-That's the real job of low-level design here. It's not about textbook purity. It's about making sure the 100th connector costs about as much as the 2nd.
+A new connector only adds code for what is specific to that processor.
 
 ---
 
