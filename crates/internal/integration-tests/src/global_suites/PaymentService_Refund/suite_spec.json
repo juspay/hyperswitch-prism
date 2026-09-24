@@ -8,7 +8,16 @@
     "PaymentMethodService/Tokenize",
     {
       "suite": "PaymentService/Authorize",
-      "scenario": "no3ds_auto_capture_credit_card"
+      "scenario": "no3ds_manual_capture_credit_card"
+    },
+    {
+      "suite": "PaymentService/Capture",
+      "scenario": "capture_full_amount",
+      "context_map": {
+        "connector_transaction_id": "res.connector_transaction_id",
+        "amount_to_capture.minor_amount": "req.amount.minor_amount",
+        "amount_to_capture.currency": "req.amount.currency"
+      }
     }
   ],
   "dependency_scope": "scenario",

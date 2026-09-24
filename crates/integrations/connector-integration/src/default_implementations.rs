@@ -295,7 +295,6 @@ default_impl_verify_webhook_source_v2!(
         Citigate,
         JpmorganOrbital,
         Paynearme,
-        Saferpay,
         Paydotcom,
         Moneris,
         Etisalat,

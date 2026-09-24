@@ -1,0 +1,181 @@
+{
+  "RecurringPaymentService/Charge": {
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "capture_method": "MANUAL",
+        "payment_method_type": "CREDIT",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "recurring_charge": {
+      "grpc_req": {
+        "capture_method": "MANUAL",
+        "payment_method_type": "CREDIT",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "no3ds_fail_payment": {
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "contains": "CAPTURE_METHOD_NOT_SUPPORTED"
+        },
+        "error.connector_details.message": null
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "redirection_data": null,
+        "status": null,
+        "error": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "grpc_req": {
+        "merchant_event_id": "d4e5f6a7-b8c9-0123-4567-89abcdef0123"
+      },
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "grpc_req": {
+        "merchant_event_id": "d4e5f6a7-b8c9-0123-4567-89abcdef0124"
+      },
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_FAILURE"
+          ]
+        },
+        "event_status": null
+      }
+    },
+    "refund_succeeded": {
+      "grpc_req": {
+        "merchant_event_id": "d4e5f6a7-b8c9-0123-4567-89abcdef0125"
+      },
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_type": {
+          "one_of": [
+            "WEBHOOK_REFUND_SUCCESS"
+          ]
+        },
+        "event_status": null
+      }
+    }
+  }
+}
