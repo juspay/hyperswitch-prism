@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.24.2
+
+### Features
+
+- **connector:** [Revolv3] MITs for Applepay and Googlepay using Decrypted payload + NTID ([#2338](https://github.com/juspay/connector-service/pull/2338)) ([`dae1117`](https://github.com/juspay/connector-service/commit/dae11170329b3fd54ea6369a75beeaf07cdb2993))
+
+### Bug Fixes
+
+- **ci:** Remove truelayer, trustly from alpha connector ([#2365](https://github.com/juspay/connector-service/pull/2365)) ([`075dfb0`](https://github.com/juspay/connector-service/commit/075dfb01486eb2687375b15de13bac9b51843b57))
+
+### Miscellaneous Tasks
+
+- **grace:** Context economy — batch independent lookups, stop re-reading, and report what a run costs ([#2366](https://github.com/juspay/connector-service/pull/2366)) ([`54d0ac4`](https://github.com/juspay/connector-service/commit/54d0ac42388fefa6d652744441b2d27ffcde5914))
+
+**Full Changelog:** [`2026.09.24.1...2026.09.24.2`](https://github.com/juspay/connector-service/compare/2026.09.24.1...2026.09.24.2)
+
+- - -
+
 ## 2026.09.24.1
 
 ### Bug Fixes
