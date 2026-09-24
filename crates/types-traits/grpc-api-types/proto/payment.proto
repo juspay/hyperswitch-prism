@@ -2024,6 +2024,35 @@ message AdditionalPaymentData {
   }
 }
 
+// Funding source type of a card
+enum FundingSource {
+  FUNDING_SOURCE_UNSPECIFIED = 0;
+  FUNDING_SOURCE_CREDIT = 1;
+  FUNDING_SOURCE_DEBIT = 2;
+  FUNDING_SOURCE_PREPAID = 3;
+  FUNDING_SOURCE_CHARGE_CARD = 4;
+  FUNDING_SOURCE_DEFERRED_DEBIT = 5;
+}
+
+// Segment/category of a card (consumer/commercial/business/government)
+enum CardSegmentType {
+  CARD_SEGMENT_TYPE_UNSPECIFIED = 0;
+  CARD_SEGMENT_TYPE_CONSUMER = 1;
+  CARD_SEGMENT_TYPE_COMMERCIAL = 2;
+  CARD_SEGMENT_TYPE_BUSINESS = 3;
+  CARD_SEGMENT_TYPE_GOVERNMENT = 4;
+}
+
+// Type of card from the issuer's perspective
+enum CardType {
+  CARD_TYPE_UNSPECIFIED = 0;
+  CARD_TYPE_CREDIT = 1;
+  CARD_TYPE_DEBIT = 2;
+  CARD_TYPE_PREPAID = 3;
+  CARD_TYPE_STORE = 4;
+  CARD_TYPE_CHARGE_CARD = 5;
+}
+
 // Additional payment method data for Google Pay
 message GooglePayConnectorResponse {
   optional string auth_code =
@@ -2031,11 +2060,11 @@ message GooglePayConnectorResponse {
   optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
   optional string card_bin = 3; // Bin of the underlying card
   optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
-  optional string card_segment_type = 5; // The card's segment type (consumer/commercial)
-  optional string funding_source = 6; // The card's funding source type
-  optional string card_type = 7; // The card type (credit/debit/prepaid/charge)
+  optional CardSegmentType card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional FundingSource funding_source = 6; // The card's funding source type
+  optional CardType card_type = 7; // The card type (credit/debit/prepaid/charge)
   optional string issuer_name = 8; // The name of the card issuer
-  optional string issuer_country = 9; // The country of the card issuer (ISO alpha-2)
+  optional CountryAlpha2 issuer_country = 9; // The country of the card issuer (ISO alpha-2)
 }
 
 // Additional payment method data for Apple Pay
@@ -2045,10 +2074,10 @@ message ApplePayConnectorResponse {
   optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
   optional string card_bin = 3; // Bin of the underlying card
   optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
-  optional string card_segment_type = 5; // The card's segment type (consumer/commercial)
-  optional string funding_source = 6; // The card's funding source type
+  optional CardSegmentType card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional FundingSource funding_source = 6; // The card's funding source type
   optional string issuer_name = 7; // The name of the card issuer
-  optional string issuer_country = 8; // The country of the card issuer (ISO alpha-2)
+  optional CountryAlpha2 issuer_country = 8; // The country of the card issuer (ISO alpha-2)
 }
 
 // Customer information for payments
