@@ -802,9 +802,9 @@ pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>
 pub fn record_on_declaring_span(key: &'static str, value: &dyn tracing::Value) {
     use tracing_subscriber::{registry::LookupSpan, Registry};
 
-    tracing::Span::current().with_subscriber(|(id, dispatch)| {
+    let recorded = tracing::Span::current().with_subscriber(|(id, dispatch)| {
         let Some(registry) = dispatch.downcast_ref::<Registry>() else {
-            return;
+            return false;
         };
         // Resolve the target id first and drop the span refs before dispatching, so
         // the layers' own `ctx.span(..)` lookups never contend with a held guard.
@@ -815,15 +815,24 @@ pub fn record_on_declaring_span(key: &'static str, value: &dyn tracing::Value) {
                 .map(|span| (span.id(), span.metadata()))
         });
         let Some((target_id, metadata)) = target else {
-            return;
+            return false;
         };
         let Some(field) = metadata.fields().field(key) else {
-            return;
+            return false;
         };
         let values = [(&field, Some(value))];
         let value_set = metadata.fields().value_set(&values);
         dispatch.record(&target_id, &tracing::span::Record::new(&value_set));
+        true
     });
+    // Logged only after the closure has returned and released the registry's span
+    // guards: emitting an event inside it would re-enter the subscriber under those.
+    if recorded == Some(false) {
+        tracing::warn!(
+            field = key,
+            "span field dropped: no span in scope declares it"
+        );
+    }
 }
 
 /// JSON-valued counterpart of [`record_on_declaring_span`]: like
@@ -854,26 +863,38 @@ pub fn record_json_fields_on_declaring_span(fields: Vec<(&'static str, serde_jso
         return;
     }
 
-    tracing::Span::current().with_subscriber(|(id, dispatch)| {
-        let Some(registry) = dispatch.downcast_ref::<Registry>() else {
-            return;
-        };
-        let Some(current) = registry.span(id) else {
-            return;
-        };
-        for (key, value) in fields {
-            let Some(target) = current
-                .scope()
-                .find(|span| span.metadata().fields().field(key).is_some())
-            else {
-                continue;
+    let dropped: Vec<&'static str> = tracing::Span::current()
+        .with_subscriber(|(id, dispatch)| {
+            let Some(registry) = dispatch.downcast_ref::<Registry>() else {
+                return fields.iter().map(|(key, _)| *key).collect();
             };
-            let mut extensions = target.extensions_mut();
-            if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
-                storage.record_value(key, value);
+            let Some(current) = registry.span(id) else {
+                return fields.iter().map(|(key, _)| *key).collect();
+            };
+            let mut dropped = Vec::new();
+            for (key, value) in fields {
+                let Some(target) = current
+                    .scope()
+                    .find(|span| span.metadata().fields().field(key).is_some())
+                else {
+                    dropped.push(key);
+                    continue;
+                };
+                let mut extensions = target.extensions_mut();
+                if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
+                    storage.record_value(key, value);
+                }
             }
-        }
-    });
+            dropped
+        })
+        .unwrap_or_default();
+    // Same rule as above: warn only once the closure and its span guards are gone.
+    if !dropped.is_empty() {
+        tracing::warn!(
+            fields = ?dropped,
+            "span fields dropped: no span in scope declares them"
+        );
+    }
 }
 
 /// Recursively merge `source` JSON object into `target`.
