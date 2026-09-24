@@ -423,8 +423,7 @@ That's the real job of low-level design here. It's not about textbook purity. It
 
 Prism is open source, built in Rust, with SDKs across languages.
 
-{% github juspay/hyperswitch-prism %}
-
+- GitHub: [github.com/juspay/hyperswitch-prism](https://github.com/juspay/hyperswitch-prism)
 - Node.js: `npm install hyperswitch-prism`
 - Python: `pip install hyperswitch-prism`
 - Java: `io.hyperswitch:prism` on Maven Central
