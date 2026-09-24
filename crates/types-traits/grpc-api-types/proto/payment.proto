@@ -1073,6 +1073,7 @@ enum PaymentMethodType {
   NETELLER = 136;
   PAY_HERE = 137;
   TAMARA_REDIRECT = 138;
+  TED = 139;
 }
 
 // Product type enumeration

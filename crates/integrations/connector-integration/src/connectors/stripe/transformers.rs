@@ -1183,13 +1183,12 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::Payhere
-            | common_enums::PaymentMethodType::QwikcilverWallet => {
-                Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("stripe"),
-                    Default::default(),
-                )
-                .into())
-            }
+            | common_enums::PaymentMethodType::QwikcilverWallet
+            | common_enums::PaymentMethodType::Ted => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }

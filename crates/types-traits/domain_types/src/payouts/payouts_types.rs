@@ -326,6 +326,7 @@ pub struct PayoutGetRequest {
     /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
     /// that need the debtor account to perform a status enquiry.
     pub source_bank_data: Option<Bank>,
+    pub payout_method_type: Option<common_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
