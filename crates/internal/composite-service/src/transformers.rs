@@ -734,8 +734,8 @@ impl
             capture_method: item.capture_method,
             webhook_url: item.webhook_url.clone(),
             domain_data: item.domain_data.clone(),
-            // Typed 3DS request fields are not yet surfaced on CompositeAuthorizeRequest; the
-            // composite path keeps the legacy metadata / connector_feature_data transport.
+            // The 3DS request fields are not surfaced on CompositeAuthorizeRequest, so the
+            // composite path cannot drive external 3DS authentication.
             merchant_details: None,
             acquirer_details: None,
             device_channel: None,

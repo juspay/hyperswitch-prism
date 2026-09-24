@@ -4224,10 +4224,8 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
   // Authentication Details
   optional AuthenticationData authentication_data = 6;
 
-  // Connector-specific passthrough. Must NOT carry 3DS values; use fields
-  // 17-24. Reading 3DS values from here is deprecated and will be removed
-  // after 2026-10-23. Sending any of fields 17-24 switches the request to
-  // the typed contract and these blobs are no longer read for 3DS values.
+  // Connector-specific passthrough. Must NOT carry 3DS values: those have
+  // dedicated fields (17-24) and are never read from here.
   optional SecretString metadata = 7;
   optional SecretString connector_feature_data = 8;
 
@@ -6112,9 +6110,7 @@ message PayhereConfig {
 
 // Netcetera 3DS Server. Transport auth is mTLS; the certificate pair is
 // optional because an external vault (e.g. VGS) may terminate TLS on the
-// outbound route instead. Supersedes endpoint_prefix,
-// merchant_configuration_id and three_ds_requestor_id/name in the
-// connector_feature_data blob (deprecated, removed on or after 2026-10-23).
+// outbound route instead.
 message NetceteraConfig {
   optional SecretString certificate = 1;
   optional SecretString private_key = 2;
