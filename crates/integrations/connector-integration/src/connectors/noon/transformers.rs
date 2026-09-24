@@ -365,6 +365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_) => {
@@ -1286,6 +1287,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
                         | WalletData::PaymayaRedirect(_)
+                        | WalletData::PayhereRedirect {}
                         | WalletData::QwikcilverWalletDirect(_)
                         | WalletData::Skrill(_)
                         | WalletData::Neteller(_) => {

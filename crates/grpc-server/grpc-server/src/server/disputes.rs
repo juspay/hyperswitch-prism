@@ -151,6 +151,7 @@ impl DisputeService for Disputes {
                         &connector_config,
                         environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
@@ -185,7 +186,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         org_id: org_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
                         masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,
@@ -395,6 +396,7 @@ impl DisputeService for Disputes {
                         &connector_config,
                         environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
@@ -430,7 +432,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         org_id: org_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
                         masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,

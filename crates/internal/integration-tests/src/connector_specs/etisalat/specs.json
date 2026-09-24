@@ -1,0 +1,35 @@
+{
+  "connector": "etisalat",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RecurringPaymentService/Charge"
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "request_id_prefix": "pay_",
+  "request_id_length": 16,
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_fail_payment": "etisalat sandbox does not provide a deterministic decline trigger card for this assertion"
+    },
+    "PaymentService/Capture": {
+      "capture_partial_amount": "etisalat sandbox account rejects partial captures with gateway error 5000"
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "etisalat refunds are accepted only after settlement (typically T+1); same-run refund validation is not possible",
+      "refund_partial_amount": "etisalat refunds are accepted only after settlement (typically T+1); same-run refund validation is not possible",
+      "refund_with_reason": "etisalat refunds are accepted only after settlement (typically T+1); same-run refund validation is not possible"
+    },
+    "RecurringPaymentService/Charge": {
+      "RecurringPaymentService/Charge": "etisalat recurring MIT charge requires a pre-provisioned 3DS registration mandate id not created by the current test dependency chain",
+      "recurring_charge": "etisalat recurring MIT charge requires a pre-provisioned 3DS registration mandate id not created by the current test dependency chain",
+      "recurring_charge_low_amount": "etisalat recurring MIT charge requires a pre-provisioned 3DS registration mandate id not created by the current test dependency chain",
+      "recurring_charge_with_order_context": "etisalat recurring MIT charge requires a pre-provisioned 3DS registration mandate id not created by the current test dependency chain"
+    }
+  }
+}

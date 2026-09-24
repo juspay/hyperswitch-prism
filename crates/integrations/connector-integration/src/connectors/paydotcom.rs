@@ -94,14 +94,16 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -120,7 +122,8 @@ use transformers::{
     PaydotcomAuthorizeRequest, PaydotcomAuthorizeResponse, PaydotcomCaptureRequest,
     PaydotcomCaptureResponse, PaydotcomPSyncResponse, PaydotcomPreAuthenticateRequest,
     PaydotcomPreAuthenticateResponse, PaydotcomRefundRequest, PaydotcomRefundResponse,
-    PaydotcomRefundSyncResponse, PaydotcomVoidResponse,
+    PaydotcomRefundSyncResponse, PaydotcomRepeatPaymentRequest, PaydotcomRepeatPaymentResponse,
+    PaydotcomSetupMandateRequest, PaydotcomSetupMandateResponse, PaydotcomVoidResponse,
 };
 
 use super::macros;
@@ -196,6 +199,18 @@ macros::create_all_prerequisites!(
             request_body: PaydotcomAuthenticateRequest,
             response_body: PaydotcomAuthenticateResponse,
             router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PaydotcomSetupMandateRequest<T>,
+            response_body: PaydotcomSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PaydotcomRepeatPaymentRequest,
+            response_body: PaydotcomRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -354,7 +369,24 @@ macros::macro_connector_implementation!(
                     let resource = paydotcom::authorize_pending_resource_id(&req.request)
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "authentication_data.transaction_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Authorize reached the Confirm leg but no pending \
+                                     chrg_/hld_ resource id was found in either \
+                                     authentication_data.transaction_id or \
+                                     connector_feature_data; the resource id is set by \
+                                     the PreAuthenticate response and must be carried \
+                                     forward by the orchestrator."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Ensure the PreAuthenticate → Authenticate → Authorize \
+                                     flow is driven in order and that authentication_data \
+                                     is propagated between legs."
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
                         })?;
                     paydotcom::confirm_path(&resource)?
                 }
@@ -441,6 +473,99 @@ macros::macro_connector_implementation!(
                 self.connector_base_url_payments(req),
                 PATH_LINKED_AUTH_SESSION
             ))
+        }
+    }
+);
+
+// SetupMandate — same endpoint as Authorize (POST /v1/charges or POST /v1/holds),
+// but `source_data.setup_future_usage = "off_session"` is set so Pay.com stores the
+// payment method. The response `underlying_network_id` is returned as the mandate ref.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paydotcom,
+    curl_request: Json(PaydotcomSetupMandateRequest),
+    curl_response: PaydotcomSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_post_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Same endpoint selection as Authorize: charge for auto-capture, hold for manual.
+            let path = if paydotcom::is_manual_capture(req.request.capture_method)? {
+                PATH_HOLDS
+            } else {
+                PATH_CHARGES
+            };
+            Ok(format!("{}{}", self.connector_base_url_payments(req), path))
+        }
+    }
+);
+
+// RepeatPayment — MIT (Merchant-Initiated Transaction). Sends `POST /v1/charges` with
+// `off_session: true` and the stored mandate reference.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paydotcom,
+    curl_request: Json(PaydotcomRepeatPaymentRequest),
+    curl_response: PaydotcomRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_post_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // MIT charges always go to `/v1/charges`; Pay.com has no Hold endpoint for
+            // off-session transactions. Reject Manual explicitly rather than silently
+            // capturing immediately — a merchant asking for Manual must get an error.
+            if paydotcom::is_manual_capture(req.request.capture_method)? {
+                return Err(error_stack::report!(
+                    IntegrationError::NotImplemented(
+                        "Manual capture for Pay.com off-session (MIT) charge".to_string(),
+                        IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com has no Hold endpoint for off-session (MIT) \
+                                 transactions; MIT charges are always auto-captured. No \
+                                 cardholder is present to approve a later capture."
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Use AUTOMATIC capture_method for merchant-initiated \
+                                 transactions"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    )
+                ));
+            }
+            Ok(format!("{}{}", self.connector_base_url_payments(req), PATH_CHARGES))
         }
     }
 );
@@ -660,6 +785,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Paydotcom<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Paydotcom<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Paydotcom<T>
 {
 }
@@ -740,10 +875,8 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         PaymentMethodToken,
         PostAuthenticate,
-        RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
         SubmitEvidence,
         VoidPC,
         VoidPostRefund

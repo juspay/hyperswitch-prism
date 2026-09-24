@@ -10,8 +10,8 @@ use error_stack::ResultExt;
 use http_body::Body as HttpBody;
 use lazy_static::lazy_static;
 use prometheus::{
-    self, register_histogram_vec, register_int_counter_vec, Encoder, HistogramVec, IntCounterVec,
-    TextEncoder,
+    self, register_histogram_vec, register_int_counter_vec, register_int_gauge_vec, Encoder,
+    HistogramVec, IntCounterVec, IntGaugeVec, TextEncoder,
 };
 use tower::{Layer, Service};
 // Define latency buckets for histograms
@@ -56,6 +56,24 @@ lazy_static! {
         "EXTERNAL_SERVICE_API_CALLS_ERRORS",
         "Total number of errors in external service API calls",
         &["method", "service", "connector", "error"]
+    )
+    .unwrap();
+    // Superposition policy resolution — one counter per consumer × outcome, the way
+    // hyperswitch counts each rung of its config ladder. `consumer` is
+    // connector_urls | sampler; `outcome` is hit | miss | key_missing | error |
+    // timeout | no_source.
+    pub static ref SUPERPOSITION_RESOLVE_TOTAL: IntCounterVec = register_int_counter_vec!(
+        "SUPERPOSITION_RESOLVE_TOTAL",
+        "Superposition policy resolutions by consumer and outcome",
+        &["consumer", "outcome"]
+    )
+    .unwrap();
+    // Set once at boot: which source this process resolves policy from (remote | file).
+    // A pod that fell back to the file will not follow the workspace — worth a panel.
+    pub static ref SUPERPOSITION_SOURCE: IntGaugeVec = register_int_gauge_vec!(
+        "SUPERPOSITION_SOURCE",
+        "Superposition source this process resolves policy from (1 = active)",
+        &["kind"]
     )
     .unwrap();
 }
