@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{CardNetwork, CountryAlpha2, RegulatedName, SamsungPayCardBrand};
+use common_enums::{
+    CardNetwork, CardSegmentType, CardType as CommonCardType, CountryAlpha2, FundingSource,
+    RegulatedName, SamsungPayCardBrand,
+};
 use common_utils::{
     ext_traits::OptionExt, new_types::MaskedBankAccount, pii::UpiVpaMaskingStrategy, Email,
     ValidationError,
@@ -895,12 +898,12 @@ pub enum WalletData {
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
     GcashRedirect(GcashRedirection),
-    ApplePay(ApplePayWalletData),
+    ApplePay(Box<ApplePayWalletData>),
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
     GrabpayRedirect {},
-    GooglePay(GooglePayWalletData),
+    GooglePay(Box<GooglePayWalletData>),
     GooglePayRedirect(Box<GooglePayRedirectData>),
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
     MbWayRedirect(Box<MbWayRedirection>),
@@ -1344,6 +1347,39 @@ pub struct ApplepayPaymentMethod {
     /// The type of the payment method
     #[serde(rename = "type")]
     pub pm_type: String,
+    /// The card's expiry month
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_exp_year: Option<Secret<String>>,
+    /// Bin of the DPAN obtained from decrypting Apple Pay payment data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_pan_bin: Option<String>,
+    /// Bin of the underlying card, provided by the connector when it resolves the DPAN
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_bin: Option<String>,
+    /// The card's type (e.g. Credit, Debit), as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<CommonCardType>,
+    /// Unique authorisation code generated for the payment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_code: Option<String>,
+    /// The card's product/subtype, as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_segment_type: Option<CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub funding_source: Option<FundingSource>,
+    /// The name of the card issuer, as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer_country: Option<CountryAlpha2>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2121,4 +2157,71 @@ pub struct WalletDetails {
     pub product_id: Option<String>,
     /// Payment method items stored in this wallet (for container/hybrid wallets)
     pub items: Vec<WalletItem>,
+}
+
+/// Wallet card additional data for recurring payments (Google Pay, Samsung Pay)
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WalletAdditionalDataForCard {
+    /// The type of payment method
+    pub payment_method_data_type: Option<String>,
+    /// The card network
+    pub card_network: Option<String>,
+    /// The card's type (e.g. Credit, Debit), as returned by the connector
+    pub card_type: Option<CommonCardType>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    pub card_segment_type: Option<CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    pub funding_source: Option<FundingSource>,
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+    /// Bin of the underlying card
+    pub card_bin: Option<String>,
+    /// Bin of the DPAN obtained from decrypting wallet payment data
+    pub device_pan_bin: Option<String>,
+    /// The card's expiry month
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    pub card_exp_year: Option<Secret<String>>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    pub issuer_country: Option<CountryAlpha2>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
+    /// Email address associated with the wallet (e.g. PayPal email)
+    pub email: Option<Email>,
+}
+
+/// Additional card information for recurring payments
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+    /// The ISIN of the card
+    pub card_isin: Option<String>,
+    /// Extended bin of card, contains the first 8 digits of card number
+    pub card_extended_bin: Option<String>,
+    /// Card expiry month (sensitive)
+    pub card_exp_month: Option<Secret<String>>,
+    /// Card expiry year (sensitive)
+    pub card_exp_year: Option<Secret<String>>,
+    /// Card holder name (sensitive)
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+/// Additional payment data for recurring payments, carrying the original payment method details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(tag = "type")]
+pub enum AdditionalPaymentData {
+    /// Card-specific additional payment data
+    Card(AdditionalCardInfo),
+    /// Wallet-specific additional payment data (Apple Pay, Google Pay)
+    Wallet {
+        apple_pay: Option<Box<ApplepayPaymentMethod>>,
+        google_pay: Option<Box<WalletAdditionalDataForCard>>,
+    },
 }

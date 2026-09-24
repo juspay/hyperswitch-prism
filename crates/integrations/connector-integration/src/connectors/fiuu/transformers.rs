@@ -617,7 +617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
-                    FiuuPaymentMethodData::try_from(google_pay_data)
+                    FiuuPaymentMethodData::try_from(google_pay_data.as_ref())
                 }
                 WalletData::ApplePay(_apple_pay_data) => {
                     match _apple_pay_data
@@ -992,7 +992,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
-                    FiuuPaymentMethodData::try_from(google_pay_data)
+                    FiuuPaymentMethodData::try_from(google_pay_data.as_ref())
                 }
                 WalletData::ApplePay(_apple_pay_data) => match _apple_pay_data
                     .payment_data

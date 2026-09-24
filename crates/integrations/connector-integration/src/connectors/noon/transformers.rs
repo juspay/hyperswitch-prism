@@ -295,7 +295,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                         api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                         api_version: GOOGLEPAY_API_VERSION,
-                        payment_method_data: google_pay_data,
+                        payment_method_data: *google_pay_data,
                     }))
                 }
                 WalletData::ApplePay(apple_pay_data) => {
@@ -1217,7 +1217,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
-                                payment_method_data: google_pay_data,
+                                payment_method_data: *google_pay_data,
                             }))
                         }
                         WalletData::ApplePay(apple_pay_data) => {

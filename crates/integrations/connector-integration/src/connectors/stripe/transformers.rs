@@ -1972,7 +1972,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => Ok(Self::try_from((gpay_data, auth_type))?),
+            WalletData::GooglePay(gpay_data) => {
+                Ok(Self::try_from((gpay_data.as_ref(), auth_type))?)
+            }
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),

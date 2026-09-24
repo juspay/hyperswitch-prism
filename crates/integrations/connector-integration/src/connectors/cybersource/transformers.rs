@@ -2406,7 +2406,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_decrypted_apple_pay_payment_data_optional()
                 {
                     Some(decrypt_data) => {
-                        Self::try_from((&item, Box::new(decrypt_data.clone()), apple_pay_data))
+                        Self::try_from((&item, Box::new(decrypt_data.clone()), *apple_pay_data))
                     }
                     None => {
                         let transaction_type = if item.router_data.request.off_session == Some(true)
@@ -2502,10 +2502,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 WalletData::GooglePay(google_pay_data) => {
                     match &google_pay_data.tokenization_data {
                         payment_method_data::GpayTokenizationData::Decrypted(decrypt_data) => {
-                            Self::try_from((&item, Box::new(decrypt_data.clone()), google_pay_data))
+                            Self::try_from((
+                                &item,
+                                Box::new(decrypt_data.clone()),
+                                *google_pay_data,
+                            ))
                         }
                         payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Self::try_from((&item, google_pay_data))
+                            Self::try_from((&item, *google_pay_data))
                         }
                     }
                 }

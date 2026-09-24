@@ -2020,11 +2020,11 @@ message AdditionalCardInfo {
 // Apple Pay additional data for recurring payments
 message AdditionalApplePayInfo {
   // Display name shown on the Apple Pay button
-  optional string display_name = 1;
+  string display_name = 1;
   // Card network (e.g. Visa, Mastercard)
-  optional string network = 2;
+  string network = 2;
   // Payment method type
-  optional string pm_type = 3;
+  string pm_type = 3;
   // Card expiry month (sensitive)
   optional SecretString card_exp_month = 4;
   // Card expiry year (sensitive)
@@ -2034,15 +2034,15 @@ message AdditionalApplePayInfo {
   // Bin of the underlying card from the connector
   optional string card_bin = 7;
   // Card type (e.g. Credit, Debit)
-  optional string card_type = 8;
+  optional CardType card_type = 8;
   // Unique authorisation code generated for the payment
   optional string auth_code = 9;
   // Card product or subtype
   optional string card_subtype = 10;
   // Card segment (e.g. consumer, commercial)
-  optional string card_segment_type = 11;
+  optional CardSegmentType card_segment_type = 11;
   // Card funding source (e.g. credit, debit)
-  optional string funding_source = 12;
+  optional FundingSource funding_source = 12;
   // Card issuer name
   optional string issuer_name = 13;
   // Card issuer country
@@ -2056,13 +2056,13 @@ message AdditionalWalletCardInfo {
   // Card network
   optional string card_network = 2;
   // Card type (e.g. Credit, Debit)
-  optional string card_type = 3;
+  optional CardType card_type = 3;
   // Card product or subtype
   optional string card_subtype = 4;
   // Card segment (e.g. consumer, commercial)
-  optional string card_segment_type = 5;
+  optional CardSegmentType card_segment_type = 5;
   // Card funding source (e.g. credit, debit)
-  optional string funding_source = 6;
+  optional FundingSource funding_source = 6;
   // Last 4 digits of the card number
   optional string last4 = 7;
   // Bin of the underlying card
