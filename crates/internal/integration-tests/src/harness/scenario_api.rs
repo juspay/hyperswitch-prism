@@ -6489,6 +6489,17 @@ grpc-status: 0
                 scenario_names.sort();
 
                 for scenario in scenario_names {
+                    // A scenario this connector declares privately is validated
+                    // against the connector-merged definition: the global suite
+                    // file has no entry for it, so the global loader cannot see
+                    // it (the production runner loads the merged suite file).
+                    if !load_suite_scenarios(&suite)
+                        .map(|file| file.contains_key(&scenario))
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
+
                     // Skip negative-test scenarios that deliberately use invalid
                     // proto data (e.g. invalid card numbers, unknown enum values)
                     // to trigger connector errors.  These will always fail schema

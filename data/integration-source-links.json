@@ -43,7 +43,29 @@
     "https://www.airwallex.com/docs/payments/online-payments/native-api/registered-user-checkout",
     "https://www.airwallex.com/docs/online-payments__native-api__management-of-payment-credentials",
     "https://www.airwallex.com/docs/payments/online-payments/native-api/network-tokenization",
-    "https://www.airwallex.com/docs/api"
+    "https://www.airwallex.com/docs/api",
+    "https://www.airwallex.com/docs",
+    "https://www.airwallex.com/docs/api/authentication/api_access_token",
+    "https://www.airwallex.com/docs/api/errors",
+    "https://www.airwallex.com/docs/api/payments/payment_attempts",
+    "https://www.airwallex.com/docs/api/payments/payment_attempts/retrieve",
+    "https://www.airwallex.com/docs/api/payments/payment_intents",
+    "https://www.airwallex.com/docs/api/payments/payment_intents/create",
+    "https://www.airwallex.com/docs/api/webhooks/webhooks",
+    "https://www.airwallex.com/docs/developer-tools/webhooks/listen-for-webhook-events",
+    "https://www.airwallex.com/docs/developer-tools/webhooks/view-and-re-trigger-webhook-events",
+    "https://www.airwallex.com/docs/developer-tools/webhooks/webhooks-overview",
+    "https://www.airwallex.com/docs/payments/get-started/quickstart",
+    "https://www.airwallex.com/docs/payments/get-started/using-payments-intent-api",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication/native-api-(for-api-versions-before-2024-06-14)",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication/native-api-(for-api-versions-on-or-after-2024-06-14)",
+    "https://www.airwallex.com/docs/payments/reference/payment-statuses",
+    "https://www.airwallex.com/docs/payments/reference/payments-webhooks",
+    "https://www.airwallex.com/docs/payments/test-and-go-live/test-card-numbers",
+    "https://www.airwallex.com/docs/payments/troubleshooting/error-response-codes",
+    "https://www.airwallex.com/docs/payments/troubleshooting/response-codes"
   ],
   "paybox": [
     "https://www1.paybox.com/wp-content/uploads/2017/08/ManuelIntegrationVerifone_PayboxDirect_V8.1_EN.pdf",
@@ -359,6 +381,7 @@
     "https://developer.globalpayments.com/api/3d-secure-two",
     "https://developer.globalpayments.com/resources/messages",
     "https://developer.globalpayments.com/resources/test-cards"
+  ],
   "D24": [
     "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
     "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",

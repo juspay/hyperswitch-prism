@@ -112,7 +112,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"blik\":{\"shopper_name\":\"John\"},\"type\":\"blik\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -171,7 +172,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
@@ -293,7 +295,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"googlepay\":{\"encrypted_payment_token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\",\"payment_data_type\":\"encrypted_payment_token\"},\"type\":\"googlepay\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -338,7 +341,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"ideal\":{},\"type\":\"ideal\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -405,7 +409,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"klarna\":{\"country_code\":\"US\",\"billing\":{\"address\":{\"country_code\":\"US\"}}},\"type\":\"klarna\"},\"payment_method_options\":{\"klarna\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
@@ -551,7 +556,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"paypal\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"paypal\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -664,7 +670,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"skrill\":{\"shopper_name\":\"John\",\"shopper_email\":\"test@example.com\",\"country_code\":\"US\"},\"type\":\"skrill\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -716,7 +723,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"trustly\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"trustly\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -778,7 +786,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"amount\":\"10.00\",\"request_id\":\"capture_probe_capture_001\"}"
         }
@@ -813,7 +822,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"create_probe_order_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"merchant_order_id\":\"probe_order_001\",\"referrer_data\":{\"type\":\"hyperswitch\",\"version\":\"1.0.0\"},\"order\":null}"
         }
@@ -907,7 +917,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": null
         }
@@ -915,7 +926,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_100_24e503a6-a5cf-4247-8dc3-8d9a4f8bbf7a\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acst_1a2b3c4d5e6f7788\",\"org_id\":\"org_prod_AUD_emh5hvn0tbljdi6qt\",\"data\":{\"object\":{\"id\":\"int_1a2b3c4d5e6f7788\",\"merchant_order_id\":\"order_1234\",\"status\":\"SUCCEEDED\",\"amount\":49.12,\"currency\":\"HKD\",\"captured_amount\":49.12}},\"created_at\":\"2024-05-06T07:31:29.226+0000\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_100_24e503a6-a5cf-4247-8dc3-8d9a4f8bbf7a\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acst_1a2b3c4d5e6f7788\",\"org_id\":\"org_prod_AUD_emh5hvn0tbljdi6qt\",\"data\":{\"object\":{\"id\":\"int_1a2b3c4d5e6f7788\",\"merchant_order_id\":\"order_1234\",\"status\":\"SUCCEEDED\",\"amount\":49.12,\"currency\":\"HKD\",\"captured_amount\":49.12}},\"created_at\":\"2024-05-06T07:31:29.226+0000\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -926,7 +952,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_100_24e503a6-a5cf-4247-8dc3-8d9a4f8bbf7a\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acst_1a2b3c4d5e6f7788\",\"org_id\":\"org_prod_AUD_emh5hvn0tbljdi6qt\",\"data\":{\"object\":{\"id\":\"int_1a2b3c4d5e6f7788\",\"merchant_order_id\":\"order_1234\",\"status\":\"SUCCEEDED\",\"amount\":49.12,\"currency\":\"HKD\",\"captured_amount\":49.12}},\"created_at\":\"2024-05-06T07:31:29.226+0000\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_100_24e503a6-a5cf-4247-8dc3-8d9a4f8bbf7a\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acst_1a2b3c4d5e6f7788\",\"org_id\":\"org_prod_AUD_emh5hvn0tbljdi6qt\",\"data\":{\"object\":{\"id\":\"int_1a2b3c4d5e6f7788\",\"merchant_order_id\":\"order_1234\",\"status\":\"SUCCEEDED\",\"amount\":49.12,\"currency\":\"HKD\",\"captured_amount\":49.12}},\"created_at\":\"2024-05-06T07:31:29.226+0000\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -936,14 +976,65 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for airwallex"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for airwallex"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
+          },
+          "body": "{\"request_id\":\"confirm_\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\",\"three_ds\":{\"return_url\":\"https://example.com/3ds-return\"}},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true,\"three_ds_action\":\"FORCE3DS\"}},\"return_url\":\"https://example.com/3ds-return\",\"device_data\":{\"accept_header\":\"application/json\",\"browser\":{\"java_enabled\":false,\"javascript_enabled\":true,\"user_agent\":\"Mozilla/5.0 (probe-bot)\"},\"ip_address\":\"1.2.3.4\",\"language\":\"en-US\",\"mobile\":null,\"screen_color_depth\":24,\"screen_height\":900,\"screen_width\":1440,\"timezone\":\"-480\"}}"
+        }
       }
     },
     "proxy_authorize": {
@@ -984,7 +1075,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
@@ -1039,7 +1131,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"payment_intent_id\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"reason\":\"customer_request\",\"request_id\":\"refund_probe_refund_001\"}"
         }
@@ -1066,7 +1159,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": null
         }
@@ -1121,7 +1215,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"cancellation_reason\":\"Voided by merchant\",\"request_id\":\"void_probe_void_001\"}"
         }
