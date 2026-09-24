@@ -885,26 +885,13 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Only the prebuilt tarball is needed — publish uploads it as-is (the
+      # native libs and generated sources are already bundled inside it).
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4
         with:
           name: sdk-javascript
           path: artifacts/sdk-javascript
-      - name: Download generated JavaScript files
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-javascript
-          path: sdk/javascript/src/payments/generated/
-      - name: Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release
-      - name: Download macOS binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-aarch64-apple-darwin
-          path: target/aarch64-apple-darwin/release
       - name: Check what will be published (JavaScript)
         run: |
           echo "=== JavaScript SDK Publication Preview ==="
@@ -923,9 +910,10 @@ jobs:
             echo "✅ Will publish to npm"
           fi
       # Trusted publishing (OIDC): with id-token:write, the `production`
-      # environment, and a matching trusted publisher on npmjs.com, npm mints
-      # its own short-lived credential — no NODE_AUTH_TOKEN. Provenance is
-      # attached automatically. Requires npm >= 11.5.1 (Node 24 ships 11.x).
+      # environment, and a matching trusted publisher on npmjs.com (repo
+      # juspay/hyperswitch-prism, workflow release-sdks.yml, env production),
+      # npm mints its own short-lived credential — no NODE_AUTH_TOKEN.
+      # Provenance is attached automatically. Requires npm >= 11.5.1 (Node 24).
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
