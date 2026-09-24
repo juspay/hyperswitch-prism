@@ -58,6 +58,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GivepaymentsPaymentProcessingState,
     success:   Captured   => Charged,
     failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GivepaymentsPaymentResponseData,
+        source: |response| response.processing_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Created    => Pending,
         Authorized => Pending,
@@ -77,6 +83,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GivepaymentsPaymentProcessingState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GivepaymentsPaymentSyncResponse,
+        source: |response| response.processing_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Created    => Pending,
         Authorized => Pending,
@@ -96,6 +108,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GivepaymentsRefundProcessingState,
     success:   Approved   => Success,
     failure:   Failed     => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: GivepaymentsRefundSyncResponse,
+        source: |response| response.processing_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Created  => Pending,
         Pending  => Pending,
@@ -115,6 +133,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GivepaymentsRefundProcessingState,
     success:   Approved   => Success,
     failure:   Failed     => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GivepaymentsRefundResponseData,
+        source: |response| response.processing_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Created  => Pending,
         Pending  => Pending,
@@ -134,6 +158,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GivepaymentsPaymentProcessingState,
     success:   Settled    => Charged,
     failure:   Failed     => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: GivepaymentsRepeatPaymentResponse,
+        source: |response| response.processing_state.clone(),
+        context: |_request, _response| (),
+    },
     {
         Created    => Pending,
         Authorized => Pending,

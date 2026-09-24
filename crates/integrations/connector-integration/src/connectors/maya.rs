@@ -621,6 +621,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MayaPaymentStatus,
     success:   PaymentSuccess           => Charged,
     failure:   PaymentFailed            => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: MayaWebhookBody,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         PendingToken                    => PaymentMethodAwaited,
         PendingPayment                  => PaymentMethodAwaited,
@@ -653,6 +659,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MayaVoidStatus,
     success:   Success  => Voided,
     failure:   Failed   => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: MayaVoidResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Pending => VoidInitiated,
     }
@@ -669,6 +681,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MayaRefundStatus,
     success:   Success  => Success,
     failure:   Failed   => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: MayaRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
     }
@@ -685,6 +703,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MayaRefundStatus,
     success:   Success  => Success,
     failure:   Failed   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: MayaRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
     }

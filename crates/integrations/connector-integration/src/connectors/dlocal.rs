@@ -68,6 +68,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Authorized => Authorized,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: DlocalPaymentsResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Paid     => Charged,
         Verified => Charged,
@@ -87,6 +93,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: DlocalPaymentsSyncResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Authorized => Authorized,
         Verified   => Charged,
@@ -106,6 +118,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Cancelled  => Voided,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: PaymentVoidData,
+        response: DlocalPaymentsVoidResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Authorized => VoidInitiated,
         Paid       => VoidFailed,
@@ -125,6 +143,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Success    => Success,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: RefundSyncResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Pending   => Pending,
         Cancelled => Failure,
@@ -141,6 +165,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Success    => Success,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Pending   => Pending,
         Cancelled => Failure,
@@ -157,6 +187,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: DlocalPaymentsCaptureResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Authorized => Pending,
         Verified   => Charged,
@@ -180,6 +216,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: DlocalRepeatPaymentResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Authorized => Charged,
         Verified   => Charged,
@@ -199,6 +241,12 @@ domain_types::impl_flow_status_mapping! {
     source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: DlocalRepeatPaymentResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Authorized => Authorized,
         Verified   => Charged,

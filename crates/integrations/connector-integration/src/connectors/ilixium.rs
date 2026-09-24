@@ -588,6 +588,16 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged, Authorized],
     failure_status:  Declined,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: IlixiumPaymentResponse,
+        source: |response| response.status.code,
+        context: |request, response| transformers::IlixiumAuthorizeCtx {
+            operation_type: response.operation_type,
+            has_three_ds_url: response.three_ds_acs_url().is_some(),
+            is_auto_capture: request.is_auto_capture(),
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{IlixiumStatusCode, IlixiumOperationType};
@@ -630,6 +640,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::IlixiumStatusCode,
     success:   Success      => Charged,
     failure:   Declined     => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: IlixiumCaptureResponse,
+        source: |response| response.status.code,
+        context: |_request, _response| (),
+    },
     {
         Pending             => CaptureInitiated,
         Cancelled           => CaptureFailed,
@@ -651,6 +667,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::IlixiumStatusCode,
     success:   Success      => Voided,
     failure:   Declined     => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: IlixiumVoidResponse,
+        source: |response| response.status.code,
+        context: |_request, _response| (),
+    },
     {
         Cancelled           => Voided,
         Pending             => VoidInitiated,
@@ -677,6 +699,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::IlixiumStatusCode,
     success:   Success      => Success,
     failure:   Declined     => Failure,
+    extractors: {
+        request: RefundsData,
+        response: IlixiumRefundResponse,
+        source: |response| response.status.code,
+        context: |_request, _response| (),
+    },
     {
         Pending             => Pending,
         Cancelled           => Failure,

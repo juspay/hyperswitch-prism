@@ -64,6 +64,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::HyperpgPaymentStatus,
     success:   Charged               => Charged,
     failure:   Failed                => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: HyperpgAuthorizeResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         New                          => Pending,
         Authorizing                  => Pending,
@@ -86,6 +92,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::HyperpgPaymentStatus,
     success:   Charged               => Charged,
     failure:   Failed                => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: HyperpgSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         New                          => Pending,
         Authorizing                  => Pending,
@@ -108,6 +120,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::HyperpgRefundStatus,
     success:   Success => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request: RefundsData,
+        response: HyperpgRefundResponse,
+        source: |_response| transformers::HyperpgRefundStatus::Pending,
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
     }
@@ -117,15 +135,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping! {
+domain_types::impl_refund_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
-    flow:      RSync,
-    source:    transformers::HyperpgRefundStatus,
-    success:   Success => Success,
-    failure:   Failed  => Failure,
+    flow: RSync,
+    source: Option<transformers::HyperpgRefundStatus>,
+    context: common_enums::RefundStatus,
+    params: [status, previous_status],
+    success_sample: Some(Some(transformers::HyperpgRefundStatus::Success)),
+    failure_sample: Some(Some(transformers::HyperpgRefundStatus::Failed)),
+    extractors: {
+        request: RefundSyncData,
+        response: HyperpgRefundSyncResponse,
+        source: |response| response.refunds.as_ref().and_then(|refunds| refunds.first()).map(|refund| refund.status.clone()),
+        context: |request, _response| request.refund_status,
+    },
     {
-        Pending => Pending,
+        status.as_ref().map(common_enums::RefundStatus::from).unwrap_or(previous_status)
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
