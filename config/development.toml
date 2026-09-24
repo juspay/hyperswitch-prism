@@ -65,6 +65,10 @@ travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api-stg.directa24.com"
 elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 payhere.base_url = "https://sandbox.payhere.lk"
+# Redirect/Payment API family (authorize + payment enquiry)
+reddot.base_url = "https://secure-dev.reddotpayment.com"
+# Merchant API family (refund + merchant enquiry) — RDP serves it on a separate host
+reddot.secondary_base_url = "https://test.reddotpayment.com"
 citigate.base_url = "https://gw-test.cgate.tech"
 paynearme.base_url = "https://api.paynearme-sandbox.com/json-api"
 saferpay.base_url = "https://test.saferpay.com/api"

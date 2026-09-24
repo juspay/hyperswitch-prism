@@ -164,6 +164,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
             ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
+            ConnectorEnum::Reddot => Box::new(connectors::Reddot::<T>::new()),
         }
     }
 }

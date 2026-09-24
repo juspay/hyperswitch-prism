@@ -1,0 +1,40 @@
+{
+  "connector": "reddot",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_manual_capture_incremental_auth": "reddot only implements payment_type = \"S\" (auto-capture); the connector rejects capture_method MANUAL with CaptureMethodNotSupported (reddot/transformers.rs:379-394), and incremental authorization is not supported by RDP's SOP redirect flow at all.",
+      "no3ds_fail_payment": "RDP's SOP initiate call does not validate the card: any card (including the decline card 4000000000000002) returns response_code \"0\" and an AUTHENTICATION_PENDING redirect. The decline only happens after the customer pays on the RDP hosted page, which the harness cannot drive, so no error response can ever be observed at authorize time."
+    },
+    "PaymentService/Get": {
+      "sync_payment": "reddot is a hosted-redirect (SOP) flow: authorize ends AUTHENTICATION_PENDING and the customer must pay on the RDP hosted page, which the harness cannot drive (the sandbox page reports \"session not found\" even for fresh payment links). PSync on an unpaid session deterministically returns RDP -1009 (\"The transaction has not been paid or it has been expired\") mapped to AUTHORIZATION_FAILED, so no terminal/success status can be observed.",
+      "sync_payment_with_handle_response": "same reason as sync_payment.",
+      "sync_upi_collect": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_intent": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_qr": "UPI is not in supported_payment_methods for this connector."
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "needs a successfully paid transaction, but the SOP hosted page cannot be completed by the harness (see PaymentService/Get > sync_payment), so the refund deterministically fails with RDP -1 \"Cannot find the transaction history\".",
+      "refund_partial_amount": "same reason as refund_full_amount.",
+      "refund_with_reason": "same reason as refund_full_amount."
+    },
+    "RefundService/Get": {
+      "refund_sync": "no successful refund can be produced in the sandbox (see PaymentService/Refund > refund_full_amount), so there is no refund state to sync.",
+      "RefundService/Get": "same reason as refund_sync.",
+      "refund_sync_with_reason": "same reason as refund_sync."
+    },
+    "EventService/HandleEvent": {
+      "refund_succeeded": "RDP's notify_url is a payment-only callback: get_event_type maps every body to a PaymentIntent* event and there is no process_refund_webhook implementation, so a refund webhook cannot be recognized.",
+      "invalid_signature": "RDP notify_url callbacks are unsigned (no documented/usable signature scheme), so verify_webhook_source always returns false; there is no valid-signature path to break — every RDP webhook is unverified by design."
+    }
+  }
+}

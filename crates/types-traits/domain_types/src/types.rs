@@ -447,6 +447,7 @@ pub struct Connectors {
     pub elavon_pg: ConnectorParams,
     pub globalpayments_realex: ConnectorParams,
     pub payhere: ConnectorParams,
+    pub reddot: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -845,6 +846,9 @@ impl Connectors {
             }
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
+            }
+            ConnectorEnum::Reddot => {
+                patched.reddot.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -11516,11 +11520,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .map(connector_types::SplitRefundsDetails::foreign_try_from)
                 .transpose()?,
             connector_order_id: value.connector_order_id,
+            metadata: value
+                .metadata
+                .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
+                .transpose()?,
             payment_method_data: value.payment_method.and_then(|pm| {
                 payment_method_data::PaymentMethodData::<
                     payment_method_data::DefaultPCIHolder,
                 >::convert_to_domain_model_for_non_card_payment_methods(pm)
-                .ok()
+                    .ok()
             }),
         })
     }

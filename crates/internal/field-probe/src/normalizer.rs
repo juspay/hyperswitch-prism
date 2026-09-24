@@ -296,6 +296,10 @@ fn replace_json_dynamic_fields(s: &str) -> String {
         r = replace_json_alphanum_value(&r, key, placeholder);
     }
 
+    // Reddot generates a fresh 16-character hex order_id for every probe.
+    // Keep field-probe samples stable without changing connector behavior.
+    r = replace_json_hex_value(&r, "\"order_id\"", "\"0000000000000000\"");
+
     // 10-digit numeric timestamps (too short for replace_timestamps which needs 13+)
     for key in &["\"timestamp\"", "\"requestTimestamp\""] {
         r = replace_json_digit_value(&r, key, "\"0000000000\"");
@@ -349,6 +353,46 @@ fn replace_json_alphanum_value(s: &str, json_key: &str, replacement: &str) -> St
                             i = k + 1;
                             continue;
                         }
+                    }
+                }
+            }
+        }
+        push_char_at(&mut result, s, &mut i);
+    }
+
+    result
+}
+
+/// Replace a quoted 16-character hexadecimal JSON value.
+fn replace_json_hex_value(s: &str, json_key: &str, replacement: &str) -> String {
+    let key_bytes = json_key.as_bytes();
+    let bytes = s.as_bytes();
+    let mut result = String::with_capacity(s.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if i + key_bytes.len() <= bytes.len() && bytes[i..i + key_bytes.len()] == *key_bytes {
+            let mut j = i + key_bytes.len();
+            while j < bytes.len() && bytes[j] == b' ' {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b':' {
+                j += 1;
+                while j < bytes.len() && bytes[j] == b' ' {
+                    j += 1;
+                }
+                if j < bytes.len() && bytes[j] == b'"' {
+                    let val_start = j + 1;
+                    let val_end = val_start + 16;
+                    if val_end < bytes.len()
+                        && bytes[val_end] == b'"'
+                        && bytes[val_start..val_end].iter().all(u8::is_ascii_hexdigit)
+                    {
+                        result.push_str(json_key);
+                        result.push(':');
+                        result.push_str(replacement);
+                        i = val_end + 1;
+                        continue;
                     }
                 }
             }
@@ -485,6 +529,14 @@ fn test_normalize_content() {
         output
     );
     assert!(!output.contains("6700473c"), "Original UUID should be gone");
+}
+
+#[test]
+fn test_normalizes_generated_order_id() {
+    let input = r#"{"order_id":"0c7c256ae91d5cbd"}"#;
+    let output = normalize_content(input);
+    assert!(output.contains(r#""order_id":"0000000000000000""#));
+    assert!(!output.contains("0c7c256ae91d5cbd"));
 }
 
 /// Normalize a single HTTP header value, taking the header name into account.

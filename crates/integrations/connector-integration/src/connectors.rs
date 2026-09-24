@@ -343,3 +343,6 @@ pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
 
 pub mod merchante;
 pub use self::merchante::Merchante;
+
+pub mod reddot;
+pub use self::reddot::Reddot;

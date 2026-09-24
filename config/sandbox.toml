@@ -37,6 +37,10 @@ paydotcom.base_url = "https://api.sandbox.pay.com"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
+# Redirect/Payment API family (authorize + payment enquiry)
+reddot.base_url = "https://secure-dev.reddotpayment.com"
+# Merchant API family (refund + merchant enquiry) — RDP serves it on a separate host
+reddot.secondary_base_url = "https://test.reddotpayment.com"
 grabpay.base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
 boost.base_url = "https://stage-api.boostconnect.biz/gateway"

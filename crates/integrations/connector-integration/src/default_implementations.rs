@@ -307,7 +307,8 @@ default_impl_verify_webhook_source_v2!(
         Worldpayraft,
         Travelhub,
         D24,
-    ],
+        Reddot,
+        ],
 );
 // PayPal has its own implementation in paypal.rs
 
@@ -498,7 +499,8 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 // ============================================================================
@@ -739,7 +741,8 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_get_payment_method_v2!(
@@ -858,7 +861,8 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_payment_method_eligibility_v2!(
@@ -975,6 +979,7 @@ default_impl_payment_method_eligibility_v2!(
         Affirm,
         Maya,
         Travelhub,
+        Reddot
     ],
 );
 
@@ -1158,5 +1163,6 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
