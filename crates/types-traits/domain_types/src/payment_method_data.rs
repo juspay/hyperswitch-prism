@@ -2196,7 +2196,7 @@ pub struct WalletAdditionalDataForCard {
 }
 
 /// Additional card information for recurring payments
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AdditionalCardInfo {
     /// The name of issuer of the card
     pub card_issuer: Option<String>,
@@ -2215,7 +2215,7 @@ pub struct AdditionalCardInfo {
 }
 
 /// Additional payment data for recurring payments, carrying the original payment method details
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum AdditionalPaymentData {
     /// Card-specific additional payment data

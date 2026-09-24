@@ -1085,7 +1085,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             PaymentMethodData::Wallet(wallet_data) => {
-                let (source, wallet_type) =
+                let (source, _wallet_type) =
                     build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?;
 
                 let stored_credentials =
@@ -1094,11 +1094,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     } else {
                         None
                     };
-
-                tracing::debug!(
-                    wallet_type = ?wallet_type,
-                    "fiservcommercehub: building DecryptedWallet authorize request"
-                );
 
                 (source, stored_credentials)
             }
