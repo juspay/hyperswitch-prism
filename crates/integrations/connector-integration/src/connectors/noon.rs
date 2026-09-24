@@ -291,7 +291,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             noon::NoonPaymentStatus::Initiated
             | noon::NoonPaymentStatus::PaymentInfoAdded
             | noon::NoonPaymentStatus::Authenticated => AttemptStatus::Started,
-            noon::NoonPaymentStatus::Locked => AttemptStatus::Unspecified,
+            noon::NoonPaymentStatus::Locked | noon::NoonPaymentStatus::Unknown => {
+                AttemptStatus::Unspecified
+            }
         };
 
         let connector_order_id = webhook_object.order_id.to_string();
