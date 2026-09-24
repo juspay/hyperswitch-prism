@@ -895,6 +895,31 @@ impl ForeignTryFrom<grpc_api_types::payouts::Venmo> for payouts::payout_method_d
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payouts::Mifinity> for payouts::payout_method_data::Mifinity {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        mifinity: grpc_api_types::payouts::Mifinity,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let destination_account = mifinity.destination_account.ok_or_else(|| {
+            error_stack::Report::new(IntegrationError::MissingRequiredField {
+                field_name: "destination_account",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "MiFinity wallet payout requires a destination_account (email or MiFinity account number)."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(payouts::payout_method_data::Mifinity {
+            destination_account: ::hyperswitch_masking::Secret::new(
+                destination_account.peek().to_string(),
+            ),
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payouts::InteracPayout>
     for payouts::payout_method_data::Interac
 {
@@ -1136,6 +1161,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
             grpc_api_types::payouts::payout_method::PayoutMethodData::Venmo(venmo) => {
                 Ok(Self::Wallet(payouts::payout_method_data::Wallet::Venmo(
                     payouts::payout_method_data::Venmo::foreign_try_from(venmo)?,
+                )))
+            }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::Mifinity(mifinity) => {
+                Ok(Self::Wallet(payouts::payout_method_data::Wallet::Mifinity(
+                    payouts::payout_method_data::Mifinity::foreign_try_from(mifinity)?,
                 )))
             }
             grpc_api_types::payouts::payout_method::PayoutMethodData::Interac(interac) => Ok(
