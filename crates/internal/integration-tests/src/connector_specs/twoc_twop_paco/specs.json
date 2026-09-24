@@ -1,11 +1,15 @@
 {
   "connector": "twoc_twop_paco",
   "supported_suites": [
+    "PaymentService/VerifyRedirectResponse",
     "PaymentService/Authorize",
     "PaymentService/Get",
     "PaymentService/Capture",
     "PaymentService/Void",
     "PaymentService/Refund",
     "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "card"
   ]
 }

@@ -892,7 +892,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
-        transformers::get_adyen_webhook_event_type(notif.event_code).map_err(|e| report!(e))
+        transformers::get_adyen_webhook_event_type(notif.event_code, notif.success)
+            .map_err(|e| report!(e))
     }
 
     fn get_webhook_event_reference(

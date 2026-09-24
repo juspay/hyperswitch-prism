@@ -9,6 +9,12 @@
     "stripe": {
       "reason": "carries real production traffic"
     },
+    "truelayer": {
+      "reason": "carries real production traffic"
+    },
+    "trustly": {
+      "reason": "carries real production traffic"
+    },
     "tsys": {
       "reason": "carries real production traffic"
     }

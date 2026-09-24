@@ -981,6 +981,11 @@ pub enum ConnectorSpecificConfig {
     },
     Kount {
         api_key: Secret<String>,
+        /// Kount-assigned merchant CID, used as the DDC Web SDK `clientID`.
+        /// Only the Device Data Collection flow needs it; other Kount flows
+        /// work without one. Presence is validated where DDC builds the
+        /// script, not here.
+        client_id: Option<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
@@ -1101,6 +1106,18 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Global Payments Ecommerce XML API (legacy Realex). Not the GP-API `Globalpay` product.
+    /// `api_key`    = Shared Secret     (input to the sha1hash digest, never sent verbatim)
+    /// `key1`       = Merchant ID       (`<merchantid>`, also a digest input)
+    /// `key2`       = Account           (`<account>`, the sub-account name)
+    /// `api_secret` = Refund password   (`<refundhash>` on rebate/credit only)
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
+        base_url: Option<String>,
+    },
     /// PayHere (payhere.lk) Merchant API.
     /// `app_id`         = App ID (OAuth client_id for `/merchant/v1/oauth/token` Basic auth)
     /// `app_secret`     = App Secret (OAuth client_secret)
@@ -1144,6 +1161,7 @@ fn connector_patch_key(variant: &str) -> String {
         "TwocTwopPaco" => "twoc_twop_paco",
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
         "ElavonPg" => "elavon_pg",
+        "GlobalpaymentsRealex" => "globalpayments_realex",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1518,6 +1536,12 @@ impl ConnectorSpecificConfig {
                 api_key,
                 key1,
                 api_secret
+            },
+            GlobalpaymentsRealex {
+                shared_secret,
+                merchant_id,
+                account,
+                refund_password
             },
             Worldpayraft {
                 license,
@@ -2049,6 +2073,12 @@ impl ConnectorSpecificConfig {
                     api_key,
                     key1,
                     api_secret
+                },
+                GlobalpaymentsRealex {
+                    shared_secret,
+                    merchant_id,
+                    account,
+                    refund_password
                 },
                 Worldpayraft {
                     license,
@@ -2708,6 +2738,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Kount(kount) => Ok(Self::Kount {
                 api_key: kount.api_key.ok_or_else(err)?,
+                // A blank CID renders `clientID: ""` — a DDC script that loads and
+                // silently collects nothing. Treat empty/whitespace as missing, the
+                // same way the Paysafe account ids do in `get_account_id` above.
+                // Absence itself is fine here: only the DDC flow needs a CID, and
+                // it validates that when it builds the script.
+                client_id: kount.client_id.filter(|id| !id.trim().is_empty()),
                 auth_server_id: kount.auth_server_id,
                 khash_config_key: kount.khash_config_key,
                 base_url: kount.base_url,
@@ -2816,6 +2852,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
             }),
+            AuthType::GlobalpaymentsRealex(globalpayments_realex) => {
+                Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: globalpayments_realex.shared_secret.ok_or_else(err)?,
+                    merchant_id: globalpayments_realex.merchant_id.ok_or_else(err)?,
+                    account: globalpayments_realex.account.ok_or_else(err)?,
+                    refund_password: globalpayments_realex.refund_password.ok_or_else(err)?,
+                    base_url: globalpayments_realex.base_url,
+                })
+            }
             AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
                 device_id: tsys_transit.device_id.ok_or_else(err)?,
                 transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
@@ -3826,6 +3871,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
 
                 // --- MultiAuthKey connectors ---
+                ConnectorEnum::GlobalpaymentsRealex => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::GlobalpaymentsRealex {
+                        shared_secret: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        account: key2.clone(),
+                        refund_password: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Forte => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,
@@ -4053,6 +4113,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 ConnectorEnum::Kount => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
+                        // The legacy header carries no `client_id`; DDC (the only
+                        // flow that needs one) will reject a request that reaches
+                        // it without one.
+                        client_id: None,
                         auth_server_id: None,
                         khash_config_key: None,
                         base_url: None,
@@ -4309,6 +4373,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 connector_types::FrmConnectorEnum::Kount => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
+                        client_id: None,
                         auth_server_id: None,
                         khash_config_key: None,
                         base_url: None,
@@ -4698,11 +4763,26 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    device_pan_bin: None,
+                    card_bin: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
+                    card_type: None,
+                    issuer_name: None,
+                    issuer_country: None,
                 }
             }
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    device_pan_bin: None,
+                    card_bin: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
+                    issuer_name: None,
+                    issuer_country: None,
                 }
             }
             _ => AdditionalPaymentMethodConnectorResponse::Card {
@@ -4771,9 +4851,39 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Bin of the DPAN (device PAN), as returned by the connector
+        device_pan_bin: Option<String>,
+        /// Bin of the underlying card, as returned by the connector
+        card_bin: Option<String>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::enums::CountryAlpha2>,
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Bin of the DPAN (device PAN), as returned by the connector
+        device_pan_bin: Option<String>,
+        /// Bin of the underlying card, as returned by the connector
+        card_bin: Option<String>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::enums::FundingSource>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::enums::CountryAlpha2>,
     },
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
