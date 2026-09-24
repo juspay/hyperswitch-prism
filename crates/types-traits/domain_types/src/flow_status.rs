@@ -505,6 +505,16 @@ pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
     fn success_connector_status() -> Self::ConnectorStatus;
     fn failure_connector_status() -> Self::ConnectorStatus;
 
+    /// Optional terminal samples for status types that cannot be represented by
+    /// a unit enum variant (tuples, `Option`, primitives, or ack-only responses).
+    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::success_connector_status())
+    }
+
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
+
     fn map_refund_status(
         status: Self::ConnectorStatus,
         ctx: Self::MappingContext,
@@ -531,6 +541,16 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// `TERMINAL_FAILURE_SET`.  Verified at test time by `assert_terminal_mapping!`.
     fn failure_connector_status() -> Self::ConnectorStatus;
 
+    /// Optional terminal samples for status types that cannot be represented by
+    /// a unit enum variant (tuples, `Option`, primitives, or ack-only responses).
+    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::success_connector_status())
+    }
+
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
+
     /// The per-flow status mapping function.  Replaces the shared
     /// `From<ConnectorStatus> for AttemptStatus` for this flow.
     ///
@@ -541,4 +561,24 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
         status: Self::ConnectorStatus,
         ctx: Self::MappingContext,
     ) -> AttemptStatus;
+}
+
+/// Runtime half of a connector's flow-status declaration.
+///
+/// The compile-time mapping traits above describe how a connector-native status
+/// maps into the UCS status domain. This trait describes how to obtain that
+/// connector-native status and its mapping context from the request and parsed
+/// connector response. The flow-status macros implement both traits from one
+/// declaration when an `extractors` block is present.
+pub trait ConnectorRuntimeStatusMapping<Flow, Request, Response> {
+    /// `AttemptStatus` for payment flows and `RefundStatus` for refund flows.
+    type MappedStatus;
+
+    fn map_runtime_status(request: &Request, response: &Response) -> Self::MappedStatus;
+}
+
+/// Applies a mapped status to the flow's common data after response
+/// transformation. Implementations validate the flow allow-list before writing.
+pub trait FlowStatusSetter<Flow, Status> {
+    fn set_mapped_flow_status(&mut self, status: Status) -> Result<(), crate::ConnectorError>;
 }
