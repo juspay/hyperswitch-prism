@@ -5048,6 +5048,16 @@ impl CustomerInfo {
             .clone()
             .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
+
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
+    /// `None` when the customer has no phone number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        PhoneDetails {
+            number: self.customer_phone_number.clone(),
+            country_code: self.customer_phone_country_code.clone(),
+        }
+        .get_e123_phone_number()
+    }
 }
 
 impl L2L3Data {

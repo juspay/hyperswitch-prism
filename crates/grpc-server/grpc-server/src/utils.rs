@@ -975,7 +975,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1005,7 +1005,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1037,7 +1037,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
