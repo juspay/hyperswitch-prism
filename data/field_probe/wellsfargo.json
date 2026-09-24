@@ -9,24 +9,24 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
@@ -49,52 +49,52 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Bluecode": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Card": {
         "status": "supported",
@@ -148,12 +148,12 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -164,44 +164,44 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "GCash": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Givex": {
         "status": "not_implemented",
@@ -224,60 +224,60 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "KakaoPay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "MbWay": {
         "status": "not_implemented",
@@ -288,8 +288,8 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -300,64 +300,64 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -380,32 +380,32 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "RevolutPay": {
         "status": "not_implemented",
@@ -420,32 +420,32 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Skrill": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Swish": {
         "status": "not_implemented",
@@ -456,24 +456,24 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Vipps": {
         "status": "not_implemented",
@@ -484,8 +484,8 @@
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Wellsfargo"
+        "status": "error",
+        "error": "Payment method"
       },
       "Wero": {
         "status": "not_implemented",
@@ -558,14 +558,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by wellsfargo connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by wellsfargo connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -575,14 +575,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by wellsfargo connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by wellsfargo connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -873,7 +873,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method not supported for SetupMandate is not supported by Wellsfargo"
+        "error": "Payment method not supported for SetupMandate"
       }
     },
     "verify_redirect": {

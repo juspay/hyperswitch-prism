@@ -3396,8 +3396,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by revolut connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -3595,8 +3595,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by revolut connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

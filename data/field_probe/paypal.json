@@ -9,32 +9,32 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Alfamart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "ApplePay": {
         "status": "error",
@@ -100,12 +100,12 @@
         }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -120,12 +120,12 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -136,8 +136,8 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -197,28 +197,28 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -229,12 +229,12 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -291,8 +291,8 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Giropay": {
         "status": "supported",
@@ -341,8 +341,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -404,8 +404,8 @@
         }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Ideal": {
         "status": "supported",
@@ -474,20 +474,20 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Lawson": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -502,12 +502,12 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -518,8 +518,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -578,12 +578,12 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -680,8 +680,8 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Pix": {
         "status": "not_implemented",
@@ -704,40 +704,40 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Seicomart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "SevenEleven": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Sofort": {
         "status": "supported",
@@ -782,48 +782,48 @@
         }
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Trustly": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       }
     },
     "capture": {
@@ -935,8 +935,8 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by paypal connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -976,8 +976,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by paypal connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -1290,8 +1290,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by paypal connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -1349,14 +1349,14 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "status": "error",
+        "error": "Selected payment method through Paypal"
       }
     },
     "verify_redirect": {

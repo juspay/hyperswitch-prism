@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by revolv3 connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
@@ -37,8 +37,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Apple Pay encrypted payment data is not supported by revolv3"
+        "status": "error",
+        "error": "Apple Pay encrypted payment data"
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -249,8 +249,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Google Pay encrypted payment data is not supported by revolv3"
+        "status": "error",
+        "error": "Google Pay encrypted payment data"
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -595,8 +595,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by revolv3 connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
@@ -654,14 +654,14 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by revolv3 connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
       "default": {
-        "status": "not_supported",
-        "error": "Invalid connector metadata for PSync validation is not supported by revolv3"
+        "status": "error",
+        "error": "Invalid connector metadata for PSync validation"
       }
     },
     "handle_event": {
@@ -687,14 +687,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by revolv3 connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by revolv3 connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {

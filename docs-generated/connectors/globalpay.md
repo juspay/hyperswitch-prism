@@ -250,7 +250,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | WebPay | ⚠ |
 | Local | ⚠ |
 | iDEAL | ✓ |
-| Sofort | x |
+| Sofort | ? |
 | Trustly | ⚠ |
 | Giropay | ✓ |
 | EPS | ✓ |

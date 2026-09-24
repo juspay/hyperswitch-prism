@@ -37,12 +37,12 @@
         "error": "This feature is not implemented: Only card payments are supported by paynearme"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its hosted UIs, not through the API) is not supported by paynearme. PayNearMe's payment-methods matrix marks ApplePay unavailable under both \"API - Create Payment Method\" and \"API - Make Payment\""
+        "status": "error",
+        "error": "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its hosted UIs, not through the API). PayNearMe's payment-methods matrix marks ApplePay unavailable under both \"API - Create Payment Method\" and \"API - Make Payment\""
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no wallet or network-token fields) is not supported by paynearme. PayNearMe's payment-methods matrix marks ApplePay unavailable under both \"API - Create Payment Method\" and \"API - Make Payment\""
+        "status": "error",
+        "error": "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no wallet or network-token fields). PayNearMe's payment-methods matrix marks ApplePay unavailable under both \"API - Create Payment Method\" and \"API - Make Payment\""
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -211,12 +211,12 @@
         "error": "This feature is not implemented: Only card payments are supported by paynearme"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Google Pay (Google-encrypted payment token; PayNearMe offers Google Pay only in its hosted UIs, not through the API) is not supported by paynearme. PayNearMe's payment-methods matrix marks GooglePay unavailable under \"API - Create Payment Method\", and allows it on \"API - Make Payment\" only for disbursement (push) orders"
+        "status": "error",
+        "error": "Google Pay (Google-encrypted payment token; PayNearMe offers Google Pay only in its hosted UIs, not through the API). PayNearMe's payment-methods matrix marks GooglePay unavailable under \"API - Create Payment Method\", and allows it on \"API - Make Payment\" only for disbursement (push) orders"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Google Pay (Hyperswitch-decrypted PAN or DPAN, with or without a cryptogram; the PayNearMe API has no wallet or network-token fields) is not supported by paynearme. PayNearMe's payment-methods matrix marks GooglePay unavailable under \"API - Create Payment Method\", and allows it on \"API - Make Payment\" only for disbursement (push) orders"
+        "status": "error",
+        "error": "Google Pay (Hyperswitch-decrypted PAN or DPAN, with or without a cryptogram; the PayNearMe API has no wallet or network-token fields). PayNearMe's payment-methods matrix marks GooglePay unavailable under \"API - Create Payment Method\", and allows it on \"API - Make Payment\" only for disbursement (push) orders"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -574,8 +574,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by paynearme connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -608,8 +608,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by paynearme connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -747,8 +747,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by paynearme connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

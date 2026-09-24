@@ -3,334 +3,334 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -341,146 +341,146 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       }
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -497,14 +497,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -514,14 +514,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -570,8 +570,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -600,20 +600,20 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       }
     },
     "proxy_setup_recurring": {
@@ -653,8 +653,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -665,8 +665,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+        "status": "error",
+        "error": "Selected payment method through CryptoPay"
       }
     },
     "token_setup_recurring": {
@@ -682,8 +682,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by cryptopay connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

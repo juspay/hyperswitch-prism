@@ -77,12 +77,12 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Pre-decrypted Apple Pay for Authorize is not supported by Shift4. Shift4 accepts Apple Pay only as the encrypted `applePay.token`, which it decrypts itself. It has no request field for a decrypted DPAN, online cryptogram or ECI and rejects them as unrecognized fields, so decrypted Apple Pay data can be neither charged nor stored as a payment method."
+        "status": "error",
+        "error": "Pre-decrypted Apple Pay for Authorize. Shift4 accepts Apple Pay only as the encrypted `applePay.token`, which it decrypts itself. It has no request field for a decrypted DPAN, online cryptogram or ECI and rejects them as unrecognized fields, so decrypted Apple Pay data can be neither charged nor stored as a payment method."
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Apple Pay / Google Pay third-party SDK token for Authorize is not supported by Shift4. The token was issued by a third-party wallet SDK. Shift4 accepts a card wallet only as the Apple Pay or Google Pay encrypted payment token."
+        "status": "error",
+        "error": "Apple Pay / Google Pay third-party SDK token for Authorize. The token was issued by a third-party wallet SDK. Shift4 accepts a card wallet only as the Apple Pay or Google Pay encrypted payment token."
       },
       "Bacs": {
         "status": "not_implemented",
@@ -94,7 +94,7 @@
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "BankRedirect type BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } is not supported by Shift4"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -110,11 +110,11 @@
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "BankRedirect type Bizum is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Bizum is not supported by Shift4"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -214,7 +214,7 @@
       },
       "Eft": {
         "status": "not_supported",
-        "error": "BankRedirect type Eft { provider: \"ozow\" } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Eft { provider: \"ozow\" } is not supported by Shift4"
       },
       "Eps": {
         "status": "supported",
@@ -256,7 +256,7 @@
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "BankRedirect type Giropay { bank_account_bic: None, bank_account_iban: None, country: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Giropay { bank_account_bic: None, bank_account_iban: None, country: None } is not supported by Shift4"
       },
       "Givex": {
         "status": "not_implemented",
@@ -310,12 +310,12 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Pre-decrypted Google Pay for Authorize is not supported by Shift4. Shift4 accepts Google Pay only as the encrypted `googlePay.token`, which it decrypts itself. It has no request field for a decrypted PAN / DPAN, cryptogram or ECI and rejects them as unrecognized fields, so decrypted Google Pay data can be neither charged nor stored as a payment method."
+        "status": "error",
+        "error": "Pre-decrypted Google Pay for Authorize. Shift4 accepts Google Pay only as the encrypted `googlePay.token`, which it decrypts itself. It has no request field for a decrypted PAN / DPAN, cryptogram or ECI and rejects them as unrecognized fields, so decrypted Google Pay data can be neither charged nor stored as a payment method."
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Apple Pay / Google Pay third-party SDK token for Authorize is not supported by Shift4. The token was issued by a third-party wallet SDK. Shift4 accepts a card wallet only as the Apple Pay or Google Pay encrypted payment token."
+        "status": "error",
+        "error": "Apple Pay / Google Pay third-party SDK token for Authorize. The token was issued by a third-party wallet SDK. Shift4 accepts a card wallet only as the Apple Pay or Google Pay encrypted payment token."
       },
       "Ideal": {
         "status": "supported",
@@ -369,7 +369,7 @@
       },
       "Interac": {
         "status": "not_supported",
-        "error": "BankRedirect type Interac { country: None, email: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Interac { country: None, email: None } is not supported by Shift4"
       },
       "KakaoPay": {
         "status": "not_implemented",
@@ -389,7 +389,7 @@
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "BankRedirect type LocalBankRedirect is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type LocalBankRedirect is not supported by Shift4"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -425,35 +425,35 @@
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "BankRedirect type Netbanking { issuer: HdfcBank } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Netbanking { issuer: HdfcBank } is not supported by Shift4"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingCzechRepublic { issuer: CeskaSporitelna } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingCzechRepublic { issuer: CeskaSporitelna } is not supported by Shift4"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingFinland { email: Some(Email(****@example.com)) } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingFinland { email: Some(Email(****@example.com)) } is not supported by Shift4"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingFpx { issuer: Maybank } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingFpx { issuer: Maybank } is not supported by Shift4"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingPoland { issuer: BankPekaoSa } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingPoland { issuer: BankPekaoSa } is not supported by Shift4"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingSlovakia { issuer: TatraPay } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingSlovakia { issuer: TatraPay } is not supported by Shift4"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "BankRedirect type OnlineBankingThailand { issuer: BangkokBank } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OnlineBankingThailand { issuer: BangkokBank } is not supported by Shift4"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -461,7 +461,7 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBankingUk { issuer: None, country: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBankingUk { issuer: None, country: None } is not supported by Shift4"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -513,7 +513,7 @@
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "BankRedirect type Przelewy24 { bank_name: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Przelewy24 { bank_name: None } is not supported by Shift4"
       },
       "Pse": {
         "status": "not_implemented",
@@ -565,7 +565,7 @@
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "BankRedirect type Sofort { country: None, preferred_language: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Sofort { country: None, preferred_language: None } is not supported by Shift4"
       },
       "Swish": {
         "status": "not_implemented",
@@ -577,7 +577,7 @@
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "BankRedirect type Trustly { country: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Trustly { country: None } is not supported by Shift4"
       },
       "Twint": {
         "status": "not_implemented",
@@ -669,14 +669,14 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by shift4 connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by shift4 connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -731,8 +731,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by shift4 connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -982,8 +982,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by shift4 connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

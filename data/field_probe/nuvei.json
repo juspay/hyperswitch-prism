@@ -95,23 +95,23 @@
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+        "error": "BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "BacsBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "BacsBankTransfer is not supported for Nuvei"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Bank redirect method BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } not supported by Nuvei"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "BcaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "BcaBankTransfer is not supported for Nuvei"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+        "error": "BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
@@ -119,11 +119,11 @@
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Bank redirect method Bizum not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Bizum not supported by Nuvei"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Bank redirect method Blik { blik_code: Some(\"777124\") } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Blik { blik_code: Some(\"777124\") } not supported by Nuvei"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -131,7 +131,7 @@
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "BniVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "BniVaBankTransfer is not supported for Nuvei"
       },
       "Boleto": {
         "status": "not_implemented",
@@ -139,7 +139,7 @@
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "BriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "BriVaBankTransfer is not supported for Nuvei"
       },
       "Card": {
         "status": "supported",
@@ -204,7 +204,7 @@
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "CimbVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "CimbVaBankTransfer is not supported for Nuvei"
       },
       "ClassicReward": {
         "status": "not_implemented",
@@ -220,7 +220,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "DanamonVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "DanamonVaBankTransfer is not supported for Nuvei"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -240,7 +240,7 @@
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Bank redirect method Eft { provider: \"ozow\" } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Eft { provider: \"ozow\" } not supported by Nuvei"
       },
       "Eps": {
         "status": "supported",
@@ -411,23 +411,23 @@
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "IndonesianBankTransfer { bank_name: None } is not supported for Nuvei is not supported by nuvei"
+        "error": "IndonesianBankTransfer { bank_name: None } is not supported for Nuvei"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "InstantBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "InstantBankTransfer is not supported for Nuvei"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "InstantBankTransferFinland is not supported for Nuvei is not supported by nuvei"
+        "error": "InstantBankTransferFinland is not supported for Nuvei"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "InstantBankTransferPoland is not supported for Nuvei is not supported by nuvei"
+        "error": "InstantBankTransferPoland is not supported for Nuvei"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Bank redirect method Interac { country: None, email: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Interac { country: None, email: None } not supported by Nuvei"
       },
       "KakaoPay": {
         "status": "not_implemented",
@@ -447,15 +447,15 @@
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Bank redirect method LocalBankRedirect not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method LocalBankRedirect not supported by Nuvei"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "LocalBankTransfer { bank_code: None } is not supported for Nuvei is not supported by nuvei"
+        "error": "LocalBankTransfer { bank_code: None } is not supported for Nuvei"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "MandiriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "MandiriVaBankTransfer is not supported for Nuvei"
       },
       "MbWay": {
         "status": "not_implemented",
@@ -479,39 +479,39 @@
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "MultibancoBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "MultibancoBankTransfer is not supported for Nuvei"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Bank redirect method Netbanking { issuer: HdfcBank } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Netbanking { issuer: HdfcBank } not supported by Nuvei"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingCzechRepublic { issuer: CeskaSporitelna } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingCzechRepublic { issuer: CeskaSporitelna } not supported by Nuvei"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingFinland { email: Some(Email(****@example.com)) } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingFinland { email: Some(Email(****@example.com)) } not supported by Nuvei"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingFpx { issuer: Maybank } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingFpx { issuer: Maybank } not supported by Nuvei"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingPoland { issuer: BankPekaoSa } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingPoland { issuer: BankPekaoSa } not supported by Nuvei"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingSlovakia { issuer: TatraPay } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingSlovakia { issuer: TatraPay } not supported by Nuvei"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Bank redirect method OnlineBankingThailand { issuer: BangkokBank } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OnlineBankingThailand { issuer: BangkokBank } not supported by Nuvei"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Bank redirect method OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } not supported by Nuvei"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -519,7 +519,7 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Bank redirect method OpenBankingUk { issuer: None, country: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OpenBankingUk { issuer: None, country: None } not supported by Nuvei"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -559,7 +559,7 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "PermataBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "PermataBankTransfer is not supported for Nuvei"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
@@ -567,15 +567,15 @@
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None } is not supported for Nuvei is not supported by nuvei"
+        "error": "Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None } is not supported for Nuvei"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Bank redirect method Przelewy24 { bank_name: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Przelewy24 { bank_name: None } not supported by Nuvei"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Pse is not supported for Nuvei is not supported by nuvei"
+        "error": "Pse is not supported for Nuvei"
       },
       "RedCompra": {
         "status": "not_implemented",
@@ -603,15 +603,15 @@
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+        "error": "SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "SepaBankTransfer is not supported for Nuvei is not supported by nuvei"
+        "error": "SepaBankTransfer is not supported for Nuvei"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+        "error": "SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei"
       },
       "SevenEleven": {
         "status": "not_implemented",
@@ -676,7 +676,7 @@
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Bank redirect method Trustly { country: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Trustly { country: None } not supported by Nuvei"
       },
       "Twint": {
         "status": "not_implemented",
@@ -781,8 +781,8 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by nuvei connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
@@ -823,14 +823,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by nuvei connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by nuvei connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -840,14 +840,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by nuvei connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by nuvei connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -879,8 +879,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by nuvei connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -925,8 +925,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by nuvei connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -979,8 +979,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by nuvei connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -998,7 +998,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
+        "error": "Payment method not supported for SetupMandate"
       }
     },
     "verify_redirect": {

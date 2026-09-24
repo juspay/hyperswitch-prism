@@ -101,8 +101,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -117,12 +117,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -219,12 +219,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "FamilyMart": {
         "status": "not_implemented",
@@ -235,8 +235,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Givex": {
         "status": "not_implemented",
@@ -296,8 +296,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -320,8 +320,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "KakaoPay": {
         "status": "not_implemented",
@@ -340,8 +340,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -376,16 +376,16 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OnlineBankingFpx": {
         "status": "supported",
@@ -418,28 +418,28 @@
         }
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -490,8 +490,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Pse": {
         "status": "not_implemented",
@@ -542,8 +542,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Swish": {
         "status": "not_implemented",
@@ -554,8 +554,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through fiuu is not supported by Fiuu"
+        "status": "error",
+        "error": "Selected payment method through fiuu"
       },
       "Twint": {
         "status": "not_implemented",
@@ -649,14 +649,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by fiuu connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by fiuu connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -666,14 +666,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by fiuu connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by fiuu connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {

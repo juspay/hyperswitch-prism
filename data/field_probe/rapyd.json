@@ -30,11 +30,11 @@
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "ApplePay": {
         "status": "supported",
@@ -132,7 +132,7 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -156,7 +156,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -168,7 +168,7 @@
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -222,11 +222,11 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -242,7 +242,7 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -258,7 +258,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -278,7 +278,7 @@
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Giropay": {
         "status": "not_implemented",
@@ -290,7 +290,7 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "GooglePay": {
         "status": "supported",
@@ -387,7 +387,7 @@
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -419,7 +419,7 @@
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -431,7 +431,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -447,11 +447,11 @@
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -463,7 +463,7 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -527,15 +527,15 @@
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -551,7 +551,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Pix": {
         "status": "not_implemented",
@@ -575,15 +575,15 @@
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -607,7 +607,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -615,11 +615,11 @@
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Trustly": {
         "status": "not_implemented",
@@ -627,7 +627,7 @@
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -643,11 +643,11 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       },
       "Webpay": {
         "status": "not_implemented",
@@ -655,7 +655,7 @@
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd"
       }
     },
     "capture": {
@@ -721,14 +721,14 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by rapyd connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by rapyd connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
@@ -768,8 +768,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by rapyd connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -980,8 +980,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by rapyd connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {

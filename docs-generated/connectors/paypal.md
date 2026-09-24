@@ -204,39 +204,39 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bancontact | ⚠ |
 | Apple Pay | ? |
 | Apple Pay Dec | ✓ |
-| Apple Pay SDK | x |
+| Apple Pay SDK | ? |
 | Google Pay | ⚠ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | x |
+| Google Pay SDK | ? |
 | PayPal SDK | ✓ |
-| Amazon Pay | x |
-| Cash App | x |
+| Amazon Pay | ? |
+| Cash App | ? |
 | PayPal | ✓ |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
+| WeChat Pay | ? |
+| Alipay | ? |
+| Revolut Pay | ? |
+| MiFinity | ? |
+| Bluecode | ? |
 | Paze | ⚠ |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| GoPay | x |
-| GCash | x |
-| Momo | x |
-| Dana | x |
-| Kakao Pay | x |
-| Touch 'n Go | x |
-| Twint | x |
-| Vipps | x |
-| Swish | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
-| UPI Collect | x |
-| UPI Intent | x |
-| UPI QR | x |
+| Samsung Pay | ? |
+| MB Way | ? |
+| Satispay | ? |
+| Wero | ? |
+| GoPay | ? |
+| GCash | ? |
+| Momo | ? |
+| Dana | ? |
+| Kakao Pay | ? |
+| Touch 'n Go | ? |
+| Twint | ? |
+| Vipps | ? |
+| Swish | ? |
+| Affirm | ? |
+| Afterpay | ? |
+| Klarna | ? |
+| UPI Collect | ? |
+| UPI Intent | ? |
+| UPI QR | ? |
 | Thailand | ⚠ |
 | Czech | ⚠ |
 | Finland | ⚠ |
@@ -246,7 +246,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | UK | ⚠ |
 | PIS | ⚠ |
 | Generic | ⚠ |
-| WebPay | x |
+| WebPay | ? |
 | Local | ⚠ |
 | iDEAL | ✓ |
 | Sofort | ✓ |
@@ -277,16 +277,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | ⚠ |
 | Local | ⚠ |
 | Indonesian | ⚠ |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| BECS | x |
-| SEPA Guaranteed | x |
+| ACH | ? |
+| SEPA | ? |
+| BACS | ? |
+| BECS | ? |
+| SEPA Guaranteed | ? |
 | Crypto | ⚠ |
-| Reward | x |
+| Reward | ? |
 | Givex | ⚠ |
-| PaySafeCard | x |
-| E-Voucher | x |
+| PaySafeCard | ? |
+| E-Voucher | ? |
 | Boleto | ⚠ |
 | Efecty | ⚠ |
 | Pago Efectivo | ⚠ |

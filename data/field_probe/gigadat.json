@@ -3,118 +3,118 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Card": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Givex": {
         "status": "not_implemented",
@@ -170,43 +170,43 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Interac": {
         "status": "supported",
@@ -261,43 +261,43 @@
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -305,43 +305,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -349,35 +349,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -389,169 +389,169 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       }
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by gigadat connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by gigadat connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by gigadat connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by gigadat connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by gigadat connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by gigadat connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by gigadat connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by gigadat connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by gigadat connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -561,14 +561,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by gigadat connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by gigadat connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -601,8 +601,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by gigadat connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -617,26 +617,26 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "recurring_charge": {
@@ -647,8 +647,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by gigadat connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -683,32 +683,32 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_supported",
-        "error": "refund_sync flow not supported by gigadat connector"
+        "status": "error",
+        "error": "refund_sync flow"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by gigadat connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+        "error": "Only Interac bank redirect is supported for Gigadat"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by gigadat connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "verify_redirect": {
@@ -718,8 +718,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by gigadat connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

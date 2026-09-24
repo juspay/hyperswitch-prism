@@ -455,38 +455,38 @@
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by netcetera connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by netcetera connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by netcetera connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by netcetera connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by netcetera connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by netcetera connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
@@ -497,14 +497,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by netcetera connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by netcetera connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -514,20 +514,20 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by netcetera connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by netcetera connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
       "default": {
-        "status": "not_supported",
-        "error": "payment_sync flow not supported by netcetera connector"
+        "status": "error",
+        "error": "payment_sync flow"
       }
     },
     "handle_event": {
@@ -537,8 +537,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by netcetera connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -571,20 +571,20 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by netcetera connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_supported",
-        "error": "repeat_payment flow not supported by netcetera connector"
+        "status": "error",
+        "error": "repeat_payment flow"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by netcetera connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -594,26 +594,26 @@
     },
     "refund": {
       "default": {
-        "status": "not_supported",
-        "error": "refund flow not supported by netcetera connector"
+        "status": "error",
+        "error": "refund flow"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_supported",
-        "error": "refund_sync flow not supported by netcetera connector"
+        "status": "error",
+        "error": "refund_sync flow"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by netcetera connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by netcetera connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "token_authorize": {
@@ -624,8 +624,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by netcetera connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "verify_redirect": {
@@ -635,8 +635,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by netcetera connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

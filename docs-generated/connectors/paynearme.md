@@ -176,11 +176,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | ⚠ |
-| Apple Pay | x |
-| Apple Pay Dec | x |
+| Apple Pay | ? |
+| Apple Pay Dec | ? |
 | Apple Pay SDK | ⚠ |
-| Google Pay | x |
-| Google Pay Dec | x |
+| Google Pay | ? |
+| Google Pay Dec | ? |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |

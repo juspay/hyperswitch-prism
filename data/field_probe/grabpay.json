@@ -3500,8 +3500,8 @@
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by grabpay connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
@@ -3663,8 +3663,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by grabpay connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "recurring_charge": {
@@ -3675,8 +3675,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by grabpay connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -3704,8 +3704,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by grabpay connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "token_authorize": {
@@ -3716,8 +3716,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "setup_mandate flow not supported by grabpay connector"
+        "status": "error",
+        "error": "setup_mandate flow"
       }
     },
     "verify_redirect": {
@@ -3727,8 +3727,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by grabpay connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

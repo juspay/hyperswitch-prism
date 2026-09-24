@@ -3,334 +3,334 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "authenticate flow"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -341,170 +341,170 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       }
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "capture flow"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "client_authentication_token flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "client_authentication_token flow"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "create_order flow"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "server_authentication_token flow"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "server_session_authentication_token flow"
       }
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_supported",
-        "error": "accept_dispute flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "accept_dispute flow"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_supported",
-        "error": "defend_dispute flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "defend_dispute flow"
       }
     },
     "dispute_get": {
@@ -514,14 +514,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_supported",
-        "error": "submit_evidence flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "submit_evidence flow"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -552,8 +552,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -582,20 +582,20 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "post_authenticate flow"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "pre_authenticate flow"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       }
     },
     "proxy_setup_recurring": {
@@ -612,8 +612,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_supported",
-        "error": "mandate_revoke flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "mandate_revoke flow"
       }
     },
     "refresh": {
@@ -635,8 +635,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
@@ -647,8 +647,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "The given currency is not configured with the given connector"
+        "status": "error",
+        "error": "USD"
       }
     },
     "token_setup_recurring": {
@@ -664,8 +664,8 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by cashtocode connector"
+        "status": "error",
+        "error": "void flow"
       }
     }
   }

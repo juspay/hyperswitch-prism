@@ -10,15 +10,15 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "payment method ach is not supported by PPRO is not supported by ppro"
+        "error": "payment method ach is not supported by PPRO"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "payment method ach is not supported by PPRO is not supported by ppro"
+        "error": "payment method ach is not supported by PPRO"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "payment method affirm is not supported by PPRO is not supported by ppro"
+        "error": "payment method affirm is not supported by PPRO"
       },
       "Afterpay": {
         "status": "supported",
@@ -59,7 +59,7 @@
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "payment method alfamart is not supported by PPRO is not supported by ppro"
+        "error": "payment method alfamart is not supported by PPRO"
       },
       "AliPayRedirect": {
         "status": "supported",
@@ -95,27 +95,27 @@
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "payment method amazon_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method amazon_pay is not supported by PPRO"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method apple_pay is not supported by PPRO"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method apple_pay is not supported by PPRO"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method apple_pay is not supported by PPRO"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "payment method bacs is not supported by PPRO is not supported by ppro"
+        "error": "payment method bacs is not supported by PPRO"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "payment method bacs is not supported by PPRO is not supported by ppro"
+        "error": "payment method bacs is not supported by PPRO"
       },
       "BancontactCard": {
         "status": "supported",
@@ -156,19 +156,19 @@
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method bca_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method bca_bank_transfer is not supported by PPRO"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "payment method becs is not supported by PPRO is not supported by ppro"
+        "error": "payment method becs is not supported by PPRO"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "payment method bill_desk is not supported by PPRO is not supported by ppro"
+        "error": "payment method bill_desk is not supported by PPRO"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "payment method bizum is not supported by PPRO is not supported by ppro"
+        "error": "payment method bizum is not supported by PPRO"
       },
       "Blik": {
         "status": "supported",
@@ -206,39 +206,39 @@
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "payment method bluecode is not supported by PPRO is not supported by ppro"
+        "error": "payment method bluecode is not supported by PPRO"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method bni_va is not supported by PPRO is not supported by ppro"
+        "error": "payment method bni_va is not supported by PPRO"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "payment method boleto is not supported by PPRO is not supported by ppro"
+        "error": "payment method boleto is not supported by PPRO"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method bri_va is not supported by PPRO is not supported by ppro"
+        "error": "payment method bri_va is not supported by PPRO"
       },
       "Card": {
         "status": "not_supported",
-        "error": "payment method card is not supported by PPRO is not supported by ppro"
+        "error": "payment method card is not supported by PPRO"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "payment method cashapp is not supported by PPRO is not supported by ppro"
+        "error": "payment method cashapp is not supported by PPRO"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "payment method cashfree is not supported by PPRO is not supported by ppro"
+        "error": "payment method cashfree is not supported by PPRO"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method cimb_va is not supported by PPRO is not supported by ppro"
+        "error": "payment method cimb_va is not supported by PPRO"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "payment method classic_reward is not supported by PPRO is not supported by ppro"
+        "error": "payment method classic_reward is not supported by PPRO"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -246,11 +246,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "payment method dana is not supported by PPRO is not supported by ppro"
+        "error": "payment method dana is not supported by PPRO"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method danamon_va is not supported by PPRO is not supported by ppro"
+        "error": "payment method danamon_va is not supported by PPRO"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -258,35 +258,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "payment method evoucher is not supported by PPRO is not supported by ppro"
+        "error": "payment method evoucher is not supported by PPRO"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "payment method ease_buzz is not supported by PPRO is not supported by ppro"
+        "error": "payment method ease_buzz is not supported by PPRO"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "payment method efecty is not supported by PPRO is not supported by ppro"
+        "error": "payment method efecty is not supported by PPRO"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "payment method eft is not supported by PPRO is not supported by ppro"
+        "error": "payment method eft is not supported by PPRO"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "payment method eps is not supported by PPRO is not supported by ppro"
+        "error": "payment method eps is not supported by PPRO"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "payment method family_mart is not supported by PPRO is not supported by ppro"
+        "error": "payment method family_mart is not supported by PPRO"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "payment method gcash is not supported by PPRO is not supported by ppro"
+        "error": "payment method gcash is not supported by PPRO"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "payment method giropay is not supported by PPRO is not supported by ppro"
+        "error": "payment method giropay is not supported by PPRO"
       },
       "Givex": {
         "status": "not_implemented",
@@ -294,19 +294,19 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "payment method go_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method go_pay is not supported by PPRO"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method google_pay is not supported by PPRO"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method google_pay is not supported by PPRO"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method google_pay is not supported by PPRO"
       },
       "Ideal": {
         "status": "supported",
@@ -342,55 +342,55 @@
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "payment method indomaret is not supported by PPRO is not supported by ppro"
+        "error": "payment method indomaret is not supported by PPRO"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "payment method indonesian_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method indonesian_bank_transfer is not supported by PPRO"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "payment method instant_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method instant_bank_transfer is not supported by PPRO"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "payment method instant_bank_transfer_finland is not supported by PPRO is not supported by ppro"
+        "error": "payment method instant_bank_transfer_finland is not supported by PPRO"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "payment method instant_bank_transfer_poland is not supported by PPRO is not supported by ppro"
+        "error": "payment method instant_bank_transfer_poland is not supported by PPRO"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "payment method interac is not supported by PPRO is not supported by ppro"
+        "error": "payment method interac is not supported by PPRO"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "payment method kakao_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method kakao_pay is not supported by PPRO"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "payment method klarna is not supported by PPRO is not supported by ppro"
+        "error": "payment method klarna is not supported by PPRO"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "payment method lawson is not supported by PPRO is not supported by ppro"
+        "error": "payment method lawson is not supported by PPRO"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "payment method lazy_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method lazy_pay is not supported by PPRO"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "payment method local_bank_redirect is not supported by PPRO is not supported by ppro"
+        "error": "payment method local_bank_redirect is not supported by PPRO"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "payment method local_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method local_bank_transfer is not supported by PPRO"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method mandiri_va is not supported by PPRO is not supported by ppro"
+        "error": "payment method mandiri_va is not supported by PPRO"
       },
       "MbWay": {
         "status": "supported",
@@ -426,11 +426,11 @@
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "payment method mifinity is not supported by PPRO is not supported by ppro"
+        "error": "payment method mifinity is not supported by PPRO"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "payment method mini_stop is not supported by PPRO is not supported by ppro"
+        "error": "payment method mini_stop is not supported by PPRO"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -438,43 +438,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "payment method momo is not supported by PPRO is not supported by ppro"
+        "error": "payment method momo is not supported by PPRO"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
+        "error": "payment method multibanco is not supported by PPRO"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "payment method netbanking is not supported by PPRO is not supported by ppro"
+        "error": "payment method netbanking is not supported by PPRO"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "payment method online_banking_czech_republic is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_czech_republic is not supported by PPRO"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "payment method online_banking_finland is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_finland is not supported by PPRO"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "payment method online_banking_fpx is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_fpx is not supported by PPRO"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "payment method online_banking_poland is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_poland is not supported by PPRO"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "payment method online_banking_slovakia is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_slovakia is not supported by PPRO"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "payment method online_banking_thailand is not supported by PPRO is not supported by ppro"
+        "error": "payment method online_banking_thailand is not supported by PPRO"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "payment method open_banking is not supported by PPRO is not supported by ppro"
+        "error": "payment method open_banking is not supported by PPRO"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -482,35 +482,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "payment method open_banking_uk is not supported by PPRO is not supported by ppro"
+        "error": "payment method open_banking_uk is not supported by PPRO"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "payment method oxxo is not supported by PPRO is not supported by ppro"
+        "error": "payment method oxxo is not supported by PPRO"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "payment method pago_efectivo is not supported by PPRO is not supported by ppro"
+        "error": "payment method pago_efectivo is not supported by PPRO"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "payment method pay_easy is not supported by PPRO is not supported by ppro"
+        "error": "payment method pay_easy is not supported by PPRO"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "payment method pay_safe_card is not supported by PPRO is not supported by ppro"
+        "error": "payment method pay_safe_card is not supported by PPRO"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "payment method pay_u is not supported by PPRO is not supported by ppro"
+        "error": "payment method pay_u is not supported by PPRO"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "payment method paypal is not supported by PPRO is not supported by ppro"
+        "error": "payment method paypal is not supported by PPRO"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "payment method paypal is not supported by PPRO is not supported by ppro"
+        "error": "payment method paypal is not supported by PPRO"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -522,39 +522,39 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "payment method permata_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method permata_bank_transfer is not supported by PPRO"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "payment method phone_pe is not supported by PPRO is not supported by ppro"
+        "error": "payment method phone_pe is not supported by PPRO"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "payment method pix is not supported by PPRO is not supported by ppro"
+        "error": "payment method pix is not supported by PPRO"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "payment method przelewy24 is not supported by PPRO is not supported by ppro"
+        "error": "payment method przelewy24 is not supported by PPRO"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "payment method pse is not supported by PPRO is not supported by ppro"
+        "error": "payment method pse is not supported by PPRO"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "payment method red_compra is not supported by PPRO is not supported by ppro"
+        "error": "payment method red_compra is not supported by PPRO"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "payment method red_pagos is not supported by PPRO is not supported by ppro"
+        "error": "payment method red_pagos is not supported by PPRO"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "payment method revolut_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method revolut_pay is not supported by PPRO"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "payment method samsung_pay is not supported by PPRO is not supported by ppro"
+        "error": "payment method samsung_pay is not supported by PPRO"
       },
       "Satispay": {
         "status": "supported",
@@ -590,39 +590,39 @@
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "payment method seicomart is not supported by PPRO is not supported by ppro"
+        "error": "payment method seicomart is not supported by PPRO"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "payment method sepa is not supported by PPRO is not supported by ppro"
+        "error": "payment method sepa is not supported by PPRO"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "payment method sepa_bank_transfer is not supported by PPRO is not supported by ppro"
+        "error": "payment method sepa_bank_transfer is not supported by PPRO"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "payment method sepa_guaranteed_debit is not supported by PPRO is not supported by ppro"
+        "error": "payment method sepa_guaranteed_debit is not supported by PPRO"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "payment method seven_eleven is not supported by PPRO is not supported by ppro"
+        "error": "payment method seven_eleven is not supported by PPRO"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "payment method skrill is not supported by PPRO is not supported by ppro"
+        "error": "payment method skrill is not supported by PPRO"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "payment method sofort is not supported by PPRO is not supported by ppro"
+        "error": "payment method sofort is not supported by PPRO"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "payment method swish is not supported by PPRO is not supported by ppro"
+        "error": "payment method swish is not supported by PPRO"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "payment method touch_n_go is not supported by PPRO is not supported by ppro"
+        "error": "payment method touch_n_go is not supported by PPRO"
       },
       "Trustly": {
         "status": "supported",
@@ -661,11 +661,11 @@
       },
       "Twint": {
         "status": "not_supported",
-        "error": "payment method twint is not supported by PPRO is not supported by ppro"
+        "error": "payment method twint is not supported by PPRO"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "payment method upi_collect is not supported by PPRO is not supported by ppro"
+        "error": "payment method upi_collect is not supported by PPRO"
       },
       "UpiIntent": {
         "status": "supported",
@@ -733,7 +733,7 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "payment method vipps is not supported by PPRO is not supported by ppro"
+        "error": "payment method vipps is not supported by PPRO"
       },
       "WeChatPayQr": {
         "status": "supported",
@@ -769,7 +769,7 @@
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "payment method card_redirect is not supported by PPRO is not supported by ppro"
+        "error": "payment method card_redirect is not supported by PPRO"
       },
       "Wero": {
         "status": "supported",
@@ -855,14 +855,14 @@
     },
     "customer_create": {
       "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by ppro connector"
+        "status": "error",
+        "error": "create_connector_customer flow"
       }
     },
     "customer_get": {
       "default": {
-        "status": "not_supported",
-        "error": "get_connector_customer flow not supported by ppro connector"
+        "status": "error",
+        "error": "get_connector_customer flow"
       }
     },
     "dispute_accept": {
@@ -890,8 +890,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by ppro connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -940,8 +940,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by ppro connector"
+        "status": "error",
+        "error": "incremental_authorization flow"
       }
     },
     "parse_event": {
@@ -983,13 +983,13 @@
     "proxy_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "payment method card is not supported by PPRO is not supported by ppro"
+        "error": "payment method card is not supported by PPRO"
       }
     },
     "proxy_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "payment method card is not supported for PPRO mandates is not supported by ppro"
+        "error": "payment method card is not supported for PPRO mandates"
       }
     },
     "recurring_charge": {
@@ -1091,14 +1091,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by ppro connector"
+        "status": "error",
+        "error": "void_post_capture flow"
       }
     },
     "setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "payment method card is not supported for PPRO mandates is not supported by ppro"
+        "error": "payment method card is not supported for PPRO mandates"
       }
     },
     "token_authorize": {

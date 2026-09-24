@@ -9,40 +9,40 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "ApplePayThirdPartySdk": {
         "status": "supported",
@@ -77,136 +77,136 @@
         }
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Card": {
         "status": "error",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "GooglePayThirdPartySdk": {
         "status": "supported",
@@ -241,148 +241,148 @@
         }
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Netbanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PaypalSdk": {
         "status": "supported",
@@ -425,116 +425,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Webpay": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       }
     },
     "capture": {
@@ -643,8 +643,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by braintree connector"
+        "status": "error",
+        "error": "eligibility flow"
       }
     },
     "get": {
@@ -781,8 +781,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       }
     },
     "recurring_revoke": {
@@ -894,14 +894,14 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "error",
+        "error": "Selected payment method through braintree"
       }
     },
     "verify_redirect": {
