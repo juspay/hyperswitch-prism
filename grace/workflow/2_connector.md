@@ -53,7 +53,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R3 **The UCS working tree is sequential**: S1m, codegen units, AMENDs, `__finalize__` and 2.8 run one at a time; test exec never overlaps a tree writer or a cargo build. Background agents write only the run dir or `hs-wt`.
 - R4 **No commits or pushes before S7** in either repo; no stash/reset/checkout -f/clean/restore.
 - R5 **Never poll or re-message a finished agent**. A completion notification is handled once; if the row is already `done`, make no tool call. No TaskOutput/SendMessage on done rows, and no progress checks on running agents.
-- R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
+- R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. **Launch at most one waiter per join, then yield.** An async Task spawn and a `run_in_background` Bash both return *instantly* — that return means the work has started, never that it is unfinished and should be retried. Re-issuing on it is the failure mode, whatever the form: a foreground `sleep`, a `for i in $(seq ...); do sleep ...; done` wrapper, a bare `echo` tick, or another background waiter. Measured on the 2026-09-16 Braintree run, before this rule existed: the SetupMandate unit launched **1,230 background sleeps** — the sanctioned mechanism, re-fired once per turn — leaking 1,230 orphaned processes that the OOM killer reaped for days, while the RepeatPayment unit spun on 2,223 bare `echo`s after the same foreground-`sleep` guard blocked it. Between them: 98% and 97% of their billed input, ~864M tokens, for zero work product. Cost compounds, because each spin enlarges the transcript the next one re-reads — SetupMandate's parent spent 597M tokens waiting on children that used 48M, and its worst phase billed 23.7x what the agent it was waiting for did.
 - R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
 - R9 **Time budget** `MAX_RUN_HOURS` (default 12): when exceeded, finish the current stage and go to S6/S7.
@@ -704,10 +704,16 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
 6. **Reappearing fingerprint** (`r<N>.json .bugs.reappeared`): first time → RCA with `PREVIOUS_ORIGIN`, which moves the
    origin exactly one stage upstream (`2.6e_rca.md` "Phase 4: Escalation (`{PREVIOUS_ORIGIN}`)"); second time, or a
    hunk reversing an earlier fix (RCA compares snapshots) → `unresolved` + withdraw brief if the unit's code is not shared.
+6b. **Incidental reconciliation**: before authoring this round's `unresolved` moves, check every still-`unresolved`
+   bug whose fix did not go through this round's RCA chain (i.e. no `rca→fixing→retest` entry for it this round) —
+   if this round's sweep independently re-exercised that bug's own `checks[]`/`check_id` set and it now passes,
+   author `unresolved→retest` for it (`2.6d_test_exec.md`'s STATUS_UPDATES grammar), citing the passing check's
+   evidence in `note`; 2.6d's `retest→fixed` handling then completes the transition in the same round. Do not
+   invent an RCA round to do this — that's the whole point of this route existing separately from item 7's chain.
 7. **Status updates** before the retest spawn, `test/status_updates/u<bump status_update>.json` (shape:
    `2.6d_test_exec.md` "Phase 1: Bookkeeping (INGEST, STATUS_UPDATES)"): per bug of `rca/r<N>.json` `open→rca`,
    `rca→<proposed_status>`, then `fixing→retest` (chain completed) or `fixing→unresolved` (dropped); plus the
-   `unresolved` moves of 4–6. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
+   `unresolved` moves of 4–6b. `update_id` = `u<k>-<bug_id>-<to>`, `by: orchestrator`, `ref` = brief or `rca/r<N>.json`.
    An entry's `proposed_status` is **either a single status for all of its `bug_ids[]`, or an object keyed by bug id**
    (2.6e writes the object form when one entry clusters bugs that end differently) — read it as
    `(if (.proposed_status|type)=="object" then .proposed_status[$b] else .proposed_status end)`, or the file is

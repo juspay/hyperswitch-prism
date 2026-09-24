@@ -112,6 +112,7 @@ scenarios:
       - "new pub mod or pub use in connectors.rs"
       - "new ConnectorEnum variant or convert_connector match arm"
       - "new connector entry in config/superposition.toml or Connectors::apply match arm"
+      - "get_headers/build_headers/get_auth_header changed -- verify secret values use .into_masked(), not bare .into()"
     must_read_companion_files:
       - "crates/integrations/connector-integration/src/connectors.rs"
       - "crates/integrations/connector-integration/src/default_implementations.rs"
@@ -134,6 +135,7 @@ scenarios:
       - "new ConnectorIntegrationV2 impl blocks"
       - "new request or response transformers for an existing connector"
       - "flow-related status mapping change"
+      - "get_headers/build_headers/get_auth_header changed -- verify secret values use .into_masked(), not bare .into()"
     must_read_companion_files:
       - "crates/types-traits/domain_types/src/connector_flow.rs"
       - "crates/types-traits/interfaces/src/connector_types.rs"
@@ -172,6 +174,7 @@ scenarios:
       - "auth header or signature logic changed"
       - "incoming webhook parsing or verification changed"
       - "dispute or refund mapping changed"
+      - "get_headers/build_headers/get_auth_header changed -- verify secret values use .into_masked(), not bare .into()"
     must_read_companion_files:
       - "crates/types-traits/interfaces/src/webhooks.rs"
       - "crates/types-traits/interfaces/src/verification.rs"

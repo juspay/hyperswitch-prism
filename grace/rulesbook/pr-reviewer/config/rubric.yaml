@@ -116,6 +116,7 @@ scenario_checklists:
       - amount or currency transformation changed without regression coverage
       - webhook verification weakened or bypassed
       - auth secrets exposed in code paths, errors, or serialized values
+      - a value from .expose()/.peek() (or a format! built from one, e.g. a Bearer header) reaches get_headers/build_headers/get_auth_header via bare .into() instead of .into_masked() -- Maskable::Normal (bare .into()) logs in clear; only Maskable::Masked (.into_masked()) is redacted by the events pipeline
       - new connector missing config/superposition.toml URL overrides or not added to Connectors::apply (silently unsupported for dynamic URL patching)
 
   core_flow:
