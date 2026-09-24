@@ -23,6 +23,7 @@ fn build_client() -> ConnectorClient {
                 khash_config_key: Some(hyperswitch_masking::Secret::new(
                     "YOUR_KHASH_CONFIG_KEY".to_string(),
                 )), // Authentication credential
+                client_id: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
