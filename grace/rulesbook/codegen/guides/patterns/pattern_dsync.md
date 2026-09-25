@@ -245,7 +245,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -291,7 +291,9 @@ macros::macro_connector_implementation!(
             let dispute_id = &req.resource_common_data.connector_dispute_id;
 
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
             // Choose appropriate URL pattern based on connector API:
             // Pattern 1: RESTful with dispute ID in path (most common)
@@ -309,14 +311,21 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stub for Dsync flow
-use interfaces::verification::SourceVerification;
+// `SourceVerification` and `BodyDecoding` are NON-GENERIC
+// (crates/types-traits/interfaces/src/verification.rs:20, interfaces/src/decode.rs):
+// no flow/data/request/response type parameters, ONE impl per connector rather
+// than one per flow. `SourceVerification<Dsync, ...>` is E0107.
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+use interfaces::{decode::BodyDecoding, verification::SourceVerification};
 
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for {ConnectorName}<T>
 {
-    // Stub implementation - will be replaced in Phase 10
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
 }
 ```
 
@@ -548,14 +557,13 @@ impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DsyncResponse, Self>>
                 },
                 response: Err(ErrorResponse {
                     status_code: http_code,
-                    code: response.error_code.clone().unwrap_or_default(),
+                    code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                     message: error.clone(),
                     reason: Some(error.clone()),
                     attempt_status: None,
                     connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    // 13 fields + `impl Default` — see domain_types/src/router_data.rs
+                    ..Default::default()
                 }),
                 ..router_data
             });
@@ -614,7 +622,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically don't need Content-Type
             let mut header = vec![];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -625,7 +633,9 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let dispute_id = &req.resource_common_data.connector_dispute_id;
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
             // Choose appropriate GET URL pattern:
             // Pattern 1: RESTful with dispute ID in path (most common)
@@ -702,7 +712,7 @@ macros::macro_connector_implementation!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -712,7 +722,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
             // Fixed endpoint for POST-based dispute inquiry
             Ok(format!("{}/dispute-inquiry", base_url))
@@ -729,7 +741,9 @@ macros::macro_connector_implementation!(
 fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
     Ok(format!("{}/disputes/{}", base_url, dispute_id))
 }
@@ -741,7 +755,9 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Integr
 fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
     Ok(format!("{}/disputes/{}/status", base_url, dispute_id))
 }
@@ -753,7 +769,9 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Integr
 fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
     Ok(format!("{}/disputes?dispute_id={}", base_url, dispute_id))
 }
@@ -764,7 +782,9 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Integr
 ```rust
 fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
     // Transaction ID goes in request body for POST
     Ok(format!("{}/dispute-inquiry", base_url))
@@ -879,23 +899,25 @@ pub struct {ConnectorName}DisputeErrorResponse {
 
 impl From<{ConnectorName}DisputeErrorResponse> for ErrorResponse {
     fn from(error: {ConnectorName}DisputeErrorResponse) -> Self {
-        let attempt_status = match error.error_code.as_str() {
+        // `attempt_status: Option<FlowStatus>`, NOT `Option<AttemptStatus>`.
+        // FlowStatus is Payment(AttemptStatus) | Refund(RefundStatus)
+        // | Dispute(DisputeStatus) | Payout(PayoutStatus). None of these dispute
+        // lookup errors says anything terminal about the attempt, so all stay None.
+        let attempt_status: Option<FlowStatus> = match error.error_code.as_str() {
             "DISPUTE_NOT_FOUND" => None,
             "PERMISSION_DENIED" => None,
             "RATE_LIMITED" => None, // Retry later
             _ => None,
         };
 
+        // 13 fields + `impl Default` — see domain_types/src/router_data.rs
         Self {
             status_code: 400,
             code: error.error_code,
             message: error.error_message,
             reason: error.dispute_status,
             attempt_status,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         }
     }
 }
@@ -1019,8 +1041,12 @@ mod dsync_tests {
                 connector_dispute_id: "test_dispute_123".to_string(),
             },
             response: Err(ErrorResponse::default()),
-            connector_auth_type: ConnectorAuthType::HeaderKey {
+            // `connector_auth_type` was removed from RouterDataV2 (a7a696c3a).
+            // Auth is now `connector_config: ConnectorSpecificConfig`, whose
+            // variants are per-connector (domain_types/src/router_data.rs:301).
+            connector_config: ConnectorSpecificConfig::{ConnectorName} {
                 api_key: Secret::new("test_key".to_string()),
+                base_url: None,
             },
         }
     }
@@ -1086,7 +1112,7 @@ mod dsync_tests {
 | `{HttpMethod}` | HTTP method | `Get`, `Post` |
 | `{dsync_endpoint}` | Dsync API endpoint path | `disputes/{id}`, `dispute-inquiry` |
 | `{content_type}` | Request content type | `application/json` |
-| `{AmountType}` | Amount type | `MinorUnit`, `StringMinorUnit` |
+| `{AmountType}` | Amount type | one of `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` — read the vendor spec, there is no safe default (`common_utils/src/types.rs`) |
 
 ## Related Patterns
 

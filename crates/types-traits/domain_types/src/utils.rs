@@ -112,6 +112,11 @@ pub fn handle_json_response_deserialization_failure(
     }
 }
 
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+)]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
@@ -200,32 +205,34 @@ pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::IntegrationError> {
-    get_header_field(headers.get(key))
+    get_header_field(headers.get(key).map(|value| value.as_bytes()))
 }
 
 pub fn get_http_header<'a>(
     key: &str,
     headers: &'a http::HeaderMap,
 ) -> CustomResult<&'a str, errors::IntegrationError> {
-    get_header_field(headers.get(key))
+    get_header_field(headers.get(key).map(|value| value.as_bytes()))
 }
 
-fn get_header_field(
-    field: Option<&http::HeaderValue>,
-) -> CustomResult<&str, errors::IntegrationError> {
-    field
-        .map(|header_value| {
-            header_value
-                .to_str()
-                .change_context(errors::IntegrationError::InvalidDataFormat {
-                    field_name: "header",
-                    context: Default::default(),
-                })
+/// Takes raw header bytes rather than an `http::HeaderValue` so it works for both
+/// `http` 1.x values and the `http` 0.2 values that actix-web 4 still exposes.
+/// Keeps `HeaderValue::to_str` semantics: only visible ASCII (and tab) is accepted.
+fn get_header_field(field: Option<&[u8]>) -> CustomResult<&str, errors::IntegrationError> {
+    let bytes = field.ok_or(report!(errors::IntegrationError::MissingRequiredField {
+        field_name: "header",
+        context: Default::default()
+    }))?;
+    let is_visible_ascii = bytes.iter().all(|&b| b == b'\t' || (32..127).contains(&b));
+    is_visible_ascii
+        .then(|| std::str::from_utf8(bytes).ok())
+        .flatten()
+        .ok_or_else(|| {
+            report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "header",
+                context: Default::default(),
+            })
         })
-        .ok_or(report!(errors::IntegrationError::MissingRequiredField {
-            field_name: "header",
-            context: Default::default()
-        }))?
 }
 
 pub fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {

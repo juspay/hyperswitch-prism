@@ -785,6 +785,99 @@ pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>
     });
 }
 
+/// Record `value` under `key` on the nearest span, starting from the current one and
+/// walking up to the root, that **declares** `key` as a field.
+///
+/// `tracing::Span::current().record(key, ..)` silently no-ops when the current span
+/// does not declare `key`. That bites whenever a function that records golden-log
+/// fields gets wrapped in a new child span (for example a déjà skeleton span): the
+/// writes land on the child, which never declared them, and the parent's golden line
+/// loses the fields. Span storage only flows parent -> child, never back up, so the
+/// only reliable way to reach the declaring span from inside a child is to address it
+/// by id. This helper does that, and with no child span present it degrades to the
+/// plain `record` on the current span.
+///
+/// The value goes through the subscriber's normal `record` path, so every layer
+/// (log storage, déjà execution graph, ...) sees it exactly as a direct
+/// `Span::record` on the declaring span would.
+#[cfg(feature = "logging")]
+pub fn record_on_declaring_span(key: &'static str, value: &dyn tracing::Value) {
+    use tracing_subscriber::{registry::LookupSpan, Registry};
+
+    tracing::Span::current().with_subscriber(|(id, dispatch)| {
+        let Some(registry) = dispatch.downcast_ref::<Registry>() else {
+            return;
+        };
+        // Resolve the target id first and drop the span refs before dispatching, so
+        // the layers' own `ctx.span(..)` lookups never contend with a held guard.
+        let target = registry.span(id).and_then(|current| {
+            current
+                .scope()
+                .find(|span| span.metadata().fields().field(key).is_some())
+                .map(|span| (span.id(), span.metadata()))
+        });
+        let Some((target_id, metadata)) = target else {
+            return;
+        };
+        let Some(field) = metadata.fields().field(key) else {
+            return;
+        };
+        let values = [(&field, Some(value))];
+        let value_set = metadata.fields().value_set(&values);
+        dispatch.record(&target_id, &tracing::span::Record::new(&value_set));
+    });
+}
+
+/// JSON-valued counterpart of [`record_on_declaring_span`]: like
+/// [`record_json_fields_on_span`], but each field is written into the storage of the
+/// nearest span (current or ancestor) that declares it, instead of the current span.
+///
+/// Reserved-key filtering and the per-field info event happen **before** any span
+/// lock is taken, for the same deadlock reason as [`record_json_fields_on_span`].
+#[cfg(feature = "logging")]
+pub fn record_json_fields_on_declaring_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    use tracing_subscriber::{registry::LookupSpan, Registry};
+
+    let fields: Vec<_> = fields
+        .into_iter()
+        .filter(|(key, value)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Span field `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                tracing::info!(%value, "{key}");
+                true
+            }
+        })
+        .collect();
+    if fields.is_empty() {
+        return;
+    }
+
+    tracing::Span::current().with_subscriber(|(id, dispatch)| {
+        let Some(registry) = dispatch.downcast_ref::<Registry>() else {
+            return;
+        };
+        let Some(current) = registry.span(id) else {
+            return;
+        };
+        for (key, value) in fields {
+            let Some(target) = current
+                .scope()
+                .find(|span| span.metadata().fields().field(key).is_some())
+            else {
+                continue;
+            };
+            let mut extensions = target.extensions_mut();
+            if let Some(storage) = extensions.get_mut::<log_utils::Storage>() {
+                storage.record_value(key, value);
+            }
+        }
+    });
+}
+
 /// Recursively merge `source` JSON object into `target`.
 /// Keys in `source` overwrite matching keys in `target`.
 /// Nested objects are merged recursively.

@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
-use common_utils::{CustomResult, SecretSerdeValue};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_utils::CustomResult;
 pub use domain_types::connector_types::WebhookIntegrityCheck;
+pub use domain_types::flow_status::ConnectorTerminalMapping;
 use domain_types::{
     connector_flow,
     connector_types::{
@@ -255,6 +256,30 @@ pub trait ValidationTrait: ConnectorCommon {
         _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
+    }
+
+    /// Pre-flight check run by the server before a PSync is dispatched to the connector.
+    ///
+    /// Mirrors hyperswitch's direct-integration path, which skips the connector call when
+    /// this fails instead of sending a request the connector cannot serve. The default
+    /// requires a connector transaction id; connectors that sync on other data (for example
+    /// Adyen, which needs `encoded_data`) override it. Takes the full `PaymentFlowData`
+    /// (rather than picking fields out at the call site) so a connector can read whatever
+    /// it needs — `auth_type`, `status`, or anything added later — without another
+    /// signature change.
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
+        data.connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(
+                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                },
+            )
+            .map(|_| ())
     }
 
     /// Returns true if this connector is in the config set of connectors that require
@@ -820,24 +845,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
             }
             .into()),
         }
-    }
-
-    /// fn validate_psync_reference_id
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: AttemptStatus,
-        _connector_meta_data: Option<SecretSerdeValue>,
-    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
-        data.connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(
-                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                },
-            )
-            .map(|_| ())
     }
 
     /// fn is_webhook_source_verification_mandatory

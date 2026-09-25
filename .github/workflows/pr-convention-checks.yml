@@ -1,13 +1,11 @@
 name: Pull Request Convention Checks
 
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
-  # This is a dangerous event trigger as it causes the workflow to run in the
-  # context of the target repository.
-  # Avoid checking out the head of the pull request or building code from the
-  # pull request whenever this trigger is used.
-  # Since we do not have a checkout step in this workflow, this is an
-  # acceptable use of this trigger.
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
@@ -43,7 +41,7 @@ jobs:
           checksum: true
 
       - name: Verify PR title follows conventional commit standards
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
           TITLE: ${{ github.event.pull_request.title }}
@@ -55,3 +53,35 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.merge_group.head_commit.message }}
         run: cog verify "$COMMIT_MESSAGE"
+
+  deja_art_label_check:
+    name: Verify PR carries the deja-art label
+    runs-on: ubuntu-latest
+
+    steps:
+      # The `deja-art` label starts a Deja ART replay of the pull request
+      # against recorded sandbox traffic. Every pull request must carry it.
+      # The replay's verdict does not gate the merge; the label does.
+      #
+      # Labels are read live rather than from the event payload, so re-running
+      # this check after adding the label is enough.
+      - name: Verify PR carries the deja-art label
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '.[].name')"
+          if grep -qx 'deja-art' <<< "$labels"; then
+            echo "Label deja-art present; a Deja ART replay will run for this pull request."
+            exit 0
+          fi
+          echo "::error::This pull request must carry the 'deja-art' label. Add it and re-run this check."
+          exit 1
+
+      # A change reaches the merge queue only after this check passed on its
+      # pull request, and a merge group has no pull request to read labels from.
+      - name: Nothing to verify in the merge queue
+        if: ${{ github.event_name == 'merge_group' }}
+        run: echo "Merge group - the label was verified on the pull request."

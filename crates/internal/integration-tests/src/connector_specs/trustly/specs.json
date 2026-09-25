@@ -3,5 +3,15 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Refund"
-  ]
+  ],
+  "supported_payment_methods": [
+    "trustly"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Refund": {
+      "refund_full_amount": "Trustly payments land in AUTHENTICATION_PENDING after Authorize; completing bank authentication requires a browser redirect that automated CI cannot drive. No CHARGED payment is available to refund.",
+      "refund_partial_amount": "same as refund_full_amount",
+      "refund_with_reason": "same as refund_full_amount"
+    }
+  }
 }

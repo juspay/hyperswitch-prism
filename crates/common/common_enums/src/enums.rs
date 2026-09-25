@@ -1547,6 +1547,7 @@ pub enum PaymentMethodType {
     Neteller,
     Paysera,
     Paymaya,
+    Payhere,
     QwikcilverWallet,
     EftDebitOrder,
     Payshap,
@@ -2070,6 +2071,75 @@ impl CardNetwork {
     }
 }
 
+/// The funding type of a card (credit, debit, prepaid, etc.)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FundingSource {
+    Credit,
+    Debit,
+    #[serde(rename = "DEFERRED DEBIT")]
+    #[strum(serialize = "DEFERRED DEBIT")]
+    DeferredDebit,
+    Prepaid,
+    #[serde(rename = "CHARGE CARD")]
+    #[strum(serialize = "CHARGE CARD")]
+    ChargeCard,
+}
+
+/// The segment/category of a card (consumer vs commercial/business/government)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardSegmentType {
+    Business,
+    Commercial,
+    Consumer,
+    Government,
+}
+
+/// The type of card from the issuer's perspective
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardType {
+    Credit,
+    Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
+}
+
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
     Clone,
@@ -2490,6 +2560,7 @@ pub enum CountryAlpha3 {
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KafkaClientError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {message}")]
@@ -2507,6 +2578,7 @@ pub enum KafkaClientError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -2599,6 +2671,7 @@ pub enum ProcessTrackerRunner {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    Payhere,
     Adyenplatform,
     Aci,
     Adyen,

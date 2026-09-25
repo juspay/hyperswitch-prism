@@ -23,5 +23,10 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
 heck = "0.5.0"
+prettyplease = "0.2"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
 g2h = { git = "https://github.com/juspay/g2h", rev = "399d5257744cabffe88d9871a1192eacbbe9f484" }

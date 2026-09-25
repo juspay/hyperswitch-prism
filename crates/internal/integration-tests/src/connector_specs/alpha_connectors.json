@@ -31,7 +31,13 @@
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
+    "etisalat": {
+      "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
+    },
     "elavon": {},
+    "elavon_pg": {
+      "reason": "No Elavon Payment Gateway sandbox credentials exist for this integration yet; sandbox access has not been provisioned. The request the connector emits is proven against a local mock EPG server, driven end to end from Hyperswitch through UCS: card no-3DS settles, and the hosted-payment-page 3DS chain (CreateOrder, PaymentSession, shopper redirect) is exercised from HS with the settle proven at the UCS boundary. Live certification will follow once credentials are available."
+    },
     "finix": {},
     "fiservcommercehub": {},
     "fiservemea": {},
@@ -42,6 +48,12 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
+    "globalpayments_realex": {
+      "reason": "GlobalpaymentsRealex sandbox credentials are not configured in CI; live sandbox verification for the six XML flows is attached to PR #2204. The 3DS2 legs past /protocol-versions cannot be exercised: the sandbox account is not entitled for 3D Secure."
+    },
+    "globalpayments_heartland": {
+      "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
+    },
     "glomopay": {},
     "grabpay": {},
     "helcim": {},
@@ -62,6 +74,9 @@
     "kount": {},
     "loonio": {},
     "maya": {},
+    "merchante": {
+      "reason": "No Merchante (MerchantE by Omise, cert.merchante-solutions.com) sandbox credentials are configured in CI yet — merchant onboarding is pending. Authorize (Sale/Preauth), Capture (Settle), Void, Refund, PSync/RSync (via retry_id Inquiry), SetupRecurring (Verify $0 with store_card=Y) and RepeatPayment (MIT with card_id + cit_mit_indicator=M101) were designed against the documented certification endpoint during development. Remove this entry once credentials are added so CI starts certifying it."
+    },
     "mifinity": {},
     "mollie": {},
     "multisafepay": {},
@@ -76,6 +91,9 @@
     "payconex": {},
     "paydotcom": {
       "reason": "No Pay.com sandbox credentials are available; the integration is verified end to end from Hyperswitch through UCS against a mock Pay.com server, with request shapes checked against apiref.pay.com. See PR #2223."
+    },
+    "payhere": {
+      "reason": "No PayHere sandbox credentials (App ID/App Secret/Merchant ID/Merchant Secret) are configured in CI, so certification cannot run. Remove this entry once credentials are added so CI starts certifying it."
     },
     "payload": {},
     "payme": {},
@@ -108,10 +126,8 @@
     "tamara": {},
     "tesouro": {},
     "travelhub": {
-      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize — see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
+      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize \u2014 see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
     },
-    "truelayer": {},
-    "trustly": {},
     "trustpay": {},
     "trustpayments": {},
     "tsys_transit": {},
