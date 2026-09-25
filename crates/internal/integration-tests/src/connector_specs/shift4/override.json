@@ -4,6 +4,98 @@
       "grpc_req": {
         "request_incremental_authorization": true
       }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": null,
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "MISSING_REQUIRED_FIELD"
+        },
+        "error.error_message": {
+          "contains": "authentication_data"
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4916449457024978"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error.connector_details.message": null,
+        "error.connector_details.code": {
+          "equals": "authentication_required"
+        },
+        "error.connector_details.connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "AT"
+          },
+          "billing_address": {
+            "country_alpha2_code": "AT"
+          }
+        }
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "NL"
+          },
+          "billing_address": {
+            "country_alpha2_code": "NL"
+          }
+        }
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHENTICATION_PENDING"]
+        },
+        "redirection_data.form.endpoint": {
+          "contains": "3d-secure/start/"
+        },
+        "authentication_data.threeds_server_transaction_id": {
+          "contains": "tok_"
+        }
+      }
     }
   },
   "PaymentService/IncrementalAuthorization": {
@@ -33,6 +125,74 @@
           "one_of": [
             "AUTHORIZATION_SUCCESS",
             "AUTHORIZATION_FAILURE"
+          ]
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS",
+            "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+          ]
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED"
+          ]
+        },
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_FAILURE"
+          ]
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "event_status": null
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_type": {
+          "one_of": [
+            "WEBHOOK_REFUND_SUCCESS"
+          ]
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_content.refunds_response.status": {
+          "one_of": [
+            "REFUND_SUCCESS"
+          ]
+        },
+        "event_status": null
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
           ]
         }
       }

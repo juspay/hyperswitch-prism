@@ -3,19 +3,22 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{AttemptStatus, CurrencyUnit};
+use common_enums::{AttemptStatus, CurrencyUnit, PaymentMethod, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
+        IncrementalAuthorization, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -24,7 +27,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon,
@@ -42,20 +45,23 @@ use self::transformers::{
     Shift4PaymentsResponse as Shift4AuthorizeResponse,
     Shift4PaymentsResponse as Shift4CaptureResponse,
     Shift4PaymentsResponse as Shift4IncrementalAuthResponse,
-    Shift4PaymentsResponse as Shift4PSyncResponse, Shift4RSyncRequest, Shift4RefundRequest,
-    Shift4RefundResponse, Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
+    Shift4PaymentsResponse as Shift4PSyncResponse, Shift4PreAuthenticateRequest,
+    Shift4RSyncRequest, Shift4RefundRequest, Shift4RefundResponse,
+    Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
     Shift4RepeatPaymentResponse, Shift4SetupMandateRequest, Shift4SetupMandateResponse,
-    Shift4VoidRequest, Shift4VoidResponse,
+    Shift4ThreeDsResponse as Shift4PreAuthenticateResponse, Shift4VoidRequest, Shift4VoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
 }
 
@@ -156,6 +162,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Shift4<T>
 {
+    /// Card + 3DS: `POST /3d-secure` (PreAuthenticate) enrols the card and returns the
+    /// `tok_...` token plus, for an enrolled card, the ACS `redirectUrl`; the charging
+    /// call is always the ordinary Authorize (`POST /charges`, `card` = the token).
+    /// Shift4 has no separate Authenticate or PostAuthenticate call, so those markers
+    /// stay unimplemented. Any other payment method or auth type goes straight to
+    /// Authorize.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                // First entry: enrol the card. The only place PreAuthenticate runs.
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                // Enrolment done. A card that is not enrolled comes back with a token and
+                // no redirect (the frictionless exit); either way the charge settles now.
+                (_, Some(AuthenticationStep::PreAuthenticate)) => AuthenticationStep::Authorize,
+                // Shopper returned from the ACS challenge: settle the token with the charge.
+                (
+                    RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                    None,
+                ) => AuthenticationStep::Authorize,
+                // Any other pair has nothing left to authenticate; break to Authorize so the
+                // dispatch always terminates.
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 
 // ===== MACRO-BASED CONNECTOR IMPLEMENTATION =====
@@ -169,6 +212,12 @@ macros::create_all_prerequisites!(
             request_body: Shift4PaymentsRequest<T>,
             response_body: Shift4AuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: Shift4PreAuthenticateRequest<T>,
+            response_body: Shift4PreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -365,6 +414,51 @@ macros::macro_connector_implementation!(
     }
 );
 
+// PreAuthenticate Flow — POST /3d-secure (form-urlencoded)
+//
+// Enrols the card for 3D Secure and returns the `tok_...` token the settling
+// Authorize charges, plus a `redirectUrl` when the card is enrolled. It moves no
+// money. The endpoint is absent from Shift4's public API reference; it is the one
+// Hyperswitch calls against the live API. The error hook is the flow-agnostic one:
+// an HTTP 402 on enrolment is not a failed payment attempt.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: FormUrlEncoded(Shift4PreAuthenticateRequest<T>),
+    curl_response: Shift4PreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/x-www-form-urlencoded".to_string().into(),
+                ),
+                (headers::ACCEPT.to_string(), "application/json".to_string().into()),
+            ];
+            header.append(&mut self.get_auth_header(&req.connector_config)?);
+            Ok(header)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/3d-secure"))
+        }
+    }
+);
+
 // PSync Flow (GET, no request body)
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -404,7 +498,7 @@ macros::macro_connector_implementation!(
 
 // Capture Flow
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Shift4,
     curl_request: Json(Shift4CaptureRequest),
     curl_response: Shift4CaptureResponse,
@@ -436,6 +530,23 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/charges/{connector_transaction_id}/capture"))
         }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // HTTP 402 is Shift4's "Payment Failed": the capture was declined,
+            // so the attempt is terminally CaptureFailed, matching the mapper
+            // for a 200 body with status=failed. Every other error (400, 401,
+            // 429, 5xx) keeps no attempt status so the caller decides.
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            if error.status_code == 402 {
+                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::CaptureFailed));
+            }
+            Ok(error)
+        }
     }
 );
 
@@ -454,7 +565,7 @@ macros::macro_connector_implementation!(
 // The URL therefore comes from the payments base-url helper (this flow carries
 // `PaymentFlowData`, not `RefundFlowData`) even though the path is `/refunds`.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Shift4,
     curl_request: Json(Shift4VoidRequest),
     curl_response: Shift4VoidResponse,
@@ -480,12 +591,29 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/refunds"))
         }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // HTTP 402 is Shift4's "Payment Failed": the release refund was
+            // declined, so the void is terminally VoidFailed, matching the
+            // mapper for a 200 body with status=failed. Every other error
+            // (400, 401, 429, 5xx) keeps no attempt status.
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            if error.status_code == 402 {
+                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::VoidFailed));
+            }
+            Ok(error)
+        }
     }
 );
 
 // Refund Flow
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_headers, get_content_type],
     connector: Shift4,
     curl_request: Json(Shift4RefundRequest),
     curl_response: Shift4RefundResponse,
@@ -503,6 +631,24 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{base_url}/refunds"))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // 400, 402 and 404 are Shift4's definitive rejections of the refund
+            // (invalid request, declined, unknown charge), so the refund is
+            // terminally Failure; without a status the caller would see
+            // REFUND_STATUS_UNSPECIFIED. 401, 429 and 5xx are inconclusive and
+            // keep no status, so a transient error never invites a second refund.
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            if matches!(error.status_code, 400 | 402 | 404) {
+                error.attempt_status = Some(FlowStatus::Refund(RefundStatus::Failure));
+            }
+            Ok(error)
         }
     }
 );
@@ -640,6 +786,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Shift4<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Shift4<T>
 {
 }
@@ -701,6 +852,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Shift4<T>
 {
+    // Shift4 publishes no signature scheme (spec "Webhook Authentication &
+    // Signature Verification", decision UD-05), so `verify_webhook_source`
+    // keeps its default and reports the source as unverified.
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        transformers::get_webhook_event_type(&request.body)
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        transformers::get_webhook_reference(&request.body)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        transformers::build_webhook_payment_response(&request.body)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        transformers::build_webhook_refund_response(&request.body)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        transformers::build_webhook_dispute_response(&request.body)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"evt_probe_001","type":"CHARGE_SUCCEEDED","data":{"id":"char_ORVCrwOrTkGsDwM3H50OIW7Q","objectType":"charge","status":"successful","captured":true,"refunded":false,"refunds":[]}}"#
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -859,7 +1056,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         GetConnectorCustomer,
-        PreAuthenticate,
         Authenticate,
         PostAuthenticate,
         CreateOrder,

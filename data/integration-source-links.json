@@ -315,7 +315,18 @@
     "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/Shift4Gateway.java",
     "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/enums/PaymentMethodStatus.java",
     "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/enums/EventType.java",
-    "https://github.com/shift4developer/shift4-node/blob/master/lib/resources/paymentMethods.js"
+    "https://github.com/shift4developer/shift4-node/blob/master/lib/resources/paymentMethods.js",
+    "https://dev.shift4.com/docs/api#charge-capture",
+    "https://dev.shift4.com/docs/api#charge-create",
+    "https://dev.shift4.com/docs/api#refund-create",
+    "https://dev.shift4.com/docs/api#refund-retrieve",
+    "https://dev.shift4.com/docs/disputes/",
+    "https://dev.shift4.com/docs/fraud-prevention/verification-checks/",
+    "https://dev.shift4.com/docs/js/",
+    "https://dev.shift4.com/docs/tutorials/charging-cards",
+    "https://dev.shift4.com/docs/webhooks",
+    "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/response/Dispute.java",
+    "https://github.com/shift4developer/shift4-java/blob/master/src/main/java/com/shift4/response/Event.java"
   ],
   "ElavonPg": [
     "https://developer.elavon.com/products/elavon-payment-gateway/v1/api-reference",
@@ -359,6 +370,7 @@
     "https://developer.globalpayments.com/api/3d-secure-two",
     "https://developer.globalpayments.com/resources/messages",
     "https://developer.globalpayments.com/resources/test-cards"
+  ],
   "D24": [
     "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
     "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",
