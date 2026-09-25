@@ -8,15 +8,14 @@ use crate::with_error_response_body;
 use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::{BASE64_ENGINE, NO_ERROR_CODE},
-    errors::CustomResult,
-    events,
-    ext_traits::ByteSliceExt,
-    FloatMajorUnit,
+    consts::BASE64_ENGINE, errors::CustomResult, events, ext_traits::ByteSliceExt, FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutEligibility, PayoutGet, PayoutStage, PayoutTransfer},
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutEligibilityRequest,
@@ -178,8 +177,6 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
-
-const MAX_ERROR_BODY_LENGTH: usize = 1024;
 
 macros::create_all_prerequisites!(
     connector_name: GigadatPayouts,
@@ -563,48 +560,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        // Prefer the parsed `err` field, then a bounded plain-text body, and finally a
-        // status-only message so the caller never receives an empty reason.
-        let error_message = res
+        // Gigadat reports failures in the `err` field of the body, so surface it
+        // verbatim as the code, message and reason, matching the hyperswitch
+        // connector (`gigadat.rs::build_error_response`).
+        let response: gigadat::GigadatErrorResponse = res
             .response
-            .parse_struct::<gigadat::GigadatErrorResponse>("GigadatErrorResponse")
-            .map(|parsed| parsed.err)
-            .ok()
-            .filter(|message| !message.trim().is_empty())
-            .or_else(|| {
-                let body: String = String::from_utf8_lossy(&res.response)
-                    .chars()
-                    .take(MAX_ERROR_BODY_LENGTH)
-                    .collect();
-                Some(body).filter(|body| !body.trim().is_empty())
-            })
-            .unwrap_or_else(|| {
-                format!(
-                    "Gigadat returned HTTP {} with no parsable error body",
-                    res.status_code
-                )
-            });
-
-        let response = gigadat::GigadatErrorResponse {
-            err: error_message.clone(),
-        };
+            .parse_struct("GigadatErrorResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "Gigadat - failed to deserialize error response".to_string(),
+                    ),
+                },
+            })?;
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: NO_ERROR_CODE.to_string(),
-            message: error_message.clone(),
-            reason: Some(error_message),
+            code: response.err.clone(),
+            message: response.err.clone(),
+            reason: Some(response.err),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
-            typed_connector_response: macros::serialize_typed_connector_payload(
-                &response,
-                "typed_connector_response",
-            ),
+            typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
