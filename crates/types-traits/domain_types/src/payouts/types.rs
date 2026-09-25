@@ -1391,11 +1391,14 @@ fn convert_payout_vendor_account_details_to_domain(
         vendor_details: value.vendor_details.map(|vd| {
             payouts::payouts_types::PayoutVendorDetails {
                 account_type: vd.account_type,
+                business_type: vd.business_type,
                 business_profile_mcc: vd.business_profile_mcc,
                 business_profile_url: vd.business_profile_url,
                 business_profile_name: vd.business_profile_name,
                 statement_descriptor: vd.statement_descriptor,
                 company_owners_provided: vd.company_owners_provided,
+                capabilities_card_payments: vd.capabilities_card_payments,
+                capabilities_transfers: vd.capabilities_transfers,
             }
         }),
         individual_details: value.individual_details.map(|id| {
@@ -1408,6 +1411,7 @@ fn convert_payout_vendor_account_details_to_domain(
                 dob_day: id.dob_day,
                 dob_month: id.dob_month,
                 dob_year: id.dob_year,
+                tos_acceptance_date: id.tos_acceptance_date,
                 tos_acceptance_ip: id.tos_acceptance_ip,
                 external_account_account_holder_type: id.external_account_account_holder_type,
             }

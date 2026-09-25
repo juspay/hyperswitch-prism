@@ -533,11 +533,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
 
         let is_company = request.is_company();
-        let business_type = match request.recipient_type {
-            common_enums::PayoutRecipientType::Company => STRIPE_ACCOUNT_TYPE_COMPANY,
-            _ => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
-        }
-        .to_string();
+        // OSS takes the business type from the vendor details. Fall back to the
+        // recipient type so callers that only send `recipient_type` keep working.
+        let business_type = request.get_business_type().unwrap_or_else(|| {
+            match request.recipient_type {
+                common_enums::PayoutRecipientType::Company => STRIPE_ACCOUNT_TYPE_COMPANY,
+                _ => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
+            }
+            .to_string()
+        });
 
         let account_type = request.get_account_type()?;
         let phone = request.get_phone()?;
@@ -592,9 +596,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             account_type,
             country: Some(addr_country),
             email: email.clone(),
-            capabilities_card_payments: Some(true),
-            capabilities_transfers: Some(true),
-            tos_acceptance_date: Some(common_utils::date_time::now_unix_timestamp()),
+            capabilities_card_payments: request.get_capabilities_card_payments(),
+            capabilities_transfers: request.get_capabilities_transfers(),
+            tos_acceptance_date: request.get_tos_acceptance_date(),
             tos_acceptance_ip: Some(tos_acceptance_ip),
             business_type,
             business_profile_mcc: Some(business_profile_mcc),
@@ -650,7 +654,7 @@ impl TryFrom<ResponseRouterData<StripeConnectRecipientCreateResponse, Self>>
         Ok(Self {
             response: Ok(PayoutCreateRecipientResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
-                payout_status: common_enums::PayoutStatus::RequiresCreation,
+                payout_status: common_enums::PayoutStatus::RequiresVendorAccountCreation,
                 connector_payout_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
                 // Stripe Connect carries the connected-account id in connector_payout_id;
@@ -693,6 +697,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payout_method_data = request.get_payout_method_data()?;
 
         match payout_method_data {
+            // OSS enrolls cards through Stripe's test debit token.
+            PayoutMethodData::Card(_) => Ok(Self::Token(RecipientTokenRequest {
+                external_account: Secret::new("tok_visa_debit".to_string()),
+            })),
             PayoutMethodData::Bank(Bank::Ach(ach)) => {
                 let country = ach.bank_country_code.ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
@@ -770,7 +778,7 @@ impl TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Sel
             response: Ok(PayoutEnrollDisburseAccountResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
                 payout_status: common_enums::PayoutStatus::RequiresCreation,
-                connector_payout_id: Some(item.response.id.clone()),
+                connector_payout_id: item.router_data.request.connector_payout_id.clone(),
                 status_code: item.http_code,
             }),
             ..item.router_data

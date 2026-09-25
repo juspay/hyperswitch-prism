@@ -414,11 +414,14 @@ pub struct PayoutVendorAccountDetails {
 #[derive(Debug, Clone, Default)]
 pub struct PayoutVendorDetails {
     pub account_type: Option<String>,
+    pub business_type: Option<String>,
     pub business_profile_mcc: Option<String>,
     pub business_profile_url: Option<Secret<String>>,
     pub business_profile_name: Option<Secret<String>>,
     pub statement_descriptor: Option<Secret<String>>,
     pub company_owners_provided: Option<bool>,
+    pub capabilities_card_payments: Option<bool>,
+    pub capabilities_transfers: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -431,6 +434,7 @@ pub struct PayoutIndividualDetails {
     pub dob_day: Option<Secret<String>>,
     pub dob_month: Option<Secret<String>>,
     pub dob_year: Option<Secret<String>>,
+    pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,
 }
@@ -501,6 +505,10 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("account_type"))
     }
 
+    pub fn get_business_type(&self) -> Option<String> {
+        self.vendor_details().and_then(|v| v.business_type.clone())
+    }
+
     pub fn get_business_profile_url(&self) -> Result<Secret<String>, Error> {
         self.vendor_details()
             .and_then(|v| v.business_profile_url.clone())
@@ -524,10 +532,24 @@ impl PayoutCreateRecipientRequest {
             .and_then(|v| v.company_owners_provided)
     }
 
+    pub fn get_capabilities_card_payments(&self) -> Option<bool> {
+        self.vendor_details()
+            .and_then(|v| v.capabilities_card_payments)
+    }
+
+    pub fn get_capabilities_transfers(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.capabilities_transfers)
+    }
+
     pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
         self.individual_details()
             .and_then(|i| i.tos_acceptance_ip.clone())
             .ok_or_else(missing_field_err("tos_acceptance_ip"))
+    }
+
+    pub fn get_tos_acceptance_date(&self) -> Option<i64> {
+        self.individual_details()
+            .and_then(|i| i.tos_acceptance_date)
     }
 
     pub fn get_business_profile_mcc_i32(&self) -> Result<i32, Error> {
