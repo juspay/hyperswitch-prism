@@ -135,6 +135,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
                 .transpose()?,
+            customer: value
+                .customer
+                .map(convert_payouts_customer_to_domain)
+                .transpose()?,
         })
     }
 }
@@ -1385,6 +1389,41 @@ fn convert_payouts_customer_to_domain(
     })
 }
 
+fn convert_payout_vendor_account_details_to_domain(
+    value: grpc_api_types::payouts::PayoutVendorAccountDetails,
+) -> payouts::payouts_types::PayoutVendorAccountDetails {
+    payouts::payouts_types::PayoutVendorAccountDetails {
+        vendor_details: value.vendor_details.map(|vd| {
+            payouts::payouts_types::PayoutVendorDetails {
+                account_type: vd.account_type,
+                business_type: vd.business_type,
+                business_profile_mcc: vd.business_profile_mcc,
+                business_profile_url: vd.business_profile_url,
+                business_profile_name: vd.business_profile_name,
+                statement_descriptor: vd.statement_descriptor,
+                company_owners_provided: vd.company_owners_provided,
+                capabilities_card_payments: vd.capabilities_card_payments,
+                capabilities_transfers: vd.capabilities_transfers,
+            }
+        }),
+        individual_details: value.individual_details.map(|id| {
+            payouts::payouts_types::PayoutIndividualDetails {
+                first_name: id.first_name,
+                last_name: id.last_name,
+                phone: id.phone,
+                ssn_last_4: id.ssn_last_4,
+                id_number: id.id_number,
+                dob_day: id.dob_day,
+                dob_month: id.dob_month,
+                dob_year: id.dob_year,
+                tos_acceptance_date: id.tos_acceptance_date,
+                tos_acceptance_ip: id.tos_acceptance_ip,
+                external_account_account_holder_type: id.external_account_account_holder_type,
+            }
+        }),
+    }
+}
+
 fn convert_payouts_address_to_domain(
     addr: grpc_api_types::payouts::Address,
 ) -> Result<crate::payment_address::Address, error_stack::Report<IntegrationError>> {
@@ -1416,6 +1455,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
+            connector_payout_method_id: value.connector_payout_method_id,
+            customer: value
+                .customer
+                .map(convert_payouts_customer_to_domain)
+                .transpose()?,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
@@ -1640,6 +1684,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
             .transpose()?;
 
+        let vendor_account_details = value
+            .vendor_account_details
+            .map(convert_payout_vendor_account_details_to_domain);
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
@@ -1650,6 +1698,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             )?,
             customer,
             address,
+            vendor_account_details,
         })
     }
 }
@@ -1694,11 +1743,23 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
             .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
             .transpose()?;
 
+        let customer = value
+            .customer
+            .map(convert_payouts_customer_to_domain)
+            .transpose()?;
+
+        let vendor_account_details = value
+            .vendor_account_details
+            .map(convert_payout_vendor_account_details_to_domain);
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
+            connector_payout_id: value.connector_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             payout_method_data,
+            customer,
+            vendor_account_details,
         })
     }
 }
