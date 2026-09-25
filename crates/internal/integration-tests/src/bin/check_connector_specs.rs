@@ -133,6 +133,7 @@ const OUT_OF_SCOPE_FLOWS: &[&str] = &[
     "RefreshPaymentMethod",
     "PreRiskCheck",
     "PostRiskCheck",
+    "PrePayoutRiskCheck",
     "FrmPaymentOutcome",
     "FrmRefundProcessed",
     "FrmChargebackReceived",

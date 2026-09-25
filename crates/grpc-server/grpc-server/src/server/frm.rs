@@ -3,18 +3,22 @@ use connector_integration::types::FrmConnectorData;
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_flow::{FlowName as DomainFlowName, PostRiskCheck, PreRiskCheck},
+    connector_flow::{FlowName as DomainFlowName, PostRiskCheck, PrePayoutRiskCheck, PreRiskCheck},
     frm::frm_types::{
-        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
-        PreRiskCheckResponse,
+        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse, PrePayoutRiskCheckRequest,
+        PrePayoutRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
     },
-    frm::types::{generate_post_risk_check_response, generate_pre_risk_check_response},
+    frm::types::{
+        generate_post_risk_check_response, generate_pre_payout_risk_check_response,
+        generate_pre_risk_check_response,
+    },
     utils::ForeignTryFrom,
 };
 use grpc_api_types::frm::{
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
-    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
-    FrmServicePreRiskCheckResponse,
+    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse,
+    FrmServicePrePayoutRiskCheckRequest, FrmServicePrePayoutRiskCheckResponse,
+    FrmServicePreRiskCheckRequest, FrmServicePreRiskCheckResponse,
 };
 
 use common_utils::consts::FRM_SERVICE_NAME;
@@ -37,6 +41,14 @@ trait FrmOperationsInternal {
         request: RequestData<FrmServicePostRiskCheckRequest>,
     ) -> Result<
         tonic::Response<FrmServicePostRiskCheckResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
+
+    async fn internal_pre_payout_risk_check(
+        &self,
+        request: RequestData<FrmServicePrePayoutRiskCheckRequest>,
+    ) -> Result<
+        tonic::Response<FrmServicePrePayoutRiskCheckResponse>,
         error_stack::Report<ucs_env::error::GrpcError>,
     >;
 }
@@ -73,6 +85,22 @@ impl FrmOperationsInternal for FraudAndRiskManagement {
         request_data_constructor: PostRiskCheckRequest::foreign_try_from,
         common_flow_data_constructor: FrmFlowData::foreign_try_from,
         generate_response_fn: generate_post_risk_check_response,
+        connector_data_types: [FrmConnectorData],
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_pre_payout_risk_check,
+        log_prefix: "PRE_PAYOUT_RISK_CHECK",
+        request_type: FrmServicePrePayoutRiskCheckRequest,
+        response_type: FrmServicePrePayoutRiskCheckResponse,
+        flow_marker: PrePayoutRiskCheck,
+        resource_common_data_type: FrmFlowData,
+        request_data_type: PrePayoutRiskCheckRequest,
+        response_data_type: PrePayoutRiskCheckResponse,
+        request_data_constructor: PrePayoutRiskCheckRequest::foreign_try_from,
+        common_flow_data_constructor: FrmFlowData::foreign_try_from,
+        generate_response_fn: generate_pre_payout_risk_check_response,
         connector_data_types: [FrmConnectorData],
         all_keys_required: None
     );
@@ -158,6 +186,47 @@ impl FraudAndRiskManagementService for FraudAndRiskManagement {
             config.clone(),
             common_utils::events::FlowName::PostRiskCheck,
             |request_data| async move { self.internal_post_risk_check(request_data).await },
+        ))
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "pre_payout_risk_check",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = FRM_SERVICE_NAME,
+            service_method = DomainFlowName::PrePayoutRiskCheck.to_string(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = DomainFlowName::PrePayoutRiskCheck.to_string(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
+    async fn pre_payout_risk_check(
+        &self,
+        request: tonic::Request<FrmServicePrePayoutRiskCheckRequest>,
+    ) -> Result<tonic::Response<FrmServicePrePayoutRiskCheckResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "FraudAndRiskManagementService".to_string());
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
+        Box::pin(utils::grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            common_utils::events::FlowName::PrePayoutRiskCheck,
+            |request_data| async move { self.internal_pre_payout_risk_check(request_data).await },
         ))
         .await
     }

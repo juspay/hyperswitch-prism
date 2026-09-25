@@ -76,6 +76,15 @@ message CompositeFrmPreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 15;
+
+  // Payment gateway associated with the transaction.
+  optional string gateway = 16;
+
+  // Gateway-specific metadata for the transaction.
+  optional SecretString gateway_metadata = 17;
+
+  // Merchant identifier for the fraud risk check.
+  optional string merchant_frm_id = 18;
 }
 
 // Composite request for PostRiskCheck that includes all fields from

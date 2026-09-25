@@ -922,6 +922,7 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  SANLAM_PAYSHIELD = 153;
 }
 
 // Payment method types
@@ -5836,6 +5837,11 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message SanlamPayshieldConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -6372,6 +6378,8 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // SANLAM_PAYSHIELD = 153
+    SanlamPayshieldConfig sanlam_payshield = 164;
   }
 }
 

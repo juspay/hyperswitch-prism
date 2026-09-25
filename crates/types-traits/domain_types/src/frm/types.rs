@@ -1,7 +1,7 @@
 use super::frm_types::{
     FrmChargebackReceivedRequest, FrmFlowData, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    MerchantDetails, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
-    PreRiskCheckResponse,
+    MerchantDetails, PostRiskCheckRequest, PostRiskCheckResponse, PrePayoutRiskCheckRequest,
+    PrePayoutRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
 };
 use crate::{
     connector_types::{
@@ -11,13 +11,14 @@ use crate::{
     errors::IntegrationError,
     mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
+    payouts::payout_method_data::PayoutMethodData,
     router_request_types::BrowserInformation,
     types::{Connectors, PaymentMethodDataAction},
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::{
-    pii::Email,
+    pii::{Email, SecretSerdeValue},
     types::{MinorUnit, Money},
 };
 use error_stack::ResultExt;
@@ -92,6 +93,7 @@ impl
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
+            connector_request_reference_id: value.merchant_frm_id,
             typed_connector_request: None,
             typed_connector_response: None,
             connector_response_headers: None,
@@ -127,6 +129,46 @@ impl
         Ok(Self {
             merchant_id,
             connectors: connectors.into(),
+            access_token,
+            connector_request_reference_id: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
+            connector_response_headers: None,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest,
+        Connectors,
+        &common_utils::metadata::MaskedMetadata,
+    )> for FrmFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest,
+            Connectors,
+            &common_utils::metadata::MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id = extract_merchant_id_from_metadata(metadata)?;
+
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            merchant_id,
+            connectors: connectors.into(),
+            connector_request_reference_id: value.merchant_frm_id,
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -166,6 +208,7 @@ impl
             merchant_id,
             connectors: connectors.into(),
             access_token,
+            connector_request_reference_id: None,
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -313,6 +356,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             .map(MandateAmountData::foreign_try_from)
             .transpose()?;
 
+        let gateway_metadata = value
+            .gateway_metadata
+            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "gateway_metadata")))
+            .transpose()?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -330,6 +378,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
+            gateway: value.gateway,
+            gateway_metadata,
         })
     }
 }
@@ -468,6 +518,63 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             connector_transaction_id: value.connector_transaction_id,
             payment_connector,
             address,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest>
+    for PrePayoutRiskCheckRequest
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let amount = value.amount.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Amount is required for pre-payout-risk check".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+
+        let currency = {
+            let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "currency",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Invalid currency in pre-payout-risk check request".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+            common_enums::Currency::foreign_try_from(grpc_currency)?
+        };
+
+        let payout_method = value
+            .payout_method
+            .map(PayoutMethodData::foreign_try_from)
+            .transpose()?;
+
+        let gateway_metadata = value
+            .gateway_metadata
+            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "gateway_metadata")))
+            .transpose()?;
+
+        Ok(Self {
+            amount: Money {
+                amount: MinorUnit::new(amount.minor_amount),
+                currency,
+            },
+            payout_method,
+            merchant_payout_id: value.merchant_payout_id,
+            gateway: value.gateway,
+            gateway_metadata,
         })
     }
 }
@@ -983,6 +1090,88 @@ pub fn generate_post_risk_check_response(
             }
         }
         Err(err) => grpc_api_types::frm::FrmServicePostRiskCheckResponse {
+            frm_decision: Some(grpc_api_types::frm::FrmDecision::Unspecified as i32),
+            risk_score: None,
+            reason: None,
+            frm_transaction_id: None,
+            status_code: err.status_code.into(),
+            error: Some(grpc_api_types::frm::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::frm::ConnectorErrorDetails {
+                    code: Some(err.code),
+                    message: Some(err.message.clone()),
+                    reason: None,
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+            raw_connector_request,
+            typed_connector_request,
+            raw_connector_response,
+            typed_connector_response,
+            response_headers,
+        },
+    };
+    Ok(response)
+}
+
+pub fn generate_pre_payout_risk_check_response(
+    router_data_v2: crate::router_data_v2::RouterDataV2<
+        crate::connector_flow::PrePayoutRiskCheck,
+        super::frm_types::FrmFlowData,
+        super::frm_types::PrePayoutRiskCheckRequest,
+        super::frm_types::PrePayoutRiskCheckResponse,
+    >,
+) -> Result<
+    grpc_api_types::frm::FrmServicePrePayoutRiskCheckResponse,
+    error_stack::Report<crate::errors::ConnectorError>,
+> {
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+
+    let response = match router_data_v2.response {
+        Ok(PrePayoutRiskCheckResponse {
+            frm_decision,
+            risk_score,
+            reason,
+            frm_transaction_id,
+            status_code,
+        }) => {
+            let grpc_frm_decision = frm_decision
+                .map(grpc_api_types::frm::FrmDecision::foreign_from)
+                .unwrap_or(grpc_api_types::frm::FrmDecision::Unspecified);
+
+            grpc_api_types::frm::FrmServicePrePayoutRiskCheckResponse {
+                frm_decision: Some(grpc_frm_decision as i32),
+                risk_score,
+                reason,
+                frm_transaction_id,
+                status_code: status_code.into(),
+                error: None,
+                raw_connector_request,
+                typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
+                response_headers,
+            }
+        }
+        Err(err) => grpc_api_types::frm::FrmServicePrePayoutRiskCheckResponse {
             frm_decision: Some(grpc_api_types::frm::FrmDecision::Unspecified as i32),
             risk_score: None,
             reason: None,

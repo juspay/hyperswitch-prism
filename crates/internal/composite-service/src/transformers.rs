@@ -1334,6 +1334,7 @@ impl
             payment_method: item.payment_method.clone(),
             browser_info: item.browser_info.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
+            merchant_frm_id: item.merchant_frm_id.clone(),
             order_details: item.order_details.clone(),
             address: item.address.clone(),
             metadata: item.metadata.clone(),
@@ -1345,6 +1346,8 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+            gateway: item.gateway.clone(),
+            gateway_metadata: item.gateway_metadata.clone(),
         }
     }
 }

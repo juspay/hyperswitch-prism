@@ -215,6 +215,9 @@ impl FrmConnectorData {
             FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
+            FrmConnectorEnum::SanlamPayshield => Box::new(frm_connectors::SanlamPayshield::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }

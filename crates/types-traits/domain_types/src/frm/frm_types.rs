@@ -10,7 +10,7 @@ use crate::{
     types::Connectors,
 };
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
-use common_utils::types::Money;
+use common_utils::{pii::SecretSerdeValue, types::Money};
 use hyperswitch_masking::Secret;
 use std::sync::Arc;
 
@@ -18,6 +18,7 @@ use std::sync::Arc;
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connectors: Arc<Connectors>,
+    pub connector_request_reference_id: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -97,6 +98,10 @@ pub struct PreRiskCheckRequest {
     pub merchant_details: Option<MerchantDetails>,
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
     pub payment_method_type: Option<PaymentMethodType>,
+    /// Payment gateway associated with the transaction.
+    pub gateway: Option<String>,
+    /// Gateway-specific metadata, validated as JSON at the proto boundary.
+    pub gateway_metadata: Option<SecretSerdeValue>,
 }
 
 /// Response data for pre-risk check
@@ -129,6 +134,28 @@ pub struct PostRiskCheckRequest {
 /// Response data for post-risk check
 #[derive(Debug, Clone)]
 pub struct PostRiskCheckResponse {
+    pub frm_decision: Option<FrmDecision>,
+    pub risk_score: Option<i32>,
+    pub reason: Option<String>,
+    pub frm_transaction_id: Option<String>,
+    pub status_code: u16,
+}
+
+/// Request data for pre-payout risk check
+#[derive(Debug, Clone)]
+pub struct PrePayoutRiskCheckRequest {
+    pub amount: Money,
+    pub payout_method: Option<crate::payouts::payout_method_data::PayoutMethodData>,
+    pub merchant_payout_id: Option<String>,
+    /// Payment gateway associated with the payout.
+    pub gateway: Option<String>,
+    /// Gateway-specific metadata, validated as JSON at the proto boundary.
+    pub gateway_metadata: Option<SecretSerdeValue>,
+}
+
+/// Response data for pre-payout risk check
+#[derive(Debug, Clone)]
+pub struct PrePayoutRiskCheckResponse {
     pub frm_decision: Option<FrmDecision>,
     pub risk_score: Option<i32>,
     pub reason: Option<String>,
