@@ -176,7 +176,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .gateway_metadata
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "gateway_metadata".into(),
+                field_name: "gateway_metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
@@ -205,7 +205,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
 
         let connector_id = connector_id.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "connector_id".into(),
+            field_name: "connector_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "SanlamPayshield pre-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
@@ -226,7 +226,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map(PaymentMethodType::try_from)
             .transpose()?
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payment_method".into(),
+                field_name: "payment_method",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-risk check requires payment_method to determine transaction.paymentMethodType."
@@ -245,7 +245,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_request_reference_id
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_request_reference_id".into(),
+                field_name: "connector_request_reference_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-risk check requires a merchant FRM identifier to populate requestId."
@@ -265,7 +265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .merchant_transaction_id
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "merchant_transaction_id".into(),
+                field_name: "merchant_transaction_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-risk check requires the merchant transaction identifier as transaction.paymentId."
@@ -356,7 +356,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .gateway_metadata
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "gateway_metadata".into(),
+                field_name: "gateway_metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-payout-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
@@ -385,7 +385,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
 
         let connector_id = connector_id.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "connector_id".into(),
+            field_name: "connector_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "SanlamPayshield pre-payout-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
@@ -406,7 +406,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map(PaymentMethodType::try_from)
             .transpose()?
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payout_method".into(),
+                field_name: "payout_method",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-payout-risk check requires payout_method to determine transaction.paymentMethodType."
@@ -425,7 +425,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_request_reference_id
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_request_reference_id".into(),
+                field_name: "connector_request_reference_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-payout-risk check requires a merchant FRM identifier to populate requestId."
@@ -441,7 +441,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payout_id = item.router_data.request.merchant_payout_id.clone().ok_or(
             IntegrationError::MissingRequiredField {
-                field_name: "merchant_payout_id".into(),
+                field_name: "merchant_payout_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "SanlamPayshield pre-payout-risk check requires the merchant payout identifier as transaction.paymentId."
@@ -525,21 +525,13 @@ impl From<Decision> for FrmDecision {
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            SanlamPayshieldCheckResponse,
-            RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
-        >,
-    > for RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>
+impl TryFrom<ResponseRouterData<SanlamPayshieldCheckResponse, Self>>
+    for RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>
 {
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<
-            SanlamPayshieldCheckResponse,
-            RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
-        >,
+        item: ResponseRouterData<SanlamPayshieldCheckResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
@@ -554,18 +546,7 @@ impl
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            SanlamPayshieldCheckResponse,
-            RouterDataV2<
-                PrePayoutRiskCheck,
-                FrmFlowData,
-                PrePayoutRiskCheckRequest,
-                PrePayoutRiskCheckResponse,
-            >,
-        >,
-    >
+impl TryFrom<ResponseRouterData<SanlamPayshieldCheckResponse, Self>>
     for RouterDataV2<
         PrePayoutRiskCheck,
         FrmFlowData,
@@ -576,15 +557,7 @@ impl
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<
-            SanlamPayshieldCheckResponse,
-            RouterDataV2<
-                PrePayoutRiskCheck,
-                FrmFlowData,
-                PrePayoutRiskCheckRequest,
-                PrePayoutRiskCheckResponse,
-            >,
-        >,
+        item: ResponseRouterData<SanlamPayshieldCheckResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PrePayoutRiskCheckResponse {
