@@ -5,17 +5,8 @@
   ],
   "connectors": {
     "absa_sanlam": {},
-    "aci": {},
     "affirm": {},
-    "airwallex": {},
-    "authipay": {},
-    "authorizedotnet": {},
     "axisbank": {},
-    "bambora": {},
-    "bamboraapac": {},
-    "bankofamerica": {},
-    "barclaycard": {},
-    "billwerk": {},
     "bluesnap": {},
     "boost": {},
     "braintree": {},
@@ -23,7 +14,6 @@
     "cashfree": {},
     "cashtocode": {},
     "celero": {},
-    "checkout": {},
     "cryptopay": {},
     "d24": {
       "reason": "No Directa24 sandbox credentials are configured in CI, so certification cannot run; WebPay Authorize, PSync, Refund and RSync were validated end to end against a local mock Directa24 server instead (HMAC signature, X-Login write/read-only key split, all 8 deposit statuses and all 6 refund statuses). Remove this entry once credentials are added so CI starts certifying it."

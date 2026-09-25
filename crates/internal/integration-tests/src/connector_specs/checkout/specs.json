@@ -9,6 +9,17 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentMethodService/Tokenize"
-  ]
+    "PaymentMethodService/Tokenize",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_encrypted"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "Checkout 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for checkout",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not implemented for Checkout"
+    }
+  }
 }

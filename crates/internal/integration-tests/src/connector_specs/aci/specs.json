@@ -8,5 +8,20 @@
     "PaymentService/Get",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card",
+    "ideal",
+    "giropay",
+    "eps",
+    "przelewy24",
+    "klarna",
+    "ali_pay_redirect"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "ACI 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for ACI",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for ACI"
+    }
+  }
 }
