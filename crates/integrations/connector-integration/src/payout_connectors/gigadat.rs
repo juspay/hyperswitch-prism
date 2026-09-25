@@ -591,16 +591,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        let code = match error_message
-            .eq_ignore_ascii_case("Transaction already in progress or completed")
-        {
-            true => "ALREADY_EXISTS".to_string(),
-            false => NO_ERROR_CODE.to_string(),
-        };
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code,
+            code: NO_ERROR_CODE.to_string(),
             message: error_message.clone(),
             reason: Some(error_message),
             attempt_status: None,

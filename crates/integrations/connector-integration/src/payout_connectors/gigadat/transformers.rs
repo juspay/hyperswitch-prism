@@ -164,6 +164,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
 // ===== PAYOUT SYNC RESPONSE =====
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatPayoutGetResponse {
+    pub id: String,
     pub status: GigadatPayoutStatus,
 }
 
@@ -184,9 +185,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutGetResponse, Self>>
         router_data.response = Ok(PayoutGetResponse {
             merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status: PayoutStatus::from(response.status),
-            // Gigadat's sync response body carries only `status`, so echo back the id
-            // the sync was issued against.
-            connector_payout_id: router_data.request.connector_payout_id.clone(),
+            connector_payout_id: Some(response.id),
             status_code: http_code,
         });
         Ok(router_data)
