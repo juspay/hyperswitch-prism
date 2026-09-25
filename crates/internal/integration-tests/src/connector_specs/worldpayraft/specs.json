@@ -1,10 +1,23 @@
 {
   "connector": "worldpayraft",
+  "supported_payment_methods": [
+    "card"
+  ],
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
+    "PaymentService/Void",
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
-    "RecurringPaymentService/Charge"
-  ]
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "CONNECTOR_API_LACKS: grace/rulesbook/codegen/references/worldpayraft/technical_specification.md (### RAFT performs NO authentication step — it is external-3DS passthrough only) — the scenario requests THREE_DS without authentication_data; Native RAFT has no 3DS authentication call, so UCS refuses it with NOT_SUPPORTED before HTTP (G-ThreeDS-01). External 3DS is proven by e2e:ThreeDS."
+    },
+    "EventService/HandleEvent": {
+      "refund_succeeded": "CONNECTOR_API_LACKS: grace/rulesbook/codegen/references/worldpayraft/technical_specification.md (Webhook Events / Event Notifications: Chargebacks / disputes: YES. Refunds: NO.) — the 31-event Event Notifications catalogue has no refund event"
+    }
+  }
 }

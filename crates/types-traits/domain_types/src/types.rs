@@ -10849,6 +10849,25 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
                     .collect()
             })
             .unwrap_or_default();
+        let dispute_amount_error = |detail: &str| IntegrationError::AmountConversionFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(detail.to_string()),
+                ..Default::default()
+            },
+        };
+        let minor_amount = common_utils::types::AmountConvertor::convert_back(
+            &common_utils::types::StringMinorUnitForConnector,
+            value.amount,
+            value.currency,
+        )
+        .change_context(dispute_amount_error(
+            "dispute webhook amount is not a minor-unit integer",
+        ))?
+        .get_amount_as_i64();
+        let currency = grpc_api_types::payments::Currency::foreign_try_from(value.currency)
+            .change_context(dispute_amount_error(
+                "dispute webhook currency has no gRPC Currency equivalent",
+            ))?;
         Ok(Self {
             connector_dispute_id: Some(value.dispute_id),
             connector_transaction_id: None,
@@ -10856,13 +10875,16 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(grpc_api_types::payments::Money {
+                minor_amount,
+                currency: currency.into(),
+            }),
             dispute_date: None,
             service_date: None,
             shipping_date: None,
             due_date: None,
             evidence_documents: vec![],
-            dispute_reason: None,
+            dispute_reason: value.connector_reason_code,
             dispute_message: value.dispute_message,
             connector_reference_id: value.connector_response_reference_id.clone(),
             // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id

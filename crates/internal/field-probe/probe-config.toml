@@ -103,6 +103,7 @@ authorizedotnet = '{"creditCard":{"cardNumber":"4111111111111111","expirationDat
 hyperpg = '{"order_id":"probe_order_001"}'
 paybox  = '{"connector_request_id":"probe_req_001"}'
 peachpayments = '{"client_merchant_reference_id":"probe_merchant_ref_001","merchant_payment_method_route_id":"probe_route_001"}'
+worldpayraft = '{"api_transaction_id":"0000000000000001","operation":"authorization","card_kind":"credit","authorized_amount":1000,"currency":"USD","tokenized_pan":"4111111111111111","expiration_date":"3012","authorization_number":"123456"}'
 default = '{}'
 
 # Per-connector request field overrides.
@@ -159,6 +160,43 @@ default = '{}'
 # get the same probe customer id `recurring_charge` already uses.
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
+
+# Worldpay RAFT emits OnlineShipToAddress, CustomerInformation, SoftDescriptorData
+# and Level3Data only when the request carries a shipping address, a cardholder
+# name, a billing descriptor or L3 line items, none of which the base Authorize
+# request sets. Pre-set them so the probe body shows those objects.
+# shipping_address, billing_descriptor and l2_l3_data are None in the base
+# request, so they are set as whole objects: a dotted path under a null parent
+# is dropped. billing_address is already an object, so its leaves can be dotted.
+[connector_overrides.authorize.worldpayraft]
+"address.shipping_address" = { line1 = "500 Elm St", city = "Dayton", state = "OH", zip_code = "45402" }
+"address.billing_address.first_name" = "Jane"
+"address.billing_address.last_name" = "Doe"
+# A real bill-to address: an empty OnlineBillToAddress object is never sent, so the
+# probe needs address fields for the object to reach the request.
+"address.billing_address.line1" = "123 Main St"
+"address.billing_address.city" = "Cincinnati"
+"address.billing_address.state" = "OH"
+"address.billing_address.zip_code" = "45201"
+"billing_descriptor" = { name = "ACME WIDGETS", city = "CINCINNATI" }
+"l2_l3_data" = { order_info = { order_details = [ { product_name = "Blue widget", quantity = 3, amount = 1250 } ] } }
+
+# Worldpay RAFT Capture and Void reuse the original APITransactionID, which is exactly
+# 16 digits; any other connector_transaction_id is refused before the request is built
+# (G-Authorize-07), so the probe sends the id its connector_feature_data carries.
+[connector_overrides."capture,void".worldpayraft]
+"connector_transaction_id" = "0000000000000001"
+
+# Worldpay RAFT charges a MIT on a card-on-file credential: the base Token payment
+# method becomes PaymentMethodData::PaymentMethodToken, which RepeatPayment refuses,
+# so a card is pre-set. A connector-mandate MIT also sends CardInfo.ExpirationDate,
+# which only the mandate_metadata SetupMandate returns carries; without it the
+# request is refused before it is built. ConnectorMandateId is already an object
+# in the base request, so the dotted path lands (the oneof is keyed by its Rust
+# variant name).
+[connector_overrides.recurring_charge.worldpayraft]
+"payment_method.payment_method" = { card = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_cvc = "737" } }
+"connector_recurring_payment_id.mandate_id_type.ConnectorMandateId.mandate_metadata" = '{"expiration_date":"3012"}'
 
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.

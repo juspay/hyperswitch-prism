@@ -135,6 +135,9 @@
     "volt": {},
     "wellsfargo": {},
     "worldpay": {},
+    "worldpayraft": {
+      "reason": "No Worldpay Native RAFT credentials exist, so certification cannot run; Authorize, Capture, Void, Refund, SetupMandate, RepeatPayment, external 3DS and webhooks were validated only against a documentation-derived mock of the RAFT API (request shape, response parsing, status and error mapping). Remove this entry once credentials are added so CI starts certifying it."
+    },
     "worldpayvantiv": {},
     "worldpayxml": {},
     "xendit": {},

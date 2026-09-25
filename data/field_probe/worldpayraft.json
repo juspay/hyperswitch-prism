@@ -3,98 +3,98 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by worldpayraft connector"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankDebit is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: PayLater is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: PayLater is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankDebit is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankDebit is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Card": {
         "status": "supported",
@@ -115,37 +115,65 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "line1": "500 Elm St",
+              "city": "Dayton",
+              "state": "OH",
+              "zip_code": "45402"
+            },
+            "billing_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Cincinnati",
+              "state": "OH",
+              "zip_code": "45201"
+            }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "name": "ACME WIDGETS",
+            "city": "CINCINNATI"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Blue widget",
+                  "quantity": 3,
+                  "amount": 1250
+                }
+              ]
+            }
+          }
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"0\",\"CVV2CVC2\":\"737\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_txn_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"737\"},\"AddressVerificationData\":{\"AVSZIPCode\":\"45201\",\"AVSAddress\":\"123 Main St\"},\"OnlineBillToAddress\":{\"OnlineBillToAddressLine1\":\"123 Main St\",\"OnlineBillToCity\":\"Cincinnati\",\"OnlineBillToState\":\"OH\",\"OnlineBillToZipCode\":\"45201\"},\"OnlineShipToAddress\":{\"OnlineShipToAddressLine1\":\"500 Elm St\",\"OnlineShipToCity\":\"Dayton\",\"OnlineShipToState\":\"OH\",\"OnlineShipToZipCode\":\"45402\"},\"CustomerInformation\":{\"CardholderFirstName\":\"Jane\",\"CardholderLastName\":\"Doe\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"TerminalType\":\"INTERNET\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"CardholderInitiatedTransaction\":\"Y\",\"MastercardAdviceCodeIndicator\":\"Y\",\"EventNotificationIndicator\":\"Y\"},\"EncryptionTokenData\":{\"WPTokenRequested\":\"Y\"},\"ReferenceTraceNumbers\":{\"CorrelationID\":\"probe_txn_001\"},\"UserDefinedData\":{\"UserData1\":\"4525117068057076\"},\"SoftDescriptorData\":{\"SdMerchantName\":\"ACME WIDGETS\",\"SdMerchantCity\":\"CINCINNATI\"},\"MerchantSpecificData\":{\"AcquirerCurrencyCode\":\"840\"},\"Level3Data\":[{\"ItemDescription\":\"Blue widget\",\"UnitPrice\":\"1250\",\"UnitPriceDecimal\":\"2\",\"ItemQuantity\":\"3\",\"ItemQuantityDecimal\":\"0\"}],\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"4525117068057076\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Reward is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -153,11 +181,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -165,35 +193,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Reward is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Givex": {
         "status": "not_implemented",
@@ -201,87 +229,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: PayLater is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -289,43 +317,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -333,35 +361,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: GiftCard is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -373,115 +401,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankDebit is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankTransfer is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankDebit is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Voucher is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: BankRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Upi is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Upi is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Upi is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: CardRedirect is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Wallet is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       }
     },
     "capture": {
@@ -489,7 +517,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "0000000000000001",
           "amount_to_capture": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -503,7 +531,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\",\"PreauthorizedAmount\":\"10.00\"},\"AuthorizationType\":\"FP\",\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"EncryptionTokenData\":{\"TokenizedPAN\":\"4111111111111111\"},\"CardInfo\":{\"ExpirationDate\":\"3012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -574,24 +602,53 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_sync flow for worldpayraft"
+        "status": "not_supported",
+        "error": "payment_sync flow not supported by worldpayraft connector"
       }
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by worldpayraft connector"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for worldpayraft"
       }
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -601,14 +658,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by worldpayraft connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by worldpayraft connector"
       }
     },
     "proxy_authorize": {
@@ -636,14 +693,14 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"0\",\"CVV2CVC2\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_txn_\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"TerminalType\":\"INTERNET\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"CardholderInitiatedTransaction\":\"Y\",\"MastercardAdviceCodeIndicator\":\"Y\",\"EventNotificationIndicator\":\"Y\"},\"EncryptionTokenData\":{\"WPTokenRequested\":\"Y\"},\"ReferenceTraceNumbers\":{\"CorrelationID\":\"probe_proxy_txn_001\"},\"UserDefinedData\":{\"UserData1\":\"1770827636610205\"},\"MerchantSpecificData\":{\"AcquirerCurrencyCode\":\"840\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"1770827636610205\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -675,14 +732,14 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_mand\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"0.00\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"TerminalType\":\"INTERNET\",\"POSConditionCode\":\"51\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"CardholderInitiatedTransaction\":\"Y\",\"MastercardAdviceCodeIndicator\":\"Y\",\"EventNotificationIndicator\":\"Y\"},\"EncryptionTokenData\":{\"WPTokenRequested\":\"Y\"},\"ReferenceTraceNumbers\":{\"CorrelationID\":\"probe_proxy_mandate_001\"},\"UserDefinedData\":{\"UserData1\":\"8716162924754034\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"8716162924754034\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -693,7 +750,8 @@
           "connector_recurring_payment_id": {
             "mandate_id_type": {
               "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
+                "connector_mandate_id": "probe-mandate-123",
+                "mandate_metadata": "{\"expiration_date\":\"3012\"}"
               }
             }
           },
@@ -702,8 +760,11 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737"
             }
           },
           "return_url": "https://example.com/recurring-return",
@@ -712,14 +773,14 @@
           "off_session": true
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"probe-mandate-123\",\"ExpirationDate\":\"\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"MerchantInitiatedTransaction\":\"Y\",\"RecurringBillPay\":\"Y\"},\"ReferenceTraceNumbers\":{\"SystemTraceNumber\":\"000000\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"ExpirationDate\":\"3012\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"MerchantInitiatedTransaction\":\"Y\",\"MastercardAdviceCodeIndicator\":\"Y\",\"EventNotificationIndicator\":\"Y\"},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"UserDefinedData\":{\"UserData1\":\"6829232824261652\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"6829232824261652\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -755,14 +816,14 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"EncryptionTokenData\":{\"TokenizedPAN\":\"4111111111111111\"},\"CardInfo\":{\"ExpirationDate\":\"3012\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"8503536649961011\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for worldpayraft"
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by worldpayraft connector"
       }
     },
     "reverse": {
@@ -803,27 +864,27 @@
           }
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_mandate_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"0.00\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"737\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"TerminalType\":\"INTERNET\",\"POSConditionCode\":\"51\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"CardholderInitiatedTransaction\":\"Y\",\"MastercardAdviceCodeIndicator\":\"Y\",\"EventNotificationIndicator\":\"Y\"},\"EncryptionTokenData\":{\"WPTokenRequested\":\"Y\"},\"ReferenceTraceNumbers\":{\"CorrelationID\":\"probe_mandate_001\"},\"UserDefinedData\":{\"UserData1\":\"3074262936028545\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"3074262936028545\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: PaymentMethodToken is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate"
+        "error": "This feature is not implemented: PaymentMethodToken is not supported by Worldpay Native RAFT card messages. Native RAFT credit/debit messages carry card data only; the separate APM API is not integrated"
       }
     },
     "verify_redirect": {
@@ -833,8 +894,21 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for worldpayraft"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "0000000000000001"
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditauth\":{\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"EncryptionTokenData\":{\"TokenizedPAN\":\"4111111111111111\"},\"CardInfo\":{\"ExpirationDate\":\"3012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     }
   }
