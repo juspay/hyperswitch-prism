@@ -7,6 +7,42 @@
     "PaymentService/Void",
     "PaymentService/Refund",
     "RefundService/Get",
-    "PaymentMethodAuthenticationService/PreAuthenticate"
-  ]
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "invalid_signature": "CONNECTOR_API_LACKS: spec:## Webhook Events — Saferpay sends unsigned requests, so source invalidation cannot be demonstrated"
+    },
+    "RecurringPaymentService/Charge": {
+      "recurring_charge_low_amount": "SANDBOX_NOT_PROVISIONED: capabilities.json — the test terminal behaviour for a sub-unit amount is unspecified",
+      "recurring_charge_with_order_context": "FLOW_NOT_IN_SCOPE: spec:## API Call Sequences — order context is not supported by this connector run"
+    },
+    "PaymentService/SetupRecurring": {
+      "setup_recurring_with_order_context": "FLOW_NOT_IN_SCOPE: spec:## API Call Sequences — order context is not supported by this connector run",
+      "setup_recurring_with_webhook": "FLOW_NOT_IN_SCOPE: spec:## API Call Sequences — this connector run does not implement a webhook for setup_recurring"
+    },
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_ach_bank_transfer": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_affirm": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_afterpay_clearpay": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_alipay": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_bacs_bank_transfer": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_bancontact": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_credit_card": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_debit_card": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_eps": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_giropay": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_google_pay_encrypted": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_ideal": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_klarna": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_przelewy24": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_sepa_bank_transfer": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_upi_collect": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_upi_intent": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture",
+      "no3ds_auto_capture_upi_qr": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — the Transaction API has no sale mode; an authorization is always settled by an explicit Capture"
+    }
+  }
 }

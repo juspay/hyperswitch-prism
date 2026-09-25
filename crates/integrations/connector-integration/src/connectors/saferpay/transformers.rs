@@ -6,17 +6,23 @@ use common_utils::{
     Method,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        VerifyWebhookSource, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        EventType, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        VerifyWebhookSourceFlowData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
-    router_response_types::RedirectForm,
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -227,11 +233,19 @@ fn stable_request_id(
     merchant_request_id: Option<&str>,
     connector_request_reference_id: &str,
 ) -> String {
-    merchant_request_id
+    let id = merchant_request_id
         .map(str::trim)
         .filter(|request_id| !request_id.is_empty())
-        .unwrap_or(connector_request_reference_id)
-        .to_string()
+        .map(str::to_string)
+        .unwrap_or_else(|| connector_request_reference_id.trim().to_string());
+    if id.is_empty() {
+        // Saferpay rejects an empty `RequestId` outright ("The RequestId field is
+        // required."), and neither caller-supplied id source carries a value here
+        // — mint one rather than ship a request that is guaranteed to fail.
+        common_utils::fp_utils::generate_uuid_v4()
+    } else {
+        id
+    }
 }
 
 fn payment_request_id(common: &PaymentFlowData) -> String {
@@ -449,16 +463,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Saferpay's Transaction interface has no field to carry an externally
-        // obtained CAVV/ECI/dsTransId: 3DS is always run by Saferpay itself through
-        // the PreAuthenticate redirect, so merchant-supplied authentication data
-        // cannot be honoured. (The 3DS settle leg was handled above.)
-        if request.authentication_data.is_some() {
-            return Err(not_supported(
-                "External/merchant-provided 3DS authentication data".to_string(),
-            ));
-        }
-
         // Saferpay has no sale mode. There is no capture field on `AuthorizeDirect` or
         // `Initialize`, no combined authorize+capture endpoint anywhere in the Payment
         // API, and no terminal-level capture setting — the only "auto" switch on a
@@ -469,17 +473,38 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Accepting `Automatic` would therefore mean reporting `requires_capture` and
         // leaving the money unmoved with no error, until the authorization expires.
         // Refuse it instead, so the caller finds out at authorize time.
+        //
+        // Evaluated before every other intent guard: the capture-method refusal is
+        // the deterministic first answer — a request carrying both an automatic
+        // capture method and external 3DS data is refused for the capture method,
+        // which no reordering of the other fields can fix.
         if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
             &request.capture_method
         {
             return Err(capture_method_not_supported(*method));
         }
 
-        // Mandates, MIT and tokenization are out of scope: Saferpay expresses them
-        // through Secure Card Data / `Alias`, which this integration does not
-        // implement. Reject rather than silently dropping the intent.
+        // Saferpay's Transaction interface has no field to carry an externally
+        // obtained CAVV/ECI/dsTransId: 3DS is always run by Saferpay itself through
+        // the PreAuthenticate redirect, so merchant-supplied authentication data
+        // cannot be honoured. (The 3DS settle leg was handled above.)
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "External/merchant-provided 3DS authentication data".to_string(),
+            ));
+        }
+
+        // Setting up a NEW mandate on Authorize is out of scope: the SetupMandate
+        // flow (Alias/InsertDirect) owns registration, and RepeatPayment charges
+        // it. Asking this connector to switch flows mid-call (mandate setup on the
+        // Authorize RPC, or an MIT charge on the CIT RPC) mixes the SetupMandate /
+        // RepeatPayment contracts into Authorize.
         if request.mandate_id.is_some() || request.setup_mandate_details.is_some() {
-            return Err(not_supported("Mandates / stored credentials".to_string()));
+            return Err(not_supported(
+                "Mandate setup or mandate usage inside the Authorize flow — use the \
+                 SetupMandate / RepeatPayment flows instead"
+                    .to_string(),
+            ));
         }
 
         let exp_year = card
@@ -635,8 +660,12 @@ impl SaferpayTransaction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaferpayRedirect {
+    // Saferpay hosted-page URLs are .../vt2/Api/<Page>/<customer_id>/<terminal_id>/<token>
+    // and the <terminal_id> segment is a credential (auth key2). `Secret` keeps
+    // masked_serialize and any Debug `<response>` log paths from writing it;
+    // expose() only where the redirect URL is returned to the caller.
     #[serde(rename = "RedirectUrl")]
-    pub redirect_url: Option<String>,
+    pub redirect_url: Option<Secret<String>>,
     #[serde(rename = "PaymentMeansRequired")]
     pub payment_means_required: Option<bool>,
 }
@@ -671,11 +700,16 @@ impl SaferpayPaymentsResponse {
         // session token; it is opened with a plain GET and has no form fields.
         self.redirect
             .as_ref()
-            .and_then(|redirect| redirect.redirect_url.as_deref())
-            .map(str::trim)
+            .and_then(|redirect| {
+                redirect
+                    .redirect_url
+                    .as_ref()
+                    .map(|url| url.clone().expose())
+            })
+            .map(|url| url.trim().to_string())
             .filter(|url| !url.is_empty())
             .map(|url| RedirectForm::Form {
-                endpoint: url.to_string(),
+                endpoint: url,
                 method: Method::Get,
                 form_fields: HashMap::new(),
             })
@@ -695,6 +729,25 @@ impl SaferpayPaymentsResponse {
 // ERROR RESPONSE
 // =============================================================================
 
+/// Saferpay `Behavior` — the retry signal on an error body. `ErrorName` says what
+/// failed; `Behavior` says whether trying again (possibly with other means) can
+/// succeed, so it is the field terminality is keyed on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SaferpayErrorBehavior {
+    #[serde(rename = "DO_NOT_RETRY")]
+    DoNotRetry,
+    #[serde(rename = "OTHER_MEANS")]
+    OtherMeans,
+    #[serde(rename = "RETRY")]
+    Retry,
+    #[serde(rename = "RETRY_LATER")]
+    RetryLater,
+    /// Anything Saferpay adds later. Kept so an unknown value parses instead of
+    /// failing the whole error response.
+    #[serde(other)]
+    Unknown,
+}
+
 /// Saferpay error body (HTTP 400/401/402/403/406/415/500).
 ///
 /// `ErrorDetail` is an **array of strings**, not a string.
@@ -703,7 +756,7 @@ pub struct SaferpayErrorResponse {
     #[serde(rename = "ResponseHeader")]
     pub response_header: Option<SaferpayResponseHeader>,
     #[serde(rename = "Behavior")]
-    pub behavior: Option<String>,
+    pub behavior: Option<SaferpayErrorBehavior>,
     #[serde(rename = "ErrorName")]
     pub error_name: Option<String>,
     #[serde(rename = "ErrorMessage")]
@@ -761,8 +814,18 @@ impl SaferpayErrorResponse {
     }
 
     pub fn to_refund_error_response(&self, status_code: u16) -> ErrorResponse {
+        // Only a terminal decline settles the outcome: `TRANSACTION_DECLINED` means
+        // the refund was refused, and Saferpay's `OTHER_MEANS` behaviour means no
+        // retry of this operation can succeed. Every other error — validation, 4xx,
+        // or a PSync/RSync lookup on a refund that is still in flight — leaves
+        // `attempt_status` unset so the sync is not terminally failed while the
+        // money may still be moving (review theme TH-07).
+        let is_terminal_decline = self.error_name.as_deref() == Some("TRANSACTION_DECLINED")
+            || self.behavior == Some(SaferpayErrorBehavior::OtherMeans);
+
         ErrorResponse {
-            attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
+            attempt_status: is_terminal_decline
+                .then_some(FlowStatus::Refund(RefundStatus::Failure)),
             ..self.to_error_response(status_code)
         }
     }
@@ -1638,6 +1701,627 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
                 status: refund_status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// REPEAT PAYMENT — `AuthorizeDirect` with a stored alias (unscheduled MIT)
+// =============================================================================
+
+/// Previously registered card, referenced by `Alias.Id` — the SetupMandate flow's
+/// response surfaces this id as the `connector_mandate_id`.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasReference {
+    #[serde(rename = "Id")]
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasPaymentMeans {
+    #[serde(rename = "Alias")]
+    pub alias: SaferpayAliasReference,
+}
+
+/// `Authentication.Initiator` / `Authentication.Exemption` on `AuthorizeDirect`.
+/// `MERCHANT` marks the request as merchant-initiated (MIT) rather than a fresh
+/// checkout; `RECURRING` claims the PSD2 SCA exemption for a payment on a mandate
+/// the payer already consented to.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayMitAuthentication {
+    #[serde(rename = "Initiator")]
+    pub initiator: &'static str,
+    #[serde(rename = "Exemption")]
+    pub exemption: &'static str,
+}
+
+/// Body for `POST /Payment/v1/Transaction/AuthorizeDirect` on the MIT rail
+/// (plan UD-07/UD-11): an unscheduled charge against a stored alias. The scheduled
+/// rail (`AuthorizeReferenced` + `Payment.Recurring`) is not implemented, and the
+/// `Authentication.IssuerReference` block is only available on the scheduled/NTID
+/// rail, so it is omitted here.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRepeatPaymentRequest {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TerminalId")]
+    pub terminal_id: Secret<String>,
+    #[serde(rename = "Payment")]
+    pub payment: SaferpayPaymentDetails,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayAliasPaymentMeans,
+    #[serde(rename = "Authentication")]
+    pub authentication: SaferpayMitAuthentication,
+}
+
+type RepeatPaymentRouterData<T> =
+    RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<RepeatPaymentRouterData<T>, T>> for SaferpayRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<RepeatPaymentRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        // The alias rail stores a card credential; a wallet or bank transfer has no
+        // alias to charge.
+        match &request.payment_method_data {
+            PaymentMethodData::Card(_) => {}
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported by saferpay".to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        // Same reasoning as the Authorize leg: Saferpay has no sale mode, so an MIT
+        // authorization still has to be settled by an explicit Capture. Refuse
+        // `Automatic`/`SequentialAutomatic` rather than report `requires_capture` and
+        // leave the money unmoved with no error.
+        if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
+            &request.capture_method
+        {
+            return Err(capture_method_not_supported(*method));
+        }
+
+        // Only the connector-stored alias rail is chargeable here. A network-transaction-id
+        // / network-token mandate belongs to the NTID rail (`AuthorizeReferenced` +
+        // `Authentication.IssuerReference`), which this integration does not implement,
+        // so it is a hard refusal rather than a silent wrong-route.
+        let alias_id = match request.get_mandate_reference() {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => connector_mandate_id
+                .get_connector_mandate_id()
+                .ok_or_else(|| missing_field("mandate_reference.connector_mandate_id"))?,
+            _ => {
+                return Err(not_supported(
+                    "Network-mandate-id / network-token MIT — saferpay charges the \
+                     stored alias (ConnectorMandateId) issued by Alias/InsertDirect only"
+                        .to_string(),
+                ))
+            }
+        };
+
+        let amount = SaferpayAmountConvertor::convert(request.minor_amount, request.currency)?;
+
+        let description = common
+            .description
+            .clone()
+            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string());
+
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            terminal_id: auth.terminal_id.clone(),
+            payment: SaferpayPaymentDetails {
+                amount: SaferpayAmount {
+                    value: amount,
+                    currency_code: request.currency,
+                },
+                order_id: truncate_order_id(&common.connector_request_reference_id),
+                description,
+            },
+            payment_means: SaferpayAliasPaymentMeans {
+                alias: SaferpayAliasReference { id: alias_id },
+            },
+            authentication: SaferpayMitAuthentication {
+                initiator: "MERCHANT",
+                exemption: "RECURRING",
+            },
+        })
+    }
+}
+
+/// `AuthorizeDirect` answers with the same `Transaction` body as the card
+/// authorization (spec §5).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SaferpayRepeatPaymentResponse(pub SaferpayPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayRepeatPaymentResponse, Self>>
+    for RepeatPaymentRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpayRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        let transaction = response.transaction.as_ref().ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: RepeatPayment response carried no Transaction object",
+            ))
+        })?;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction.id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: transaction.connector_metadata(),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: transaction
+                    .six_transaction_reference
+                    .clone()
+                    .or_else(|| transaction.order_id.clone()),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status: transaction.attempt_status(),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE — `Alias/InsertDirect` (Secure Card Data alias registration)
+// =============================================================================
+
+/// Body for `POST /Payment/v1/Alias/InsertDirect` — the spec's SetupMandate
+/// **Option B**: one-shot, server-to-server alias registration of a raw card.
+/// It moves no money (a $0 registration) and synchronously hands back the
+/// `Alias.Id` that the RepeatPayment flow later charges, so the caller never
+/// has to drive a redirect before it can repeat against the mandate.
+///
+/// Option A (`Alias/Insert` + `Alias/AssertInsert`) is deliberately not used:
+/// it opens a hosted-form redirect before the alias id is known, which cannot
+/// satisfy Charge's strict synchronous `connector_mandate_id` dependency.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpaySetupMandateRequest<T: PaymentMethodDataTypes> {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    /// Raw card to register. Same shape as the authorization's PaymentMeans;
+    /// `HolderName` is required by InsertDirect.
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayPaymentMeans<T>,
+    /// `IdGenerator: RANDOM` — Saferpay mints the alias id; the merchant never
+    /// chooses it, so it can never collide with a merchant namespace.
+    #[serde(rename = "RegisterAlias")]
+    pub register_alias: SaferpayRegisterAlias,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRegisterAlias {
+    #[serde(rename = "IdGenerator")]
+    pub id_generator: &'static str,
+}
+
+type SetupMandateRouterData<T> =
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<SetupMandateRouterData<T>, T>> for SaferpaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<SetupMandateRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        // InsertDirect registers a raw card server-to-server; a wallet or bank
+        // transfer has no card container to register.
+        let card = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported by saferpay".to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        // InsertDirect takes the card on the call itself and answers
+        // synchronously — there is no redirect and no `ReturnUrl` field on the
+        // endpoint. A caller asking for a payer redirect is describing the
+        // hosted-form registration (Option A, `Alias/Insert` + `Alias/AssertInsert`),
+        // which this integration does not implement; refuse loudly rather than
+        // silently registering the card behind the shopper's back.
+        if request.return_url.is_some() || request.router_return_url.is_some() {
+            return Err(not_supported(
+                "Redirect-based alias registration (Alias/Insert) — saferpay mandates \
+                 are registered headlessly via Alias/InsertDirect"
+                    .to_string(),
+            ));
+        }
+
+        let exp_year = card
+            .get_expiry_year_4_digit()
+            .expose()
+            .parse::<u16>()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_exp_year",
+                    context: context(),
+                })
+            })?;
+        let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "card_exp_month",
+                context: context(),
+            })
+        })?;
+
+        // `HolderName` is a required field on `Alias/InsertDirect` (unlike the
+        // authorization endpoints, where it is optional). Never invent one from
+        // billing data: a name that is not the cardholder's mislabels the stored
+        // credential (review theme TH-ST-3 — no silent holder-name fallback).
+        let holder_name = card
+            .get_optional_cardholder_name()
+            .ok_or_else(|| missing_field("card_holder_name"))?;
+
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            payment_means: SaferpayPaymentMeans {
+                card: SaferpayCardDetails {
+                    number: card.card_number.clone(),
+                    exp_year: Secret::new(exp_year),
+                    exp_month: Secret::new(exp_month),
+                    verification_code: Some(card.card_cvc.clone()),
+                    holder_name: Some(holder_name),
+                },
+            },
+            register_alias: SaferpayRegisterAlias {
+                id_generator: "RANDOM",
+            },
+        })
+    }
+}
+
+/// InsertDirect answers synchronously with the freshly minted alias. There is no
+/// `Transaction` object — nothing was charged — so `Alias.Id` is both the success
+/// signal (2xx **and** an alias id) and the mandate reference RepeatPayment
+/// consumes. A 2xx *without* an `Alias.Id` is a connector contract violation and
+/// is failed closed, never reported as success.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpaySetupMandateResponse {
+    #[serde(rename = "ResponseHeader")]
+    pub response_header: Option<SaferpayResponseHeader>,
+    #[serde(rename = "Alias")]
+    pub alias: Option<SaferpayAlias>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAlias {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Lifetime")]
+    pub lifetime: Option<u32>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
+    TryFrom<ResponseRouterData<SaferpaySetupMandateResponse, Self>> for SetupMandateRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let alias_id = response
+            .alias
+            .as_ref()
+            .map(|alias| alias.id.trim().to_string())
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| {
+                error_stack::report!(crate::utils::unexpected_response_fail(
+                    item.http_code,
+                    "saferpay: InsertDirect response carried no Alias.Id",
+                ))
+            })?;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(alias_id.clone()),
+                redirection_data: None,
+                // `Alias.Id` is the single mandate reference: RepeatPayment sends it
+                // back as `PaymentMeans.Alias.Id` on `AuthorizeDirect`.
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(alias_id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response
+                    .response_header
+                    .and_then(|header| header.request_id),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// INCOMING WEBHOOK — unsigned `*NotifyUrl` ping + authenticated `Inquire` pull
+// (spec:## Webhook Events; plan P-webhook-01, G-webhook-01, UD-12)
+// =============================================================================
+
+/// Which Saferpay `Notification` URL family a ping arrived on.
+///
+/// Success and failure are two different URLs, so the URL itself is the only
+/// signal that classifies an outcome; the ping carries no body. Saferpay
+/// unconditionally appends the session `Token` as the first query parameter
+/// ("success_notify_url?token=.."), so it is never a classification aid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaferpayNotifyPath {
+    /// `SuccessNotifyUrl` / `RedirectNotifyUrls.Success` — a good outcome.
+    Success,
+    /// `FailNotifyUrl` / `RedirectNotifyUrls.Fail` — a declined/aborted outcome.
+    Fail,
+    /// The URL gave no family hint. Any event derived from it fails closed
+    /// (G-webhook-01).
+    Ambiguous,
+}
+
+/// Tolerant grab of anything Saferpay (or an embedding page) posts to the
+/// notify URL. Real Saferpay notifications are bodyless GETs, so this is
+/// optional everywhere; the id here is only a *hint* — authenticity is
+/// established by the authenticated `Inquire` pull, never by the body.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SaferpayWebhookBody {
+    #[serde(default)]
+    pub id: Option<String>,
+    /// Event family hint for embedders that post a classified ping back. Real
+    /// Saferpay GETs carry no such key; the URL family wins over this hint.
+    #[serde(default)]
+    pub event: Option<String>,
+}
+
+/// The notification token Saferpay may append verbatim to a notify URL, the
+/// session handle opened by `PaymentPage/Initialize` (or
+/// `Transaction/Initialize`). Parsing is tolerant: a bare `?<token>` is as
+/// valid as `?token=<token>`.
+pub fn notify_query_token(query_params: Option<&str>) -> Option<String> {
+    let query = query_params?.trim_start_matches('?');
+    for pair in query.split('&').filter(|pair| !pair.is_empty()) {
+        let (key, value) = pair.split_once('=').unwrap_or(("", pair));
+        if key.eq_ignore_ascii_case("token") && !value.is_empty() {
+            return Some(value.to_string());
+        }
+        if key.is_empty() && !value.is_empty() {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+/// The outcome an ambiguous-CANCELED ping reports. A CANCELED payment is a
+/// decline/failure, a CANCELED refund is also a failure — the refund_status()
+/// mapping shares the arm, so a webhook details status can reuse
+/// refund_status() when the ping's family is unknown.
+pub fn webhook_attempt_status(
+    path: SaferpayNotifyPath,
+) -> Result<AttemptStatus, error_stack::Report<domain_types::errors::WebhookError>> {
+    use domain_types::errors::WebhookError;
+    match path {
+        SaferpayNotifyPath::Success => Ok(AttemptStatus::Authorized),
+        SaferpayNotifyPath::Fail => Ok(AttemptStatus::Failure),
+        SaferpayNotifyPath::Ambiguous => Err(WebhookError::WebhookEventTypeNotFound.into()),
+    }
+}
+
+/// Classify `RequestDetails.uri` into its notify-URL family. Matching is
+/// case-insensitive; `fail`/`error`/`cancel` win over `success` when the URL
+/// somehow carries both — failing closed is cheaper than a false success
+/// (G-webhook-01).
+pub fn classify_notify_url(uri: Option<&str>) -> SaferpayNotifyPath {
+    let uri = match uri {
+        Some(uri) => uri.to_lowercase(),
+        None => return SaferpayNotifyPath::Ambiguous,
+    };
+    let path = uri.split('?').next().unwrap_or(uri.as_str());
+    let has_fail = ["fail", "error", "cancel", "abort", "declin"]
+        .iter()
+        .any(|needle| path.contains(needle));
+    let has_success = path.contains("success");
+    match (has_success, has_fail) {
+        (true, false) => SaferpayNotifyPath::Success,
+        (false, true) => SaferpayNotifyPath::Fail,
+        _ => SaferpayNotifyPath::Ambiguous,
+    }
+}
+
+/// Whether `uri` names a refund-leg notification (a `RefundNotifyUrl` /
+/// refund-scoped `PendingNotification.NotifyUrl`). Payment pings never carry
+/// the word, so its presence is definitive; its absence says nothing by
+/// itself.
+fn is_refund_notify_uri(uri: Option<&str>) -> bool {
+    uri.map(|uri| uri.to_lowercase().contains("refund"))
+        .unwrap_or(false)
+}
+
+/// The event type a ping on `uri` maps to. The URL family decides the
+/// outcome, and a refund-marked URL (or, as a fallback, the ping body's
+/// `event` hint) shifts it to the refund arm of the same outcome. An
+/// ambiguous URL is the missing/ambiguous-key case and errors in
+/// `get_event_type` (G-webhook-01); it never produces a synthetic event.
+pub fn classify_notify_event(
+    uri: Option<&str>,
+    body: Option<&SaferpayWebhookBody>,
+) -> Result<EventType, error_stack::Report<domain_types::errors::WebhookError>> {
+    use domain_types::errors::WebhookError;
+    let is_refund = is_refund_notify_uri(uri)
+        || body
+            .and_then(|body| body.event.as_deref())
+            .map(|event| event.to_lowercase().contains("refund"))
+            .unwrap_or(false);
+    match classify_notify_url(uri) {
+        SaferpayNotifyPath::Success if is_refund => Ok(EventType::RefundSuccess),
+        SaferpayNotifyPath::Success => Ok(EventType::PaymentIntentSuccess),
+        SaferpayNotifyPath::Fail if is_refund => Ok(EventType::RefundFailure),
+        SaferpayNotifyPath::Fail => Ok(EventType::PaymentIntentFailure),
+        SaferpayNotifyPath::Ambiguous => Err(WebhookError::WebhookEventTypeNotFound.into()),
+    }
+}
+
+/// `Inquire` body for the external source-verification pull
+/// (`Transaction/Inquire`, UD-12 option b): confirm the transaction reference
+/// the notification claims with an authenticated call, keyed on the event id.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayWebhookVerifyRequest {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TransactionReference")]
+    pub transaction_reference: SaferpayTransactionReference,
+}
+
+/// The newtype only gives the macro framework a distinct response type for
+/// the flow; the payload is the standard `Inquire` envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SaferpayWebhookVerifyResponse(pub SaferpayPaymentsResponse);
+
+type VerifyWebhookSourceRouterData = RouterDataV2<
+    VerifyWebhookSource,
+    VerifyWebhookSourceFlowData,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
+
+/// Pull the event id (a Saferpay ``Transaction.Id``) out of the raw webhook
+/// request. The verify step is reached before `get_event_type` has ran, so it
+/// accepts the same tolerant shapes: a `{"id": ..}` JSON body first (the
+/// harness fixture and any embedding-page POST), then a `TransactionId` /
+/// `id` query key on bare GETs, and finally the lone first-value of the query
+/// string — Saferpay appends exactly one parameter, the session token.
+///
+/// Nothing found is a fail-closed error, so the server reports the source as
+/// unverified instead of querying the wrong reference (G-webhook-01).
+fn webhook_event_id(
+    req: &VerifyWebhookSourceRequestData,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    if !req.webhook_body.is_empty() {
+        if let Ok(body) = serde_json::from_slice::<SaferpayWebhookBody>(&req.webhook_body) {
+            if let Some(id) = body.id.filter(|id| !id.trim().is_empty()) {
+                return Ok(id);
+            }
+        }
+    }
+    if let Some(uri) = req.webhook_uri.as_deref() {
+        if let Some((_, query)) = uri.split_once('?') {
+            for pair in query.split('&').filter(|pair| !pair.is_empty()) {
+                let (key, value) = pair.split_once('=').unwrap_or(("", pair));
+                if !key.is_empty() {
+                    if matches!(key.to_lowercase().as_str(), "transactionid" | "id")
+                        && !value.is_empty()
+                    {
+                        return Ok(value.to_string());
+                    }
+                } else {
+                    // Saferpay unilaterally appends the reference as the first
+                    // (and only) query parameter, without a key of its own.
+                    return Ok(value.to_string());
+                }
+            }
+        }
+    }
+    Err(missing_field(
+        "webhook transaction id (body id or URL parameter)",
+    ))
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<VerifyWebhookSourceRouterData, T>> for SaferpayWebhookVerifyRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<VerifyWebhookSourceRouterData, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+        let transaction_id = webhook_event_id(&router_data.request)?;
+
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            transaction_reference: SaferpayTransactionReference { transaction_id },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<SaferpayWebhookVerifyResponse, Self>>
+    for VerifyWebhookSourceRouterData
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpayWebhookVerifyResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        // Source verification asks one question: did the authenticated call
+        // return the same transaction the notification named? A 2xx whose
+        // Transaction block is missing, or whose ``Id`` disagrees with the
+        // claimed id, is an in-band failure — the source is not verified; it
+        // is never silently promoted to verified (TH-07).
+        let claimed_id = webhook_event_id(&item.router_data.request).ok();
+        let verify_webhook_status = match (claimed_id, response.transaction) {
+            (Some(claimed), Some(transaction)) if transaction.id == claimed => {
+                VerifyWebhookStatus::SourceVerified
+            }
+            _ => VerifyWebhookStatus::SourceNotVerified,
+        };
+
+        Ok(Self {
+            response: Ok(VerifyWebhookSourceResponseData {
+                verify_webhook_status,
+            }),
             ..item.router_data
         })
     }

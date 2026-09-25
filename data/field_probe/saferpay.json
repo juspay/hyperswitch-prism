@@ -568,7 +568,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"SaferpayTransactionIdplaceholder0\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"SaferpayTransactionIdplaceholder0\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -579,7 +594,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"SaferpayTransactionIdplaceholder0\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"SaferpayTransactionIdplaceholder0\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -625,7 +654,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}},\"ReturnUrl\":{\"Url\":\"https://example.com/3ds-return\"},\"Authentication\":{\"ThreeDsChallenge\":\"FORCE\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}},\"ReturnUrl\":{\"Url\":\"https://example.com/3ds-return\"},\"Authentication\":{\"ThreeDsChallenge\":\"FORCE\"}}"
         }
       }
     },
@@ -637,14 +666,48 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Alias/InsertDirect",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_proxy_mandate_001\",\"RetryIndicator\":0},\"PaymentMeans\":{\"Card\":{\"Number\":\"{{$card_number}}\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"{{$card_cvc}}\",\"HolderName\":\"John Doe\"}},\"RegisterAlias\":{\"IdGenerator\":\"RANDOM\"}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       }
     },
     "recurring_revoke": {
@@ -693,8 +756,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+        "status": "not_supported",
+        "error": "Redirect-based alias registration (Alias/Insert) — saferpay mandates are registered headlessly via Alias/InsertDirect is not supported by saferpay. while building a Saferpay Transaction API request"
       }
     },
     "token_authorize": {
@@ -706,7 +769,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       }
     },
     "verify_redirect": {

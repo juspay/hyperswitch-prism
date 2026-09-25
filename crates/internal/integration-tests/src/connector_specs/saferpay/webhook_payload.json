@@ -1,0 +1,42 @@
+{
+  "_webhook_config": null,
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/notify/success",
+        "headers": {},
+        "body": {
+          "id": "auto_generate"
+        }
+      },
+      "merchant_event_id": "saferpay_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/notify/fail",
+        "headers": {},
+        "body": {
+          "id": "unknown_transaction_id_0000"
+        }
+      },
+      "merchant_event_id": "saferpay_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/notify/refund/success",
+        "headers": {},
+        "body": {
+          "id": "auto_generate"
+        }
+      },
+      "merchant_event_id": "saferpay_webhook_refund_succeeded"
+    }
+  }
+}
