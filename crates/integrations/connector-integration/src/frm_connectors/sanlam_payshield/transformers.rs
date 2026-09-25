@@ -37,10 +37,12 @@ impl TryFrom<&ConnectorSpecificConfig> for SanlamPayshieldAuthType {
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a SanlamPayshield-specific config containing a valid api_key.".to_string(),
+                        "Ensure the connector is configured with a SanlamPayshield-specific config containing a valid api_key."
+                            .to_string(),
                     ),
                     additional_context: Some(
-                        "ConnectorSpecificConfig did not match the SanlamPayshield variant; received an unexpected config variant.".to_string(),
+                        "ConnectorSpecificConfig did not match the SanlamPayshield variant; received an unexpected config variant."
+                            .to_string(),
                     ),
                     doc_url: None,
                 },
@@ -107,10 +109,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PaymentMethodData<T>> for PaymentMethod
                 connector: "SanlamPayshield",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield payin checks only support EftDebitOrder"
+                        "SanlamPayshield payin checks only support EftDebitOrder".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide EftBankDebit in payment_method for the pre-risk check."
                             .to_string(),
                     ),
-                    ..Default::default()
+                    doc_url: None,
                 },
             }
             .into()),
@@ -133,7 +138,11 @@ impl TryFrom<&PayoutMethodData> for PaymentMethodType {
                         "SanlamPayshield payout checks only support Payshap or PayshapProxy"
                             .to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Provide either Payshap or PayshapProxy in payout_method for the pre-payout-risk check."
+                            .to_string(),
+                    ),
+                    doc_url: None,
                 },
             }
             .into()),
@@ -168,17 +177,45 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "gateway_metadata".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide gateway_metadata containing profile_id, connector_id, and created_at.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?
             .parse_value("SanlamPayshieldFrmMetadata")
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check could not deserialize gateway_metadata as SanlamPayshieldFrmMetadata."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide gateway_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
             .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
 
         let connector_id = connector_id.ok_or(IntegrationError::MissingRequiredField {
             field_name: "connector_id".into(),
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "SanlamPayshield pre-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide the gateway connector identifier as gateway_metadata.connector_id.".to_string(),
+                ),
+                doc_url: None,
+            },
         })?;
 
         let payment_method_type = item
@@ -190,7 +227,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .transpose()?
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payment_method".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check requires payment_method to determine transaction.paymentMethodType."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide payment_method.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let request_id = item
@@ -200,7 +246,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "connector_request_reference_id".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check requires a merchant FRM identifier to populate requestId."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide merchant_frm_id in the risk-check request"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let payment_id = item
@@ -210,7 +266,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "merchant_transaction_id".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check requires the merchant transaction identifier as transaction.paymentId."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide merchant_transaction_id in the risk-check request.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let created_at = created_at
@@ -220,7 +285,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
             ))
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-risk check could not format gateway_metadata.created_at as transaction.createdAt with the +02:00 offset."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide a valid UTC creation time in gateway_metadata.created_at that can be formatted with the +02:00 offset."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let amount = SanlamPayshieldAmountConvertor::convert(
@@ -282,17 +357,45 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "gateway_metadata".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide gateway_metadata containing profile_id, connector_id, and created_at.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?
             .parse_value("SanlamPayshieldFrmMetadata")
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check could not deserialize gateway_metadata as SanlamPayshieldFrmMetadata."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide gateway_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
             .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
 
         let connector_id = connector_id.ok_or(IntegrationError::MissingRequiredField {
             field_name: "connector_id".into(),
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "SanlamPayshield pre-payout-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide the gateway connector identifier as gateway_metadata.connector_id.".to_string(),
+                ),
+                doc_url: None,
+            },
         })?;
 
         let payment_method_type = item
@@ -304,7 +407,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .transpose()?
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payout_method".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check requires payout_method to determine transaction.paymentMethodType."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide payout_method.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let request_id = item
@@ -314,13 +426,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "connector_request_reference_id".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check requires a merchant FRM identifier to populate requestId."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide merchant_frm_id in the risk-check request"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let payout_id = item.router_data.request.merchant_payout_id.clone().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "merchant_payout_id".into(),
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check requires the merchant payout identifier as transaction.paymentId."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide merchant_payout_id in the risk-check request.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             },
         )?;
 
@@ -331,7 +462,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
             ))
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "SanlamPayshield pre-payout-risk check could not format gateway_metadata.created_at as transaction.createdAt with the +02:00 offset."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide a valid UTC creation time in gateway_metadata.created_at that can be formatted with the +02:00 offset."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?;
 
         let amount = SanlamPayshieldAmountConvertor::convert(

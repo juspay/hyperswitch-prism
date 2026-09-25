@@ -52,11 +52,10 @@ use domain_types::{
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject,
-        PrePayoutRiskCheckIntegrityObject, PreRiskCheckIntegrityObject,
-        RechargeIntegrityObject, RefreshPaymentMethodIntegrityObject, RefundIntegrityObject,
-        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
-        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
-        VerifyWebhookSourceIntegrityObject,
+        PrePayoutRiskCheckIntegrityObject, PreRiskCheckIntegrityObject, RechargeIntegrityObject,
+        RefreshPaymentMethodIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
+        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
+        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
     },
 };
 

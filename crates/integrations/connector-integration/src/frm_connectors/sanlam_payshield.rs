@@ -38,7 +38,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers as sanlam_payshield;
 use transformers::{
-    SanlamPayshieldCheckRequest, SanlamPayshieldCheckResponse, SanlamPayshieldCheckRequest as SanlamPayshieldPayoutCheckRequest,
+    SanlamPayshieldCheckRequest, SanlamPayshieldCheckRequest as SanlamPayshieldPayoutCheckRequest,
+    SanlamPayshieldCheckResponse,
     SanlamPayshieldCheckResponse as SanlamPayshieldPayoutCheckResponse,
 };
 
@@ -138,7 +139,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .parse_struct("SanlamPayshieldErrorResponse")
             .change_context(response_deserialization_fail(
                 res.status_code,
-                "sanlam_payshield: response body did not match the expected error format",
+                "sanlam_payshield: failed to deserialize the risk-check error response as SanlamPayshieldErrorResponse; verify the connector returned JSON matching the expected error schema",
             ))?;
 
         with_error_response_body!(event_builder, response);
