@@ -120,10 +120,15 @@ jobs:
               - '.github/**'
             # Read at run time by certification; they match no connector path.
             # Separate from rust-core, which seven other jobs also gate on.
+            # webhook_signatures.rs is intentionally excluded: adding a new
+            # connector's HMAC arm is additive and covered by the `connector`
+            # path (which runs that connector's full suite including webhooks).
+            # Only changes that touch live-connector signature logic in that
+            # file would require a sweep, and those are always paired with
+            # connector code/spec edits that already trigger the connector path.
             certification-inputs:
               - 'crates/internal/connector-creds/**'
               - 'crates/internal/integration-tests/src/bin/**'
-              - 'crates/internal/integration-tests/src/webhook_signatures.rs'
               - 'scripts/**'
               - 'config/**'
               - '.github/scripts/**'
