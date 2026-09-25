@@ -913,6 +913,7 @@ enum Connector {
   D24 = 144;
   PAYDOTCOM = 145;
   NSURE = 146;
+  SANLAM_PAYSHIELD = 147;
 }
 
 // Payment method types
@@ -5715,6 +5716,11 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message SanlamPayshieldConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -6193,6 +6199,8 @@ message ConnectorSpecificConfig {
     PaydotcomConfig paydotcom = 156;
     // NSURE = 146
     NsureConfig nsure = 157;
+    // SANLAM_PAYSHIELD = 147
+    SanlamPayshieldConfig sanlam_payshield = 158;
   }
 }
 

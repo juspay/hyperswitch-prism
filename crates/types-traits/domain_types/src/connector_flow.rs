@@ -132,6 +132,9 @@ pub struct PreRiskCheck;
 pub struct PostRiskCheck;
 
 #[derive(Debug, Clone)]
+pub struct PrePayoutRiskCheck;
+
+#[derive(Debug, Clone)]
 pub struct FrmPaymentOutcome;
 
 #[derive(Debug, Clone)]
@@ -191,6 +194,7 @@ pub enum FlowName {
     RefreshPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
+    PrePayoutRiskCheck,
     FrmPaymentOutcome,
     FrmRefundProcessed,
     FrmChargebackReceived,

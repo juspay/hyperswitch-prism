@@ -9,8 +9,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck, PreRiskCheck,
-        ServerAuthenticationToken,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck,
+        PrePayoutRiskCheck, PreRiskCheck, ServerAuthenticationToken,
     },
     connector_types::{
         PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
@@ -21,7 +21,8 @@ use domain_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
         FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
         FrmRefundProcessedResponse, PostRiskCheckRequest, PostRiskCheckResponse,
-        PreRiskCheckRequest, PreRiskCheckResponse,
+        PrePayoutRiskCheckRequest, PrePayoutRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -701,8 +702,23 @@ macros::frm_flow_not_implemented!(
     flow_name: "frm_chargeback_received",
 );
 
+macros::frm_flow_not_implemented!(
+    connector: Kount,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: PrePayoutRiskCheck,
+    request: PrePayoutRiskCheckRequest,
+    response: PrePayoutRiskCheckResponse,
+    flow_name: "pre_payout_risk_check",
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PostRiskCheckV2 for Kount<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PrePayoutRiskCheckV2 for Kount<T>
 {
 }
 

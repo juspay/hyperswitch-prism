@@ -559,6 +559,10 @@ pub struct PreRiskCheckIntegrityObject {}
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PostRiskCheckIntegrityObject {}
 
+/// FRM pre-payout-risk-check integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PrePayoutRiskCheckIntegrityObject {}
+
 /// FRM payment outcome integrity object (no-op; kept for framework compatibility).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FrmPaymentOutcomeIntegrityObject {}

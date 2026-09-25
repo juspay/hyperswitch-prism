@@ -985,6 +985,10 @@ pub enum ConnectorSpecificConfig {
         api_version: Option<String>,
         base_url: Option<String>,
     },
+    SanlamPayshield {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Grabpay {
         partner_id: Secret<String>,
         partner_secret: Secret<String>,
@@ -1420,6 +1424,7 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Nsure { api_key },
+            SanlamPayshield { api_key },
             Hyperswitch { api_key },
             Grabpay {
                 partner_id,
@@ -1933,6 +1938,7 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Nsure { api_key },
+                SanlamPayshield { api_key },
                 Hyperswitch { api_key },
                 Grabpay {
                     partner_id,
@@ -2599,6 +2605,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_id: nsure.app_id,
                 api_version: nsure.api_version,
                 base_url: nsure.base_url,
+            }),
+            AuthType::SanlamPayshield(sanlam_payshield) => Ok(Self::SanlamPayshield {
+                api_key: sanlam_payshield.api_key.ok_or_else(err)?,
+                base_url: sanlam_payshield.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
@@ -4143,6 +4153,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         app_id: None,
                         api_version: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                connector_types::FrmConnectorEnum::SanlamPayshield => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::SanlamPayshield {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

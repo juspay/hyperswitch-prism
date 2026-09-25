@@ -1548,6 +1548,9 @@ pub enum PaymentMethodType {
     Paysera,
     Paymaya,
     QwikcilverWallet,
+    EftDebitOrder,
+    Payshap,
+    PayshapProxy,
 }
 
 impl PaymentMethodType {

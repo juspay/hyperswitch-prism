@@ -20,7 +20,7 @@ use domain_types::connector_types::{
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    PostRiskCheckRequest, PreRiskCheckRequest,
+    PostRiskCheckRequest, PrePayoutRiskCheckRequest, PreRiskCheckRequest,
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
@@ -51,7 +51,8 @@ use domain_types::{
         MandateRevokeIntegrityObject, PaymentMethodEligibilityIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
-        PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
+        PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject,
+        PrePayoutRiskCheckIntegrityObject, PreRiskCheckIntegrityObject,
         RechargeIntegrityObject, RefreshPaymentMethodIntegrityObject, RefundIntegrityObject,
         RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
         SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
@@ -219,6 +220,7 @@ impl_check_integrity!(GetPaymentMethodData);
 impl_check_integrity!(RefreshPaymentMethodData<S>);
 impl_check_integrity!(PreRiskCheckRequest);
 impl_check_integrity!(PostRiskCheckRequest);
+impl_check_integrity!(PrePayoutRiskCheckRequest);
 impl_check_integrity!(FrmPaymentOutcomeRequest);
 impl_check_integrity!(FrmRefundProcessedRequest);
 impl_check_integrity!(FrmChargebackReceivedRequest);
@@ -1568,6 +1570,16 @@ impl GetIntegrityObject<PostRiskCheckIntegrityObject> for PostRiskCheckRequest {
     }
 }
 
+impl GetIntegrityObject<PrePayoutRiskCheckIntegrityObject> for PrePayoutRiskCheckRequest {
+    fn get_response_integrity_object(&self) -> Option<PrePayoutRiskCheckIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PrePayoutRiskCheckIntegrityObject {
+        PrePayoutRiskCheckIntegrityObject {}
+    }
+}
+
 impl GetIntegrityObject<FrmPaymentOutcomeIntegrityObject> for FrmPaymentOutcomeRequest {
     fn get_response_integrity_object(&self) -> Option<FrmPaymentOutcomeIntegrityObject> {
         None
@@ -1988,6 +2000,19 @@ impl FlowIntegrity for PostRiskCheckIntegrityObject {
         connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         // PostRiskCheck has no invariants to check.
+        check_integrity_result(Vec::new(), connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PrePayoutRiskCheckIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        // PrePayoutRiskCheck has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
     }
 }
