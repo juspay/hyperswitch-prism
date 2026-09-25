@@ -177,6 +177,8 @@ impl TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
         Ok(Self {
             response: Ok(PayoutCreateResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+                // A Stripe Transfer object carries no status. Only the payout created by
+                // the follow-up transfer call has one, so this stage is not yet fulfilled.
                 payout_status: common_enums::PayoutStatus::RequiresFulfillment,
                 connector_payout_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
@@ -262,10 +264,10 @@ impl TryFrom<ResponseRouterData<StripeConnectPayoutFulfillResponse, Self>>
 // PAYOUT VOID (TRANSFER REVERSAL)
 // =============================================================================
 
+// Stripe reverses the full remaining transfer when no amount is supplied. The void
+// request carries no amount, so there is nothing to send in the request body.
 #[derive(Clone, Debug, Serialize)]
-pub struct StripeConnectReversalRequest {
-    pub amount: Option<MinorUnit>,
-}
+pub struct StripeConnectReversalRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectReversalResponse {
@@ -290,7 +292,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self { amount: None })
+        Ok(Self)
     }
 }
 
@@ -404,9 +406,6 @@ pub struct StripeConnectRecipientCreateRequest {
 
     #[serde(rename = "company[tax_id]")]
     pub company_tax_id: Option<Secret<String>>,
-
-    #[serde(rename = "company[owners_provided]")]
-    pub company_owners_provided: Option<bool>,
 
     #[serde(rename = "individual[first_name]")]
     pub individual_first_name: Option<Secret<String>>,
@@ -611,7 +610,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             company_address_state: addr_state.clone().filter(|_| is_company),
             company_phone: is_company.then(|| phone.clone()),
             company_tax_id: id_number.clone().filter(|_| is_company),
-            company_owners_provided: None,
 
             individual_first_name: first_name,
             individual_last_name: last_name,
@@ -731,6 +729,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     external_account_country: country,
                     external_account_currency: currency,
                     external_account_account_holder_name: account_holder_name,
+                    // The enroll request carries no account holder type, so this mirrors
+                    // the payin ACH flow's hardcoded "individual".
                     external_account_account_holder_type: STRIPE_ACCOUNT_TYPE_INDIVIDUAL
                         .to_string(),
                     external_account_account_number: ach.bank_account_number.clone(),

@@ -117,13 +117,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let code = response
+            .error
+            .code
+            .clone()
+            .filter(|code| !code.is_empty())
+            .or_else(|| {
+                (!response.error.message.is_empty()).then(|| response.error.message.clone())
+            })
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string());
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            code,
             message: match response.error.message.is_empty() {
                 true => NO_ERROR_MESSAGE.to_string(),
                 false => response.error.message.clone(),
