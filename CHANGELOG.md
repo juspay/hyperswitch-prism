@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.25.1
+
+### Documentation
+
+- Wallet token decryption diagrams and an Apple Pay / Google Pay explainer ([#2368](https://github.com/juspay/connector-service/pull/2368)) ([`301397f`](https://github.com/juspay/connector-service/commit/301397f14507cb68bdcd026e02a661d66feec9dc))
+
+**Full Changelog:** [`2026.09.25.0...2026.09.25.1`](https://github.com/juspay/connector-service/compare/2026.09.25.0...2026.09.25.1)
+
+- - -
+
 ## 2026.09.25.0
 
 ### Bug Fixes
