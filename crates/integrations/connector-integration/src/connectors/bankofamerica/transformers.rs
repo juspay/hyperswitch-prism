@@ -611,7 +611,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_decrypted_apple_pay_payment_data_optional()
                     {
                         Some(decrypt_data) => {
-                            Self::try_from((&item, Box::new(decrypt_data.clone()), apple_pay_data))
+                            Self::try_from((&item, Box::new(decrypt_data.clone()), *apple_pay_data))
                         }
                         None => {
                             let email = item

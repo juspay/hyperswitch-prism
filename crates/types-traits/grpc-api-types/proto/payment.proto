@@ -2017,10 +2017,85 @@ message AdditionalCardInfo {
 
 }
 
+// Apple Pay additional data for recurring payments
+message AdditionalApplePayInfo {
+  // Display name shown on the Apple Pay button
+  string display_name = 1;
+  // Card network (e.g. Visa, Mastercard)
+  string network = 2;
+  // Payment method type
+  string pm_type = 3;
+  // Card expiry month (sensitive)
+  optional SecretString card_exp_month = 4;
+  // Card expiry year (sensitive)
+  optional SecretString card_exp_year = 5;
+  // Bin of the DPAN obtained from decrypting Apple Pay payment data
+  optional string device_pan_bin = 6;
+  // Bin of the underlying card from the connector
+  optional string card_bin = 7;
+  // Card type (e.g. Credit, Debit)
+  optional CardType card_type = 8;
+  // Unique authorisation code generated for the payment
+  optional string auth_code = 9;
+  // Card product or subtype
+  optional string card_subtype = 10;
+  // Card segment (e.g. consumer, commercial)
+  optional CardSegmentType card_segment_type = 11;
+  // Card funding source (e.g. credit, debit)
+  optional FundingSource funding_source = 12;
+  // Card issuer name
+  optional string issuer_name = 13;
+  // Card issuer country
+  optional CountryAlpha2 issuer_country = 14;
+}
+
+// Wallet card additional data for recurring payments (Google Pay, Samsung Pay)
+message AdditionalWalletCardInfo {
+  // Payment method data type
+  optional string payment_method_data_type = 1;
+  // Card network
+  optional string card_network = 2;
+  // Card type (e.g. Credit, Debit)
+  optional CardType card_type = 3;
+  // Card product or subtype
+  optional string card_subtype = 4;
+  // Card segment (e.g. consumer, commercial)
+  optional CardSegmentType card_segment_type = 5;
+  // Card funding source (e.g. credit, debit)
+  optional FundingSource funding_source = 6;
+  // Last 4 digits of the card number
+  optional string last4 = 7;
+  // Bin of the underlying card
+  optional string card_bin = 8;
+  // Bin of the DPAN obtained from decrypting wallet payment data
+  optional string device_pan_bin = 9;
+  // Card expiry month (sensitive)
+  optional SecretString card_exp_month = 10;
+  // Card expiry year (sensitive)
+  optional SecretString card_exp_year = 11;
+  // Card issuer name
+  optional string issuer_name = 12;
+  // Card issuer country
+  optional CountryAlpha2 issuer_country = 13;
+  // Unique authorisation code generated for the payment
+  optional string auth_code = 14;
+  // Email address associated with the wallet (sensitive)
+  optional SecretString email = 15;
+}
+
+// Wallet additional payment data wrapping Apple Pay and Google Pay data
+message AdditionalWalletInfo {
+  // Apple Pay additional data
+  optional AdditionalApplePayInfo apple_pay = 1;
+  // Google Pay additional data
+  optional AdditionalWalletCardInfo google_pay = 2;
+}
+
 // Additional payment data for various payment methods
 message AdditionalPaymentData {
   oneof payment_method_data {
     AdditionalCardInfo card = 1;
+    AdditionalWalletInfo wallet = 2;
   }
 }
 

@@ -1138,14 +1138,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 let additional_card = match &router_data.request.additional_payment_data {
                     Some(AdditionalPaymentData::Card(card)) => card,
-                    None => Err(error_stack::report!(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "additional_payment_data.card",
-                            context: datatrans_context(
-                                "Datatrans MIT requires the stored card details (additional_payment_data.card) for the alias charge",
-                            ),
-                        }
-                    ))?,
+                    Some(AdditionalPaymentData::Wallet { .. }) | None => {
+                        Err(error_stack::report!(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "additional_payment_data.card",
+                                context: datatrans_context(
+                                    "Datatrans MIT requires the stored card details (additional_payment_data.card) for the alias charge",
+                                ),
+                            }
+                        ))?
+                    }
                 };
 
                 let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {

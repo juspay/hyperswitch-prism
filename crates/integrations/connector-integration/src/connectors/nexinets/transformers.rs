@@ -20,8 +20,8 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayWalletData, ApplepayPaymentMethod, BankRedirectData, Card, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -180,15 +180,6 @@ pub struct ApplePayDetails {
     payment_data: serde_json::Value,
     payment_method: ApplepayPaymentMethod,
     transaction_identifier: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplepayPaymentMethod {
-    display_name: String,
-    network: String,
-    #[serde(rename = "type")]
-    token_type: String,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -822,11 +813,7 @@ fn get_applepay_details(
     let payment_data = WalletData::get_wallet_token_as_json(wallet_data, "Apple Pay".to_string())?;
     Ok(ApplePayDetails {
         payment_data,
-        payment_method: ApplepayPaymentMethod {
-            display_name: applepay_data.payment_method.display_name.to_owned(),
-            network: applepay_data.payment_method.network.to_owned(),
-            token_type: applepay_data.payment_method.pm_type.to_owned(),
-        },
+        payment_method: applepay_data.payment_method.clone(),
         transaction_identifier: applepay_data.transaction_identifier.to_owned(),
     })
 }
