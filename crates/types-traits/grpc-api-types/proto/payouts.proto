@@ -241,6 +241,21 @@ message Passthrough {
   optional SecretString psp_customer_id = 3;
 }
 
+message GiftCardPayoutData {
+  // The brand of gift card the payout targets
+  oneof gift_card_type {
+    PaysafeCardData paysafe_card = 1;
+  }
+}
+
+message PaysafeCardData {
+  // The consumer's gift-card account identifier
+  // (for PaysafeCard: the "my paysafecard" consumer id)
+  optional SecretString consumer_id = 1;
+  // The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
+  optional SecretString date_of_birth = 2;
+}
+
 // PayoutMethod represents a payout instrument used to process a payout
 // It contains a oneof field with all possible payout method
 message PayoutMethod {
@@ -274,6 +289,9 @@ message PayoutMethod {
 
     PayshapBankTransferPayout payshap = 16;
     PayshapProxyBankTransferPayout payshap_proxy = 17;
+
+    // GIFT CARDS
+    GiftCardPayoutData gift_card = 18;
   }
 }
 

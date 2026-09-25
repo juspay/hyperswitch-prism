@@ -1160,6 +1160,35 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::Passthrough::foreign_try_from(passthrough)?,
                 ))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::GiftCard(gift_card) => {
+                let gift_card_type = gift_card.gift_card_type.ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "gift_card_type",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Gift card payout brand is required".to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                })?;
+                match gift_card_type {
+                    grpc_api_types::payouts::gift_card_payout_data::GiftCardType::PaysafeCard(
+                        paysafe_card,
+                    ) => Ok(Self::GiftCard(
+                        payouts::payout_method_data::GiftCardPayout::PaySafeCard(
+                            payouts::payout_method_data::PaysafeCardPayout {
+                                consumer_id: paysafe_card.consumer_id.map(|c| {
+                                    ::hyperswitch_masking::Secret::new(c.peek().to_string())
+                                }),
+                                date_of_birth: paysafe_card.date_of_birth.map(|d| {
+                                    ::hyperswitch_masking::Secret::new(d.peek().to_string())
+                                }),
+                            },
+                        ),
+                    )),
+                }
+            }
         }
     }
 }
