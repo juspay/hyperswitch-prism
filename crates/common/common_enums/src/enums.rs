@@ -1549,9 +1549,6 @@ pub enum PaymentMethodType {
     Paymaya,
     Payhere,
     QwikcilverWallet,
-    EftDebitOrder,
-    Payshap,
-    PayshapProxy,
 }
 
 impl PaymentMethodType {
