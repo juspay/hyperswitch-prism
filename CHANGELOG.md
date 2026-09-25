@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.25.0
+
+### Bug Fixes
+
+- **connector:** [Kount] Remove from payment ConnectorEnum; register only as FRM connector with superposition URL support ([#2359](https://github.com/juspay/connector-service/pull/2359)) ([`58cd39e`](https://github.com/juspay/connector-service/commit/58cd39ee863f87fd9a16e73fb13cc93a3446b9fa))
+
+**Full Changelog:** [`2026.09.24.2...2026.09.25.0`](https://github.com/juspay/connector-service/compare/2026.09.24.2...2026.09.25.0)
+
+- - -
+
 ## 2026.09.24.2
 
 ### Features
