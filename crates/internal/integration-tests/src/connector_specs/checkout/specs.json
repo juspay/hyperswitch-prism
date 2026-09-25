@@ -9,8 +9,7 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentMethodService/Tokenize",
-    "EventService/HandleEvent"
+    "PaymentMethodService/Tokenize"
   ],
   "supported_payment_methods": [
     "card",
