@@ -418,6 +418,7 @@ pub struct PayoutVendorDetails {
     pub business_profile_url: Option<Secret<String>>,
     pub business_profile_name: Option<Secret<String>>,
     pub statement_descriptor: Option<Secret<String>>,
+    pub company_owners_provided: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -431,6 +432,7 @@ pub struct PayoutIndividualDetails {
     pub dob_month: Option<Secret<String>>,
     pub dob_year: Option<Secret<String>>,
     pub tos_acceptance_ip: Option<Secret<String>>,
+    pub external_account_account_holder_type: Option<String>,
 }
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
@@ -517,6 +519,11 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("statement_descriptor"))
     }
 
+    pub fn get_company_owners_provided(&self) -> Option<bool> {
+        self.vendor_details()
+            .and_then(|v| v.company_owners_provided)
+    }
+
     pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
         self.individual_details()
             .and_then(|i| i.tos_acceptance_ip.clone())
@@ -582,6 +589,14 @@ impl PayoutEnrollDisburseAccountRequest {
             .and_then(|c| c.name.clone())
             .map(Secret::new)
     }
+
+    pub fn get_external_account_account_holder_type(&self) -> Result<String, Error> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.individual_details.as_ref())
+            .and_then(|i| i.external_account_account_holder_type.clone())
+            .ok_or_else(missing_field_err("external_account_account_holder_type"))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -602,6 +617,8 @@ pub struct PayoutEnrollDisburseAccountRequest {
     pub payout_method_data: Option<PayoutMethodData>,
 
     pub customer: Option<PayoutCustomer>,
+
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
 
 #[derive(Debug, Clone)]

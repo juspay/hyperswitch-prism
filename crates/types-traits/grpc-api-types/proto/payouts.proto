@@ -595,6 +595,8 @@ message VendorDetails {
   optional SecretString business_profile_name = 4;
   // Statement descriptor for payments
   optional SecretString statement_descriptor = 5;
+  // Whether the company's owners have been provided (Stripe Connect)
+  optional bool company_owners_provided = 6;
 }
 
 // Individual / KYC details for the connected account
@@ -617,6 +619,8 @@ message IndividualDetails {
   optional SecretString dob_year = 8;
   // TOS acceptance IP address
   optional SecretString tos_acceptance_ip = 9;
+  // Account holder type for the external bank account (e.g. "individual" or "company")
+  optional string external_account_account_holder_type = 10;
 }
 
 // Response message for creating recipient account
@@ -654,6 +658,9 @@ message PayoutServiceEnrollDisburseAccountRequest {
   optional string merchant_request_id = 7;
   // Connector Payout ID (e.g., Stripe account ID "acct_xxx")
   optional string connector_payout_id = 8;
+  // Vendor (business) and individual (KYC) onboarding details, e.g. the Stripe
+  // Connect external account holder type
+  optional PayoutVendorAccountDetails vendor_account_details = 9;
 }
 
 // Response message for enrolling disburse account

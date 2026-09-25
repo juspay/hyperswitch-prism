@@ -80,10 +80,6 @@ impl From<StripeConnectPayoutStatus> for common_enums::PayoutStatus {
     }
 }
 
-fn stripe_currency_string(currency: common_enums::Currency) -> String {
-    currency.to_string().to_lowercase()
-}
-
 const STRIPE_ACCOUNT_TYPE_INDIVIDUAL: &str = "individual";
 const STRIPE_ACCOUNT_TYPE_COMPANY: &str = "company";
 const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
@@ -96,7 +92,7 @@ const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
 pub struct StripeConnectPayoutCreateRequest {
     pub amount: MinorUnit,
 
-    pub currency: String,
+    pub currency: common_enums::Currency,
 
     pub destination: String,
     pub transfer_group: Option<String>,
@@ -120,8 +116,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(request.amount, request.source_currency)?;
-        let currency = stripe_currency_string(request.source_currency);
+        let amount = StripeAmountConvertor::convert(request.amount, request.destination_currency)?;
+        let currency = request.destination_currency;
 
         let destination = request
             .customer
@@ -196,7 +192,7 @@ impl TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
 pub struct StripeConnectPayoutFulfillRequest {
     pub amount: MinorUnit,
 
-    pub currency: String,
+    pub currency: common_enums::Currency,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -227,8 +223,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(request.amount, request.source_currency)?;
-        let currency = stripe_currency_string(request.source_currency);
+        let amount = StripeAmountConvertor::convert(request.amount, request.destination_currency)?;
+        let currency = request.destination_currency;
         Ok(Self { amount, currency })
     }
 }
@@ -407,6 +403,9 @@ pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "company[tax_id]")]
     pub company_tax_id: Option<Secret<String>>,
 
+    #[serde(rename = "company[owners_provided]")]
+    pub company_owners_provided: Option<bool>,
+
     #[serde(rename = "individual[first_name]")]
     pub individual_first_name: Option<Secret<String>>,
 
@@ -479,7 +478,7 @@ pub struct RecipientBankAccountRequest {
     pub external_account_country: common_enums::CountryAlpha2,
 
     #[serde(rename = "external_account[currency]")]
-    pub external_account_currency: String,
+    pub external_account_currency: common_enums::Currency,
 
     #[serde(rename = "external_account[account_holder_name]")]
     pub external_account_account_holder_name: Secret<String>,
@@ -610,6 +609,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             company_address_state: addr_state.clone().filter(|_| is_company),
             company_phone: is_company.then(|| phone.clone()),
             company_tax_id: id_number.clone().filter(|_| is_company),
+            company_owners_provided: request.get_company_owners_provided(),
 
             individual_first_name: first_name,
             individual_last_name: last_name,
@@ -709,7 +709,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         },
                     })
                 })?;
-                let currency = stripe_currency_string(request.source_currency);
+                let currency = request.source_currency;
                 let account_holder_name = request.get_customer_name().ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
                         field_name: "customer.name",
@@ -729,10 +729,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     external_account_country: country,
                     external_account_currency: currency,
                     external_account_account_holder_name: account_holder_name,
-                    // The enroll request carries no account holder type, so this mirrors
-                    // the payin ACH flow's hardcoded "individual".
-                    external_account_account_holder_type: STRIPE_ACCOUNT_TYPE_INDIVIDUAL
-                        .to_string(),
+                    external_account_account_holder_type: request
+                        .get_external_account_account_holder_type()?,
                     external_account_account_number: ach.bank_account_number.clone(),
                     external_account_routing_number: ach.bank_routing_number.clone(),
                 }))
