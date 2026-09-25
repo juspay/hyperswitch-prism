@@ -297,9 +297,6 @@ pub use self::moneris::Moneris;
 pub mod etisalat;
 pub use self::etisalat::Etisalat;
 
-pub mod kount;
-pub use self::kount::Kount;
-
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
 
