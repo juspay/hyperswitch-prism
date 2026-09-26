@@ -6,16 +6,7 @@
   "connectors": {
     "absa_sanlam": {},
     "affirm": {},
-    "authipay": {
-      "reason": "certification run exited with no per-scenario output on first graduation attempt \u2014 the full test suite run failed before writing a report (timeout or crash); root cause needs investigation before certification can succeed"
-    },
-    "authorizedotnet": {
-      "reason": "certification run exited with no per-scenario output on first graduation attempt \u2014 the full test suite run failed before writing a report (timeout or crash); root cause needs investigation before certification can succeed"
-    },
     "axisbank": {},
-    "bankofamerica": {
-      "reason": "certification run exited with no per-scenario output on first graduation attempt \u2014 the full test suite run failed before writing a report (timeout or crash); root cause needs investigation before certification can succeed"
-    },
     "bluesnap": {},
     "boost": {},
     "braintree": {},
