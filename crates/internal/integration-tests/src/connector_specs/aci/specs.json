@@ -22,38 +22,38 @@
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "ACI 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for ACI",
       "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for ACI",
-      "no3ds_auto_capture_alipay": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_eps": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_giropay": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_ideal": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_klarna": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_przelewy24": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_fail_payment": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "no3ds_auto_capture_alipay": "ACI AliPay requires the sandbox account to have AliPay enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_credit_card": "ACI sandbox uses payment-entity-specific test cards; the global test card 4111111111111111 may not be enabled on this entity — verify against ACI sandbox credentials and add a card override if a different test card is required",
+      "no3ds_auto_capture_debit_card": "ACI sandbox uses payment-entity-specific test cards; the global test card 4111111111111111 may not be enabled on this entity — verify against ACI sandbox credentials and add a card override if a different test card is required",
+      "no3ds_auto_capture_eps": "ACI EPS requires the sandbox account to have EPS enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_giropay": "ACI Giropay requires the sandbox account to have Giropay enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_ideal": "ACI iDEAL requires the sandbox account to have iDEAL enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_klarna": "ACI Klarna requires the sandbox account to have Klarna enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_przelewy24": "ACI Przelewy24 requires the sandbox account to have P24 enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_fail_payment": "ACI sandbox uses a payment-entity-specific decline card; the global decline card 4000000000000002 may not trigger a decline on this entity — add an ACI-specific decline card override once the correct card number is confirmed",
+      "no3ds_manual_capture_credit_card": "ACI sandbox uses payment-entity-specific test cards; the global test card 4111111111111111 may not be enabled on this entity — verify against ACI sandbox credentials and add a card override if a different test card is required",
+      "no3ds_manual_capture_debit_card": "ACI sandbox uses payment-entity-specific test cards; the global test card 4111111111111111 may not be enabled on this entity — verify against ACI sandbox credentials and add a card override if a different test card is required"
     },
     "PaymentService/Capture": {
-      "capture_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_with_merchant_order_id": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "capture_full_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification",
+      "capture_partial_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification",
+      "capture_with_merchant_order_id": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification"
     },
     "PaymentService/Refund": {
-      "refund_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_with_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "refund_full_amount": "depends on no3ds_auto_capture_credit_card authorize which is pending test card verification",
+      "refund_partial_amount": "depends on no3ds_auto_capture_credit_card authorize which is pending test card verification",
+      "refund_with_reason": "depends on no3ds_auto_capture_credit_card authorize which is pending test card verification"
     },
     "PaymentService/SetupRecurring": {
-      "PaymentService/SetupRecurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_order_context": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_webhook": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "PaymentService/SetupRecurring": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring_with_order_context": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring_with_webhook": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first"
     },
     "PaymentService/Void": {
-      "void_authorized_payment": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_with_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_without_cancellation_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "void_authorized_payment": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification",
+      "void_with_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification",
+      "void_without_cancellation_reason": "depends on no3ds_manual_capture_credit_card authorize which is pending test card verification"
     }
   }
 }

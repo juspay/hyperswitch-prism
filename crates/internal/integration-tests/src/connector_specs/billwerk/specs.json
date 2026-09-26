@@ -19,37 +19,37 @@
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "Billwerk 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for Billwerk",
       "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Billwerk",
-      "no3ds_auto_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_fail_payment": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "no3ds_auto_capture_credit_card": "Billwerk Authorize hard-rejects raw card data at the transformer level (NotSupported error); a PaymentMethodToken from PaymentMethodService/Tokenize is required as the payment source — enable once Tokenize scenarios are verified",
+      "no3ds_auto_capture_debit_card": "Billwerk Authorize hard-rejects raw card data at the transformer level (NotSupported error); a PaymentMethodToken from PaymentMethodService/Tokenize is required as the payment source — enable once Tokenize scenarios are verified",
+      "no3ds_fail_payment": "Billwerk Authorize hard-rejects raw card data at the transformer level (NotSupported error); a PaymentMethodToken is required — cannot test decline scenario with raw card",
+      "no3ds_manual_capture_credit_card": "Billwerk Authorize hard-rejects raw card data at the transformer level (NotSupported error); a PaymentMethodToken from PaymentMethodService/Tokenize is required as the payment source — enable once Tokenize scenarios are verified",
+      "no3ds_manual_capture_debit_card": "Billwerk Authorize hard-rejects raw card data at the transformer level (NotSupported error); a PaymentMethodToken from PaymentMethodService/Tokenize is required as the payment source — enable once Tokenize scenarios are verified"
     },
     "PaymentMethodService/Tokenize": {
-      "tokenize_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "tokenize_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "tokenize_with_metadata": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "tokenize_credit_card": "Billwerk Tokenize calls /v2/cards with the public API key (pkey); failed on first certification run — verify that the CI credentials include pkey and that the sandbox account has card tokenization enabled",
+      "tokenize_debit_card": "Billwerk Tokenize calls /v2/cards with the public API key (pkey); failed on first certification run — verify that the CI credentials include pkey and that the sandbox account has card tokenization enabled",
+      "tokenize_with_metadata": "Billwerk Tokenize calls /v2/cards with the public API key (pkey); failed on first certification run — verify that the CI credentials include pkey and that the sandbox account has card tokenization enabled"
     },
     "PaymentService/Capture": {
-      "capture_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_with_merchant_order_id": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "capture_full_amount": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first",
+      "capture_partial_amount": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first",
+      "capture_with_merchant_order_id": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first"
     },
     "PaymentService/Refund": {
-      "refund_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_with_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "refund_full_amount": "depends on no3ds_auto_capture_credit_card authorize which requires a working Tokenize flow first",
+      "refund_partial_amount": "depends on no3ds_auto_capture_credit_card authorize which requires a working Tokenize flow first",
+      "refund_with_reason": "depends on no3ds_auto_capture_credit_card authorize which requires a working Tokenize flow first"
     },
     "PaymentService/SetupRecurring": {
-      "PaymentService/SetupRecurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_order_context": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_webhook": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "PaymentService/SetupRecurring": "Billwerk SetupRecurring also requires a PaymentMethodToken source; depends on Tokenize working first",
+      "setup_recurring": "Billwerk SetupRecurring also requires a PaymentMethodToken source; depends on Tokenize working first",
+      "setup_recurring_with_order_context": "Billwerk SetupRecurring also requires a PaymentMethodToken source; depends on Tokenize working first",
+      "setup_recurring_with_webhook": "Billwerk SetupRecurring also requires a PaymentMethodToken source; depends on Tokenize working first"
     },
     "PaymentService/Void": {
-      "void_authorized_payment": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_with_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_without_cancellation_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "void_authorized_payment": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first",
+      "void_with_amount": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first",
+      "void_without_cancellation_reason": "depends on no3ds_manual_capture_credit_card authorize which requires a working Tokenize flow first"
     }
   }
 }

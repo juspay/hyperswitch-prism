@@ -9,7 +9,7 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -416,8 +416,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BamboraPaymentsRespon
             }
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // Bambora signals decline via approved="0" with a human-readable message.
+        // Surface declined payments as Err(ErrorResponse) so harness assertions on
+        // error.must_exist and error.connector_details.message work correctly.
+        let response = if is_approved {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -429,7 +432,27 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BamboraPaymentsRespon
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.message_id.clone(),
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -588,8 +611,8 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
             }
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if is_approved {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -601,7 +624,27 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.message_id.clone(),
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data

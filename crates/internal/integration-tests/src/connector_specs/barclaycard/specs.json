@@ -20,34 +20,10 @@
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "Barclaycard 3DS is handled via the PaymentMethodAuthenticationService suites (PreAuthenticate/Authenticate/PostAuthenticate); the standalone threeds scenario which expects browser-based redirect is not applicable",
       "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Barclaycard",
-      "no3ds_auto_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_auto_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_credit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "no3ds_manual_capture_debit_card": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "no3ds_fail_payment": "Barclaycard sandbox decline card is not the global 4000000000000002; a Barclaycard-specific decline card number must be configured in override.json once verified against the CI sandbox credentials"
     },
     "PaymentMethodAuthenticationService/PostAuthenticate": {
-      "threeds_card_post_authenticate": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
-    },
-    "PaymentService/Capture": {
-      "capture_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "capture_with_merchant_order_id": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
-    },
-    "PaymentService/Refund": {
-      "refund_full_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_partial_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "refund_with_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
-    },
-    "PaymentService/SetupRecurring": {
-      "PaymentService/SetupRecurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_order_context": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "setup_recurring_with_webhook": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
-    },
-    "PaymentService/Void": {
-      "void_authorized_payment": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_with_amount": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification",
-      "void_without_cancellation_reason": "initial certification run failed on first sandbox run after alpha graduation \u2014 sandbox test-data or account configuration needs investigation; to be re-enabled in a follow-up PR after individual verification"
+      "threeds_card_post_authenticate": "PostAuthenticate requires a live 3DS flow (PreAuthenticate → Authenticate → PostAuthenticate) that depends on a prior redirect from the ACS; cannot be tested in isolation without browser automation"
     }
   }
 }
