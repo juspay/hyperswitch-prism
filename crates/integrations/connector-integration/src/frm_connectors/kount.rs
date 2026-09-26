@@ -45,7 +45,7 @@ use transformers::{
     KountUpdateOrderRequest,
 };
 
-use super::macros;
+use super::super::connectors::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -356,43 +356,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // AGGREGATE + BASE (NON-FLOW) TRAITS
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for Kount<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Kount<T>
 {
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
-
-    fn next_authentication_step(
-        &self,
-        _auth_type: common_enums::AuthenticationType,
-        _payment_method: common_enums::PaymentMethod,
-        _redirect_state: connector_types::RedirectState,
-        _completed_step: Option<connector_types::AuthenticationStep>,
-    ) -> connector_types::AuthenticationStep {
-        // Kount only runs PreAuthenticate (DDC); the composite loop breaks once
-        // the DDC `redirection_data` is present. FRM risk checks run separately
-        // via the FraudAndRiskManagementService composite flow.
-        connector_types::AuthenticationStep::PreAuthenticate
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Kount<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyRedirectResponse for Kount<T>
-{
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Kount<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::IncomingWebhook for Kount<T>
 {
 }
 
@@ -413,13 +390,6 @@ macros::macro_connector_local_flow_implementation!(
     other_functions: {
         validate_request: kount::validate_pre_authenticate_request,
     }
-);
-
-// ===== PAYOUT (no-op) IMPLEMENTATIONS =====
-crate::connectors::macros::macro_connector_payout_implementation!(
-    connector: Kount,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
 // ===== NOT-IMPLEMENTED PAYMENT FLOW STUBS =====
