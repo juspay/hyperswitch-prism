@@ -158,9 +158,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Calida<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Calida<T>,
+    flow:      Authorize,
+    source:    CalidaPaymentStatus,
+    success:   Completed        => Charged,
+    failure:   Failed           => Failure,
+    {
+        Pending          => AuthenticationPending,
+        PaymentInitiated => AuthenticationPending,
+        ManualProcessing => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Calida<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Calida<T>,
+    flow:      PSync,
+    source:    CalidaPaymentStatus,
+    success:   Completed        => Charged,
+    failure:   Failed           => Failure,
+    {
+        Pending          => AuthenticationPending,
+        PaymentInitiated => AuthenticationPending,
+        ManualProcessing => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Calida<T>

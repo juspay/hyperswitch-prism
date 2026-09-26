@@ -1556,6 +1556,30 @@ impl PaymentFlowData {
     }
 }
 
+impl<F: crate::flow_status::FlowStatusRules>
+    crate::flow_status::FlowStatusSetter<F, AttemptStatus> for PaymentFlowData
+{
+    fn set_mapped_flow_status(
+        &mut self,
+        status: AttemptStatus,
+    ) -> Result<(), crate::ConnectorError> {
+        if crate::flow_status::const_contains(F::ALLOWED, status) {
+            self.status = status;
+            Ok(())
+        } else {
+            Err(
+                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(format!(
+                        "status {:?} is not allowed in flow {}",
+                        status,
+                        F::NAME,
+                    )),
+                ),
+            )
+        }
+    }
+}
+
 impl RawConnectorRequestResponse for PaymentFlowData {
     fn set_raw_connector_response(&mut self, response: Option<Secret<String>>) {
         self.raw_connector_response = response;
@@ -2965,6 +2989,30 @@ impl RefundFlowData {
     ) -> Self {
         self.access_token = access_token;
         self
+    }
+}
+
+impl<F: crate::flow_status::RefundFlowStatusRules>
+    crate::flow_status::FlowStatusSetter<F, common_enums::RefundStatus> for RefundFlowData
+{
+    fn set_mapped_flow_status(
+        &mut self,
+        status: common_enums::RefundStatus,
+    ) -> Result<(), crate::ConnectorError> {
+        if F::ALLOWED.contains(&status) {
+            self.status = status;
+            Ok(())
+        } else {
+            Err(
+                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(format!(
+                        "refund status {:?} is not allowed in flow {}",
+                        status,
+                        std::any::type_name::<F>(),
+                    )),
+                ),
+            )
+        }
     }
 }
 

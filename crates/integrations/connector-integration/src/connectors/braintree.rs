@@ -193,29 +193,166 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Braintree<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      Authorize,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Authorized           => Authorized,
+    failure:   Failed               => Failure,
+    {
+        Authorizing           => Authorizing,
+        AuthorizedExpired     => AuthorizationFailed,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        SettlementDeclined    => Failure,
+        Voided                => Voided,
+        Settling              => Charged,
+        Settled               => Charged,
+        SettlementPending     => Charged,
+        SettlementConfirmed   => Charged,
+        SubmittedForSettlement => Charged,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      PSync,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Settled              => Charged,
+    failure:   Failed               => Failure,
+    {
+        Authorized            => Authorized,
+        Authorizing           => Authorizing,
+        AuthorizedExpired     => AuthorizationFailed,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        Voided                => Voided,
+        Settling              => Charged,
+        SettlementPending     => Charged,
+        SettlementDeclined    => CaptureFailed,
+        SettlementConfirmed   => Charged,
+        SubmittedForSettlement => Charged,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Braintree<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      Void,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Voided               => Voided,
+    failure:   Failed               => Failure,
+    {
+        Authorized            => VoidInitiated,
+        Authorizing           => VoidInitiated,
+        AuthorizedExpired     => Failure,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        Settling              => VoidFailed,
+        Settled               => VoidFailed,
+        SettlementPending     => VoidFailed,
+        SettlementDeclined    => Failure,
+        SettlementConfirmed   => VoidFailed,
+        SubmittedForSettlement => VoidFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      VoidPC,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Voided               => VoidedPostCapture,
+    failure:   Failed               => Failure,
+    {
+        Authorized            => Pending,
+        Authorizing           => Pending,
+        AuthorizedExpired     => Failure,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        Settling              => Pending,
+        Settled               => Failure,
+        SettlementPending     => Pending,
+        SettlementDeclined    => Failure,
+        SettlementConfirmed   => Failure,
+        SubmittedForSettlement => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Braintree<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      RSync,
+    source:    braintree::BraintreeRefundStatus,
+    success:   Settled              => Success,
+    failure:   Failed               => Failure,
+    {
+        SettlementPending     => Success,
+        Settling              => Success,
+        SubmittedForSettlement => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Braintree<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      Refund,
+    source:    braintree::BraintreeRefundStatus,
+    success:   Settled              => Success,
+    failure:   Failed               => Failure,
+    {
+        SettlementPending     => Success,
+        Settling              => Success,
+        SubmittedForSettlement => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      Capture,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Settled              => Charged,
+    failure:   SettlementDeclined   => CaptureFailed,
+    {
+        Authorized            => Pending,
+        Authorizing           => Pending,
+        AuthorizedExpired     => CaptureFailed,
+        Failed                => Failure,
+        ProcessorDeclined     => CaptureFailed,
+        GatewayRejected       => CaptureFailed,
+        Voided                => CaptureFailed,
+        Settling              => Charged,
+        SettlementPending     => Charged,
+        SettlementConfirmed   => Charged,
+        SubmittedForSettlement => Charged,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Braintree<T>
@@ -233,9 +370,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         matches!(payment_method, PaymentMethod::Card)
     }
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      RepeatPayment,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Settled              => Charged,
+    failure:   Failed               => Failure,
+    {
+        Authorized            => Pending,
+        Authorizing           => Pending,
+        AuthorizedExpired     => AuthorizationFailed,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        Voided                => Failure,
+        Settling              => Pending,
+        SettlementPending     => Pending,
+        SettlementDeclined    => Failure,
+        SettlementConfirmed   => Charged,
+        SubmittedForSettlement => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow:      SetupMandate,
+    source:    braintree::BraintreePaymentStatus,
+    success:   Settled              => Charged,
+    failure:   Failed               => Failure,
+    {
+        Authorized            => Pending,
+        Authorizing           => Pending,
+        AuthorizedExpired     => AuthorizationFailed,
+        ProcessorDeclined     => Failure,
+        GatewayRejected       => Failure,
+        Voided                => Failure,
+        Settling              => Pending,
+        SettlementPending     => Pending,
+        SettlementDeclined    => Failure,
+        SettlementConfirmed   => Charged,
+        SubmittedForSettlement => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Braintree<T>
