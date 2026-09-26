@@ -9,6 +9,29 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentMethodService/Tokenize"
-  ]
+    "PaymentMethodService/Tokenize",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_encrypted"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "Checkout 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for checkout",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Checkout",
+      "no3ds_fail_payment": "Checkout maps the global decline card (4000000000000002) to response_code 20051 (Insufficient Funds) whose message does not contain 'decline' \u2014 needs a Checkout-specific decline card override and updated assertion; tracked for follow-up"
+    },
+    "PaymentMethodService/Tokenize": {
+      "tokenize_credit_card": "sandbox test account may not have card tokenization enabled; tokenize_fail_* scenarios pass correctly",
+      "tokenize_debit_card": "sandbox test account may not have card tokenization enabled; tokenize_fail_* scenarios pass correctly",
+      "tokenize_with_metadata": "sandbox test account may not have card tokenization enabled; tokenize_fail_* scenarios pass correctly"
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "webhook testing newly added; needs verification that CI credentials include checkout's webhook_secret and that cko-signature HMAC-SHA256-hex payload matches sandbox format",
+      "payment_failed": "webhook testing newly added; needs verification that CI credentials include checkout's webhook_secret and that cko-signature HMAC-SHA256-hex payload matches sandbox format",
+      "refund_succeeded": "webhook testing newly added; needs verification that CI credentials include checkout's webhook_secret and that cko-signature HMAC-SHA256-hex payload matches sandbox format",
+      "invalid_signature": "webhook testing newly added; needs verification that CI credentials include checkout's webhook_secret and that cko-signature HMAC-SHA256-hex payload matches sandbox format"
+    }
+  }
 }

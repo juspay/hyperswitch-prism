@@ -39,6 +39,7 @@ pub fn generate_signature(
         "stripe" => generate_stripe_signature(payload, secret, ctx.timestamp),
         "adyen" => generate_adyen_signature(),
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
+        "checkout" => generate_checkout_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
         _ => Err(format!("Unsupported connector: {}", connector)),
@@ -156,6 +157,30 @@ fn generate_authorizedotnet_signature(payload: &[u8], secret: &str) -> Result<St
     }
 
     Ok(format!("sha512={}", hex_signature))
+}
+
+/// Generate Checkout.com webhook signature
+///
+/// Checkout.com uses HMAC-SHA256 with lowercase hex encoding on the raw body.
+/// Header: cko-signature: <hex>
+fn generate_checkout_signature(payload: &[u8], secret: &str) -> Result<String, String> {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    type HmacSha256 = Hmac<Sha256>;
+
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|e| format!("Failed to create HMAC: {}", e))?;
+    mac.update(payload);
+    let signature_bytes = mac.finalize().into_bytes();
+
+    let mut hex_signature = String::with_capacity(signature_bytes.len() * 2);
+    for byte in signature_bytes {
+        write!(&mut hex_signature, "{:02x}", byte)
+            .map_err(|e| format!("Failed to write hex: {}", e))?;
+    }
+
+    Ok(hex_signature)
 }
 
 /// Generate PayPal webhook signature

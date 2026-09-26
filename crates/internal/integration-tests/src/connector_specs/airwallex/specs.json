@@ -12,5 +12,47 @@
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/SetupRecurring",
     "PaymentService/Void"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card",
+    "ideal",
+    "klarna"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "Airwallex 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for Airwallex",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Airwallex",
+      "no3ds_auto_capture_credit_card": "Airwallex Authorize requires a prior CreateOrder (payment intent) step; if the ServerAuthenticationToken or CreateOrder step fails on the CI sandbox account the authorize cannot proceed — verify account configuration and credentials format",
+      "no3ds_auto_capture_debit_card": "Airwallex Authorize requires a prior CreateOrder (payment intent) step; if the ServerAuthenticationToken or CreateOrder step fails on the CI sandbox account the authorize cannot proceed — verify account configuration and credentials format",
+      "no3ds_auto_capture_ideal": "Airwallex iDEAL requires the sandbox account to have iDEAL enabled; redirect-only flow — depends on CreateOrder succeeding first",
+      "no3ds_auto_capture_klarna": "Airwallex Klarna requires the sandbox account to have Klarna enabled; redirect-only flow — depends on CreateOrder succeeding first",
+      "no3ds_fail_payment": "Airwallex Authorize requires a prior CreateOrder step; depends on account configuration; the global decline card 4000000000000002 may also not map to a recognised Airwallex test decline",
+      "no3ds_manual_capture_credit_card": "Airwallex Authorize requires a prior CreateOrder (payment intent) step; if the ServerAuthenticationToken or CreateOrder step fails on the CI sandbox account the authorize cannot proceed — verify account configuration and credentials format",
+      "no3ds_manual_capture_debit_card": "Airwallex Authorize requires a prior CreateOrder (payment intent) step; if the ServerAuthenticationToken or CreateOrder step fails on the CI sandbox account the authorize cannot proceed — verify account configuration and credentials format"
+    },
+    "CustomerService/Create": {
+      "CustomerService/Create": "Airwallex CustomerCreate failed on first certification run; the /pa/customers/create endpoint may require additional account permissions not provisioned on the CI sandbox",
+      "create_customer": "Airwallex CustomerCreate failed on first certification run; the /pa/customers/create endpoint may require additional account permissions not provisioned on the CI sandbox"
+    },
+    "PaymentService/Capture": {
+      "capture_full_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "capture_partial_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "capture_with_merchant_order_id": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification"
+    },
+    "PaymentService/CreateOrder": {
+      "create_order_basic": "Airwallex CreateOrder (/pa/payment_intents/create) failed on first certification run; the endpoint may require specific account configuration or currency settings not available on the CI sandbox",
+      "create_order_with_metadata": "Airwallex CreateOrder (/pa/payment_intents/create) failed on first certification run; the endpoint may require specific account configuration or currency settings not available on the CI sandbox",
+      "create_order_with_payment_method_type": "Airwallex CreateOrder (/pa/payment_intents/create) failed on first certification run; the endpoint may require specific account configuration or currency settings not available on the CI sandbox"
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "depends on no3ds_auto_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "refund_partial_amount": "depends on no3ds_auto_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "refund_with_reason": "depends on no3ds_auto_capture_credit_card authorize which is pending CreateOrder/account verification"
+    },
+    "PaymentService/Void": {
+      "void_authorized_payment": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "void_with_amount": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification",
+      "void_without_cancellation_reason": "depends on no3ds_manual_capture_credit_card authorize which is pending CreateOrder/account verification"
+    }
+  }
 }

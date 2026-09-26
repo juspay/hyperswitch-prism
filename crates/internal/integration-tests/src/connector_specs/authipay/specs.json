@@ -8,5 +8,15 @@
     "RefundService/Get",
     "PaymentService/Void",
     "PaymentService/Reverse"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "Authipay 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for Authipay",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Authipay",
+      "no3ds_fail_payment": "Authipay (Fiserv IPG) sandbox decline card number is not the global 4000000000000002; a Fiserv-specific decline card must be confirmed against the CI sandbox credentials and added to override.json before enabling"
+    }
+  }
 }
