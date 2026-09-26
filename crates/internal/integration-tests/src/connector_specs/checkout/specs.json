@@ -19,7 +19,7 @@
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "Checkout 3DS requires a browser-based redirect flow; no browser_automation_spec.json is configured for checkout",
-      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not implemented for Checkout",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Checkout",
       "no3ds_fail_payment": "Checkout maps the global decline card (4000000000000002) to response_code 20051 (Insufficient Funds) whose message does not contain 'decline' \u2014 needs a Checkout-specific decline card override and updated assertion; tracked for follow-up"
     },
     "PaymentMethodService/Tokenize": {
