@@ -11,6 +11,7 @@ use common_utils::{
     consts::BASE64_ENGINE,
     crypto::{self, EncodeMessage, SignMessage},
     ext_traits::Encode,
+    ConnectorAmount,
 };
 use domain_types::{
     connector_flow::{
@@ -1218,6 +1219,12 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     >,
 ) -> Result<requests::RedsysStrongCustomerAuthenticationException, Error> {
     let request = &router_data.request;
+    let connector_amount = RedsysAmountConvertor::convert(request.amount, request.currency)?;
+    let exceeds_low_value_threshold = connector_amount
+        .is_greater_than_minor_unit(LWV_THRESHOLD_MINOR_UNITS, request.currency)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
     // 1. Explicit exemption requested
     if let Some(indicator) = request
         .authentication_data
@@ -1226,7 +1233,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     {
         return Ok(map_exemption_indicator(
             indicator,
-            !request.amount.is_greater_than(LWV_THRESHOLD_MINOR_UNITS),
+            !exceeds_low_value_threshold,
         ));
     }
     // 2. Auto-detect: MIT for stored credential payments
@@ -1242,7 +1249,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     }
     // 4. Default: amount-based
     // For Redsys, both LWV and TRA are capped at €30
-    if !request.amount.is_greater_than(LWV_THRESHOLD_MINOR_UNITS) {
+    if !exceeds_low_value_threshold {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
     } else {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Tra)

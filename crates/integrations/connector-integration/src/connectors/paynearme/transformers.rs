@@ -37,7 +37,7 @@
 //! [`apple_pay_not_supported`] and [`google_pay_not_supported`]).
 
 use common_enums::{AttemptStatus, AuthenticationType, Currency, FutureUsage, RefundStatus};
-use common_utils::{crypto::SignMessage, types::StringMajorUnit};
+use common_utils::{crypto::SignMessage, types::StringMajorUnit, ConnectorAmount};
 use domain_types::{
     connector_flow::{
         Authorize, CreateOrder, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
@@ -56,6 +56,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -896,7 +897,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `send_payment="true"` and would make this a payment, whose outcome this
         // flow does not report; ignoring the amount would leave the merchant
         // believing the card was charged. Refuse instead.
-        if request.minor_amount.is_some_and(|amount| !amount.is_zero()) {
+        let connector_amount = request
+            .minor_amount
+            .map(|amount| PaynearmeAmountConvertor::convert(amount, Currency::USD))
+            .transpose()?;
+        let has_non_zero_amount = connector_amount
+            .as_ref()
+            .map(ConnectorAmount::is_zero)
+            .transpose()
+            .change_context(IntegrationError::RequestEncodingFailed { context: context() })?
+            .is_some_and(|is_zero| !is_zero);
+        if has_non_zero_amount {
             return Err(not_supported("SetupMandate with a non-zero amount"));
         }
 

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency};
-use common_utils::types::StringMinorUnit;
+use common_utils::{types::StringMinorUnit, ConnectorAmount};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
@@ -1221,19 +1221,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Check if this is a partial refund
         // For partial refunds, include baseamount; for full refunds, omit it
-        let base_amount = if router_data.request.minor_refund_amount.is_positive() {
+        let converted_refund_amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let is_positive_refund = converted_refund_amount.is_positive().change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?;
+        let base_amount = if is_positive_refund {
             // Partial refund - include the amount
-            let amount = item
-                .connector
-                .amount_converter
-                .convert(
-                    router_data.request.minor_refund_amount,
-                    router_data.request.currency,
-                )
-                .map_err(|_| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
-                })?;
-            Some(amount)
+            Some(converted_refund_amount)
         } else {
             // Full refund - no amount needed
             None

@@ -35,6 +35,36 @@ pub trait AmountConvertor: Send {
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
 }
 
+/// Read-only operations supported by connector-facing amount representations.
+///
+/// Connector code obtains these values through an [`AmountConvertor`] or by
+/// deserializing a connector response. The trait deliberately exposes semantic
+/// checks instead of constructors or access to the wrapped value.
+pub trait ConnectorAmount: connector_amount_sealed::Sealed {
+    /// Returns true when the connector amount is positive.
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>>;
+
+    /// Returns true when the connector amount is zero.
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>>;
+
+    /// Compares this connector amount with a value expressed in minor units.
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>>;
+}
+
+mod connector_amount_sealed {
+    pub trait Sealed {}
+
+    impl Sealed for super::ConnectorMinorUnit {}
+    impl Sealed for super::StringMinorUnit {}
+    impl Sealed for super::FloatMajorUnit {}
+    impl Sealed for super::StringMajorUnit {}
+    impl Sealed for super::StringTwoDecimalUnit {}
+}
+
 /// Connector required amount type
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct StringMinorUnitForConnector;
@@ -160,6 +190,24 @@ impl AmountConvertor for MinorUnitForConnector {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub struct ConnectorMinorUnit(i64);
 
+impl ConnectorAmount for ConnectorMinorUnit {
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.0 > 0)
+    }
+
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.0 == 0)
+    }
+
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        _currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.0 > value)
+    }
+}
+
 impl Display for ConnectorMinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -213,19 +261,9 @@ impl MinorUnitProtoAccess for MinorUnit {
 }
 
 impl MinorUnit {
-    /// checks if the amount is greater than the given value
-    pub fn is_greater_than(&self, value: i64) -> bool {
-        self.0 > value
-    }
-
     /// Returns true if the amount is positive (> 0)
-    pub fn is_positive(&self) -> bool {
+    fn is_positive(&self) -> bool {
         self.0 > 0
-    }
-
-    /// Returns true when the amount is zero.
-    pub fn is_zero(&self) -> bool {
-        self.0 == 0
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -329,6 +367,24 @@ impl StringMinorUnit {
     }
 }
 
+impl ConnectorAmount for StringMinorUnit {
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64()?.0 > 0)
+    }
+
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64()?.0 == 0)
+    }
+
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        _currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64()?.0 > value)
+    }
+}
+
 impl Display for StringMinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -373,6 +429,24 @@ impl FloatMajorUnit {
     }
 }
 
+impl ConnectorAmount for FloatMajorUnit {
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.0 > 0.0)
+    }
+
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.0 == 0.0)
+    }
+
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
+    }
+}
+
 /// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct StringMajorUnit(String);
@@ -413,6 +487,34 @@ impl StringMajorUnit {
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
+    }
+}
+
+impl ConnectorAmount for StringMajorUnit {
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        let amount = Decimal::from_str(&self.0).map_err(|error| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: error.to_string(),
+            }
+        })?;
+        Ok(amount.is_sign_positive() && !amount.is_zero())
+    }
+
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        let amount = Decimal::from_str(&self.0).map_err(|error| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: error.to_string(),
+            }
+        })?;
+        Ok(amount.is_zero())
+    }
+
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
     }
 }
 
@@ -513,6 +615,32 @@ impl StringTwoDecimalUnit {
         let minor = i64::try_from(scaled / divisor)
             .map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit(minor))
+    }
+}
+
+impl ConnectorAmount for StringTwoDecimalUnit {
+    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        let amount = self.0.parse::<i128>().map_err(|_| {
+            error_stack::report!(ParsingError::StructParseFailure("two-decimal amount"))
+                .attach_printable(format!("`{}` is not an integer", self.0))
+        })?;
+        Ok(amount > 0)
+    }
+
+    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
+        let amount = self.0.parse::<i128>().map_err(|_| {
+            error_stack::report!(ParsingError::StructParseFailure("two-decimal amount"))
+                .attach_printable(format!("`{}` is not an integer", self.0))
+        })?;
+        Ok(amount == 0)
+    }
+
+    fn is_greater_than_minor_unit(
+        &self,
+        value: i64,
+        currency: enums::Currency,
+    ) -> Result<bool, error_stack::Report<ParsingError>> {
+        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
     }
 }
 

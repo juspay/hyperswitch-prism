@@ -4,7 +4,7 @@ use common_enums::{
 use common_utils::{
     collect_missing_value_keys,
     types::{MinorUnit, StringMajorUnit},
-    AmountConvertor,
+    AmountConvertor, ConnectorAmount,
 };
 use domain_types::{
     connector_flow::{
@@ -1350,9 +1350,13 @@ fn build_tsys_product_details(
             .clone()
             .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
         let priority = 1;
-        let has_discount = detail
-            .unit_discount_amount
-            .map(|amount| amount.is_positive())
+        let has_discount = unit_discount_amount
+            .as_ref()
+            .map(ConnectorAmount::is_positive)
+            .transpose()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?
             .unwrap_or(false);
         let stackable = if has_discount {
             TsysTransitYesNo::Yes
