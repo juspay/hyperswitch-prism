@@ -4301,12 +4301,15 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
     }
 }
 
+const ADYEN_FRAUD_CANCELLED_CODE: &str = "22";
+const ADYEN_FRAUD_CANCELLED_REASON: &str = "FRAUD-CANCELLED";
+
 fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
-    _refusal_reason_code: Option<&str>,
-    _refusal_reason: Option<&str>,
+    refusal_reason_code: Option<&str>,
+    refusal_reason: Option<&str>,
 ) -> AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
@@ -4316,7 +4319,12 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        AdyenStatus::Cancelled => AttemptStatus::Voided,
+        AdyenStatus::Cancelled => match (refusal_reason_code, refusal_reason) {
+            (Some(ADYEN_FRAUD_CANCELLED_CODE), _) | (_, Some(ADYEN_FRAUD_CANCELLED_REASON)) => {
+                AttemptStatus::Failure
+            }
+            _ => AttemptStatus::Voided,
+        },
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
