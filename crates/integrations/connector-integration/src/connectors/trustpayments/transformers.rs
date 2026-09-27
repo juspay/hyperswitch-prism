@@ -1231,7 +1231,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let is_positive_refund = converted_refund_amount.is_positive().change_context(
+        let is_positive_refund = converted_refund_amount.is_positive().ok_or(
             IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             },

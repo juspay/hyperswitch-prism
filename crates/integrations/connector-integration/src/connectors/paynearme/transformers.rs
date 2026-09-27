@@ -56,7 +56,6 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
-use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -903,9 +902,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .transpose()?;
         let has_non_zero_amount = connector_amount
             .as_ref()
-            .map(ConnectorAmount::is_zero)
-            .transpose()
-            .change_context(IntegrationError::RequestEncodingFailed { context: context() })?
+            .and_then(ConnectorAmount::is_zero)
             .is_some_and(|is_zero| !is_zero);
         if has_non_zero_amount {
             return Err(not_supported("SetupMandate with a non-zero amount"));

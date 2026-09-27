@@ -40,29 +40,15 @@ pub trait AmountConvertor: Send {
 /// Connector code obtains these values through an [`AmountConvertor`] or by
 /// deserializing a connector response. The trait deliberately exposes semantic
 /// checks instead of constructors or access to the wrapped value.
-pub trait ConnectorAmount: connector_amount_sealed::Sealed {
+pub trait ConnectorAmount {
     /// Returns true when the connector amount is positive.
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>>;
+    fn is_positive(&self) -> Option<bool>;
 
     /// Returns true when the connector amount is zero.
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>>;
+    fn is_zero(&self) -> Option<bool>;
 
     /// Compares this connector amount with a value expressed in minor units.
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>>;
-}
-
-mod connector_amount_sealed {
-    pub trait Sealed {}
-
-    impl Sealed for super::ConnectorMinorUnit {}
-    impl Sealed for super::StringMinorUnit {}
-    impl Sealed for super::FloatMajorUnit {}
-    impl Sealed for super::StringMajorUnit {}
-    impl Sealed for super::StringTwoDecimalUnit {}
+    fn is_greater_than_minor_unit(&self, value: i64, currency: enums::Currency) -> Option<bool>;
 }
 
 /// Connector required amount type
@@ -191,20 +177,16 @@ impl AmountConvertor for MinorUnitForConnector {
 pub struct ConnectorMinorUnit(i64);
 
 impl ConnectorAmount for ConnectorMinorUnit {
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.0 > 0)
+    fn is_positive(&self) -> Option<bool> {
+        Some(self.0 > 0)
     }
 
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.0 == 0)
+    fn is_zero(&self) -> Option<bool> {
+        Some(self.0 == 0)
     }
 
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        _currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.0 > value)
+    fn is_greater_than_minor_unit(&self, value: i64, _currency: enums::Currency) -> Option<bool> {
+        Some(self.0 > value)
     }
 }
 
@@ -368,20 +350,18 @@ impl StringMinorUnit {
 }
 
 impl ConnectorAmount for StringMinorUnit {
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64()?.0 > 0)
+    fn is_positive(&self) -> Option<bool> {
+        self.to_minor_unit_as_i64().ok().map(|amount| amount.0 > 0)
     }
 
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64()?.0 == 0)
+    fn is_zero(&self) -> Option<bool> {
+        self.to_minor_unit_as_i64().ok().map(|amount| amount.0 == 0)
     }
 
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        _currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64()?.0 > value)
+    fn is_greater_than_minor_unit(&self, value: i64, _currency: enums::Currency) -> Option<bool> {
+        self.to_minor_unit_as_i64()
+            .ok()
+            .map(|amount| amount.0 > value)
     }
 }
 
@@ -430,20 +410,18 @@ impl FloatMajorUnit {
 }
 
 impl ConnectorAmount for FloatMajorUnit {
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.0 > 0.0)
+    fn is_positive(&self) -> Option<bool> {
+        Some(self.0 > 0.0)
     }
 
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.0 == 0.0)
+    fn is_zero(&self) -> Option<bool> {
+        Some(self.0 == 0.0)
     }
 
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
+    fn is_greater_than_minor_unit(&self, value: i64, currency: enums::Currency) -> Option<bool> {
+        self.to_minor_unit_as_i64(currency)
+            .ok()
+            .map(|amount| amount.0 > value)
     }
 }
 
@@ -491,30 +469,22 @@ impl StringMajorUnit {
 }
 
 impl ConnectorAmount for StringMajorUnit {
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        let amount = Decimal::from_str(&self.0).map_err(|error| {
-            ParsingError::StringToDecimalConversionFailure {
-                error: error.to_string(),
-            }
-        })?;
-        Ok(amount.is_sign_positive() && !amount.is_zero())
+    fn is_positive(&self) -> Option<bool> {
+        Decimal::from_str(&self.0)
+            .ok()
+            .map(|amount| amount.is_sign_positive() && !amount.is_zero())
     }
 
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        let amount = Decimal::from_str(&self.0).map_err(|error| {
-            ParsingError::StringToDecimalConversionFailure {
-                error: error.to_string(),
-            }
-        })?;
-        Ok(amount.is_zero())
+    fn is_zero(&self) -> Option<bool> {
+        Decimal::from_str(&self.0)
+            .ok()
+            .map(|amount| amount.is_zero())
     }
 
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
+    fn is_greater_than_minor_unit(&self, value: i64, currency: enums::Currency) -> Option<bool> {
+        self.to_minor_unit_as_i64(currency)
+            .ok()
+            .map(|amount| amount.0 > value)
     }
 }
 
@@ -619,28 +589,18 @@ impl StringTwoDecimalUnit {
 }
 
 impl ConnectorAmount for StringTwoDecimalUnit {
-    fn is_positive(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        let amount = self.0.parse::<i128>().map_err(|_| {
-            error_stack::report!(ParsingError::StructParseFailure("two-decimal amount"))
-                .attach_printable(format!("`{}` is not an integer", self.0))
-        })?;
-        Ok(amount > 0)
+    fn is_positive(&self) -> Option<bool> {
+        self.0.parse::<i128>().ok().map(|amount| amount > 0)
     }
 
-    fn is_zero(&self) -> Result<bool, error_stack::Report<ParsingError>> {
-        let amount = self.0.parse::<i128>().map_err(|_| {
-            error_stack::report!(ParsingError::StructParseFailure("two-decimal amount"))
-                .attach_printable(format!("`{}` is not an integer", self.0))
-        })?;
-        Ok(amount == 0)
+    fn is_zero(&self) -> Option<bool> {
+        self.0.parse::<i128>().ok().map(|amount| amount == 0)
     }
 
-    fn is_greater_than_minor_unit(
-        &self,
-        value: i64,
-        currency: enums::Currency,
-    ) -> Result<bool, error_stack::Report<ParsingError>> {
-        Ok(self.to_minor_unit_as_i64(currency)?.0 > value)
+    fn is_greater_than_minor_unit(&self, value: i64, currency: enums::Currency) -> Option<bool> {
+        self.to_minor_unit_as_i64(currency)
+            .ok()
+            .map(|amount| amount.0 > value)
     }
 }
 

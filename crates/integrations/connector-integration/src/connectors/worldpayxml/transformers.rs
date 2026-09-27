@@ -1363,11 +1363,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .transpose()?;
         let is_non_zero_setup = connector_amount
             .as_ref()
-            .map(ConnectorAmount::is_positive)
-            .transpose()
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?
+            .and_then(ConnectorAmount::is_positive)
             .unwrap_or(false);
         if is_non_zero_setup {
             return Err(IntegrationError::FlowNotSupported {

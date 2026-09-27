@@ -1222,7 +1222,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     let connector_amount = RedsysAmountConvertor::convert(request.amount, request.currency)?;
     let exceeds_low_value_threshold = connector_amount
         .is_greater_than_minor_unit(LWV_THRESHOLD_MINOR_UNITS, request.currency)
-        .change_context(IntegrationError::RequestEncodingFailed {
+        .ok_or(IntegrationError::RequestEncodingFailed {
             context: Default::default(),
         })?;
     // 1. Explicit exemption requested
