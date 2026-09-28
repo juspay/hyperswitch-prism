@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.1
+
+### Bug Fixes
+
+- **connectors:** Align production shadow parity ([#2372](https://github.com/juspay/connector-service/pull/2372)) ([`e2eebec`](https://github.com/juspay/connector-service/commit/e2eebec883ce35db623417260cca5ba7ef53fc76))
+
+**Full Changelog:** [`2026.09.28.0...2026.09.28.1`](https://github.com/juspay/connector-service/compare/2026.09.28.0...2026.09.28.1)
+
+- - -
+
 ## 2026.09.28.0
 
 ### Miscellaneous Tasks
