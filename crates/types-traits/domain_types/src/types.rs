@@ -2555,9 +2555,9 @@ impl<
                                     serde_json::from_str(details.peek())
                                         .map(Secret::new)
                                         .map_err(|error| {
-                                            tracing::warn!(
+                                            tracing::error!(
                                                 ?error,
-                                                "Failed to parse Trustly additional_details; continuing without it"
+                                                "Failed to parse Trustly additional_details; the saved account cannot be charged and the customer will be asked to select their bank again"
                                             );
                                         })
                                         .ok()

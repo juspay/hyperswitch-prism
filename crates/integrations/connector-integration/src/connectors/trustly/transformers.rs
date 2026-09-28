@@ -292,11 +292,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     })?;
                 let uuid = common_utils::fp_utils::generate_uuid_v4();
-                let account_id = additional_details
-                    .as_ref()
-                    .and_then(|details| details.peek().get("account_id"))
-                    .and_then(|aid| aid.as_str())
-                    .map(|s| s.to_string());
+                let account_id = additional_details.as_ref().and_then(|details| {
+                    let account_id = details
+                        .peek()
+                        .get("account_id")
+                        .and_then(|account_id| account_id.as_str())
+                        .map(|account_id| account_id.to_string());
+
+                    if account_id.is_none() {
+                        tracing::error!(
+                            "Trustly additional_details carried no readable account_id; the saved account cannot be charged and the customer will be asked to select their bank again"
+                        );
+                    }
+
+                    account_id
+                });
                 let attributes = TrustlyPaymentRequestAttributes {
                     account_i_d: account_id.map(Secret::new),
                     amount: item
@@ -978,7 +988,8 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
 // Trustly can send more than the trailing four characters in `lastdigits`, so keep only the
 // last four digits before propagating them as the bank account's last digits.
 fn extract_bank_last_digits(lastdigits: &str) -> Option<Secret<String>> {
-    let digits = lastdigits
+    let digits: String = lastdigits
+        .trim()
         .chars()
         .rev()
         .take(BANK_LAST_DIGITS_LEN)
@@ -987,7 +998,7 @@ fn extract_bank_last_digits(lastdigits: &str) -> Option<Secret<String>> {
         .rev()
         .collect();
 
-    Some(Secret::new(digits))
+    (!digits.is_empty()).then(|| Secret::new(digits))
 }
 
 pub fn extract_returned_bank_details(
