@@ -60,6 +60,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R10 **Disk guard** before S4, S4z and each S5 build: if free space < `MIN_FREE_GB_RUNTIME` (20), re-run the 2.0 cleanup; if still low, stop at the stage boundary (resumable).
 - R11 **Autonomous**: no questions; every ambiguity is decided and recorded in the stage's `decisions.md`.
 - R12 **Process ownership**: kill only PIDs recorded in this run dir whose `/proc/<pid>/exe` is under this repo.
+- R13 **Context economy.** Every call re-sends everything this spawn has accumulated, so a lookup costs the whole pile, not the few KB it returns — in one measured run 96.6% of all tokens were context re-sent, and 21% of reads were of a file already in context. Two habits, both free: **(a)** issue independent lookups in **one** message — files you already know you need, a status and a diff, several `jq` projections — and never batch a call whose input depends on a previous result; **(b)** do not re-read a file you have already read in this spawn **unless something changed it since** — your own edit, another stage, a generator, a `make` target. That exception is load-bearing: a stale belief about a file you then edit costs far more than the re-read.
 
 How they apply here: **R2** `__hs__` also runs in background (it writes only `hs-wt`). **R4** `snapshot` writes
 objects and `refs/grace/<run_id>/*`, never a branch; one carve-out, the `no_op` restore ("## Final status and

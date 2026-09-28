@@ -19,6 +19,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.1
+
+### Bug Fixes
+
+- **connectors:** Align production shadow parity ([#2372](https://github.com/juspay/connector-service/pull/2372)) ([`e2eebec`](https://github.com/juspay/connector-service/commit/e2eebec883ce35db623417260cca5ba7ef53fc76))
+
+**Full Changelog:** [`2026.09.28.0...2026.09.28.1`](https://github.com/juspay/connector-service/compare/2026.09.28.0...2026.09.28.1)
+
+- - -
+
+## 2026.09.28.0
+
+### Miscellaneous Tasks
+
+- Add blog post on how we used low-level design while building Prism ([#2369](https://github.com/juspay/connector-service/pull/2369)) ([`ad38db1`](https://github.com/juspay/connector-service/commit/ad38db1fdbcd17181c3632dd2bf25d4a275208f6))
+
+**Full Changelog:** [`2026.09.25.1...2026.09.28.0`](https://github.com/juspay/connector-service/compare/2026.09.25.1...2026.09.28.0)
+
+- - -
+
+## 2026.09.25.1
+
+### Documentation
+
+- Wallet token decryption diagrams and an Apple Pay / Google Pay explainer ([#2368](https://github.com/juspay/connector-service/pull/2368)) ([`301397f`](https://github.com/juspay/connector-service/commit/301397f14507cb68bdcd026e02a661d66feec9dc))
+
+**Full Changelog:** [`2026.09.25.0...2026.09.25.1`](https://github.com/juspay/connector-service/compare/2026.09.25.0...2026.09.25.1)
+
+- - -
+
+## 2026.09.25.0
+
+### Bug Fixes
+
+- **connector:** [Kount] Remove from payment ConnectorEnum; register only as FRM connector with superposition URL support ([#2359](https://github.com/juspay/connector-service/pull/2359)) ([`58cd39e`](https://github.com/juspay/connector-service/commit/58cd39ee863f87fd9a16e73fb13cc93a3446b9fa))
+
+**Full Changelog:** [`2026.09.24.2...2026.09.25.0`](https://github.com/juspay/connector-service/compare/2026.09.24.2...2026.09.25.0)
+
+- - -
+
+## 2026.09.24.2
+
+### Features
+
+- **connector:** [Revolv3] MITs for Applepay and Googlepay using Decrypted payload + NTID ([#2338](https://github.com/juspay/connector-service/pull/2338)) ([`dae1117`](https://github.com/juspay/connector-service/commit/dae11170329b3fd54ea6369a75beeaf07cdb2993))
+
+### Bug Fixes
+
+- **ci:** Remove truelayer, trustly from alpha connector ([#2365](https://github.com/juspay/connector-service/pull/2365)) ([`075dfb0`](https://github.com/juspay/connector-service/commit/075dfb01486eb2687375b15de13bac9b51843b57))
+
+### Miscellaneous Tasks
+
+- **grace:** Context economy — batch independent lookups, stop re-reading, and report what a run costs ([#2366](https://github.com/juspay/connector-service/pull/2366)) ([`54d0ac4`](https://github.com/juspay/connector-service/commit/54d0ac42388fefa6d652744441b2d27ffcde5914))
+
+**Full Changelog:** [`2026.09.24.1...2026.09.24.2`](https://github.com/juspay/connector-service/compare/2026.09.24.1...2026.09.24.2)
+
+- - -
+
+## 2026.09.24.1
+
+### Bug Fixes
+
+- **framework:** Use enum for Card, Funding Source, Country ([#2363](https://github.com/juspay/connector-service/pull/2363)) ([`4be446d`](https://github.com/juspay/connector-service/commit/4be446daa3f7de97113beed5f6e7d6192e301fb1))
+
+**Full Changelog:** [`2026.09.24.0...2026.09.24.1`](https://github.com/juspay/connector-service/compare/2026.09.24.0...2026.09.24.1)
+
+- - -
+
 ## 2026.09.24.0
 
 ### Bug Fixes
