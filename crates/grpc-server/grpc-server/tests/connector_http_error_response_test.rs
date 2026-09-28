@@ -111,7 +111,7 @@ async fn connector_errors_are_returned_as_grpc_ok_with_error_details() {
             connector_transaction_id: "pi_missing".to_string(),
             amount: Some(grpc_api_types::payments::Money {
                 minor_amount: 1000,
-                currency: Currency::Usd as i32,
+                currency: i32::from(Currency::Usd),
             }),
             test_mode: Some(true),
             ..Default::default()
@@ -139,7 +139,7 @@ async fn connector_errors_are_returned_as_grpc_ok_with_error_details() {
             connector_transaction_id: "pi_declined".to_string(),
             amount: Some(grpc_api_types::payments::Money {
                 minor_amount: 1000,
-                currency: Currency::Usd as i32,
+                currency: i32::from(Currency::Usd),
             }),
             test_mode: Some(true),
             ..Default::default()
