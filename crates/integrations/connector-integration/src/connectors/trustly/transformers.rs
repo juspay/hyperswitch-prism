@@ -276,7 +276,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::Trustly { additional_details, .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::Trustly {
+                additional_details,
+                ..
+            }) => {
                 let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
 
                 let return_url = item
@@ -1013,10 +1016,7 @@ pub fn extract_returned_bank_details(
         .clone()
         .map(|accountid| Secret::new(serde_json::json!({ "account_id": accountid })));
 
-    if account_holder_name.is_none()
-        && bank_last_digits.is_none()
-        && additional_details.is_none()
-    {
+    if account_holder_name.is_none() && bank_last_digits.is_none() && additional_details.is_none() {
         return None;
     }
 
