@@ -153,6 +153,12 @@ where
             Request,
             RawResponse,
         >>::MappedStatus,
+    > + domain_types::flow_status::FlowStatusReader<
+        <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
+            Flow,
+            Request,
+            RawResponse,
+        >>::MappedStatus,
     >,
     RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
         types::ResponseRouterData<
@@ -171,6 +177,7 @@ where
         status_code: u16,
     ) -> CustomResult<RouterDataV2<Flow, CommonData, Request, Response>, ConnectorError> {
         let mapped_status = Connector::map_runtime_status(
+            &response.router_data.resource_common_data,
             &response.router_data.request,
             &response.response,
         );

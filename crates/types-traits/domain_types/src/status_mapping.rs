@@ -12,10 +12,14 @@ macro_rules! __impl_runtime_payment_status_mapping {
         {
             type MappedStatus = common_enums::AttemptStatus;
 
-            fn map_runtime_status(
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
                 request: &$request,
                 response: &$response,
-            ) -> Self::MappedStatus {
+            ) -> Self::MappedStatus
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
                 let source_from: fn(&$response) ->
                     <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::ConnectorStatus =
                     $source_from;
@@ -29,6 +33,171 @@ macro_rules! __impl_runtime_payment_status_mapping {
                 )
             }
         }
+    };
+}
+
+/// Declare a payment-flow runtime mapping that always sets one non-terminal or
+/// terminal status, validated only against the flow's `ALLOWED` set.
+///
+/// Use this for initiate/ack-only flows whose response does not carry a real
+/// connector status field, e.g. an Authorize response that only means
+/// "authentication has started" and therefore always sets
+/// `AuthenticationPending`.
+#[macro_export]
+macro_rules! impl_connector_flow_allowed_status_mapping {
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        flow:      $flow:ident,
+        statuses:  [ $( $status:ident ),+ $(,)? ],
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty,
+            status:   $status_from:expr $(,)?
+        } $(,)?
+    ) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_flow_guard!($flow);
+
+        $(
+            const _: () = assert!(
+                $crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::ALLOWED,
+                    common_enums::AttemptStatus::$status,
+                ),
+                concat!(
+                    "impl_connector_flow_allowed_status_mapping: status `AttemptStatus::",
+                    stringify!($status),
+                    "` is not in the flow's ALLOWED set"
+                )
+            );
+        )+
+
+        impl<$($generic)*>
+            $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
+            for $connector
+        {
+            type MappedStatus = common_enums::AttemptStatus;
+
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
+                request: &$request,
+                response: &$response,
+            ) -> Self::MappedStatus
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
+                let status_from: fn(&$request, &$response) -> common_enums::AttemptStatus =
+                    $status_from;
+                status_from(request, response)
+            }
+        }
+    };
+
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        flow:      $flow:ident,
+        status:    $status:ident,
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty $(,)?
+        } $(,)?
+    ) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_flow_guard!($flow);
+
+        const _: () = assert!(
+            $crate::flow_status::const_contains(
+                <$flow as $crate::flow_status::FlowStatusRules>::ALLOWED,
+                common_enums::AttemptStatus::$status,
+            ),
+            concat!(
+                "impl_connector_flow_allowed_status_mapping: status `AttemptStatus::",
+                stringify!($status),
+                "` is not in the flow's ALLOWED set"
+            )
+        );
+
+        impl<$($generic)*>
+            $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
+            for $connector
+        {
+            type MappedStatus = common_enums::AttemptStatus;
+
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
+                _request: &$request,
+                _response: &$response,
+            ) -> Self::MappedStatus
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
+                common_enums::AttemptStatus::$status
+            }
+        }
+    };
+
+    (
+        connector: $connector:ty,
+        flow:      $flow:ident,
+        statuses:  [ $( $status:ident ),+ $(,)? ],
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty,
+            status:   $status_from:expr $(,)?
+        } $(,)?
+    ) => {
+        $crate::impl_connector_flow_allowed_status_mapping! {
+            generics:  [],
+            connector: $connector,
+            flow:      $flow,
+            statuses:  [ $( $status ),+ ],
+            runtime: {
+                request:  $request,
+                response: $response,
+                status:   $status_from,
+            },
+        }
+    };
+
+    (
+        connector: $connector:ty,
+        flow:      $flow:ident,
+        status:    $status:ident,
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty $(,)?
+        } $(,)?
+    ) => {
+        $crate::impl_connector_flow_allowed_status_mapping! {
+            generics:  [],
+            connector: $connector,
+            flow:      $flow,
+            status:    $status,
+            runtime: {
+                request:  $request,
+                response: $response,
+            },
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_connector_flow_allowed_status_mapping_flow_guard {
+    (Authorize) => {};
+    (PreAuthenticate) => {};
+    (Authenticate) => {};
+    (PostAuthenticate) => {};
+    ($flow:ident) => {
+        compile_error!(
+            concat!(
+                "impl_connector_flow_allowed_status_mapping is only for initiate/authentication ",
+                "payment flows (Authorize, PreAuthenticate, Authenticate, PostAuthenticate), not `",
+                stringify!($flow),
+                "`. Use impl_flow_status_mapping! / impl_flow_status_mapping_ctx! for terminal ",
+                "payment flows."
+            )
+        );
     };
 }
 
@@ -46,10 +215,14 @@ macro_rules! __impl_runtime_refund_status_mapping {
         {
             type MappedStatus = common_enums::RefundStatus;
 
-            fn map_runtime_status(
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
                 request: &$request,
                 response: &$response,
-            ) -> Self::MappedStatus {
+            ) -> Self::MappedStatus
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
                 let source_from: fn(&$response) ->
                     <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::ConnectorStatus =
                     $source_from;

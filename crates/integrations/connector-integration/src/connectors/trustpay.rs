@@ -74,17 +74,77 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpay<T>
 {
 }
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Trustpay<T>,
-    flow:      Authorize,
-    source:    transformers::TrustpayBankRedirectPaymentStatus,
-    success:   Paid              => Charged,
-    failure:   Rejected          => AuthorizationFailed,
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Trustpay<T>,
+    flow:           Authorize,
+    source:         transformers::TrustpayAuthorizeStatus,
+    context:        common_enums::AttemptStatus,
+    params:         [status, previous_attempt_status],
+    success_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
+        transformers::TrustpayCardPaymentStatus::Charged,
+    )),
+    failure_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
+        transformers::TrustpayCardPaymentStatus::Failed,
+    )),
     {
-        Authorized       => Authorized,
-        Authorizing      => Authorizing,
-        Pending          => Pending,
+        match status {
+            transformers::TrustpayAuthorizeStatus::Card(card_status) => {
+                match card_status {
+                    transformers::TrustpayCardPaymentStatus::Charged => common_enums::AttemptStatus::Charged,
+                    transformers::TrustpayCardPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+                    transformers::TrustpayCardPaymentStatus::AuthenticationPending => common_enums::AttemptStatus::AuthenticationPending,
+                    transformers::TrustpayCardPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+                }
+            }
+            transformers::TrustpayAuthorizeStatus::BankRedirectInitiated => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            transformers::TrustpayAuthorizeStatus::BankRedirect(bank_status) => {
+                match bank_status {
+                    transformers::TrustpayBankRedirectPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
+                    transformers::TrustpayBankRedirectPaymentStatus::Rejected => common_enums::AttemptStatus::AuthorizationFailed,
+                    transformers::TrustpayBankRedirectPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
+                    transformers::TrustpayBankRedirectPaymentStatus::Authorizing => common_enums::AttemptStatus::Authorizing,
+                    transformers::TrustpayBankRedirectPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+                }
+            }
+            transformers::TrustpayAuthorizeStatus::BankRedirectErrorRetainPrevious => previous_attempt_status,
+            transformers::TrustpayAuthorizeStatus::BankRedirectErrorRejected => common_enums::AttemptStatus::AuthorizationFailed,
+            transformers::TrustpayAuthorizeStatus::Webhook(webhook_status) => {
+                match webhook_status {
+                    transformers::WebhookStatus::Paid => common_enums::AttemptStatus::Charged,
+                    transformers::WebhookStatus::Rejected => common_enums::AttemptStatus::AuthorizationFailed,
+                    transformers::WebhookStatus::Refunded
+                    | transformers::WebhookStatus::Chargebacked
+                    | transformers::WebhookStatus::Unknown => common_enums::AttemptStatus::Failure,
+                }
+            }
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Authorize,
+        PaymentsAuthorizeData<T>,
+        TrustpayPaymentsResponse,
+    > for Trustpay<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        common_data: &CommonData,
+        _request: &PaymentsAuthorizeData<T>,
+        response: &TrustpayPaymentsResponse,
+    ) -> Self::MappedStatus
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        <Self as domain_types::flow_status::ConnectorTerminalMapping<Authorize>>::map_attempt_status(
+            trustpay::authorize_flow_status(response),
+            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(common_data),
+        )
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -166,6 +226,17 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TrustpayCardPaymentStatus,
     success:   Charged              => Charged,
     failure:   Failed               => Failure,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: TrustpaySetupMandateResponse,
+        source: |response| {
+            trustpay::card_payment_flow_status(
+                response.payment_status.clone(),
+                response.redirect_url.clone(),
+            )
+        },
+        context: |_request, _response| (),
+    },
     {
         AuthenticationPending => AuthenticationPending,
         Pending               => Pending,
@@ -182,6 +253,17 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::TrustpayCardPaymentStatus,
     success:   Charged              => Charged,
     failure:   Failed               => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: TrustpayRepeatPaymentResponse,
+        source: |response| {
+            trustpay::card_payment_flow_status(
+                response.payment_status.clone(),
+                response.redirect_url.clone(),
+            )
+        },
+        context: |_request, _response| (),
+    },
     {
         AuthenticationPending => AuthenticationPending,
         Pending               => Pending,

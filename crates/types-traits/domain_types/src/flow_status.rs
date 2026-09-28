@@ -574,7 +574,20 @@ pub trait ConnectorRuntimeStatusMapping<Flow, Request, Response> {
     /// `AttemptStatus` for payment flows and `RefundStatus` for refund flows.
     type MappedStatus;
 
-    fn map_runtime_status(request: &Request, response: &Response) -> Self::MappedStatus;
+    fn map_runtime_status<CommonData>(
+        common_data: &CommonData,
+        request: &Request,
+        response: &Response,
+    ) -> Self::MappedStatus
+    where
+        CommonData: FlowStatusReader<Self::MappedStatus>;
+}
+
+/// Read-only companion to [`FlowStatusSetter`]. Runtime extractors normally do
+/// not need the current status, but a few connector mappings preserve the
+/// previous value for specific gateway responses.
+pub trait FlowStatusReader<Status> {
+    fn current_mapped_flow_status(&self) -> Status;
 }
 
 /// Applies a mapped status to the flow's common data after response

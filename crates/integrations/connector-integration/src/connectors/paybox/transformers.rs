@@ -288,6 +288,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+/// Typed verdict for the flow-status macros: Paybox payment endpoints answer
+/// with a `CODEREPONSE` ack string, so the connector-local status is just
+/// "accepted" vs anything else. The TryFroms treat every non-`00000` code as
+/// an `ErrorResponse` (a failed attempt), which folds to this binary verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayboxPaymentVerdict {
+    Approved,
+    Rejected,
+}
+
+impl PayboxPaymentResponse {
+    /// Flow-status view used by the `impl_flow_status_mapping_ctx!` macros:
+    /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
+    pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
+        if self.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub struct PayboxPaymentResponse {

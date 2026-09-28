@@ -67,6 +67,7 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::PaymentStatus,
     success:   AwaitingCapture   => Authorized,
     failure:   Failed            => Failure,
+    extractors: { request: PaymentsAuthorizeData<T>, response: XenditPaymentResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         Succeeded        => Charged,
         Verified         => Charged,
@@ -85,6 +86,7 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::PaymentStatus,
     success:   Succeeded         => Charged,
     failure:   Failed            => Failure,
+    extractors: { request: PaymentsSyncData, response: XenditResponse, source: |response| match response { XenditResponse::Payment(payment) => payment.status.clone(), _ => transformers::PaymentStatus::Failed }, context: |_request, _response| (), },
     {
         AwaitingCapture  => Authorized,
         Verified         => Charged,
@@ -103,6 +105,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Succeeded         => Success,
     failure:   Failed            => Failure,
+    extractors: { request: RefundSyncData, response: RefundSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         Cancelled        => Failure,
         Pending          => Pending,
@@ -120,6 +123,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Succeeded         => Success,
     failure:   Failed            => Failure,
+    extractors: { request: RefundsData, response: RefundResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         Cancelled        => Failure,
         Pending          => Pending,
@@ -137,6 +141,7 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::PaymentStatus,
     success:   Succeeded         => Charged,
     failure:   Failed            => CaptureFailed,
+    extractors: { request: PaymentsCaptureData, response: XenditCaptureResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
     {
         AwaitingCapture  => Pending,
         Verified         => Charged,

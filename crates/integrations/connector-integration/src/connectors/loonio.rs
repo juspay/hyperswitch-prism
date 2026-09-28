@@ -107,25 +107,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping! {
+domain_types::impl_connector_flow_allowed_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Loonio<T>,
     flow:      Authorize,
-    source:    transformers::LoonioTransactionStatus,
-    success:   Settled      => Charged,
-    failure:   Failed       => Failure,
-    {
-        Created             => AuthenticationPending,
-        Prepared            => Pending,
-        Pending             => Pending,
-        Available           => Charged,
-        Abandoned           => Failure,
-        Rejected            => Failure,
-        Rollback            => Voided,
-        Returned            => Failure,
-        Nsf                 => Failure,
-    }
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
+        response: LoonioAuthorizeResponse,
+    },
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Loonio<T>
 {
@@ -138,6 +130,15 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::LoonioTransactionStatus,
     success:   Settled      => Charged,
     failure:   Failed       => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: LoonioPaymentResponseData,
+        source: |response| match response {
+            LoonioPaymentResponseData::Sync(sync) => sync.state.clone(),
+            LoonioPaymentResponseData::Webhook(_) => transformers::LoonioTransactionStatus::Pending,
+        },
+        context: |_request, _response| (),
+    },
     {
         Created             => AuthenticationPending,
         Prepared            => Pending,

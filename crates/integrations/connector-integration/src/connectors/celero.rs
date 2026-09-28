@@ -59,6 +59,20 @@ domain_types::impl_flow_status_mapping! {
     source:    celero::CeleroTransactionStatus,
     success:   Settled           => Charged,
     failure:   Declined          => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: CeleroPaymentsResponse,
+        source: |response| match response.status {
+            celero::CeleroResponseStatus::Success => response.data.as_ref().map_or(
+                celero::CeleroTransactionStatus::Error,
+                |data| match data.response {
+                    celero::CeleroPaymentMethodResponse::Card(ref card) => card.status,
+                },
+            ),
+            celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
+        },
+        context: |_request, _response| (),
+    },
     {
         Approved          => Authorized,
         Error             => Failure,
@@ -80,6 +94,20 @@ domain_types::impl_flow_status_mapping! {
     source:    celero::CeleroTransactionStatus,
     success:   Settled           => Charged,
     failure:   Declined          => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CeleroSyncResponse,
+        source: |response| match response.status {
+            celero::CeleroResponseStatus::Success => response
+                .data
+                .first()
+                .map_or(celero::CeleroTransactionStatus::Error, |transaction| {
+                    transaction.status
+                }),
+            celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
+        },
+        context: |_request, _response| (),
+    },
     {
         Approved          => Authorized,
         Error             => Failure,
@@ -98,16 +126,16 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
     flow:      Void,
-    source:    celero::CeleroTransactionStatus,
-    success:   Voided            => Voided,
-    failure:   Declined          => Failure,
+    source:    celero::CeleroResponseStatus,
+    success:   Success           => Voided,
+    failure:   Error             => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CeleroVoidResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
-        Approved          => VoidInitiated,
-        Error             => Failure,
-        Pending           => VoidInitiated,
-        PendingSettlement => VoidInitiated,
-        Settled           => VoidFailed,
-        Reversed          => Voided,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -119,16 +147,16 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
     flow:      Capture,
-    source:    celero::CeleroTransactionStatus,
-    success:   Settled           => Charged,
-    failure:   Declined          => CaptureFailed,
+    source:    celero::CeleroResponseStatus,
+    success:   Success           => Charged,
+    failure:   Error             => Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CeleroCaptureResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
-        Approved          => CaptureInitiated,
-        Error             => CaptureFailed,
-        Pending           => CaptureInitiated,
-        PendingSettlement => CaptureInitiated,
-        Voided            => CaptureFailed,
-        Reversed          => CaptureFailed,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -150,6 +178,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    celero::CeleroResponseStatus,
     success:   Success => Success,
     failure:   Error   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: CeleroRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -164,6 +198,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    celero::CeleroResponseStatus,
     success:   Success => Success,
     failure:   Error   => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: CeleroRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

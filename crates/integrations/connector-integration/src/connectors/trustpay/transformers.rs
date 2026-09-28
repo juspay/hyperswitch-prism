@@ -479,6 +479,29 @@ fn get_transaction_status(
     }
 }
 
+pub fn card_payment_flow_status(
+    payment_status: Option<String>,
+    redirect_url: Option<Url>,
+) -> TrustpayCardPaymentStatus {
+    // Same decision tree as `get_transaction_status`, but without the error
+    // message because the runtime flow-status extractor only needs the status
+    // value. `get_transaction_status` is currently infallible as well.
+    if let Some(payment_status) = payment_status {
+        let (is_failed, _) = is_payment_failed(&payment_status);
+        if is_failed {
+            TrustpayCardPaymentStatus::Failed
+        } else if is_payment_successful(&payment_status) {
+            TrustpayCardPaymentStatus::Charged
+        } else if redirect_url.is_some() {
+            TrustpayCardPaymentStatus::AuthenticationPending
+        } else {
+            TrustpayCardPaymentStatus::Pending
+        }
+    } else {
+        TrustpayCardPaymentStatus::AuthenticationPending
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub enum TrustpayBankRedirectPaymentStatus {
     Paid,
@@ -486,6 +509,45 @@ pub enum TrustpayBankRedirectPaymentStatus {
     Rejected,
     Authorizing,
     Pending,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TrustpayAuthorizeStatus {
+    Card(TrustpayCardPaymentStatus),
+    BankRedirectInitiated,
+    BankRedirect(TrustpayBankRedirectPaymentStatus),
+    BankRedirectErrorRetainPrevious,
+    BankRedirectErrorRejected,
+    Webhook(WebhookStatus),
+}
+
+pub fn authorize_flow_status(
+    response: &TrustpayPaymentsResponse,
+) -> TrustpayAuthorizeStatus {
+    match response {
+        TrustpayPaymentsResponse::CardsPayments(response) => TrustpayAuthorizeStatus::Card(
+            card_payment_flow_status(
+                response.payment_status.clone(),
+                response.redirect_url.clone(),
+            ),
+        ),
+        TrustpayPaymentsResponse::BankRedirectPayments(_) => {
+            TrustpayAuthorizeStatus::BankRedirectInitiated
+        }
+        TrustpayPaymentsResponse::BankRedirectSync(response) => {
+            TrustpayAuthorizeStatus::BankRedirect(response.payment_information.status.clone())
+        }
+        TrustpayPaymentsResponse::BankRedirectError(response) => {
+            if matches!(response.payment_result_info.result_code, 1132014 | 1132005) {
+                TrustpayAuthorizeStatus::BankRedirectErrorRetainPrevious
+            } else {
+                TrustpayAuthorizeStatus::BankRedirectErrorRejected
+            }
+        }
+        TrustpayPaymentsResponse::WebhookResponse(response) => {
+            TrustpayAuthorizeStatus::Webhook(response.status.clone())
+        }
+    }
 }
 
 impl From<TrustpayBankRedirectPaymentStatus> for enums::AttemptStatus {
