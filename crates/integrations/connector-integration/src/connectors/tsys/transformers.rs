@@ -1109,8 +1109,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card_data) => {
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
-                // TSYS requires a non-zero amount even for authorization; default
-                // to 1 minor unit if the request is missing or explicitly zero.
+                // Default to 1 minor unit only when the request does not carry an amount.
                 let transaction_amount = match item.request.minor_amount {
                     Some(amount) => item_data
                         .connector
