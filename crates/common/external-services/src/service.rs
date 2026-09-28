@@ -867,8 +867,12 @@ where
                     // Replace URL with mock server URL
                     req.url = test_ctx.mock_server_url.clone();
 
-                    // Add test headers
-                    req.add_header(X_API_URL, original_url.clone().into());
+                    // Add test headers. Masked values are exposed when the request
+                    // is built, so the mock server still receives the real URL.
+                    req.add_header(
+                        X_API_URL,
+                        Maskable::Masked(Secret::new(original_url.clone())),
+                    );
                     req.add_header(X_SESSION_ID, test_ctx.session_id.clone().into());
 
                     // Add API tag if provided
@@ -878,7 +882,7 @@ where
 
                     tracing::info!(
                         "Test mode enabled: redirected {} to {}",
-                        original_url,
+                        connector.get_url_for_logs(&original_url),
                         test_ctx.mock_server_url
                     );
                 });

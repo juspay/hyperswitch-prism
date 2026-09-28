@@ -105,6 +105,10 @@ pub enum GigadatPayoutStatus {
     StatusAborted1,
     StatusPending,
     StatusFailed,
+    /// Any status Gigadat adds later. Mapped to `Pending` so the flow keeps
+    /// polling instead of failing deserialization.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<GigadatPayoutStatus> for PayoutStatus {
@@ -118,6 +122,7 @@ impl From<GigadatPayoutStatus> for PayoutStatus {
             | GigadatPayoutStatus::StatusRejected1
             | GigadatPayoutStatus::StatusAborted1
             | GigadatPayoutStatus::StatusFailed => Self::Failure,
+            GigadatPayoutStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -370,7 +375,8 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
 
         router_data.response = Ok(PayoutStageResponse {
             merchant_payout_id: router_data.request.merchant_quote_id.clone(),
-            payout_status: PayoutStatus::RequiresCreation,
+            // Staging only quotes the payout; the caller confirms it with PayoutCreate.
+            payout_status: PayoutStatus::RequiresConfirmation,
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
             payout_connector_metadata: Some(Secret::new(payout_connector_metadata)),
