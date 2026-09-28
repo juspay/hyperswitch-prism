@@ -1070,6 +1070,7 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
             setup_future_usage: item.setup_future_usage,
             customer_acceptance: item.customer_acceptance.clone(),
             setup_mandate_details: item.setup_mandate_details.clone(),
+            browser_info: item.browser_info.clone(),
         }
     }
 }

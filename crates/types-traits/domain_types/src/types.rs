@@ -2672,6 +2672,10 @@ impl<
                             token_source: decrypted_wallet_token_details_for_nti.token_source
                                 .and_then(|source_i32| grpc_api_types::payments::TokenSource::try_from(source_i32).ok())
                                 .and_then(|source| payment_method_data::TokenSource::foreign_try_from(source).ok()),
+                            card_network: decrypted_wallet_token_details_for_nti
+                                .card_network
+                                .and_then(|network_i32| grpc_payment_types::CardNetwork::try_from(network_i32).ok())
+                                .and_then(|network| CardNetwork::foreign_try_from(network).ok()),
 
                         },
                     ))
@@ -15122,7 +15126,10 @@ impl<
             amount: money.amount,
             currency,
             payment_method_data,
-            browser_info: None,
+            browser_info: value
+                .browser_info
+                .map(BrowserInformation::foreign_try_from)
+                .transpose()?,
             capture_method: None,
             customer_acceptance,
             setup_future_usage,

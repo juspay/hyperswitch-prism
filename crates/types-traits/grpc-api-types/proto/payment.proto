@@ -4715,6 +4715,10 @@ message PaymentMethodServiceTokenizeRequest {
   optional FutureUsage setup_future_usage = 12;      // Indicates future usage intention (e.g. off_session for mandates)
   optional CustomerAcceptance customer_acceptance = 13; // Details of customer consent for mandate setup
   optional SetupMandateDetails setup_mandate_details = 14; // Mandate data for recurring payment setup
+
+  // Browser context forwarded to connectors that use it for fraud signals when
+  // creating a reusable payment method (for example Stripe's ip/user_agent).
+  optional BrowserInformation browser_info = 15;
 }
 
 // Response message for tokenizing a payment method
