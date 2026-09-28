@@ -6539,12 +6539,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            // Hyperswitch does not send shopperName for wallet setup mandates.
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -7923,6 +7919,10 @@ fn get_browser_info<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
@@ -7957,6 +7957,10 @@ fn get_browser_info_for_setup_mandate<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
