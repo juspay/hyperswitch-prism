@@ -12,6 +12,7 @@ extend-exclude = [
     "backend/ucs-connector-tests/test_result.md",
     "crates/internal/ucs-connector-tests/**",
     "docs-generated/**",
+    "crates/types-traits/domain_types/src/state_codes.rs", # Generated state/province name -> code table
 ]
 
 [default.extend-words]
