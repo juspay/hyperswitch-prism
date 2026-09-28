@@ -128,7 +128,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvc\":\"737\",\"authentication\":false}}}"
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvc\":\"737\",\"authentication\":false},\"billingAddress\":{}}}"
         }
       },
       "CashappQr": {
@@ -660,7 +660,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_proxy_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"{{$card_number}}\",\"expiryDate\":\"0330\",\"cvc\":\"{{$card_cvc}}\",\"authentication\":false}}}"
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_proxy_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"{{$card_number}}\",\"expiryDate\":\"0330\",\"cvc\":\"{{$card_cvc}}\",\"authentication\":false},\"billingAddress\":{}}}"
         }
       }
     },

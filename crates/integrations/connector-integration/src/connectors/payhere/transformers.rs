@@ -314,12 +314,21 @@ impl PayherePaymentsRequest {
             .change_context(missing_billing_fallback(
                 "billing.phone / customer.phone_number",
             ))?;
-        let address = router_data.resource_common_data.get_billing_line1()?;
-        let city = router_data.resource_common_data.get_billing_city()?;
+        // address/city/country are OPTIONAL: send them when present,
+        // otherwise send an empty string in the checkout form.
+        let address = router_data
+            .resource_common_data
+            .get_optional_billing_line1()
+            .unwrap_or_default();
+        let city = router_data
+            .resource_common_data
+            .get_optional_billing_city()
+            .unwrap_or_default();
         let country = router_data
             .resource_common_data
-            .get_billing_country()?
-            .to_string();
+            .get_optional_billing_country()
+            .map(|c| c.to_string())
+            .unwrap_or_default();
 
         Ok(Self {
             merchant_id: auth.merchant_id.peek().to_string(),
@@ -380,26 +389,28 @@ pub(crate) fn handle_authorize_response<
 ) -> common_utils::errors::CustomResult<PayhereAuthorizeRouterData<T>, ConnectorError> {
     let mut router_data = data.clone();
 
-    let request = PayherePaymentsRequest::from_router_data(&router_data).change_context(
-        ConnectorError::ResponseHandlingFailed {
+    let request = PayherePaymentsRequest::from_router_data(&router_data).map_err(|report| {
+        let inner = report.to_string();
+        report.change_context(ConnectorError::ResponseHandlingFailed {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
-                additional_context: Some(
-                    "payhere: failed to build checkout request fields".to_string(),
-                ),
+                additional_context: Some(format!(
+                    "payhere: failed to build checkout request fields: {inner}"
+                )),
             },
-        },
-    )?;
+        })
+    })?;
     let order_id = request.order_id.clone();
-    let request_value =
-        serde_json::to_value(&request).change_context(ConnectorError::ResponseHandlingFailed {
+    let request_value = serde_json::to_value(&request).map_err(|err| {
+        error_stack::report!(ConnectorError::ResponseHandlingFailed {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
-                additional_context: Some(
-                    "payhere: failed to serialize checkout request for redirect form".to_string(),
-                ),
+                additional_context: Some(format!(
+                    "payhere: failed to serialize checkout request for redirect form: {err}"
+                )),
             },
-        })?;
+        })
+    })?;
     let form_object = request_value
         .as_object()
         .ok_or(ConnectorError::ResponseHandlingFailed {

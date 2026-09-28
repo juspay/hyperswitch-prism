@@ -223,6 +223,7 @@ pub fn is_terminal_payment_status(status: i32) -> bool {
             | PaymentStatus::AuthenticationFailed
             | PaymentStatus::AuthorizationFailed
             | PaymentStatus::Failure
+            | PaymentStatus::Conflicted
     )
 }
 
@@ -233,5 +234,6 @@ pub fn is_failure_payment_status(status: i32) -> bool {
         PaymentStatus::AuthenticationFailed
             | PaymentStatus::AuthorizationFailed
             | PaymentStatus::Failure
+            | PaymentStatus::Conflicted
     )
 }

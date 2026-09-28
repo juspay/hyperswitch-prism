@@ -142,6 +142,8 @@ pub use self::trustpayments::Trustpayments;
 
 pub mod globalpay;
 pub use self::globalpay::Globalpay;
+pub mod globalpayments_realex;
+pub use self::globalpayments_realex::GlobalpaymentsRealex;
 
 pub mod billwerk;
 pub use self::billwerk::Billwerk;
@@ -295,9 +297,6 @@ pub use self::moneris::Moneris;
 pub mod etisalat;
 pub use self::etisalat::Etisalat;
 
-pub mod kount;
-pub use self::kount::Kount;
-
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
 
@@ -330,6 +329,8 @@ pub mod d24;
 pub use self::d24::D24;
 pub mod paydotcom;
 pub use self::paydotcom::Paydotcom;
+pub mod elavon_pg;
+pub use self::elavon_pg::ElavonPg;
 
 pub mod payhere;
 pub use self::payhere::Payhere;

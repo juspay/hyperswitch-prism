@@ -101,3 +101,19 @@ val response = client.authorize(request)
 {% endtab %}
 
 {% endtabs %}
+
+## Token decryption paths
+
+The `PKPaymentToken` blob has to be decrypted by whoever holds the Apple Pay payment processing certificate. Which of the two paths runs is decided by the merchant connector account, and it decides whether the processor receives the sealed blob or the network token inside it.
+
+### PSP decrypts
+
+`check_apple_pay_metadata → SkipDecryption`. The blob is sealed to the processor's certificate and passes through untouched; the processor decrypts it at authorization.
+
+![Apple Pay, encrypted token — the PSP decrypts](assets/1-apple-pay-encrypted.png)
+
+### Hyperswitch decrypts
+
+`check_apple_pay_metadata → DecryptAtApplication`. The blob is sealed to Hyperswitch's own certificate and decrypted before authorization, so the processor is sent the DPAN, expiry and online payment cryptogram rather than the blob.
+
+![Apple Pay, decrypted token — Hyperswitch decrypts](assets/2-apple-pay-decrypted.png)

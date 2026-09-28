@@ -1561,6 +1561,8 @@ mod tests {
                     webhook_url: None,
                     payment_method_type: None,
                     order_details: None,
+                    setup_future_usage: None,
+                    customer_id: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1694,6 +1696,8 @@ mod tests {
                     webhook_url: None,
                     payment_method_type: None,
                     order_details: None,
+                    setup_future_usage: None,
+                    customer_id: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -2020,6 +2024,8 @@ mod tests {
                 webhook_url: None,
                 payment_method_type: None,
                 order_details: None,
+                setup_future_usage: None,
+                customer_id: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2165,6 +2171,8 @@ mod tests {
                 webhook_url: None,
                 payment_method_type: None,
                 order_details: None,
+                setup_future_usage: None,
+                customer_id: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2299,6 +2307,8 @@ mod tests {
                 webhook_url: None,
                 payment_method_type: None,
                 order_details: None,
+                setup_future_usage: None,
+                customer_id: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
