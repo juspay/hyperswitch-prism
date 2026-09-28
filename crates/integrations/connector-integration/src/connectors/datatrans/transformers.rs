@@ -1138,7 +1138,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 let additional_card = match &router_data.request.additional_payment_data {
                     Some(AdditionalPaymentData::Card(card)) => card,
-                    Some(AdditionalPaymentData::Wallet { .. }) | None => {
+                    Some(AdditionalPaymentData::Wallet(_)) | None => {
                         Err(error_stack::report!(
                             IntegrationError::MissingRequiredField {
                                 field_name: "additional_payment_data.card",

@@ -1347,6 +1347,18 @@ pub struct ApplepayPaymentMethod {
     /// The type of the payment method
     #[serde(rename = "type")]
     pub pm_type: String,
+}
+
+/// Charge-result data returned by the connector after an Apple Pay payment.
+/// Carried in [`WalletAdditionalData::ApplePay`] for subsequent MIT charges.
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayAdditionalData {
+    /// The name to be displayed on Apple Pay button
+    pub display_name: String,
+    /// The card network
+    pub network: String,
+    /// The type of the payment method
+    pub pm_type: String,
     /// The card's expiry month
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_exp_month: Option<Secret<String>>,
@@ -2214,15 +2226,21 @@ pub struct AdditionalCardInfo {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+/// Discriminated wallet variant carried by [`AdditionalPaymentData::Wallet`].
+/// Exactly one wallet provider is present, matching the `oneof wallet_data` in the proto.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum WalletAdditionalData {
+    ApplePay(Box<ApplePayAdditionalData>),
+    GooglePay(Box<WalletAdditionalDataForCard>),
+}
+
 /// Additional payment data for recurring payments, carrying the original payment method details
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum AdditionalPaymentData {
     /// Card-specific additional payment data
     Card(AdditionalCardInfo),
-    /// Wallet-specific additional payment data (Apple Pay, Google Pay)
-    Wallet {
-        apple_pay: Option<Box<ApplepayPaymentMethod>>,
-        google_pay: Option<Box<WalletAdditionalDataForCard>>,
-    },
+    /// Wallet-specific additional payment data (Apple Pay or Google Pay — exactly one)
+    Wallet(WalletAdditionalData),
 }

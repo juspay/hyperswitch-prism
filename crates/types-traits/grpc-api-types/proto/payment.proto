@@ -2083,12 +2083,13 @@ message AdditionalWalletCardInfo {
   optional SecretString email = 15;
 }
 
-// Wallet additional payment data wrapping Apple Pay and Google Pay data
+// Wallet additional payment data wrapping Apple Pay and Google Pay data.
+// Exactly one wallet provider is always present.
 message AdditionalWalletInfo {
-  // Apple Pay additional data
-  optional AdditionalApplePayInfo apple_pay = 1;
-  // Google Pay additional data
-  optional AdditionalWalletCardInfo google_pay = 2;
+  oneof wallet_data {
+    AdditionalApplePayInfo apple_pay = 1;
+    AdditionalWalletCardInfo google_pay = 2;
+  }
 }
 
 // Additional payment data for various payment methods
