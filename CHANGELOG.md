@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.0
+
+### Miscellaneous Tasks
+
+- Add blog post on how we used low-level design while building Prism ([#2369](https://github.com/juspay/connector-service/pull/2369)) ([`ad38db1`](https://github.com/juspay/connector-service/commit/ad38db1fdbcd17181c3632dd2bf25d4a275208f6))
+
+**Full Changelog:** [`2026.09.25.1...2026.09.28.0`](https://github.com/juspay/connector-service/compare/2026.09.25.1...2026.09.28.0)
+
+- - -
+
 ## 2026.09.25.1
 
 ### Documentation
