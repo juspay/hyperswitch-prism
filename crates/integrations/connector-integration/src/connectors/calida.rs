@@ -165,6 +165,12 @@ domain_types::impl_flow_status_mapping! {
     source:    CalidaPaymentStatus,
     success:   Completed        => Charged,
     failure:   Failed           => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: CalidaPaymentsResponse,
+        source:   |response| response.status,
+        context:  |_request, _response| (),
+    },
     {
         Pending          => AuthenticationPending,
         PaymentInitiated => AuthenticationPending,
@@ -182,6 +188,12 @@ domain_types::impl_flow_status_mapping! {
     source:    CalidaPaymentStatus,
     success:   Completed        => Charged,
     failure:   Failed           => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CalidaSyncResponse,
+        source:   |response| response.status,
+        context:  |_request, _response| (),
+    },
     {
         Pending          => AuthenticationPending,
         PaymentInitiated => AuthenticationPending,
