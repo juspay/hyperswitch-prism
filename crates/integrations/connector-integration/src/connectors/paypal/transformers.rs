@@ -529,6 +529,18 @@ pub struct CardRequestStruct<
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardVaultStruct {
     vault_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attributes: Option<VaultRequestAttributes>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultRequestAttributes {
+    customer: Option<CustomerRequestData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerRequestData {
+    merchant_customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -552,6 +564,8 @@ pub enum CardRequest<
 pub struct CardRequestAttributes {
     vault: Option<PaypalVault>,
     verification: Option<ThreeDsMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer: Option<CustomerRequestData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1395,6 +1409,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 None => None,
                             },
                             verification,
+                            customer: item
+                                .router_data
+                                .resource_common_data
+                                .customer_id
+                                .clone()
+                                .map(|customer_id| CustomerRequestData {
+                                    merchant_customer_id: Some(customer_id),
+                                }),
                         }),
                     },
                 )));
@@ -3293,7 +3315,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     _ => {
                         // Failed: Authentication checks failed
                         let error_message = format!(
-                            "Cannot continue authentication. Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                            "Cannot continue with Authorization due to failed Liability Shift. Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
                             liability_response.payment_source.card.authentication_result.liability_shift,
                             liability_response
                                 .payment_source
@@ -3321,8 +3343,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 attempt_status: Some(FlowStatus::Payment(
                                     common_enums::AttemptStatus::Failure,
                                 )),
-                                code: "authentication_failed".to_string(),
-                                message: "3DS authentication failed".to_string(),
+                                code: NO_ERROR_CODE.to_string(),
+                                message: NO_ERROR_MESSAGE.to_string(),
                                 connector_transaction_id: None,
                                 reason: Some(error_message),
                                 status_code: item.http_code,
@@ -3595,6 +3617,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             common_enums::PaymentMethodType::Card => Some(PaymentSourceItem::Card(
                 CardRequest::CardVaultStruct(CardVaultStruct {
                     vault_id: Secret::new(connector_mandate_id),
+                    attributes: item
+                        .router_data
+                        .resource_common_data
+                        .customer_id
+                        .clone()
+                        .map(|customer_id| VaultRequestAttributes {
+                            customer: Some(CustomerRequestData {
+                                merchant_customer_id: Some(customer_id),
+                            }),
+                        }),
                 }),
             )),
             common_enums::PaymentMethodType::Paypal => Some(PaymentSourceItem::Paypal(

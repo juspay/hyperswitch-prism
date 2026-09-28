@@ -545,6 +545,10 @@ pub struct StripePayLaterData {
 pub struct TokenRequest<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(flatten)]
     pub token_data: StripePaymentMethodData<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Secret<String, pii::IpAddress>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -6414,8 +6418,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
+        let (ip, user_agent) = item
+            .router_data
+            .request
+            .browser_info
+            .as_ref()
+            .map(|browser_info| {
+                (
+                    browser_info
+                        .ip_address
+                        .map(|ip_address| Secret::new(ip_address.to_string())),
+                    browser_info.user_agent.clone(),
+                )
+            })
+            .unwrap_or((None, None));
+
         Ok(Self {
             token_data: request_payment_data,
+            ip,
+            user_agent,
         })
     }
 }

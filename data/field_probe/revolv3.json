@@ -294,7 +294,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":null,\"googlePay\":{\"googlePayPaymentDataResponse\":null,\"googlePayDecryptedPackage\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"0330\",\"electronicCommerceIndicator\":\"05\",\"onlinePaymentCryptogram\":\"AAAAAA==\",\"cardBrand\":\"Visa\"}}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":null,\"googlePay\":{\"googlePayDecryptedPackage\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"0330\",\"electronicCommerceIndicator\":\"05\",\"onlinePaymentCryptogram\":\"AAAAAA==\",\"cardBrand\":\"Visa\"}}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
         }
       },
       "GooglePayThirdPartySdk": {

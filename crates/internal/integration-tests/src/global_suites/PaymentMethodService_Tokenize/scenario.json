@@ -55,6 +55,10 @@
           "country_alpha2_code": "US"
         }
       },
+      "browser_info": {
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (integration-tests)"
+      },
       "test_mode": true
     },
     "assert": {
