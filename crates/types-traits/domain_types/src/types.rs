@@ -15070,7 +15070,10 @@ impl<
             amount: money.amount,
             currency,
             payment_method_data,
-            browser_info: None,
+            browser_info: value
+                .browser_info
+                .map(BrowserInformation::foreign_try_from)
+                .transpose()?,
             capture_method: None,
             customer_acceptance,
             setup_future_usage,

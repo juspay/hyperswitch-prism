@@ -1,4 +1,4 @@
-use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
+use crate::{frm_connectors::kount::KountRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{

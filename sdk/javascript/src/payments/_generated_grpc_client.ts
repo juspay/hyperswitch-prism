@@ -516,7 +516,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails" },
+  PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "browserInfo": "BrowserInformation" },
   PaymentMethodServiceTokenizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
   PaymentMethodServiceCreateRequest: { "customer": "Customer", "state": "ConnectorState" },
   PaymentMethodServiceCreateResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
