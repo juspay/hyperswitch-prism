@@ -448,7 +448,15 @@ fn capture_connector_reply<E>(
 #[cfg(feature = "injector-client")]
 use common_utils::events::record_json_fields_on_span;
 
-/// Handles the connector response, processing both successful and error responses
+#[derive(Clone, Copy, Debug)]
+pub enum ConnectorHttpErrorHandling {
+    /// SDK/FFI callers expose connector HTTP errors through their error result.
+    ReturnAsError,
+    /// Unified gRPC flows expose a parsed connector HTTP error in the flow response.
+    ReturnInRouterData,
+}
+
+/// Handles connector responses according to the caller's boundary contract.
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -464,15 +472,6 @@ use common_utils::events::record_json_fields_on_span;
         )
     )
 )]
-#[derive(Clone, Copy, Debug)]
-pub enum ConnectorHttpErrorHandling {
-    /// SDK/FFI callers expose connector HTTP errors through their error result.
-    ReturnAsError,
-    /// Unified gRPC flows expose a parsed connector HTTP error in the flow response.
-    ReturnInRouterData,
-}
-
-/// Handles connector responses according to the caller's boundary contract.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
