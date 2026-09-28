@@ -14211,7 +14211,7 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
                                 auth_code: google_pay_data.auth_code,
                                 email: google_pay_data.email.and_then(|e| {
                                     let raw = e.expose();
-                                    Email::try_from(raw.clone())
+                                    Email::try_from(raw)
                                         .inspect_err(|_| {
                                             tracing::warn!(
                                                 "invalid Google Pay email in additional_payment_data, dropping"
