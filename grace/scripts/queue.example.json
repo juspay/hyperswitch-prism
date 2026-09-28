@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Supervisor queue. Copy, edit paths, then:",
+    "  python3 grace/scripts/grace_supervisor.py --config queue.json",
+    "run_id scopes the ledger: a rerun with the SAME run_id resumes and skips",
+    "finished connectors; a NEW run_id archives the old ledger and starts over.",
+    "Sandbox-tested connectors first (we hold credentials), then alpha."
+  ],
+  "run_id": "batch-2026-09-29",
+  "usage_threshold": 50,
+  "min_free_gb": 20,
+  "stall_hours": 4,
+  "poll_seconds": 60,
+  "hs_repo_path": "/home/infamous/hyperswitch1",
+  "dashboard_repo": "",
+  "flows": "CIT,MIT,AutoCapture,ManualCapture,ZeroAuth,ThreeDS,NTID,Webhooks,ExternalThreeDS,Refund,RSync,Void,Chargeback,AVS,CVV,Billing,Shipping,IssuerErrorMapping,MerchantReferenceId,L2L3,DynamicDescriptor",
+  "connectors": ["Braintree"]
+}

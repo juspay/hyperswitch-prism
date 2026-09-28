@@ -1,113 +1,96 @@
 #!/usr/bin/env python3
-"""Stop a batch run before it eats the whole token budget.
+"""Read the Claude subscription's weekly usage and gate on it.
 
-GRACE bounds a run by wall-clock (MAX_RUN_HOURS), disk, and attempt caps —
-nothing measures tokens. One measured connector run (Nuvei, PR #2332) was
-~9h23m and ~528M context tokens, so a 20-connector batch is an order of
-magnitude past any sane per-session budget. This is the missing gate.
+`claude -p "/usage"` prints, among other lines:
 
-Usage is read from the Claude Code transcripts under ~/.claude/projects: every
-assistant turn carries message.usage. No network, no dependencies, stdlib only.
+    Current session: 12% used · resets Sep 28 at 9:59pm (Asia/Calcutta)
+    Current week (all models): 5% used · resets Oct 5 at 11:29am (Asia/Calcutta)
 
-  usage_gate.py --budget 2e9 [--window-hours 5] [--json]
+The weekly figure is the real plan limit, which is why this reads it rather than
+estimating a token budget from transcripts: a guessed ceiling is wrong in a
+direction nobody can see, and the number that actually stops you is this one.
 
-Exit 0  under the threshold (keep going)
-Exit 1  at or over it (stop cleanly and let the ledger resume later)
-Exit 2  usage could not be read — reported, never silently treated as 0
+  usage_gate.py [--threshold 50] [--scope week|session] [--json]
 
-Cache reads are counted at full weight by default: they are what a budget
-measures, and discounting them would make a batch look affordable right up to
-the point it is not. --no-cache-reads counts only fresh input + output.
+Exit 0  under the threshold  (start the next connector)
+Exit 1  at or over it        (hold; re-check later)
+Exit 2  could not be read    (hold too — never assume 0%)
+
+Exit 2 is deliberately not a pass. An unreadable usage response treated as "0%
+used" would remove the ceiling entirely, which is the one failure this gate
+exists to prevent.
 """
-import argparse, datetime, json, pathlib, sys
+import argparse, json, re, subprocess, sys
 
-PROJECTS = pathlib.Path.home() / ".claude" / "projects"
-FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+# "Current week (all models): 5% used · resets Oct 5 at 11:29am (Asia/Calcutta)"
+# The separator is a Unicode middle dot and the reset clause is optional, so the
+# percent is matched independently of everything that follows it.
+WEEK = re.compile(r"Current week \(all models\):\s*([\d.]+)%\s*used", re.I)
+SESSION = re.compile(r"Current session:\s*([\d.]+)%\s*used", re.I)
+RESETS = {
+    "week": re.compile(r"Current week \(all models\):[^\n]*?resets\s+([^(\n]+)", re.I),
+    "session": re.compile(r"Current session:[^\n]*?resets\s+([^(\n]+)", re.I),
+}
 
 
-def tokens_used(root: pathlib.Path, since_epoch_ms: float, count_cache_reads: bool):
-    """(total, files_read, turns) over transcripts touched inside the window.
+def read_usage(timeout=180):
+    """(text, error). Never raises."""
+    try:
+        r = subprocess.run(
+            ["claude", "-p", "/usage", "--output-format", "text"],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except FileNotFoundError:
+        return None, "claude CLI not found on PATH"
+    except subprocess.TimeoutExpired:
+        return None, f"claude -p /usage timed out after {timeout}s"
+    if r.returncode != 0:
+        tail = (r.stderr or "").strip().splitlines()
+        return None, f"claude exited {r.returncode}: {tail[-1][:160] if tail else 'no stderr'}"
+    return r.stdout, None
 
-    File mtime prefilters; per-turn timestamps do the real filtering, so a long
-    session that started before the window only contributes its recent turns.
-    """
-    total = files = turns = 0
-    if not root.is_dir():
-        raise FileNotFoundError(root)
-    cutoff_s = since_epoch_ms / 1000.0
-    for f in root.rglob("*.jsonl"):
-        try:
-            if f.stat().st_mtime < cutoff_s:
-                continue
-        except OSError:
-            continue
-        files += 1
-        try:
-            handle = f.open(errors="ignore")
-        except OSError:
-            continue
-        with handle:
-            for line in handle:
-                try:
-                    rec = json.loads(line)
-                except (json.JSONDecodeError, ValueError):
-                    continue
-                usage = (rec.get("message") or {}).get("usage")
-                if not isinstance(usage, dict):
-                    continue
-                ts = rec.get("timestamp")
-                if isinstance(ts, str):
-                    try:
-                        when = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                        if when.timestamp() < cutoff_s:
-                            continue
-                    except ValueError:
-                        pass  # unparseable stamp: count it rather than lose it
-                turns += 1
-                for k in FIELDS:
-                    if k == "cache_read_input_tokens" and not count_cache_reads:
-                        continue
-                    v = usage.get(k)
-                    if isinstance(v, int):
-                        total += v
-    return total, files, turns
+
+def parse(text, scope):
+    pat = WEEK if scope == "week" else SESSION
+    m = pat.search(text or "")
+    if not m:
+        return None, None
+    reset = RESETS[scope].search(text)
+    return float(m.group(1)), (reset.group(1).strip() if reset else None)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--budget", type=float, required=True, help="token ceiling for the window")
-    ap.add_argument("--threshold", type=float, default=100.0, help="stop at this %% of budget")
-    ap.add_argument("--window-hours", type=float, default=5.0)
-    ap.add_argument("--root", type=pathlib.Path, default=PROJECTS)
-    ap.add_argument("--no-cache-reads", action="store_true")
+    ap.add_argument("--threshold", type=float, default=50.0, help="hold at or above this %%")
+    ap.add_argument("--scope", choices=("week", "session"), default="week")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
-    if a.budget <= 0:
-        print("budget must be > 0", file=sys.stderr)
-        return 2
-    since = (datetime.datetime.now() - datetime.timedelta(hours=a.window_hours)).timestamp() * 1000
-    try:
-        used, files, turns = tokens_used(a.root, since, not a.no_cache_reads)
-    except FileNotFoundError as e:
-        # Never fall through to "0 tokens used" — that reads as "plenty of
-        # budget" and would let a batch run unbounded on a broken path.
-        print(f"usage unreadable: no transcript directory at {e}", file=sys.stderr)
+    text, err = read_usage()
+    if err:
+        print(f"usage unreadable: {err}", file=sys.stderr)
+        if a.json:
+            print(json.dumps({"ok": False, "error": err, "over": True}))
         return 2
 
-    pct = 100.0 * used / a.budget
+    pct, reset = parse(text, a.scope)
+    if pct is None:
+        # The wording changed, or the account is not on a subscription. Either
+        # way we do not know the number, so we must not let the queue proceed.
+        print(f"usage unreadable: no '{a.scope}' percentage in /usage output", file=sys.stderr)
+        if a.json:
+            print(json.dumps({"ok": False, "error": "unparseable", "over": True,
+                              "raw": (text or "")[:400]}))
+        return 2
+
     over = pct >= a.threshold
     if a.json:
-        print(json.dumps({
-            "used": used, "budget": int(a.budget), "percent": round(pct, 2),
-            "threshold": a.threshold, "window_hours": a.window_hours,
-            "files": files, "turns": turns, "over": over,
-        }, indent=2))
+        print(json.dumps({"ok": True, "scope": a.scope, "percent": pct,
+                          "threshold": a.threshold, "resets": reset, "over": over}))
     else:
-        print(f"{used:,} / {int(a.budget):,} tokens = {pct:.1f}% of budget "
-              f"(threshold {a.threshold:.0f}%, {a.window_hours}h window, "
-              f"{turns:,} turns in {files} transcript(s))")
-        print("OVER THRESHOLD — stop the batch" if over else "under threshold — continue")
+        print(f"{a.scope}: {pct:g}% used (threshold {a.threshold:g}%)"
+              + (f" · resets {reset}" if reset else ""))
+        print("OVER — hold, do not start another connector" if over else "under — clear to start")
     return 1 if over else 0
 
 

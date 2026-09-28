@@ -134,63 +134,9 @@ For each connector in `CONNECTOR_LIST`, check if its **lowercased** name has an 
 
 ---
 
-## STEP 1b: SEED THE RUN LEDGER (once, right after pre-flight)
-
-```bash
-# RUN_ID is the batch dir STEP 1 already made, so the ledger and the frozen
-# workflow always name the same run.
-RUN_ID=$(basename "$(dirname "$WF")")
-python3 grace/scripts/task_update.py --seed "$RUN_ID" "$(IFS=,; echo "${CONNECTOR_LIST[*]}")"
-```
-
-`task.json` at the repo root is the single source of truth for resumption. It is
-gitignored, so it **outlives the run that wrote it** — which is why every read is
-scoped by `RUN_ID`. A ledger left by an earlier run is archived by `--seed`, and
-`--skip` returns "do not skip" whenever the run id does not match. An unscoped
-ledger would skip a connector some previous run implemented and this one has not.
-
----
-
 ## STEP 2: FOR EACH CONNECTOR (one at a time, sequentially — NEVER in parallel)
 
 **HARD GUARDRAIL — ONE TASK CALL PER MESSAGE**: You MUST send exactly ONE Task tool call per message. After sending it, WAIT for the result. Only after receiving the result may you send the next Task tool call in a NEW message. If you ever find yourself about to include multiple Task tool calls in a single message for different connectors — STOP. That is parallel execution and it WILL corrupt the working tree. It does not matter if you have processed 5, 10, or 20 connectors already — the rule is the same for connector #1 and connector #25.
-
-### BEFORE EACH CONNECTOR (both checks, every time)
-
-```bash
-# 1. Budget. One connector run measured ~528M context tokens (Nuvei, #2332), so
-#    a batch overruns any session budget long before it runs out of connectors.
-python3 grace/scripts/usage_gate.py --budget "${GRACE_TOKEN_BUDGET:-2e9}" \
-        --threshold "${GRACE_USAGE_THRESHOLD:-85}" --window-hours 5
-case $? in
-  0) ;;                                    # under threshold, continue
-  1) echo "USAGE_THRESHOLD_REACHED"; ;;    # stop the batch, see below
-  2) echo "USAGE_UNREADABLE"; ;;           # stop too: never assume 0 tokens used
-esac
-
-# 2. Already done in THIS run? (exit 0 = skip it)
-python3 grace/scripts/task_update.py --skip "$RUN_ID" "$CONNECTOR"
-```
-
-On **exit 1 or 2**, stop the batch: do not spawn another Connector Agent. Leave
-every unprocessed connector `queued` in the ledger and report
-`STOPPED: usage threshold reached — resume with the same RUN_ID`. A rerun picks
-up exactly where this one stopped. Exit 2 is deliberately fatal: unreadable usage
-read as zero would let a batch run unbounded.
-
-**HARD GUARDRAIL — RESUMABLE LOOP, NEVER REDO COMPLETED WORK**: skip any connector
-already recorded `success` **for this run**. A run that dies at connector 14 of 20
-must resume at 14, not restart at 1.
-
-Write the ledger around every Task call — before, so a crash mid-connector is
-visible as `running`, and after, so the next run can skip it:
-
-```bash
-python3 grace/scripts/task_update.py "connector-agent-${CONNECTOR_LC}" status=running
-# ... Task tool call ...
-python3 grace/scripts/task_update.py "connector-agent-${CONNECTOR_LC}" \
-        status=success pr="<pr number or url>"        # or status=failed error="<reason>"
-```
 
 For every connector in `CONNECTOR_LIST`, invoke the **Connector Agent** defined in `2_connector.md`. The Connector Agent is the ONLY place where work happens — it handles **everything** for that connector and all of `{FLOWS}`: preflight and its own branch, links, tech spec, plan, codegen, the test/RCA loop, review, and one PR. The orchestrator does NOTHING for a connector except invoke the subagent and wait.
 
