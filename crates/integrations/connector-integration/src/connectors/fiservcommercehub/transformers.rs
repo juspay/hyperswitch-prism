@@ -2475,7 +2475,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 })
             }
-            _ => return Err(error_stack::report!(
+            _ => {
+                return Err(error_stack::report!(
                 errors::IntegrationError::NotImplemented(
                     "Fiserv CommerceHub SetupMandate supports only Card".to_string(),
                     errors::IntegrationErrorContext {
@@ -2487,7 +2488,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ..Default::default()
                     },
                 )
-            )),
+            ))
+            }
         };
 
         let origin = FiservcommercehubOrigin::from(router_data.request.payment_channel.as_ref());
