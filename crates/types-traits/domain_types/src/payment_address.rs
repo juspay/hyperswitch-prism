@@ -2,8 +2,9 @@ use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
-use crate::utils::{
-    convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+use crate::{
+    state_codes::convert_state_to_code,
+    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
 };
 
 #[derive(Clone, Default, Debug)]
@@ -377,7 +378,9 @@ impl AddressDetails {
             common_enums::CountryAlpha2::CA => Ok(Secret::new(
                 convert_canada_state_to_code(&state.peek().to_string()).to_string(),
             )),
-            _ => Ok(state.clone()),
+            country => Ok(convert_state_to_code(*country, state.peek())
+                .map(|code| Secret::new(code.to_string()))
+                .unwrap_or_else(|| state.clone())),
         }
     }
 
