@@ -98,6 +98,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PixPayment: ["pixKey", "cpf", "cnpj"],
   OnlineBankingFinland: ["email"],
   OpenBanking: ["iban", "accountNumber", "sortCode", "accountHolderName", "additionalDetails"],
+  Trustly: ["accountHolderName", "additionalDetails", "bankLastDigits"],
   Giropay: ["bankAccountBic", "bankAccountIban"],
   Interac: ["email"],
   BancontactCard: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
