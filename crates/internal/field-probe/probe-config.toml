@@ -152,6 +152,14 @@ default = '{}'
 [connector_overrides.refund_get.braintree]
 "refund_metadata" = '{"currency":"USD"}'
 
+# Shift4 stores a card or wallet payment method on file only under a Shift4
+# customer, so every setup flow refuses a request without
+# `customer.connector_customer_id` before building the charge. That is a local
+# precondition, not a missing field the patcher can discover, so the setup flows
+# get the same probe customer id `recurring_charge` already uses.
+[connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
+"customer.connector_customer_id" = "cust_probe_123"
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]

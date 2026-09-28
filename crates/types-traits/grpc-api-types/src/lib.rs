@@ -28,3 +28,8 @@ pub mod surcharge {
 pub mod frm {
     pub use super::types::*;
 }
+
+pub mod auto_populate {
+    include!(concat!(env!("OUT_DIR"), "/auto_populate_generated.rs"));
+    pub use generated::*;
+}

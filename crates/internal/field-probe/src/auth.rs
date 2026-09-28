@@ -722,6 +722,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             secret_key: s(),
             base_url: None,
         },
+        ConnectorEnum::GlobalpaymentsRealex => ConnectorSpecificConfig::GlobalpaymentsRealex {
+            shared_secret: s(),
+            merchant_id: m(),
+            account: Secret::new("internet".to_string()),
+            refund_password: p(),
+            base_url: None,
+        },
         ConnectorEnum::TsysTransit => ConnectorSpecificConfig::TsysTransit {
             device_id: id(),
             transaction_key: k(),
@@ -784,12 +791,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
             public_key: u(),
             private_key: p(),
-            base_url: None,
-        },
-        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
-            api_key: k(),
-            auth_server_id: None,
-            khash_config_key: None,
             base_url: None,
         },
         ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {

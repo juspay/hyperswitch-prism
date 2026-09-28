@@ -12,8 +12,8 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -25,8 +25,11 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::SourceVerification,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types,
+    decode::BodyDecoding,
+    verification::{ConnectorSourceVerificationSecrets, SourceVerification},
 };
 use serde::Serialize;
 use transformers::{
@@ -90,6 +93,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for TwocTwopPaco<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, errors::IntegrationError> {
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
+        Ok(RedirectDetailsResponse {
+            resource_id: None,
+            status: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            response_amount: None,
+            raw_connector_response: None,
+            connector_feature_data: None,
+        })
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for TwocTwopPaco<T>

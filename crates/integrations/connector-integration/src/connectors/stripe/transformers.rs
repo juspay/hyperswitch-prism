@@ -17,8 +17,8 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
-        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, MandateReference,
-        MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, L2L3Data,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
@@ -281,6 +281,8 @@ pub struct PaymentIntentRequest<
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub line_items: Option<StripeLineItemsData>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
     /// The Stripe account ID that these funds are intended for
@@ -296,6 +298,130 @@ pub struct IntentCharges {
         skip_serializing_if = "Option::is_none"
     )]
     pub destination_account_id: Option<Secret<String>>,
+}
+
+/// Level 2 / Level 3 purchase data, flattened onto the payment intent body.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeLineItemsData {
+    #[serde(
+        rename = "payment_details[customer_reference]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_reference: Option<String>,
+    #[serde(
+        rename = "payment_details[order_reference]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub order_reference: Option<String>,
+    #[serde(
+        rename = "amount_details[shipping][from_postal_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_from_postal_code: Option<Secret<String>>,
+    #[serde(
+        rename = "amount_details[shipping][to_postal_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_to_postal_code: Option<Secret<String>>,
+    #[serde(
+        rename = "amount_details[shipping][amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_amount: Option<MinorUnit>,
+    #[serde(
+        rename = "amount_details[tax][total_tax_amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub order_tax_amount: Option<MinorUnit>,
+    #[serde(
+        rename = "amount_details[discount_amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub discount_amount: Option<MinorUnit>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub line_items: Option<HashMap<String, String>>,
+}
+
+fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<StripeLineItemsData> {
+    l2_l3_data.map(|data| {
+        // Stripe takes tax either at order level or at line-item level, never both.
+        let (line_items, order_tax_amount) = data.get_order_details().map_or(
+            (None, data.get_order_tax_amount()),
+            |order_details| {
+                if order_details.is_empty() {
+                    return (None, data.get_order_tax_amount());
+                }
+                let mut items_map = HashMap::new();
+                let mut has_line_item_tax = false;
+
+                for (index, order_item) in order_details.iter().enumerate() {
+                    items_map.insert(
+                        format!("amount_details[line_items][{index}][product_name]"),
+                        order_item.product_name.clone(),
+                    );
+                    items_map.insert(
+                        format!("amount_details[line_items][{index}][unit_cost]"),
+                        order_item.amount.get_amount_as_i64().to_string(),
+                    );
+                    items_map.insert(
+                        format!("amount_details[line_items][{index}][quantity]"),
+                        order_item.quantity.to_string(),
+                    );
+                    if let Some(product_code) = order_item.product_id.as_ref() {
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][product_code]"),
+                            product_code.clone(),
+                        );
+                    }
+                    if let Some(tax_amount) = order_item.total_tax_amount {
+                        has_line_item_tax = true;
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
+                            tax_amount.get_amount_as_i64().to_string(),
+                        );
+                    }
+                    if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][unit_of_measure]"),
+                            unit_of_measure.clone(),
+                        );
+                    }
+                    if let Some(line_discount) = order_item.unit_discount_amount {
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][discount_amount]"),
+                            line_discount.get_amount_as_i64().to_string(),
+                        );
+                    }
+                    if let Some(commodity_code) = order_item.commodity_code.as_ref() {
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][payment_method_options][card][commodity_code]"),
+                            commodity_code.clone(),
+                        );
+                    }
+                }
+
+                let order_tax = if has_line_item_tax {
+                    None
+                } else {
+                    data.get_order_tax_amount()
+                };
+                (Some(items_map), order_tax)
+            },
+        );
+
+        StripeLineItemsData {
+            customer_reference: data
+                .get_customer_id()
+                .map(|id| id.get_string_repr().to_string()),
+            order_reference: data.get_merchant_order_reference_id(),
+            shipping_from_postal_code: data.get_shipping_origin_zip(),
+            shipping_to_postal_code: data.get_shipping_zip(),
+            shipping_amount: data.get_shipping_cost(),
+            order_tax_amount,
+            discount_amount: data.get_discount_amount(),
+            line_items,
+        }
+    })
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -2125,17 +2251,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let (card_token, payment_method_id) = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
-                Some(
-                    payment_method_data::TokenPaymentMethod::ApplePay
-                    | payment_method_data::TokenPaymentMethod::GooglePay,
-                ) => (Some(pmt.token.clone()), None),
-                None => (None, Some(pmt.token.clone())),
-            },
-            _ => (None, None),
-        };
+        // Stripe reads the wallet off the token itself, so `payment_method_types[0]` follows the
+        // wallet rather than the token: Apple Pay sends none, Google Pay sends `card`. Mirrors
+        // `get_stripe_payment_method_type_from_wallet_data` on the hyperswitch side.
+        let (card_token, payment_method_id, card_token_pm_type) =
+            match &item.request.payment_method_data {
+                PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
+                    Some(payment_method_data::TokenPaymentMethod::ApplePay) => {
+                        (Some(pmt.token.clone()), None, None)
+                    }
+                    Some(payment_method_data::TokenPaymentMethod::GooglePay) => (
+                        Some(pmt.token.clone()),
+                        None,
+                        Some(StripePaymentMethodType::Card),
+                    ),
+                    None => (None, Some(pmt.token.clone()), None),
+                },
+                _ => (None, None, None),
+            };
         let payment_method_token = card_token.clone().or(payment_method_id.clone());
+        // Stripe's split-payment tokenize flow replaces the address blocks with the tokenized
+        // payment method; every other tokenized payment still carries them. Mirrors
+        // `is_payment_method_tokenize_flow_required` on the hyperswitch side.
+        let is_tokenize_flow = payment_method_token.is_some()
+            && matches!(
+                item.request.split_payments,
+                Some(SplitPaymentsDetails::StripeSplitPayment(_))
+            );
 
         let amount =
             StripeAmountConvertor::convert(item.request.minor_amount, item.request.currency)?;
@@ -2144,7 +2286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector_request_reference_id
             .clone();
 
-        let shipping_address = if payment_method_token.is_some() {
+        let shipping_address = if is_tokenize_flow {
             None
         } else {
             Some(StripeShippingAddress {
@@ -2161,7 +2303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })
         };
 
-        let billing_address = if payment_method_token.is_some() {
+        let billing_address = if is_tokenize_flow {
             None
         } else {
             Some(StripeBillingAddress {
@@ -2203,8 +2345,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )),
                 None,
-                StripeBillingAddress::default(),
-                Some(StripePaymentMethodType::Card),
+                billing_address.clone().unwrap_or_default(),
+                card_token_pm_type,
                 setup_future_usage,
             )
         } else if payment_method_token.is_some() {
@@ -2340,7 +2482,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // We pass browser_info only when payment_data exists.
         // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
-        let browser_info = if payment_data.is_some() && payment_method_token.is_none() {
+        let browser_info = if payment_data.is_some() && !is_tokenize_flow {
             item.request
                 .browser_info
                 .clone()
@@ -2462,6 +2604,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            line_items: create_stripe_line_items_data(
+                item.resource_common_data.l2_l3_data.as_deref(),
+            ),
             moto: is_moto,
             on_behalf_of,
         })
@@ -6064,6 +6209,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            line_items: create_stripe_line_items_data(
+                item.resource_common_data.l2_l3_data.as_deref(),
+            ),
             moto: is_moto,
             on_behalf_of,
         })

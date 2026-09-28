@@ -161,7 +161,6 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
-    Kount,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -176,6 +175,7 @@ pub enum ConnectorEnum {
     D24,
     Paydotcom,
     ElavonPg,
+    GlobalpaymentsRealex,
     GlobalpaymentsHeartland,
     Payhere,
 }
@@ -536,6 +536,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
+            grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
+                Ok(Self::GlobalpaymentsRealex)
+            }
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
@@ -543,7 +546,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
-            grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
@@ -2204,6 +2206,19 @@ pub struct PaymentCreateOrderData {
     // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
     // at order/intent creation time.
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
+    /// Store-for-later intent of the payment this order is created for, from
+    /// `PaymentServiceCreateOrderRequest.setup_future_usage` (`None` when unset).
+    /// Connectors that fix an order's reusability at creation time read it (e.g.
+    /// PayNearMe creates a standing order for `OffSession`).
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Customer the order is created for, from
+    /// `PaymentServiceCreateOrderRequest.customer.id` (`None` when unset).
+    ///
+    /// It is carried here rather than in `PaymentFlowData.customer_id`, which
+    /// CreateOrder leaves `None`, so that connectors already reading
+    /// `PaymentFlowData.customer_id` in their CreateOrder transformer keep seeing
+    /// exactly what they saw before this field existed.
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -5026,6 +5041,16 @@ impl CustomerInfo {
             .clone()
             .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
+
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
+    /// `None` when the customer has no phone number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        PhoneDetails {
+            number: self.customer_phone_number.clone(),
+            country_code: self.customer_phone_country_code.clone(),
+        }
+        .get_e123_phone_number()
+    }
 }
 
 impl L2L3Data {
@@ -5977,7 +6002,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
-            AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
+            AuthType::Kount(_) => Ok(Self::Frm(FrmConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
@@ -5999,6 +6024,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
+            AuthType::GlobalpaymentsRealex(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsRealex))
+            }
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))
