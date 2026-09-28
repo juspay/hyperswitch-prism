@@ -885,15 +885,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         if request.body.is_empty() {
-            return Ok(domain_types::connector_types::EventType::IncomingWebhookEventUnspecified);
+            return Ok(domain_types::connector_types::EventType::EndpointVerification);
         }
         let notif: AdyenNotificationRequestItemWH =
             transformers::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
-        transformers::get_adyen_webhook_event_type(notif.event_code, notif.success)
-            .map_err(|e| report!(e))
+        transformers::get_adyen_webhook_event_type(
+            notif.event_code,
+            notif.success,
+            notif.additional_data.dispute_status,
+        )
+        .map_err(|e| report!(e))
     }
 
     fn get_webhook_event_reference(
@@ -920,39 +924,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant_transaction_id: Some(notif.merchant_reference),
                 })
             }
-            // Authorisation and OfferClosed: psp_reference is the payment PSP ref.
+            // HS routes these events by merchantReference (PaymentAttemptId), not
+            // pspReference. Leave connector_transaction_id empty so the HS bridge
+            // does not prefer connector_transaction_id over merchant_transaction_id.
             WebhookEventCode::Authorisation
             | WebhookEventCode::OfferClosed
             | WebhookEventCode::RecurringContract => {
                 WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(notif.psp_reference),
+                    connector_transaction_id: None,
                     merchant_transaction_id: Some(notif.merchant_reference),
                 })
             }
-            // Refund events: psp_reference is the refund's own PSP ref;
-            // original_reference is the parent payment's PSP ref.
+            // HS routes refund webhooks by merchantReference (RefundId), not the
+            // Adyen refund PSP reference. Keep connector_refund_id empty so the
+            // HS bridge uses merchant_refund_id.
             WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
             | WebhookEventCode::RefundReversed => {
                 WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(notif.psp_reference),
+                    connector_refund_id: None,
                     merchant_refund_id: Some(notif.merchant_reference),
                     connector_transaction_id: notif.original_reference,
                     merchant_transaction_id: None,
                 })
             }
-            // Dispute events: psp_reference is the dispute ID; original_reference is the parent payment.
+            // HS routes Adyen dispute webhooks by the parent payment PSP reference
+            // (originalReference). The dispute PSP reference is still returned in
+            // process_dispute_webhook as dispute_id; do not put it here because
+            // the HS bridge prefers connector_dispute_id over connector_transaction_id.
             WebhookEventCode::NotificationOfChargeback
             | WebhookEventCode::Chargeback
             | WebhookEventCode::ChargebackReversed
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::SecondChargeback
-            | WebhookEventCode::PrearbitrationLost => {
+            | WebhookEventCode::PrearbitrationLost
+            | WebhookEventCode::RequestForInformation
+            | WebhookEventCode::InformationSupplied
+            | WebhookEventCode::PrearbitrationOpen
+            | WebhookEventCode::PrearbitrationAccepted
+            | WebhookEventCode::PrearbitrationDeclined
+            | WebhookEventCode::PrearbitrationIssuerWithdrawn
+            | WebhookEventCode::SchemeArbitration
+            | WebhookEventCode::SchemeArbitrationWon
+            | WebhookEventCode::SchemeArbitrationLost
+            | WebhookEventCode::DisputeDefensePeriodEnded
+            | WebhookEventCode::IssuerResponseTimeframeExpired => {
                 WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: Some(notif.psp_reference),
+                    connector_dispute_id: None,
                     connector_transaction_id: notif.original_reference,
                 })
+            }
+            WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
+                return Ok(None);
             }
             // Unknown: no actionable reference.
             WebhookEventCode::Unknown => return Ok(None),

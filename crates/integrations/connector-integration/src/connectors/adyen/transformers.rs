@@ -5552,6 +5552,19 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
+    NotificationOfFraud,
+    InformationSupplied,
+    PrearbitrationOpen,
+    PrearbitrationAccepted,
+    PrearbitrationDeclined,
+    PrearbitrationIssuerWithdrawn,
+    SchemeArbitration,
+    SchemeArbitrationWon,
+    SchemeArbitrationLost,
+    DisputeDefensePeriodEnded,
+    IssuerResponseTimeframeExpired,
+    IssuerComments,
     OfferClosed,
     RecurringContract,
     #[serde(other)]
@@ -5565,6 +5578,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Responded,
+    Expired,
+    Unresponded,
     #[serde(other)]
     Unknown,
 }
@@ -5746,6 +5762,7 @@ pub(crate) fn get_adyen_refund_webhook_event(
 pub(crate) fn get_adyen_webhook_event_type(
     code: WebhookEventCode,
     is_success: String,
+    dispute_status: Option<DisputeStatus>,
 ) -> Result<EventType, WebhookError> {
     match code {
         // Adyen sends the same AUTHORISATION eventCode for both success and
@@ -5761,24 +5778,75 @@ pub(crate) fn get_adyen_webhook_event_type(
             }
         }
         WebhookEventCode::AuthorisationAdjustment => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentExtendAuthorizationSuccess)
+            } else {
+                Ok(EventType::PaymentIntentExtendAuthorizationFailure)
+            }
         }
-        WebhookEventCode::Cancellation => Ok(EventType::PaymentIntentCancelled),
-        WebhookEventCode::Capture => Ok(EventType::PaymentIntentCaptureSuccess),
+        WebhookEventCode::Cancellation => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCancelled)
+            } else {
+                Ok(EventType::PaymentIntentCancelFailure)
+            }
+        }
+        WebhookEventCode::Capture => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCaptureSuccess)
+            } else {
+                Ok(EventType::PaymentIntentCaptureFailure)
+            }
+        }
         WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
         WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
-        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            Ok(EventType::RefundFailure)
+        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::RefundSuccess)
+            } else {
+                Ok(EventType::RefundFailure)
+            }
         }
-        WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {
-            Ok(EventType::DisputeOpened)
-        }
-        WebhookEventCode::ChargebackReversed | WebhookEventCode::PrearbitrationWon => {
-            Ok(EventType::DisputeWon)
-        }
+        WebhookEventCode::RefundFailed => Ok(EventType::RefundFailure),
+        WebhookEventCode::RefundReversed => Ok(EventType::RefundReview),
+        WebhookEventCode::NotificationOfChargeback => Ok(EventType::DisputeOpened),
+        WebhookEventCode::Chargeback => match dispute_status {
+            Some(DisputeStatus::Won) => Ok(EventType::DisputeWon),
+            Some(DisputeStatus::Lost) | None => Ok(EventType::DisputeLost),
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Expired) => Ok(EventType::DisputeExpired),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::InformationSupplied => match dispute_status {
+            Some(DisputeStatus::Responded) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::ChargebackReversed => match dispute_status {
+            Some(DisputeStatus::Pending) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeWon),
+        },
+        WebhookEventCode::PrearbitrationWon => Ok(EventType::DisputeWon),
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
+        }
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok(EventType::DisputeOpened)
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok(EventType::DisputeAccepted),
+        WebhookEventCode::PrearbitrationDeclined => Ok(EventType::DisputeChallenged),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon
+        | WebhookEventCode::IssuerResponseTimeframeExpired => Ok(EventType::DisputeWon),
+        WebhookEventCode::SchemeArbitrationLost => Ok(EventType::DisputeLost),
+        WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeLost),
+        },
+        WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
+            Ok(EventType::IncomingWebhookEventUnspecified)
         }
         WebhookEventCode::Unknown => {
             tracing::warn!(
@@ -7775,6 +7843,9 @@ pub(crate) fn get_dispute_stage_and_status(
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
                 Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
+                Some(DisputeStatus::Responded)
+                | Some(DisputeStatus::Expired)
+                | Some(DisputeStatus::Unresponded) => HSDisputeStatus::DisputeOpened,
                 Some(DisputeStatus::Unknown) => {
                     return Err(
                         error_stack::report!(WebhookError::WebhookBodyDecodingFailed)

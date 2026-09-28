@@ -3174,6 +3174,8 @@ pub enum EventType {
     PaymentIntentCancelFailure,
     PaymentIntentAuthorizationSuccess,
     PaymentIntentAuthorizationFailure,
+    PaymentIntentExtendAuthorizationSuccess,
+    PaymentIntentExtendAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
@@ -3187,6 +3189,7 @@ pub enum EventType {
     RefundFailure,
     RefundSuccess,
     RefundProcessing,
+    RefundReview,
 
     // Dispute events
     DisputeOpened,
@@ -3246,6 +3249,8 @@ impl EventType {
                 | Self::PaymentIntentCancelFailure
                 | Self::PaymentIntentAuthorizationSuccess
                 | Self::PaymentIntentAuthorizationFailure
+                | Self::PaymentIntentExtendAuthorizationSuccess
+                | Self::PaymentIntentExtendAuthorizationFailure
                 | Self::PaymentIntentCaptureSuccess
                 | Self::PaymentIntentCaptureFailure
                 | Self::PaymentIntentExpired
@@ -3261,7 +3266,11 @@ impl EventType {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            Self::RefundFailure | Self::RefundSuccess | Self::RefundProcessing | Self::Refund
+            Self::RefundFailure
+                | Self::RefundSuccess
+                | Self::RefundProcessing
+                | Self::RefundReview
+                | Self::Refund
         )
     }
 
@@ -3357,6 +3366,12 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::PaymentIntentAuthorizationFailure => {
                 Ok(Self::PaymentIntentAuthorizationFailure)
             }
+            grpc_api_types::payments::WebhookEventType::PaymentIntentExtendAuthorizationSuccess => {
+                Ok(Self::PaymentIntentExtendAuthorizationSuccess)
+            }
+            grpc_api_types::payments::WebhookEventType::PaymentIntentExtendAuthorizationFailure => {
+                Ok(Self::PaymentIntentExtendAuthorizationFailure)
+            }
             grpc_api_types::payments::WebhookEventType::PaymentIntentCaptureSuccess => {
                 Ok(Self::PaymentIntentCaptureSuccess)
             }
@@ -3383,6 +3398,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             }
             grpc_api_types::payments::WebhookEventType::WebhookRefundProcessing => {
                 Ok(Self::RefundProcessing)
+            }
+            grpc_api_types::payments::WebhookEventType::WebhookRefundReview => {
+                Ok(Self::RefundReview)
             }
             grpc_api_types::payments::WebhookEventType::WebhookDisputeOpened => {
                 Ok(Self::DisputeOpened)
@@ -3462,6 +3480,12 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::PaymentIntentAuthorizationFailure => {
                 Ok(Self::PaymentIntentAuthorizationFailure)
             }
+            EventType::PaymentIntentExtendAuthorizationSuccess => {
+                Ok(Self::PaymentIntentExtendAuthorizationSuccess)
+            }
+            EventType::PaymentIntentExtendAuthorizationFailure => {
+                Ok(Self::PaymentIntentExtendAuthorizationFailure)
+            }
             EventType::PaymentIntentCaptureSuccess => Ok(Self::PaymentIntentCaptureSuccess),
             EventType::PaymentIntentCaptureFailure => Ok(Self::PaymentIntentCaptureFailure),
             EventType::PaymentIntentExpired => Ok(Self::PaymentIntentExpired),
@@ -3471,6 +3495,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::RefundFailure => Ok(Self::WebhookRefundFailure),
             EventType::RefundSuccess => Ok(Self::WebhookRefundSuccess),
             EventType::RefundProcessing => Ok(Self::WebhookRefundProcessing),
+            EventType::RefundReview => Ok(Self::WebhookRefundReview),
             EventType::DisputeOpened => Ok(Self::WebhookDisputeOpened),
             EventType::DisputeExpired => Ok(Self::WebhookDisputeExpired),
             EventType::DisputeAccepted => Ok(Self::WebhookDisputeAccepted),
