@@ -669,6 +669,9 @@ message PayoutServiceEnrollDisburseAccountRequest {
   // Vendor (business) and individual (KYC) onboarding details, e.g. the Stripe
   // Connect external account holder type
   optional PayoutVendorAccountDetails vendor_account_details = 9;
+  // Currency in which the payout will be received. Denotes the currency of the
+  // recipient's external account when it differs from the amount currency.
+  optional Currency destination_currency = 10;
 }
 
 // Response message for enrolling disburse account

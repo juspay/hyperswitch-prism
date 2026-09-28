@@ -594,6 +594,9 @@ impl PayoutCreateRecipientRequest {
         matches!(
             self.recipient_type,
             common_enums::PayoutRecipientType::Company
+                | common_enums::PayoutRecipientType::NonProfit
+                | common_enums::PayoutRecipientType::PublicSector
+                | common_enums::PayoutRecipientType::Business
         )
     }
 }
@@ -636,6 +639,9 @@ pub struct PayoutEnrollDisburseAccountRequest {
     pub connector_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
+    /// Currency in which the payout will be received. Optional because callers
+    /// may only send the amount currency.
+    pub destination_currency: Option<common_enums::Currency>,
     pub payout_method_data: Option<PayoutMethodData>,
 
     pub customer: Option<PayoutCustomer>,

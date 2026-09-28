@@ -66,6 +66,10 @@ pub enum StripeConnectPayoutStatus {
     InTransit,
     Paid,
     Pending,
+    /// Any status Stripe adds later. Mapped to `Pending` so the flow keeps
+    /// polling instead of failing deserialization.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<StripeConnectPayoutStatus> for common_enums::PayoutStatus {
@@ -76,6 +80,7 @@ impl From<StripeConnectPayoutStatus> for common_enums::PayoutStatus {
             StripeConnectPayoutStatus::InTransit => Self::Pending,
             StripeConnectPayoutStatus::Failed => Self::Failure,
             StripeConnectPayoutStatus::Canceled => Self::Cancelled,
+            StripeConnectPayoutStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -303,7 +308,9 @@ impl TryFrom<ResponseRouterData<StripeConnectReversalResponse, Self>>
         Ok(Self {
             response: Ok(PayoutVoidResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
-                payout_status: common_enums::PayoutStatus::Cancelled,
+                // Stripe's reversal response carries no status; it only acknowledges
+                // the reversal. Report Pending and let PayoutGet confirm.
+                payout_status: common_enums::PayoutStatus::Pending,
                 connector_payout_id: item.router_data.request.connector_payout_id.clone(),
                 status_code: item.http_code,
             }),
@@ -537,8 +544,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // recipient type so callers that only send `recipient_type` keep working.
         let business_type = request.get_business_type().unwrap_or_else(|| {
             match request.recipient_type {
-                common_enums::PayoutRecipientType::Company => STRIPE_ACCOUNT_TYPE_COMPANY,
-                _ => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
+                common_enums::PayoutRecipientType::Company
+                | common_enums::PayoutRecipientType::NonProfit
+                | common_enums::PayoutRecipientType::PublicSector
+                | common_enums::PayoutRecipientType::Business => STRIPE_ACCOUNT_TYPE_COMPANY,
+                common_enums::PayoutRecipientType::Individual
+                | common_enums::PayoutRecipientType::NaturalPerson
+                | common_enums::PayoutRecipientType::Personal => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
             }
             .to_string()
         });
@@ -717,7 +729,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         },
                     })
                 })?;
-                let currency = request.source_currency;
+                // The external account is denominated in the payout currency; fall
+                // back to the amount currency when the caller omits it.
+                let currency = request
+                    .destination_currency
+                    .unwrap_or(request.source_currency);
                 let account_holder_name = request.get_customer_name().ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
                         field_name: "customer.name",
@@ -743,22 +759,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     external_account_routing_number: ach.bank_routing_number.clone(),
                 }))
             }
-            _ => Err(IntegrationError::NotImplemented(
-                "Only ACH bank transfers are supported for external account enrollment".to_string(),
-                IntegrationErrorContext {
-                    additional_context: Some(
-                        "Stripe external accounts are created from ACH bank details only"
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Send the payout method as an ACH bank transfer".to_string(),
-                    ),
-                    doc_url: None,
-                },
-            )
-            .into()),
+            PayoutMethodData::Bank(Bank::Bacs(_)) => Err(unsupported_enroll_rail("Bacs")),
+            PayoutMethodData::Bank(Bank::Sepa(_)) => Err(unsupported_enroll_rail("SEPA")),
+            PayoutMethodData::Bank(Bank::Pix(_)) => Err(unsupported_enroll_rail("Pix")),
+            PayoutMethodData::Bank(Bank::PixKey(_)) => Err(unsupported_enroll_rail("Pix key")),
+            PayoutMethodData::Bank(Bank::PixEmv(_)) => Err(unsupported_enroll_rail("Pix EMV")),
+            PayoutMethodData::Bank(Bank::OpenBanking(_)) => {
+                Err(unsupported_enroll_rail("open banking"))
+            }
+            PayoutMethodData::Bank(Bank::Trustly(_)) => Err(unsupported_enroll_rail("Trustly")),
+            PayoutMethodData::Bank(Bank::Payshap(_)) => Err(unsupported_enroll_rail("Payshap")),
+            PayoutMethodData::Bank(Bank::PayshapProxy(_)) => {
+                Err(unsupported_enroll_rail("Payshap proxy"))
+            }
+            PayoutMethodData::Wallet(_) => Err(unsupported_enroll_rail("wallet")),
+            PayoutMethodData::BankRedirect(_) => Err(unsupported_enroll_rail("bank redirect")),
+            PayoutMethodData::Passthrough(_) => Err(unsupported_enroll_rail("passthrough")),
         }
     }
+}
+
+/// Builds the error for a payout rail Stripe cannot enroll as an external account.
+fn unsupported_enroll_rail(rail: &str) -> error_stack::Report<IntegrationError> {
+    report!(IntegrationError::NotSupported {
+        message: format!("{rail} enrollment"),
+        connector: "stripe",
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "Stripe external accounts are created from ACH bank details or cards".to_string(),
+            ),
+            suggested_action: Some(
+                "Send the payout method as an ACH bank transfer or a card".to_string(),
+            ),
+            doc_url: None,
+        },
+    })
 }
 
 impl TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Self>>

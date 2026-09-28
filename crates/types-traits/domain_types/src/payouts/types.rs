@@ -1733,6 +1733,22 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let destination_currency = value
+            .destination_currency
+            .map(|currency| {
+                let curr = grpc_api_types::payments::Currency::try_from(currency).change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    },
+                )?;
+                common_enums::Currency::foreign_try_from(curr)
+            })
+            .transpose()?;
+
         let payout_method_data = value
             .payout_method_data
             .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
@@ -1752,6 +1768,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
             connector_payout_id: value.connector_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
+            destination_currency,
             payout_method_data,
             customer,
             vendor_account_details,
