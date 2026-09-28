@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.1-hotfix1
+
+### Bug Fixes
+
+- **ci:** Stop shadowing reserved GITHUB_WORKFLOW_REF env var in hotfix-branch check ([#2377](https://github.com/juspay/connector-service/pull/2377)) ([`fec5c3a`](https://github.com/juspay/connector-service/commit/fec5c3a5ef128beab92a0d2ddd747099b96b8b5a))
+
+### Revert
+
+- **connectors:** [tsys_transit] add integrity checks, map the amount captured and fix psync status handling ([#2270](https://github.com/juspay/connector-service/pull/2270)) ([#2376](https://github.com/juspay/connector-service/pull/2376)) ([`071488a`](https://github.com/juspay/connector-service/commit/071488a8953267d1b4d05e5634964f7a2a0a5546))
+
+**Full Changelog:** [`2026.09.28.1...2026.09.28.1-hotfix1`](https://github.com/juspay/connector-service/compare/2026.09.28.1...2026.09.28.1-hotfix1)
+
+- - -
+
 ## 2026.09.28.1
 
 ### Bug Fixes
