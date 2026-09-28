@@ -18,7 +18,8 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector, StringMinorUnit},
+    AmountConvertor, ConnectorAmountExt,
 };
 use domain_types::{
     connector_flow::{
@@ -32,7 +33,10 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{
         ApplePayPaymentData, Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
@@ -1828,8 +1832,8 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
 pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1856,8 +1860,8 @@ pub struct PaydotcomChargeResponse {
 pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub amount_capturable: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1966,7 +1970,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    pub fn amount(&self) -> Option<MinorUnit> {
+    pub fn amount(&self) -> Option<ConnectorMinorUnit> {
         match self {
             Self::Charge(charge) => charge.amount,
             Self::Hold(hold) => hold.amount,
@@ -2271,20 +2275,42 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let captured_amount = item.response.amount();
+        let connector_captured_amount = item.response.amount();
         let authorized_amount = item.router_data.resource_common_data.amount.as_ref();
+        let is_partial_capture = match (connector_captured_amount, authorized_amount) {
+            (Some(captured), Some(authorized)) => captured
+                .is_less_than_money(authorized)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Failed to compare the Paydotcom captured and authorized amounts"
+                                .to_string(),
+                        ),
+                    },
+                })?,
+            _ => false,
+        };
+        let captured_amount = connector_captured_amount
+            .map(|amount| {
+                MinorUnitForConnector.convert_back(amount, item.router_data.request.currency)
+            })
+            .transpose()
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Failed to convert the Paydotcom captured amount to a domain amount"
+                            .to_string(),
+                    ),
+                },
+            })?;
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment
             // partially charged, not fully charged.
-            AttemptStatus::Charged => match (captured_amount, authorized_amount) {
-                (Some(captured), Some(authorized))
-                    if authorized.is_greater_than_minor_unit(captured) =>
-                {
-                    AttemptStatus::PartialCharged
-                }
-                _ => AttemptStatus::Charged,
-            },
+            AttemptStatus::Charged if is_partial_capture => AttemptStatus::PartialCharged,
+            AttemptStatus::Charged => AttemptStatus::Charged,
             AttemptStatus::Pending => AttemptStatus::CaptureInitiated,
             AttemptStatus::Failure => AttemptStatus::CaptureFailed,
             other => other,

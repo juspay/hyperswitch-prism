@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency};
-use common_utils::{types::StringMinorUnit, ConnectorAmount};
+use common_utils::{types::StringMinorUnit, ConnectorAmountExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
@@ -1231,7 +1231,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let is_positive_refund = converted_refund_amount.is_positive().ok_or(
+        let is_positive_refund = converted_refund_amount.is_positive().change_context(
             IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             },

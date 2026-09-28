@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, ConnectorAmount,
+    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, ConnectorAmountExt,
     FloatMajorUnit, StringMajorUnit,
 };
 use domain_types::{
@@ -1529,7 +1529,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
-        let amount = if converted_amount.is_zero().unwrap_or(false) {
+        let amount = if converted_amount.is_zero().change_context(
+            IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd setup mandate zero check",
+                    &minor_amount,
+                    &request.currency,
+                ),
+            },
+        )? {
             StringMajorUnit::zero()
         } else {
             converted_amount
@@ -1838,7 +1846,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     &request.currency,
                 ),
             })?;
-        let amount = if converted_amount.is_zero().unwrap_or(false) {
+        let amount = if converted_amount.is_zero().change_context(
+            IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd repeat payment zero check",
+                    &request.minor_amount,
+                    &request.currency,
+                ),
+            },
+        )? {
             StringMajorUnit::zero()
         } else {
             converted_amount

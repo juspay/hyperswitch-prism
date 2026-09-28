@@ -48,7 +48,7 @@ fn get_worldpayxml_auth_code(
             )
         })
 }
-use common_utils::{errors::CustomResult, pii::SecretSerdeValue, ConnectorAmount};
+use common_utils::{errors::CustomResult, pii::SecretSerdeValue, ConnectorAmountExt};
 
 const API_VERSION: &str = "1.4";
 const WORLDPAYXML_SUPPORTED_3DS_MAJOR_VERSION: u64 = 2;
@@ -1363,7 +1363,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .transpose()?;
         let is_non_zero_setup = connector_amount
             .as_ref()
-            .and_then(ConnectorAmount::is_positive)
+            .map(ConnectorAmountExt::is_positive)
+            .transpose()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?
             .unwrap_or(false);
         if is_non_zero_setup {
             return Err(IntegrationError::FlowNotSupported {

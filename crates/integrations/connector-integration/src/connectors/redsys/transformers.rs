@@ -11,7 +11,7 @@ use common_utils::{
     consts::BASE64_ENGINE,
     crypto::{self, EncodeMessage, SignMessage},
     ext_traits::Encode,
-    ConnectorAmount,
+    ConnectorAmountExt,
 };
 use domain_types::{
     connector_flow::{
@@ -1221,8 +1221,8 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     let request = &router_data.request;
     let connector_amount = RedsysAmountConvertor::convert(request.amount, request.currency)?;
     let exceeds_low_value_threshold = connector_amount
-        .is_greater_than_minor_unit(LWV_THRESHOLD_MINOR_UNITS, request.currency)
-        .ok_or(IntegrationError::RequestEncodingFailed {
+        .is_greater_than_minor_value(LWV_THRESHOLD_MINOR_UNITS, request.currency)
+        .change_context(IntegrationError::RequestEncodingFailed {
             context: Default::default(),
         })?;
     // 1. Explicit exemption requested
