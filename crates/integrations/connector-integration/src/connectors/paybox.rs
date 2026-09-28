@@ -280,11 +280,11 @@ domain_types::impl_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Authorize,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_sample: Some(transformers::PayboxPaymentVerdict::Approved),
-    failure_sample: Some(transformers::PayboxPaymentVerdict::Rejected),
+    success_sample: Some(PayboxPaymentVerdict::Approved),
+    failure_sample: Some(PayboxPaymentVerdict::Rejected),
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
@@ -294,14 +294,14 @@ domain_types::impl_flow_status_mapping_ctx! {
     {
         use common_enums::AttemptStatus;
         match status {
-            transformers::PayboxPaymentVerdict::Approved => {
+            PayboxPaymentVerdict::Approved => {
                 if is_auto_capture {
                     AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
                 }
             }
-            transformers::PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
+            PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
         }
     }
 }
@@ -341,6 +341,20 @@ domain_types::impl_flow_status_mapping! {
     source:    PayboxStatus,
     success:   Captured   => Charged,
     failure:   Rejected   => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: PayboxCaptureResponse,
+        // Capture answers with a CODEREPONSE ack only; the TryFrom treats
+        // "00000" as captured and any other code as a failure.
+        source:   |response| {
+            if response.response_code == "00000" {
+                PayboxStatus::Captured
+            } else {
+                PayboxStatus::Rejected
+            }
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorised => Pending,
         Cancelled  => CaptureFailed,
@@ -359,6 +373,20 @@ domain_types::impl_flow_status_mapping! {
     source:    PayboxStatus,
     success:   Cancelled  => Voided,
     failure:   Rejected   => Failure,
+    extractors: {
+        request:  PaymentVoidData,
+        response: PayboxVoidResponse,
+        // Void answers with a CODEREPONSE ack only; the TryFrom treats
+        // "00000" as voided and any other code as a failure.
+        source:   |response| {
+            if response.response_code == "00000" {
+                PayboxStatus::Cancelled
+            } else {
+                PayboxStatus::Rejected
+            }
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorised => VoidInitiated,
         Captured   => VoidFailed,
@@ -403,6 +431,23 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    PayboxStatus,
     success:   Refunded   => Success,
     failure:   Rejected   => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: PayboxRSyncResponse,
+        // RSync reads STATUS when present; otherwise CODEREPONSE "00000"
+        // means the refund succeeded, any other code means it failed
+        // (mirrors the TryFrom).
+        source:   |response| {
+            response.status.clone().unwrap_or_else(|| {
+                if response.response_code == "00000" {
+                    PayboxStatus::Refunded
+                } else {
+                    PayboxStatus::Rejected
+                }
+            })
+        },
+        context:  |_request, _response| (),
+    },
     {
         Cancelled  => Failure,
         Authorised => Failure,
@@ -421,6 +466,20 @@ domain_types::impl_flow_status_mapping! {
     source:    PayboxStatus,
     success:   Captured   => Charged,
     failure:   Rejected   => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: PayboxRepeatPaymentResponse,
+        // RepeatPayment answers with a CODEREPONSE ack only; the TryFrom
+        // treats "00000" as charged and any other code as a failure.
+        source:   |response| {
+            if response.response_code == "00000" {
+                PayboxStatus::Captured
+            } else {
+                PayboxStatus::Rejected
+            }
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorised => Pending,
         Cancelled  => Failure,
@@ -439,6 +498,20 @@ domain_types::impl_flow_status_mapping! {
     source:    PayboxStatus,
     success:   Captured   => Charged,
     failure:   Rejected   => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: PayboxSetupMandateResponse,
+        // SetupMandate answers with a CODEREPONSE ack only; the TryFrom
+        // treats "00000" as charged and any other code as a failure.
+        source:   |response| {
+            if response.response_code == "00000" {
+                PayboxStatus::Captured
+            } else {
+                PayboxStatus::Rejected
+            }
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorised => Pending,
         Cancelled  => Failure,

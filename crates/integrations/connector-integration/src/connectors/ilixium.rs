@@ -723,15 +723,22 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
     flow:      RSync,
-    source:    transformers::IlixiumStatusCode,
+    source:    transformers::IlixiumHistoryStatusCode,
     success:   Success      => Success,
     failure:   Declined     => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: IlixiumRefundHistoryResponse,
+        source: |response| response.status.code,
+        context: |_request, _response| (),
+    },
     {
         Pending             => Pending,
         Cancelled           => Failure,
         Rejected            => Failure,
         Error               => Failure,
-        Resubmission        => Pending,
+        Exception           => Failure,
+        ValidationErrors    => Failure,
         Unknown             => Pending,
     }
 }

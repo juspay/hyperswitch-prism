@@ -107,32 +107,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE — no `extractors:` block for Authorize. The Authorize response
-// (`LoonioAuthorizeResponse`) carries only a `payment_form` redirect URL; the
-// TryFrom hardcodes `AuthenticationPending` because every successful response
-// is a redirect to the shopper's bank. There is no typed status on the wire
-// to extract, and the redirect leg's outcome arrives later (via webhook /
-// PSync), so the macro table remains the declaration of the connector-status
-// → AttemptStatus mapping for when a status *is* known.
-domain_types::impl_flow_status_mapping! {
+domain_types::impl_connector_flow_allowed_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Loonio<T>,
     flow:      Authorize,
-    source:    transformers::LoonioTransactionStatus,
-    success:   Settled      => Charged,
-    failure:   Failed       => Failure,
-    {
-        Created             => AuthenticationPending,
-        Prepared            => Pending,
-        Pending             => Pending,
-        Available           => Charged,
-        Abandoned           => Failure,
-        Rejected            => Failure,
-        Rollback            => Voided,
-        Returned            => Failure,
-        Nsf                 => Failure,
-    }
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
+        response: LoonioAuthorizeResponse,
+    },
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Loonio<T>
 {

@@ -345,33 +345,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-domain_types::impl_flow_status_mapping! {
+domain_types::impl_connector_flow_allowed_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
     flow:      Authorize,
-    source:    transformers::MayaPaymentStatus,
-    success:   PaymentSuccess           => Charged,
-    failure:   PaymentFailed            => AuthorizationFailed,
-    {
-        PendingToken                    => PaymentMethodAwaited,
-        PendingPayment                  => PaymentMethodAwaited,
-        ForAuthentication               => AuthenticationPending,
-        Authenticating                  => AuthenticationPending,
-        AuthSuccess                     => AuthenticationSuccessful,
-        ThreeDsPaymentSuccess           => AuthenticationSuccessful,
-        AuthFailed                      => AuthenticationFailed,
-        CheckOutDropout                 => AuthenticationFailed,
-        ThreeDsPaymentFailure           => AuthenticationFailed,
-        ThreeDsPaymentDropout           => AuthenticationFailed,
-        PaymentProcessing               => Authorizing,
-        CheckOutSuccess                 => Authorizing,
-        PaymentExpired                  => Expired,
-        PaymentCancelled                => Voided,
-        Voided                          => Voided,
-        Refunded                        => AutoRefunded,
-        CheckOutFailure                 => AuthorizationFailed,
-    }
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
+        response: MayaPaymentsResponse,
+    },
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Maya<T>
 {

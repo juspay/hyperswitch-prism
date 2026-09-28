@@ -200,6 +200,21 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Authorized           => Authorized,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: BraintreePaymentsResponse,
+        source:   |response| match response {
+            BraintreePaymentsResponse::PaymentsResponse(response) => {
+                response.data.charge_credit_card.transaction.status.clone()
+            }
+            BraintreePaymentsResponse::WalletPaymentsResponse(response) => {
+                response.data.charge_payment_method.transaction.status.clone()
+            }
+            BraintreePaymentsResponse::ClientTokenResponse(_)
+            | BraintreePaymentsResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorizing           => Authorizing,
         AuthorizedExpired     => AuthorizationFailed,
@@ -226,6 +241,22 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Settled              => Charged,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: BraintreePSyncResponse,
+        source:   |response| match response {
+            BraintreePSyncResponse::SuccessResponse(response) => response
+                .data
+                .search
+                .transactions
+                .edges
+                .first()
+                .map(|edge| edge.node.status.clone())
+                .unwrap_or(braintree::BraintreePaymentStatus::Failed),
+            BraintreePSyncResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => Authorized,
         Authorizing           => Authorizing,
@@ -252,6 +283,17 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Voided               => Voided,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  PaymentVoidData,
+        response: BraintreeCancelResponse,
+        source:   |response| match response {
+            BraintreeCancelResponse::CancelResponse(response) => {
+                response.data.reverse_transaction.reversal.status.clone()
+            }
+            BraintreeCancelResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => VoidInitiated,
         Authorizing           => VoidInitiated,
@@ -278,6 +320,17 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Voided               => VoidedPostCapture,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  PaymentsCancelPostCaptureData,
+        response: BraintreeVoidPCResponse,
+        source:   |response| match response {
+            BraintreeVoidPCResponse::VoidPCResponse(response) => {
+                response.data.reverse_transaction.reversal.status.clone()
+            }
+            BraintreeVoidPCResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => Pending,
         Authorizing           => Pending,
@@ -304,6 +357,22 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    braintree::BraintreeRefundStatus,
     success:   Settled              => Success,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: BraintreeRSyncResponse,
+        source:   |response| match response {
+            BraintreeRSyncResponse::RSyncResponse(response) => response
+                .data
+                .search
+                .refunds
+                .edges
+                .first()
+                .map(|edge| edge.node.status.clone())
+                .unwrap_or(braintree::BraintreeRefundStatus::Failed),
+            BraintreeRSyncResponse::ErrorResponse(_) => braintree::BraintreeRefundStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         SettlementPending     => Success,
         Settling              => Success,
@@ -322,6 +391,17 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    braintree::BraintreeRefundStatus,
     success:   Settled              => Success,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: BraintreeRefundResponse,
+        source:   |response| match response {
+            BraintreeRefundResponse::SuccessResponse(response) => {
+                response.data.refund_transaction.refund.status.clone()
+            }
+            BraintreeRefundResponse::ErrorResponse(_) => braintree::BraintreeRefundStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         SettlementPending     => Success,
         Settling              => Success,
@@ -340,6 +420,17 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Settled              => Charged,
     failure:   SettlementDeclined   => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: BraintreeCaptureResponse,
+        source:   |response| match response {
+            BraintreeCaptureResponse::SuccessResponse(response) => {
+                response.data.capture_transaction.transaction.status.clone()
+            }
+            BraintreeCaptureResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => Pending,
         Authorizing           => Pending,
@@ -377,6 +468,17 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Settled              => Charged,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: BraintreeRepeatPaymentResponse,
+        source:   |response| match response {
+            BraintreeRepeatPaymentResponse::PaymentsResponse(response) => {
+                response.data.charge_credit_card.transaction.status.clone()
+            }
+            BraintreeRepeatPaymentResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => Pending,
         Authorizing           => Pending,
@@ -403,6 +505,15 @@ domain_types::impl_flow_status_mapping! {
     source:    braintree::BraintreePaymentStatus,
     success:   Settled              => Charged,
     failure:   Failed               => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: BraintreeSetupMandateResponse,
+        source:   |response| match response {
+            BraintreeSetupMandateResponse::TokenResponse(_) => braintree::BraintreePaymentStatus::Settled,
+            BraintreeSetupMandateResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+        },
+        context:  |_request, _response| (),
+    },
     {
         Authorized            => Pending,
         Authorizing           => Pending,
