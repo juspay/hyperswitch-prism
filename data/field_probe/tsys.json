@@ -694,7 +694,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"Auth\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"0\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"03/30\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_mandate_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
+          "body": "{\"Auth\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"1\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"03/30\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_mandate_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
         }
       }
     },

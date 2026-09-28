@@ -859,7 +859,7 @@ impl BoostWebhookBody {
             }
             _ => None,
         };
-        let amount_captured = None;
+        let amount_captured = minor_amount_captured.map(domain_types::utils::legacy_amount_as_i64);
 
         WebhookDetailsResponse {
             connector_returned_payment_method_details: None,

@@ -1,5 +1,5 @@
 use common_enums::AttemptStatus;
-use common_utils::types::StringMinorUnit;
+use common_utils::{types::StringMinorUnit, ConnectorAmountExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -1110,10 +1110,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
                 // TSYS requires a non-zero amount even for authorization; default
-                // to 1 minor unit if the request does not carry one. Built directly
-                // as ConnectorMinorUnit (via its Deserialize impl, not
-                // MinorUnit::new()) since connector code cannot construct a domain
-                // MinorUnit outside AmountConvertor.
+                // to 1 minor unit if the request is missing or explicitly zero.
                 let transaction_amount = match item.request.minor_amount {
                     Some(amount) => item_data
                         .connector
@@ -1122,11 +1119,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
-                    None => serde_json::from_value(serde_json::json!(1)).change_context(
-                        IntegrationError::AmountConversionFailed {
+                    None => item_data
+                        .connector
+                        .amount_converter
+                        .default_one(item.request.currency)
+                        .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
-                        },
-                    )?,
+                        })?,
+                };
+                let transaction_amount = if transaction_amount.is_zero().change_context(
+                    IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    },
+                )? {
+                    item_data
+                        .connector
+                        .amount_converter
+                        .default_one(item.request.currency)
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?
+                } else {
+                    transaction_amount
                 };
 
                 let auth_data = TsysPaymentAuthSaleRequest {

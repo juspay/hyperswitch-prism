@@ -3246,18 +3246,29 @@ where
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
+        let currency =
+            common_enums::Currency::from_str(item.response.currency.to_uppercase().as_str())
+                .change_context(crate::utils::response_deserialization_fail(
+                    item.http_code,
+                    "stripe: invalid currency in payment response",
+                ))?;
+
         let minor_amount_captured = item
             .response
             .amount_received
-            .map(|a| {
-                StripeAmountConvertor::convert_back(
-                    a,
-                    item.response.currency.parse().unwrap_or_default(),
-                )
-            })
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency))
             .transpose()
-            .ok()
-            .flatten();
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
+        let minor_amount_capturable = minor_amount_capturable
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency))
+            .transpose()
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -3266,16 +3277,7 @@ where
                     .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response: connector_response_data,
-                minor_amount_capturable: minor_amount_capturable
-                    .map(|a| {
-                        StripeAmountConvertor::convert_back(
-                            a,
-                            item.response.currency.parse().unwrap_or_default(),
-                        )
-                    })
-                    .transpose()
-                    .ok()
-                    .flatten(),
+                minor_amount_capturable,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -3579,15 +3581,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
         let minor_amount_captured = item
             .response
             .amount_received
-            .map(|a| {
-                StripeAmountConvertor::convert_back(
-                    a,
-                    item.response.currency.parse().unwrap_or_default(),
-                )
-            })
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency_enum))
             .transpose()
-            .ok()
-            .flatten();
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         Ok(Self {
             resource_common_data: PaymentFlowData {

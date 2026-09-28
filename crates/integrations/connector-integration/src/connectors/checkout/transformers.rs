@@ -2688,12 +2688,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .enable_partial_authorization
             .filter(|flag| *flag)
             .and(item.response.amount);
+        let amount_captured = minor_amount_captured.map(utils::legacy_amount_as_i64);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response: additional_information,
                 minor_amount_authorized,
+                amount_captured,
                 minor_amount_captured,
                 minor_amount_capturable,
                 ..item.router_data.resource_common_data
@@ -2821,12 +2823,14 @@ impl<
                     .enable_partial_authorization
                     .filter(|flag| *flag)
                     .and(item.response.amount);
+                let amount_captured = minor_amount_captured.map(utils::legacy_amount_as_i64);
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
                         connector_response: additional_information,
                         minor_amount_authorized,
+                        amount_captured,
                         minor_amount_captured,
                         minor_amount_capturable,
                         ..item.router_data.resource_common_data

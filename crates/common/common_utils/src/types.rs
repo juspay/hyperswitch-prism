@@ -33,6 +33,17 @@ pub trait AmountConvertor: Send {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
+
+    /// Returns the connector representation of one minor unit.
+    ///
+    /// This supports connector APIs that require a nominal non-zero amount
+    /// without exposing `MinorUnit` construction to connector code.
+    fn default_one(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        self.convert(MinorUnit(1), currency)
+    }
 }
 
 /// Read-only operations supported by connector-facing amount representations.
