@@ -61,6 +61,23 @@ impl NonceSequence {
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
             codec = ResultOkCodec,
+            // A deterministic 96-bit nonce in the sequence's low 12 bytes, the same
+            // layout the live generator fills. Replay never decrypts what it
+            // produces; it only has to be a stable input to the real AES.
+            on_miss = Ok(Self(u128::from_be_bytes({
+                let mut sequence = [0_u8; 128 / 8];
+                let synthetic = crate::synth_shape::byte_vec(
+                    &__deja_miss,
+                    sequence.len() - Self::SEQUENCE_NUMBER_START_INDEX,
+                );
+                for (slot, byte) in sequence[Self::SEQUENCE_NUMBER_START_INDEX..]
+                    .iter_mut()
+                    .zip(synthetic)
+                {
+                    *slot = byte;
+                }
+                sequence
+            }))),
         )
     )]
     fn new() -> Result<Self, ring::error::Unspecified> {
@@ -542,6 +559,7 @@ impl VerifySignature for Sha256 {
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
         codec = SerdeCodec,
+        on_miss = crate::synth_shape::over(&__deja_miss, &crate::consts::ALPHABETS, length),
     )
 )]
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
@@ -751,6 +769,10 @@ impl RsaOaepSha256 {
             component = "common_utils::crypto",
             operation = "rsa_oaep_sha256_encrypt",
             codec = ResultOkCodec,
+            // No `on_miss`. The args are the key and the plaintext, so a miss
+            // means the plaintext changed, and the stop names exactly that. A
+            // synthesized ciphertext decrypts to nothing and would only move the
+            // failure to the connector call that carries it.
         )
     )]
     pub fn encrypt(

@@ -20,6 +20,8 @@ pub mod request;
 pub mod request_metrics;
 #[cfg(feature = "superposition")]
 pub mod superposition_config;
+#[cfg(feature = "deja")]
+pub mod synth_shape;
 pub mod types;
 // Re-export commonly used items
 pub use errors::{CustomResult, EventPublisherError, ParsingError, ValidationError};
@@ -66,6 +68,7 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
         component = "common_utils",
         operation = "generate_time_ordered_id",
         codec = SerdeCodec,
+        on_miss = format!("{prefix}_{}", synth_shape::uuid(&__deja_miss).replace('-', "")),
     )
 )]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
@@ -105,7 +108,15 @@ pub mod date_time {
     #[cfg_attr(feature = "deja", track_caller)]
     #[cfg_attr(
         feature = "deja",
-        deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now",
+            codec = SerdeCodec,
+            on_miss = {
+                let synthetic = crate::synth_shape::instant(&__deja_miss);
+                PrimitiveDateTime::new(synthetic.date(), synthetic.time())
+            },
+        )
     )]
     pub fn now() -> PrimitiveDateTime {
         let utc_date_time = OffsetDateTime::now_utc();
@@ -125,6 +136,7 @@ pub mod date_time {
             component = "common_utils",
             operation = "date_time::now_unix_timestamp",
             codec = SerdeCodec,
+            on_miss = crate::synth_shape::instant(&__deja_miss).unix_timestamp(),
         )
     )]
     pub fn now_unix_timestamp() -> i64 {

@@ -251,6 +251,8 @@ fn validate_public_pem(pem: &str, context: &'static str) -> Result<(), JoseError
         operation = "jose_sign_then_encrypt",
         codec = ResultOkCodec,
         skip(cfg),
+        // No `on_miss`, for the reason given on `rsa_oaep_sha256_encrypt`: a miss
+        // means the claims changed, and a synthesized JWE is one nobody can open.
     )
 )]
 pub fn sign_then_encrypt<T: Serialize>(claims: &T, cfg: &JoseConfig) -> Result<String, JoseError> {
