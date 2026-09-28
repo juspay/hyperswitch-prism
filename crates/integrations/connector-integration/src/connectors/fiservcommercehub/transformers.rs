@@ -2264,11 +2264,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 domain_types::types::AdditionalPaymentData::Wallet(wallet) => {
                     let (exp_month, exp_year) = match wallet {
                         domain_types::payment_method_data::WalletAdditionalData::ApplePay(info) => {
-                            (info.card_exp_month.as_ref(), info.card_exp_year.as_ref())
+                            (
+                                info.card_info
+                                    .as_ref()
+                                    .and_then(|ci| ci.card_exp_month.as_ref()),
+                                info.card_info
+                                    .as_ref()
+                                    .and_then(|ci| ci.card_exp_year.as_ref()),
+                            )
                         }
                         domain_types::payment_method_data::WalletAdditionalData::GooglePay(
                             info,
-                        ) => (info.card_exp_month.as_ref(), info.card_exp_year.as_ref()),
+                        ) => (
+                            info.card_info
+                                .as_ref()
+                                .and_then(|ci| ci.card_exp_month.as_ref()),
+                            info.card_info
+                                .as_ref()
+                                .and_then(|ci| ci.card_exp_year.as_ref()),
+                        ),
                     };
                     match (exp_month, exp_year) {
                         (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {

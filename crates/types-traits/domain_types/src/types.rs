@@ -14127,15 +14127,7 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
     fn foreign_from(data: grpc_payment_types::AdditionalPaymentData) -> Self {
         match data.payment_method_data {
             Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Card(card)) => {
-                Some(AdditionalPaymentData::Card(AdditionalCardInfo {
-                    card_issuer: card.card_issuer,
-                    last4: card.last4,
-                    card_isin: card.card_isin,
-                    card_extended_bin: card.card_extended_bin,
-                    card_exp_month: card.card_exp_month,
-                    card_exp_year: card.card_exp_year,
-                    card_holder_name: card.card_holder_name,
-                }))
+                Some(AdditionalPaymentData::Card(Box::new(grpc_card_info_to_domain(card))))
             }
 
             Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Wallet(
@@ -14143,91 +14135,68 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
             )) => match wallet_data.wallet_data {
                 Some(grpc_payment_types::additional_wallet_info::WalletData::ApplePay(
                     apple_pay_data,
-                )) => {
-                    let issuer_country =
-                        CountryAlpha2::foreign_try_from(apple_pay_data.issuer_country()).ok();
-                    let card_type =
-                        common_enums::CardType::foreign_try_from(apple_pay_data.card_type()).ok();
-                    let card_segment_type = common_enums::CardSegmentType::foreign_try_from(
-                        apple_pay_data.card_segment_type(),
-                    )
-                    .ok();
-                    let funding_source = common_enums::FundingSource::foreign_try_from(
-                        apple_pay_data.funding_source(),
-                    )
-                    .ok();
-                    Some(AdditionalPaymentData::Wallet(
-                        payment_method_data::WalletAdditionalData::ApplePay(Box::new(
-                            payment_method_data::ApplePayAdditionalData {
-                                display_name: apple_pay_data.display_name,
-                                network: apple_pay_data.network,
-                                pm_type: apple_pay_data.pm_type,
-                                card_exp_month: apple_pay_data.card_exp_month,
-                                card_exp_year: apple_pay_data.card_exp_year,
-                                device_pan_bin: apple_pay_data.device_pan_bin,
-                                card_bin: apple_pay_data.card_bin,
-                                card_type,
-                                auth_code: apple_pay_data.auth_code,
-                                card_subtype: apple_pay_data.card_subtype,
-                                card_segment_type,
-                                funding_source,
-                                issuer_name: apple_pay_data.issuer_name,
-                                issuer_country,
-                            },
-                        )),
-                    ))
-                }
+                )) => Some(AdditionalPaymentData::Wallet(
+                    payment_method_data::WalletAdditionalData::ApplePay(Box::new(
+                        payment_method_data::ApplePayAdditionalData {
+                            display_name: apple_pay_data.display_name,
+                            network: apple_pay_data.network,
+                            pm_type: apple_pay_data.pm_type,
+                            device_pan_bin: apple_pay_data.device_pan_bin,
+                            card_info: apple_pay_data.card_info.map(grpc_card_info_to_domain),
+                        },
+                    )),
+                )),
                 Some(grpc_payment_types::additional_wallet_info::WalletData::GooglePay(
                     google_pay_data,
-                )) => {
-                    let issuer_country =
-                        CountryAlpha2::foreign_try_from(google_pay_data.issuer_country()).ok();
-                    let card_type =
-                        common_enums::CardType::foreign_try_from(google_pay_data.card_type()).ok();
-                    let card_segment_type = common_enums::CardSegmentType::foreign_try_from(
-                        google_pay_data.card_segment_type(),
-                    )
-                    .ok();
-                    let funding_source = common_enums::FundingSource::foreign_try_from(
-                        google_pay_data.funding_source(),
-                    )
-                    .ok();
-                    Some(AdditionalPaymentData::Wallet(
-                        payment_method_data::WalletAdditionalData::GooglePay(Box::new(
-                            WalletAdditionalDataForCard {
-                                payment_method_data_type: google_pay_data.payment_method_data_type,
-                                card_network: google_pay_data.card_network,
-                                card_type,
-                                card_subtype: google_pay_data.card_subtype,
-                                card_segment_type,
-                                funding_source,
-                                last4: google_pay_data.last4,
-                                card_bin: google_pay_data.card_bin,
-                                device_pan_bin: google_pay_data.device_pan_bin,
-                                card_exp_month: google_pay_data.card_exp_month,
-                                card_exp_year: google_pay_data.card_exp_year,
-                                issuer_name: google_pay_data.issuer_name,
-                                issuer_country,
-                                auth_code: google_pay_data.auth_code,
-                                email: google_pay_data.email.and_then(|e| {
-                                    let raw = e.expose();
-                                    Email::try_from(raw)
-                                        .inspect_err(|_| {
-                                            tracing::warn!(
-                                                "invalid Google Pay email in additional_payment_data, dropping"
-                                            )
-                                        })
-                                        .ok()
-                                }),
-                            },
-                        )),
-                    ))
-                }
+                )) => Some(AdditionalPaymentData::Wallet(
+                    payment_method_data::WalletAdditionalData::GooglePay(Box::new(
+                        WalletAdditionalDataForCard {
+                            payment_method_data_type: google_pay_data.payment_method_data_type,
+                            device_pan_bin: google_pay_data.device_pan_bin,
+                            card_info: google_pay_data.card_info.map(grpc_card_info_to_domain),
+                            email: google_pay_data.email.and_then(|e| {
+                                let raw = e.expose();
+                                Email::try_from(raw)
+                                    .inspect_err(|_| {
+                                        tracing::warn!(
+                                            "invalid Google Pay email in additional_payment_data, dropping"
+                                        )
+                                    })
+                                    .ok()
+                            }),
+                        },
+                    )),
+                )),
                 None => None,
             },
 
             None => None,
         }
+    }
+}
+
+fn grpc_card_info_to_domain(card: grpc_payment_types::AdditionalCardInfo) -> AdditionalCardInfo {
+    let issuer_country = CountryAlpha2::foreign_try_from(card.issuer_country()).ok();
+    let card_type = common_enums::CardType::foreign_try_from(card.card_type()).ok();
+    let card_segment_type =
+        common_enums::CardSegmentType::foreign_try_from(card.card_segment_type()).ok();
+    let funding_source = common_enums::FundingSource::foreign_try_from(card.funding_source()).ok();
+    AdditionalCardInfo {
+        card_issuer: card.card_issuer,
+        last4: card.last4,
+        card_isin: card.card_isin,
+        card_extended_bin: card.card_extended_bin,
+        card_exp_month: card.card_exp_month,
+        card_exp_year: card.card_exp_year,
+        card_holder_name: card.card_holder_name,
+        card_bin: card.card_bin,
+        card_type,
+        auth_code: card.auth_code,
+        card_subtype: card.card_subtype,
+        card_segment_type,
+        funding_source,
+        issuer_country,
+        card_network: card.card_network,
     }
 }
 
