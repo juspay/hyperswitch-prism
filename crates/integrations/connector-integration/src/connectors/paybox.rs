@@ -283,7 +283,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     source:    transformers::PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_sample: Some(transformers::PayboxPaymentVerdict::Approved),
+    success_targets: [Authorized, Charged],
     failure_sample: Some(transformers::PayboxPaymentVerdict::Rejected),
     extractors: {
         request:  PaymentsAuthorizeData<T>,
@@ -437,7 +437,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     source:    transformers::PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_sample: Some(transformers::PayboxPaymentVerdict::Approved),
+    success_targets: [Charged],
     failure_sample: Some(transformers::PayboxPaymentVerdict::Rejected),
     extractors: {
         request:  RepeatPaymentData<T>,

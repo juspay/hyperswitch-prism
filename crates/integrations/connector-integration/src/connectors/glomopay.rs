@@ -752,7 +752,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     source: transformers::GlomopayRefundStatus,
     context: Option<transformers::GlomopayRefundStatus>,
     params: [status, matched_status],
-    success_sample: Some(transformers::GlomopayRefundStatus::Success),
+    success_targets: [Success],
     failure_sample: Some(transformers::GlomopayRefundStatus::Failed),
     extractors: {
         request: RefundSyncData,

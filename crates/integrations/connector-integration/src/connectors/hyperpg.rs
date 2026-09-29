@@ -142,7 +142,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     source: Option<transformers::HyperpgRefundStatus>,
     context: common_enums::RefundStatus,
     params: [status, previous_status],
-    success_sample: Some(Some(transformers::HyperpgRefundStatus::Success)),
+    success_targets: [Success],
     failure_sample: Some(Some(transformers::HyperpgRefundStatus::Failed)),
     extractors: {
         request: RefundSyncData,

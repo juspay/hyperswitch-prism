@@ -48,6 +48,81 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
     (
         generics:  [ $($generic:tt)* ],
         connector: $connector:ty,
+        connector_name: $connector_name:expr,
+        flow:      $flow:ident,
+        statuses:  [ $( $status:ident ),+ $(,)? ],
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty,
+            status:   $status_from:expr $(,)?
+        } $(,)?
+    ) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_async_ack_guard!(
+            $connector_name,
+            $flow,
+            [$( $status ),+]
+        );
+
+        impl<$($generic)*>
+            $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
+            for $connector
+        {
+            type MappedStatus = common_enums::AttemptStatus;
+
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
+                request: &$request,
+                response: &$response,
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
+                let status_from: fn(&$request, &$response) -> common_enums::AttemptStatus =
+                    $status_from;
+                Ok(status_from(request, response))
+            }
+        }
+    };
+
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        connector_name: $connector_name:expr,
+        flow:      $flow:ident,
+        status:    $status:ident,
+        runtime: {
+            request:  $request:ty,
+            response: $response:ty $(,)?
+        } $(,)?
+    ) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_async_ack_guard!(
+            $connector_name,
+            $flow,
+            [$status]
+        );
+
+        impl<$($generic)*>
+            $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
+            for $connector
+        {
+            type MappedStatus = common_enums::AttemptStatus;
+
+            fn map_runtime_status<CommonData>(
+                _common_data: &CommonData,
+                _request: &$request,
+                _response: &$response,
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
+            where
+                CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
+            {
+                Ok(common_enums::AttemptStatus::$status)
+            }
+        }
+    };
+
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
         flow:      $flow:ident,
         statuses:  [ $( $status:ident ),+ $(,)? ],
         runtime: {
@@ -70,7 +145,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
                     "` is not in the flow's ALLOWED set"
                 )
             );
-        )+
+        )*
 
         impl<$($generic)*>
             $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
@@ -196,6 +271,94 @@ macro_rules! __impl_connector_flow_allowed_status_mapping_flow_guard {
             "`. Use impl_flow_status_mapping! / impl_flow_status_mapping_ctx! for terminal ",
             "payment flows."
         ));
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_connector_flow_allowed_status_mapping_async_ack_guard {
+    ($connector_name:expr, Capture, [$( $status:ident ),+]) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_async_ack_status_guard!(
+            $connector_name,
+            Capture,
+            [$( $status ),+]
+        );
+    };
+    ($connector_name:expr, Void, [$( $status:ident ),+]) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_async_ack_status_guard!(
+            $connector_name,
+            Void,
+            [$( $status ),+]
+        );
+    };
+    ($connector_name:expr, VoidPC, [$( $status:ident ),+]) => {
+        $crate::__impl_connector_flow_allowed_status_mapping_async_ack_status_guard!(
+            $connector_name,
+            VoidPC,
+            [$( $status ),+]
+        );
+    };
+    ($connector_name:expr, $flow:ident, [$( $status:ident ),+]) => {
+        compile_error!(
+            concat!(
+                "async-ack impl_connector_flow_allowed_status_mapping is only for ",
+                "Capture, Void, or VoidPC, not `",
+                stringify!($flow),
+                "`"
+            )
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_connector_flow_allowed_status_mapping_async_ack_status_guard {
+    ($connector_name:expr, $flow:ident, [$( $status:ident ),+]) => {
+        const _: () = assert!(
+            $crate::flow_status::const_contains_str(
+                $crate::flow_status::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
+                $connector_name,
+            ),
+            "async-ack status mapping is not allowed for this connector"
+        );
+
+        $(
+            const _: () = assert!(
+                $crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::ALLOWED,
+                    common_enums::AttemptStatus::$status,
+                ),
+                concat!(
+                    "async-ack status `AttemptStatus::",
+                    stringify!($status),
+                    "` is not in the flow's ALLOWED set"
+                )
+            );
+
+            const _: () = assert!(
+                !$crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::TERMINAL_SUCCESS_SET,
+                    common_enums::AttemptStatus::$status,
+                ),
+                concat!(
+                    "async-ack status `AttemptStatus::",
+                    stringify!($status),
+                    "` must not be a terminal success"
+                )
+            );
+
+            const _: () = assert!(
+                !$crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::TERMINAL_FAILURE_SET,
+                    common_enums::AttemptStatus::$status,
+                ),
+                concat!(
+                    "async-ack status `AttemptStatus::",
+                    stringify!($status),
+                    "` must not be a terminal failure"
+                )
+            );
+        )+
     };
 }
 
@@ -534,7 +697,7 @@ macro_rules! impl_flow_status_mapping {
 /// canonical context used by `assert_terminal_mapping!` when testing the success path.
 #[macro_export]
 macro_rules! impl_flow_status_mapping_ctx {
-    // ── expression samples with runtime extractors ───────────────────────
+    // ── expression mappings with runtime extractors ──────────────────────
     (
         $(generics: [$($generic:tt)*],)?
         connector: $connector:ty,
@@ -542,7 +705,7 @@ macro_rules! impl_flow_status_mapping_ctx {
         source: $source:ty,
         context: $ctx:ty,
         params: [$status_name:ident, $ctx_name:ident],
-        success_sample: $success:expr,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
         failure_sample: $failure:expr,
         extractors: {
             request:  $request:ty,
@@ -559,7 +722,7 @@ macro_rules! impl_flow_status_mapping_ctx {
             source: $source,
             context: $ctx,
             params: [$status_name, $ctx_name],
-            success_sample: $success,
+            success_targets: [$($success_target),+],
             failure_sample: $failure,
             $body
         }
@@ -570,9 +733,6 @@ macro_rules! impl_flow_status_mapping_ctx {
         );
     };
 
-    // Expression samples support tuples, Option, primitives and
-    // acknowledgement-only responses. `None` explicitly records that the
-    // response does not expose a terminal sample.
     (
         $(generics: [$($generic:tt)*],)?
         connector: $connector:ty,
@@ -580,25 +740,114 @@ macro_rules! impl_flow_status_mapping_ctx {
         source: $source:ty,
         context: $ctx:ty,
         params: [$status_name:ident, $ctx_name:ident],
-        success_sample: $success:expr,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
         failure_sample: $failure:expr,
         $body:block
     ) => {
+        $crate::impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            $body
+        }
+    };
+
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr,
+            context:  $context_from:expr $(,)?
+        },
+        $body:block
+    ) => {
+        $crate::impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [$($failure_target),*],
+            $body
+        }
+        $crate::__impl_runtime_payment_status_mapping!(
+            [$($($generic)*)?],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
+    };
+
+    // Expression mappings support tuples, Option, primitives and
+    // acknowledgement-only responses without requiring representative terminal
+    // source values. The declared target sets are verified against the flow
+    // terminal sets at compile time.
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        $body:block
+    ) => {
+        $(
+            const _: () = assert!(
+                $crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::TERMINAL_SUCCESS_SET,
+                    common_enums::AttemptStatus::$success_target,
+                ),
+                concat!(
+                    "impl_flow_status_mapping_ctx: success target `AttemptStatus::",
+                    stringify!($success_target),
+                    "` is not in the flow's TERMINAL_SUCCESS_SET"
+                )
+            );
+        )+
+
+        $(
+            const _: () = assert!(
+                $crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::TERMINAL_FAILURE_SET,
+                    common_enums::AttemptStatus::$failure_target,
+                ),
+                concat!(
+                    "impl_flow_status_mapping_ctx: failure target `AttemptStatus::",
+                    stringify!($failure_target),
+                    "` is not in the flow's TERMINAL_FAILURE_SET"
+                )
+            );
+        )*
+
         impl<$($($generic)*)?> $crate::flow_status::ConnectorTerminalMapping<$flow> for $connector {
             type ConnectorStatus = $source;
             type MappingContext = $ctx;
 
-            fn success_connector_sample() -> Option<$source> { $success }
-            fn failure_connector_sample() -> Option<$source> { $failure }
+            fn failure_connector_sample() -> Option<$source> { None }
 
             fn success_connector_status() -> $source {
-                <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::success_connector_sample()
-                    .expect("this response does not expose a terminal success sample")
+                panic!("this mapping does not expose a terminal success source sample")
             }
 
             fn failure_connector_status() -> $source {
                 <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::failure_connector_sample()
-                    .expect("this response does not expose a terminal failure sample")
+                    .expect("this mapping does not expose a terminal failure source sample")
             }
 
             fn map_attempt_status(
@@ -1092,7 +1341,6 @@ macro_rules! impl_refund_flow_status_mapping {
 /// when the match just needs a free-form body but no real context.
 #[macro_export]
 macro_rules! impl_refund_flow_status_mapping_ctx {
-    // ── expression samples with runtime extractors ───────────────────────
     (
         $(generics: [$($generic:tt)*],)?
         connector: $connector:ty,
@@ -1100,7 +1348,7 @@ macro_rules! impl_refund_flow_status_mapping_ctx {
         source: $source:ty,
         context: $ctx:ty,
         params: [$status_name:ident, $ctx_name:ident],
-        success_sample: $success:expr,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
         failure_sample: $failure:expr,
         extractors: {
             request:  $request:ty,
@@ -1117,8 +1365,8 @@ macro_rules! impl_refund_flow_status_mapping_ctx {
             source: $source,
             context: $ctx,
             params: [$status_name, $ctx_name],
-            success_sample: $success,
-            failure_sample: $failure,
+            success_targets: [$($success_target),+],
+            failure_targets: [],
             $body
         }
         $crate::__impl_runtime_refund_status_mapping!(
@@ -1128,9 +1376,6 @@ macro_rules! impl_refund_flow_status_mapping_ctx {
         );
     };
 
-    // Expression samples support tuples, Option, primitives and
-    // acknowledgement-only responses. `None` explicitly records that the
-    // response does not expose a terminal sample.
     (
         $(generics: [$($generic:tt)*],)?
         connector: $connector:ty,
@@ -1138,25 +1383,113 @@ macro_rules! impl_refund_flow_status_mapping_ctx {
         source: $source:ty,
         context: $ctx:ty,
         params: [$status_name:ident, $ctx_name:ident],
-        success_sample: $success:expr,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
         failure_sample: $failure:expr,
         $body:block
     ) => {
+        $crate::impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            $body
+        }
+    };
+
+    // ── expression mappings with runtime extractors ──────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr,
+            context:  $context_from:expr $(,)?
+        },
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [$($failure_target),*],
+            $body
+        }
+        $crate::__impl_runtime_refund_status_mapping!(
+            [$($($generic)*)?],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
+    };
+
+    // Expression mappings support tuples, Option, primitives and
+    // acknowledgement-only responses without requiring representative terminal
+    // source values. The declared target sets are verified against the flow
+    // terminal statuses at compile time.
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        $body:block
+    ) => {
+        $(
+            const _: () = assert!(
+                common_enums::RefundStatus::$success_target as u32
+                    == <$flow as $crate::flow_status::RefundFlowStatusRules>::TERMINAL_SUCCESS
+                        as u32,
+                concat!(
+                    "impl_refund_flow_status_mapping_ctx: success target `RefundStatus::",
+                    stringify!($success_target),
+                    "` is not the flow's TERMINAL_SUCCESS"
+                )
+            );
+        )+
+
+        $(
+            const _: () = assert!(
+                common_enums::RefundStatus::$failure_target as u32
+                    == <$flow as $crate::flow_status::RefundFlowStatusRules>::TERMINAL_FAILURE
+                        as u32,
+                concat!(
+                    "impl_refund_flow_status_mapping_ctx: failure target `RefundStatus::",
+                    stringify!($failure_target),
+                    "` is not the flow's TERMINAL_FAILURE"
+                )
+            );
+        )*
+
         impl<$($($generic)*)?> $crate::flow_status::ConnectorRefundTerminalMapping<$flow> for $connector {
             type ConnectorStatus = $source;
             type MappingContext = $ctx;
 
-            fn success_connector_sample() -> Option<$source> { $success }
-            fn failure_connector_sample() -> Option<$source> { $failure }
+            fn failure_connector_sample() -> Option<$source> { None }
 
             fn success_connector_status() -> $source {
-                <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::success_connector_sample()
-                    .expect("this response does not expose a terminal success sample")
+                panic!("this mapping does not expose a terminal success source sample")
             }
 
             fn failure_connector_status() -> $source {
                 <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::failure_connector_sample()
-                    .expect("this response does not expose a terminal failure sample")
+                    .expect("this mapping does not expose a terminal failure source sample")
             }
 
             fn map_refund_status(

@@ -81,9 +81,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     source:         transformers::TrustpayAuthorizeStatus,
     context:        common_enums::AttemptStatus,
     params:         [status, previous_attempt_status],
-    success_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
-        transformers::TrustpayCardPaymentStatus::Charged,
-    )),
+    success_targets: [Charged],
     failure_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
         transformers::TrustpayCardPaymentStatus::Failed,
     )),
@@ -126,9 +124,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     source:         transformers::TrustpayAuthorizeStatus,
     context:        common_enums::AttemptStatus,
     params:         [status, previous_attempt_status],
-    success_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
-        transformers::TrustpayCardPaymentStatus::Charged,
-    )),
+    success_targets: [Charged],
     failure_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
         transformers::TrustpayCardPaymentStatus::Failed,
     )),
@@ -173,7 +169,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     source:         common_enums::RefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_sample: Some(common_enums::RefundStatus::Success),
+    success_targets: [Success],
     failure_sample: Some(common_enums::RefundStatus::Failure),
     {
         status
@@ -213,7 +209,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     source:         common_enums::RefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_sample: Some(common_enums::RefundStatus::Success),
+    success_targets: [Success],
     failure_sample: Some(common_enums::RefundStatus::Failure),
     {
         status

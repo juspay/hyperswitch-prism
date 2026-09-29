@@ -699,7 +699,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     source:    common_enums::AttemptStatus,
     context:   (),
     params:    [status, _ctx],
-    success_sample: Some(common_enums::AttemptStatus::Charged),
+    success_targets: [Charged],
     failure_sample: Some(common_enums::AttemptStatus::Failure),
     {
         status

@@ -55,6 +55,49 @@ pub const fn const_contains(slice: &[AttemptStatus], target: AttemptStatus) -> b
     false
 }
 
+/// Connectors whose modification endpoints acknowledge async processing and
+/// report the terminal outcome via webhook or sync.
+pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &["adyen"];
+
+/// `const`-compatible string slice membership test.
+pub const fn const_contains_str(slice: &[&str], target: &str) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if str_eq(slice[i], target) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+const fn str_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < left.len() {
+        if left[i] != right[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+pub const fn const_contains_refund_status(slice: &[RefundStatus], target: RefundStatus) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if slice[i] as u32 == target as u32 {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
 /// `const`-compatible "every element of `subset` is in `superset`" check.
 /// Used by `assert_flow_rules!` to verify terminal sets are subsets of ALLOWED.
 pub const fn const_all_in(subset: &[AttemptStatus], superset: &[AttemptStatus]) -> bool {
@@ -505,12 +548,6 @@ pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
     fn success_connector_status() -> Self::ConnectorStatus;
     fn failure_connector_status() -> Self::ConnectorStatus;
 
-    /// Optional terminal samples for status types that cannot be represented by
-    /// a unit enum variant (tuples, `Option`, primitives, or ack-only responses).
-    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
-        Some(Self::success_connector_status())
-    }
-
     fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
         Some(Self::failure_connector_status())
     }
@@ -537,12 +574,6 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// Returns the connector status that maps to a value in the flow's
     /// `TERMINAL_FAILURE_SET`.  Verified at test time by `assert_terminal_mapping!`.
     fn failure_connector_status() -> Self::ConnectorStatus;
-
-    /// Optional terminal samples for status types that cannot be represented by
-    /// a unit enum variant (tuples, `Option`, primitives, or ack-only responses).
-    fn success_connector_sample() -> Option<Self::ConnectorStatus> {
-        Some(Self::success_connector_status())
-    }
 
     fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
         Some(Self::failure_connector_status())
