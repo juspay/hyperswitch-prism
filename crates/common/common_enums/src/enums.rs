@@ -955,6 +955,26 @@ pub enum BankNames {
     VestjyskBank,
     VossSparebank,
     YorkshireBuildingSociety,
+    SpareBank1Gudbrandsdal,
+    SpareBank1HallingdalValdres,
+    SpareBank1LomOgSkjak,
+    SpareBank1Modum,
+    SpareBank1Nordmore,
+    SpareBank1RingerikeHadeland,
+    SpareBank1Smn,
+    SpareBank1SrBank,
+    SpareBank1SoreSunnmore,
+    SpareBank1SorostNorgeBv,
+    SpareBank1SorostNorgeTelemark,
+    SpareBank1OstfoldAkershus,
+    SpareBank1Ostlandet,
+    CitiHandlowy,
+    DeutscheBankPolska,
+    IngBankSlaski,
+    IngDiba,
+    NordeaDirect,
+    SantanderUk,
+    SwedbankSparbankerna,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1619,6 +1639,7 @@ pub enum PaymentMethodType {
     Paymaya,
     Payhere,
     QwikcilverWallet,
+    Ted,
 }
 
 impl PaymentMethodType {
