@@ -579,7 +579,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PayoutServiceCreateResponse: { "error": "ErrorInfo" },
   PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceTransferResponse: { "error": "ErrorInfo" },
-  PayoutServiceStageRequest: { "address": "PayoutAddress", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation" },
+  PayoutServiceStageRequest: { "address": "PayoutAddress", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "payoutMethodData": "PayoutMethod" },
   PayoutServiceStageResponse: { "error": "ErrorInfo" },
   PayoutServiceGetRequest: { "sourceBankData": "SourceBankData" },
   PayoutServiceGetResponse: { "error": "ErrorInfo" },
