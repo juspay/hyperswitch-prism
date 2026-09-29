@@ -308,9 +308,10 @@ impl TryFrom<ResponseRouterData<StripeConnectReversalResponse, Self>>
         Ok(Self {
             response: Ok(PayoutVoidResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
-                // Stripe's reversal response carries no status; it only acknowledges
-                // the reversal. Report Pending and let PayoutGet confirm.
-                payout_status: common_enums::PayoutStatus::Pending,
+                // Stripe reverses the transfer synchronously, so a successful
+                // reversal response is the final state. Report it as cancelled
+                // instead of leaving the payout pending forever.
+                payout_status: common_enums::PayoutStatus::Cancelled,
                 connector_payout_id: item.router_data.request.connector_payout_id.clone(),
                 status_code: item.http_code,
             }),
@@ -472,8 +473,6 @@ pub struct StripeConnectRecipientCreateResponse {
 #[serde(untagged)]
 pub enum StripeConnectRecipientAccountCreateRequest {
     Bank(RecipientBankAccountRequest),
-
-    Token(RecipientTokenRequest),
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -498,11 +497,6 @@ pub struct RecipientBankAccountRequest {
 
     #[serde(rename = "external_account[routing_number]")]
     pub external_account_routing_number: Secret<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct RecipientTokenRequest {
-    pub external_account: Secret<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -539,7 +533,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let is_company = request.is_company();
         // OSS takes the business type from the vendor details. Fall back to the
         // recipient type so callers that only send `recipient_type` keep working.
         let business_type = request.get_business_type().unwrap_or_else(|| {
@@ -554,6 +547,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             .to_string()
         });
+        // Derive the company flag from the business type actually sent so a vendor
+        // override cannot make the `company[…]` group contradict `business_type`.
+        let is_company = business_type.eq_ignore_ascii_case(STRIPE_ACCOUNT_TYPE_COMPANY);
 
         let account_type = request.get_account_type()?;
         let phone = request.get_phone()?;
@@ -579,7 +575,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let tos_acceptance_ip = request.get_tos_acceptance_ip()?;
         let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4()?;
 
-        let email = request.get_email_with_fallback();
+        let email = request.get_email_from_customer_or_billing();
         let billing = request.get_optional_billing_address();
         let addr_line1 = billing.and_then(|addr| addr.get_optional_line1());
         let addr_line2 = billing.and_then(|addr| addr.get_optional_line2());
@@ -709,10 +705,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payout_method_data = request.get_payout_method_data()?;
 
         match payout_method_data {
-            // OSS enrolls cards through Stripe's test debit token.
-            PayoutMethodData::Card(_) => Ok(Self::Token(RecipientTokenRequest {
-                external_account: Secret::new("tok_visa_debit".to_string()),
-            })),
+            // Card payouts need real tokenization; Stripe's test debit token would
+            // enrol a fake card, so reject cards until that is wired.
+            PayoutMethodData::Card(_) => Err(unsupported_enroll_rail("card")),
             PayoutMethodData::Bank(Bank::Ach(ach)) => {
                 let country = ach.bank_country_code.ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
@@ -761,6 +756,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             PayoutMethodData::Bank(Bank::Bacs(_)) => Err(unsupported_enroll_rail("Bacs")),
             PayoutMethodData::Bank(Bank::Sepa(_)) => Err(unsupported_enroll_rail("SEPA")),
+            PayoutMethodData::Bank(Bank::Ted(_)) => Err(unsupported_enroll_rail("TED")),
             PayoutMethodData::Bank(Bank::Pix(_)) => Err(unsupported_enroll_rail("Pix")),
             PayoutMethodData::Bank(Bank::PixKey(_)) => Err(unsupported_enroll_rail("Pix key")),
             PayoutMethodData::Bank(Bank::PixEmv(_)) => Err(unsupported_enroll_rail("Pix EMV")),
@@ -786,11 +782,9 @@ fn unsupported_enroll_rail(rail: &str) -> error_stack::Report<IntegrationError> 
         connector: "stripe",
         context: IntegrationErrorContext {
             additional_context: Some(
-                "Stripe external accounts are created from ACH bank details or cards".to_string(),
+                "Stripe external accounts are created from ACH bank details".to_string(),
             ),
-            suggested_action: Some(
-                "Send the payout method as an ACH bank transfer or a card".to_string(),
-            ),
+            suggested_action: Some("Send the payout method as an ACH bank transfer".to_string()),
             doc_url: None,
         },
     })
@@ -813,7 +807,7 @@ impl TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Sel
             response: Ok(PayoutEnrollDisburseAccountResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
                 payout_status: common_enums::PayoutStatus::RequiresCreation,
-                connector_payout_id: item.router_data.request.connector_payout_id.clone(),
+                connector_payout_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
             }),
             ..item.router_data

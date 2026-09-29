@@ -475,11 +475,9 @@ message PayoutServiceGetRequest {
   // to different endpoints per method type (e.g. Santander PIX vs TED) need
   // this to build the correct status-enquiry URL.
   optional PaymentMethodType payout_method_type = 6;
-  // Connector Payout Method ID representing the Payout Method
-  optional string connector_payout_method_id = 7;
   // Customer Details (carries the connector customer / account id used by Connect-style
   // retrieves, e.g. the Stripe `acct_…` for the Stripe-Account header)
-  optional Customer customer = 8;
+  optional Customer customer = 7;
 }
 
 // Response message for fetching a payout

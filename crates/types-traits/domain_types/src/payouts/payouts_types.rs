@@ -324,7 +324,6 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
-    pub connector_payout_method_id: Option<String>,
     pub customer: Option<PayoutCustomer>,
     /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
     /// that need the debtor account to perform a status enquiry.
@@ -561,7 +560,16 @@ impl PayoutCreateRecipientRequest {
         raw.parse::<i32>().map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "business_profile_mcc",
-                context: crate::errors::IntegrationErrorContext::default(),
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "business_profile_mcc must be a 4-digit numeric MCC".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the merchant category code as digits only, for example 5734"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })
     }
@@ -579,7 +587,7 @@ impl PayoutCreateRecipientRequest {
         }
     }
 
-    pub fn get_email_with_fallback(&self) -> Option<common_utils::pii::Email> {
+    pub fn get_email_from_customer_or_billing(&self) -> Option<common_utils::pii::Email> {
         self.customer
             .as_ref()
             .and_then(|c| c.email.clone())

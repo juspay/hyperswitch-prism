@@ -512,19 +512,28 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutEnrollDisburseAccount, PayoutFlowData, PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            let account_id = req.request.connector_payout_id.clone().ok_or_else(|| {
-                IntegrationError::MissingConnectorTransactionID {
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Stripe external-account creation needs the `acct_…` id of the connected account".to_string(),
-                        ),
-                        suggested_action: Some(
-                            "Run PayoutCreateRecipient first, or pass the connector payout id on the request".to_string(),
-                        ),
-                        doc_url: None,
-                    },
-                }
-            })?;
+            // Create, Transfer and Get read the connected-account id from
+            // `customer.connector_customer_id`; fall back to `connector_payout_id`
+            // for callers that only send it there.
+            let account_id = req
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.connector_customer_id.clone())
+                .or_else(|| req.request.connector_payout_id.clone())
+                .ok_or_else(|| {
+                    IntegrationError::MissingConnectorTransactionID {
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Stripe external-account creation needs the `acct_…` id of the connected account".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Run PayoutCreateRecipient first, or pass `customer.connector_customer_id` on the request".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    }
+                })?;
             Ok(format!(
                 "{}v1/accounts/{}/external_accounts",
                 self.base_url(&req.resource_common_data.connectors),

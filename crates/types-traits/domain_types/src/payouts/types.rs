@@ -1550,7 +1550,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
-            connector_payout_method_id: value.connector_payout_method_id,
             customer: value
                 .customer
                 .map(convert_payouts_customer_to_domain)
