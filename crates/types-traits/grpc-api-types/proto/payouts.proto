@@ -619,17 +619,17 @@ message VendorDetails {
   // Type of merchant account
   optional PayoutEnums.PayoutAccountType account_type = 1;
   // Merchant category code (4-digit MCC)
-  optional string merchant_category_code = 2;
-  // Business url
-  optional SecretString business_url = 3;
-  // Business name
-  optional SecretString business_name = 4;
+  optional string vendor_category_code = 2;
+  // Vendor url
+  optional SecretString vendor_url = 3;
+  // Vendor name
+  optional SecretString vendor_name = 4;
   // Statement descriptor for payments
   optional SecretString statement_descriptor = 5;
   // Whether the owners of the business have been provided
   optional bool owners_provided = 6;
   // Type of business entity
-  optional BankHolderType business_type = 7;
+  optional BankHolderType vendor_type = 7;
   // Whether the card payments capability is requested
   optional bool card_payments_enabled = 8;
   // Whether the transfers capability is requested

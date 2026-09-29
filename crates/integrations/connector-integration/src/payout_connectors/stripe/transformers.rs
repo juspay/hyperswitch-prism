@@ -12,8 +12,8 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     payouts::payout_method_data::{Bank, PayoutMethodData},
     payouts::payouts_types::{
-        PayoutCreateRecipientRequest, PayoutCreateRecipientResponse, PayoutCreateRequest,
-        PayoutCreateResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutAccountType, PayoutCreateRecipientRequest, PayoutCreateRecipientResponse,
+        PayoutCreateRequest, PayoutCreateResponse, PayoutEnrollDisburseAccountRequest,
         PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
         PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
     },
@@ -535,35 +535,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // OSS takes the business type from the vendor details. Fall back to the
         // recipient type so callers that only send `recipient_type` keep working.
-        let business_type = request.get_business_type().unwrap_or_else(|| {
-            match request.recipient_type {
+        let is_company = match request.get_vendor_type() {
+            Some(common_enums::BankHolderType::Business) => true,
+            Some(common_enums::BankHolderType::Personal) => false,
+            None => matches!(
+                request.recipient_type,
                 common_enums::PayoutRecipientType::Company
-                | common_enums::PayoutRecipientType::NonProfit
-                | common_enums::PayoutRecipientType::PublicSector
-                | common_enums::PayoutRecipientType::Business => STRIPE_ACCOUNT_TYPE_COMPANY,
-                common_enums::PayoutRecipientType::Individual
-                | common_enums::PayoutRecipientType::NaturalPerson
-                | common_enums::PayoutRecipientType::Personal => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
-            }
-            .to_string()
-        });
-        // Derive the company flag from the business type actually sent so a vendor
-        // override cannot make the `company[…]` group contradict `business_type`.
-        let is_company = business_type.eq_ignore_ascii_case(STRIPE_ACCOUNT_TYPE_COMPANY);
+                    | common_enums::PayoutRecipientType::NonProfit
+                    | common_enums::PayoutRecipientType::PublicSector
+                    | common_enums::PayoutRecipientType::Business
+            ),
+        };
+        // Derive the wire value from the same source so the `company[…]` group
+        // cannot contradict `vendor_type`.
+        let business_type = if is_company {
+            STRIPE_ACCOUNT_TYPE_COMPANY
+        } else {
+            STRIPE_ACCOUNT_TYPE_INDIVIDUAL
+        }
+        .to_string();
 
-        let account_type = request.get_account_type().ok_or_else(|| {
-            report!(IntegrationError::MissingRequiredField {
-                field_name: "account_type",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Stripe requires the account type (custom, express or standard)"
-                            .to_string(),
-                    ),
-                    suggested_action: Some("Send account_type in vendor_details".to_string()),
-                    doc_url: None,
-                },
-            })
-        })?;
+        let account_type = match request.get_account_type() {
+            Some(PayoutAccountType::Custom) => "custom",
+            Some(PayoutAccountType::Express) => "express",
+            Some(PayoutAccountType::Standard) => "standard",
+            None => {
+                return Err(report!(IntegrationError::MissingRequiredField {
+                    field_name: "account_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Stripe requires the account type (custom, express or standard)"
+                                .to_string(),
+                        ),
+                        suggested_action: Some("Send account_type in vendor_details".to_string()),
+                        doc_url: None,
+                    },
+                }));
+            }
+        }
+        .to_string();
         let phone = request.get_phone();
 
         // Name and date of birth describe a natural person, so they are only sent on
@@ -585,9 +595,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         };
 
-        let business_profile_mcc = request.get_merchant_category_code_i32()?;
-        let business_profile_url = request.get_business_url();
-        let business_profile_name = request.get_business_name();
+        let business_profile_mcc = request.get_vendor_category_code_i32()?;
+        let business_profile_url = request.get_vendor_url();
+        let business_profile_name = request.get_vendor_name();
         let statement_descriptor = request.get_statement_descriptor();
         let tos_acceptance_ip = request.get_tos_acceptance_ip();
         let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4();
@@ -769,8 +779,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     external_account_country: country,
                     external_account_currency: currency,
                     external_account_account_holder_name: account_holder_name,
-                    external_account_account_holder_type: request
-                        .get_external_account_account_holder_type()?,
+                    external_account_account_holder_type: match request
+                        .get_external_account_account_holder_type()?
+                    {
+                        common_enums::BankHolderType::Personal => "individual",
+                        common_enums::BankHolderType::Business => "company",
+                    }
+                    .to_string(),
                     external_account_account_number: ach.bank_account_number.clone(),
                     external_account_routing_number: ach.bank_routing_number.clone(),
                 }))

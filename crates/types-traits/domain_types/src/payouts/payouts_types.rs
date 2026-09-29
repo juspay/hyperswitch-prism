@@ -409,6 +409,14 @@ pub struct PayoutCreateRecipientRequest {
 /// Day, month and year parts of a date of birth.
 pub type DateOfBirthParts = (Secret<String>, Secret<String>, Secret<String>);
 
+/// Connected-account type for connectors that distinguish them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayoutAccountType {
+    Custom,
+    Express,
+    Standard,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: Option<PayoutVendorDetails>,
@@ -416,11 +424,11 @@ pub struct PayoutVendorAccountDetails {
 }
 #[derive(Debug, Clone, Default)]
 pub struct PayoutVendorDetails {
-    pub account_type: Option<String>,
-    pub business_type: Option<String>,
-    pub merchant_category_code: Option<String>,
-    pub business_url: Option<Secret<String>>,
-    pub business_name: Option<Secret<String>>,
+    pub account_type: Option<PayoutAccountType>,
+    pub vendor_type: Option<common_enums::BankHolderType>,
+    pub vendor_category_code: Option<String>,
+    pub vendor_url: Option<Secret<String>>,
+    pub vendor_name: Option<Secret<String>>,
     pub statement_descriptor: Option<Secret<String>>,
     pub owners_provided: Option<bool>,
     pub card_payments_enabled: Option<bool>,
@@ -437,7 +445,7 @@ pub struct PayoutIndividualDetails {
     pub date_of_birth: Option<Secret<String>>,
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
-    pub external_account_account_holder_type: Option<String>,
+    pub external_account_account_holder_type: Option<common_enums::BankHolderType>,
 }
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
@@ -510,20 +518,20 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("date_of_birth"))
     }
 
-    pub fn get_account_type(&self) -> Option<String> {
-        self.vendor_details().and_then(|v| v.account_type.clone())
+    pub fn get_account_type(&self) -> Option<PayoutAccountType> {
+        self.vendor_details().and_then(|v| v.account_type)
     }
 
-    pub fn get_business_type(&self) -> Option<String> {
-        self.vendor_details().and_then(|v| v.business_type.clone())
+    pub fn get_vendor_type(&self) -> Option<common_enums::BankHolderType> {
+        self.vendor_details().and_then(|v| v.vendor_type)
     }
 
-    pub fn get_business_url(&self) -> Option<Secret<String>> {
-        self.vendor_details().and_then(|v| v.business_url.clone())
+    pub fn get_vendor_url(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.vendor_url.clone())
     }
 
-    pub fn get_business_name(&self) -> Option<Secret<String>> {
-        self.vendor_details().and_then(|v| v.business_name.clone())
+    pub fn get_vendor_name(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.vendor_name.clone())
     }
 
     pub fn get_statement_descriptor(&self) -> Option<Secret<String>> {
@@ -553,23 +561,22 @@ impl PayoutCreateRecipientRequest {
             .and_then(|i| i.tos_acceptance_date)
     }
 
-    pub fn get_merchant_category_code_i32(&self) -> Result<Option<i32>, Error> {
+    pub fn get_vendor_category_code_i32(&self) -> Result<Option<i32>, Error> {
         let Some(raw) = self
             .vendor_details()
-            .and_then(|v| v.merchant_category_code.as_deref())
+            .and_then(|v| v.vendor_category_code.as_deref())
         else {
             return Ok(None);
         };
         raw.parse::<i32>().map(Some).map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "merchant_category_code",
+                field_name: "vendor_category_code",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "merchant_category_code must be a 4-digit numeric MCC".to_string(),
+                        "vendor_category_code must be a 4-digit numeric MCC".to_string(),
                     ),
                     suggested_action: Some(
-                        "Send the merchant category code as digits only, for example 5734"
-                            .to_string(),
+                        "Send the category code as digits only, for example 5734".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -622,11 +629,13 @@ impl PayoutEnrollDisburseAccountRequest {
             .map(Secret::new)
     }
 
-    pub fn get_external_account_account_holder_type(&self) -> Result<String, Error> {
+    pub fn get_external_account_account_holder_type(
+        &self,
+    ) -> Result<common_enums::BankHolderType, Error> {
         self.vendor_account_details
             .as_ref()
             .and_then(|v| v.individual_details.as_ref())
-            .and_then(|i| i.external_account_account_holder_type.clone())
+            .and_then(|i| i.external_account_account_holder_type)
             .ok_or_else(missing_field_err("external_account_account_holder_type"))
     }
 }

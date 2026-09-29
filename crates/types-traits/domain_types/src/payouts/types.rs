@@ -1499,11 +1499,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
         Ok(payouts::payouts_types::PayoutVendorAccountDetails {
             vendor_details: value.vendor_details.map(|vd| {
                 payouts::payouts_types::PayoutVendorDetails {
-                    account_type: vd.account_type.and_then(payout_account_type_to_string),
-                    business_type: vd.business_type.and_then(bank_holder_type_to_string),
-                    merchant_category_code: vd.merchant_category_code,
-                    business_url: vd.business_url,
-                    business_name: vd.business_name,
+                    account_type: vd.account_type.and_then(payout_account_type_from_proto),
+                    vendor_type: vd.vendor_type.and_then(bank_holder_type_from_proto),
+                    vendor_category_code: vd.vendor_category_code,
+                    vendor_url: vd.vendor_url,
+                    vendor_name: vd.vendor_name,
                     statement_descriptor: vd.statement_descriptor,
                     owners_provided: vd.owners_provided,
                     card_payments_enabled: vd.card_payments_enabled,
@@ -1522,32 +1522,36 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                     tos_acceptance_ip: id.tos_acceptance_ip,
                     external_account_account_holder_type: id
                         .external_account_account_holder_type
-                        .and_then(bank_holder_type_to_string),
+                        .and_then(bank_holder_type_from_proto),
                 }
             }),
         })
     }
 }
 
-fn payout_account_type_to_string(value: i32) -> Option<String> {
+fn payout_account_type_from_proto(value: i32) -> Option<payouts::payouts_types::PayoutAccountType> {
     match grpc_api_types::payouts::payout_enums::PayoutAccountType::try_from(value) {
         Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Custom) => {
-            Some("custom".to_string())
+            Some(payouts::payouts_types::PayoutAccountType::Custom)
         }
         Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Express) => {
-            Some("express".to_string())
+            Some(payouts::payouts_types::PayoutAccountType::Express)
         }
         Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Standard) => {
-            Some("standard".to_string())
+            Some(payouts::payouts_types::PayoutAccountType::Standard)
         }
         _ => None,
     }
 }
 
-fn bank_holder_type_to_string(value: i32) -> Option<String> {
+fn bank_holder_type_from_proto(value: i32) -> Option<common_enums::BankHolderType> {
     match grpc_api_types::payouts::BankHolderType::try_from(value) {
-        Ok(grpc_api_types::payouts::BankHolderType::Business) => Some("company".to_string()),
-        Ok(grpc_api_types::payouts::BankHolderType::Personal) => Some("individual".to_string()),
+        Ok(grpc_api_types::payouts::BankHolderType::Business) => {
+            Some(common_enums::BankHolderType::Business)
+        }
+        Ok(grpc_api_types::payouts::BankHolderType::Personal) => {
+            Some(common_enums::BankHolderType::Personal)
+        }
         _ => None,
     }
 }
