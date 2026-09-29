@@ -62,7 +62,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// All five payment flows authenticate the same way: the TryFroms call
+// All five payment flows authenticate the same way: the `TryFrom` implementations call
 // `get_payment_status(status, next_action)`. `next_action` only refines the
 // `RequiresCustomerAction` variant (DeviceDataCollection → DeviceDataCollectionPending),
 // so the mapping is context-aware via `Option<AirwallexNextActionType>`.
