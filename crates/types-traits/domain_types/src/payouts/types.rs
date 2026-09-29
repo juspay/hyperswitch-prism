@@ -137,7 +137,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 .transpose()?,
             customer: value
                 .customer
-                .map(convert_payouts_customer_to_domain)
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -1395,7 +1395,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
@@ -1445,77 +1445,87 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutAddress>
         Ok(Self {
             shipping_address: value
                 .shipping_address
-                .map(convert_payouts_address_to_domain)
+                .map(crate::payment_address::Address::foreign_try_from)
                 .transpose()?,
             billing_address: value
                 .billing_address
-                .map(convert_payouts_address_to_domain)
+                .map(crate::payment_address::Address::foreign_try_from)
                 .transpose()?,
         })
     }
 }
 
-fn convert_payouts_customer_to_domain(
-    customer: grpc_api_types::payments::Customer,
-) -> Result<payouts::payouts_types::PayoutCustomer, error_stack::Report<IntegrationError>> {
-    let email = customer
-        .email
-        .map(|email_str| {
-            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.email",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid email".to_owned()),
-                        ..Default::default()
-                    },
-                })
-                .attach_printable(format!("{e:?}"))
-            })
-        })
-        .transpose()?;
+impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_types::PayoutCustomer {
+    type Error = IntegrationError;
 
-    Ok(payouts::payouts_types::PayoutCustomer {
-        name: customer.name,
-        email,
-        merchant_customer_id: customer.id,
-        connector_customer_id: customer.connector_customer_id,
-        phone_number: customer.phone_number,
-        phone_country_code: customer.phone_country_code,
-    })
+    fn foreign_try_from(
+        customer: grpc_api_types::payments::Customer,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let email = customer
+            .email
+            .map(|email_str| {
+                common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "customer.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email".to_owned()),
+                            ..Default::default()
+                        },
+                    })
+                    .attach_printable(format!("{e:?}"))
+                })
+            })
+            .transpose()?;
+
+        Ok(Self {
+            name: customer.name,
+            email,
+            merchant_customer_id: customer.id,
+            connector_customer_id: customer.connector_customer_id,
+            phone_number: customer.phone_number,
+            phone_country_code: customer.phone_country_code,
+        })
+    }
 }
 
-fn convert_payout_vendor_account_details_to_domain(
-    value: grpc_api_types::payouts::PayoutVendorAccountDetails,
-) -> payouts::payouts_types::PayoutVendorAccountDetails {
-    payouts::payouts_types::PayoutVendorAccountDetails {
-        vendor_details: value.vendor_details.map(|vd| {
-            payouts::payouts_types::PayoutVendorDetails {
-                account_type: vd.account_type.and_then(payout_account_type_to_string),
-                business_type: vd.business_type.and_then(bank_holder_type_to_string),
-                merchant_category_code: vd.merchant_category_code,
-                business_url: vd.business_url,
-                business_name: vd.business_name,
-                statement_descriptor: vd.statement_descriptor,
-                owners_provided: vd.owners_provided,
-                card_payments_enabled: vd.card_payments_enabled,
-                transfers_enabled: vd.transfers_enabled,
-            }
-        }),
-        individual_details: value.individual_details.map(|id| {
-            payouts::payouts_types::PayoutIndividualDetails {
-                first_name: id.first_name,
-                last_name: id.last_name,
-                phone: id.phone,
-                ssn_last_4: id.ssn_last_4,
-                id_number: id.id_number,
-                date_of_birth: id.date_of_birth,
-                tos_acceptance_date: id.tos_acceptance_date,
-                tos_acceptance_ip: id.tos_acceptance_ip,
-                external_account_account_holder_type: id
-                    .external_account_account_holder_type
-                    .and_then(bank_holder_type_to_string),
-            }
-        }),
+impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
+    for payouts::payouts_types::PayoutVendorAccountDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::PayoutVendorAccountDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(payouts::payouts_types::PayoutVendorAccountDetails {
+            vendor_details: value.vendor_details.map(|vd| {
+                payouts::payouts_types::PayoutVendorDetails {
+                    account_type: vd.account_type.and_then(payout_account_type_to_string),
+                    business_type: vd.business_type.and_then(bank_holder_type_to_string),
+                    merchant_category_code: vd.merchant_category_code,
+                    business_url: vd.business_url,
+                    business_name: vd.business_name,
+                    statement_descriptor: vd.statement_descriptor,
+                    owners_provided: vd.owners_provided,
+                    card_payments_enabled: vd.card_payments_enabled,
+                    transfers_enabled: vd.transfers_enabled,
+                }
+            }),
+            individual_details: value.individual_details.map(|id| {
+                payouts::payouts_types::PayoutIndividualDetails {
+                    first_name: id.first_name,
+                    last_name: id.last_name,
+                    phone: id.phone,
+                    ssn_last_4: id.ssn_last_4,
+                    id_number: id.id_number,
+                    date_of_birth: id.date_of_birth,
+                    tos_acceptance_date: id.tos_acceptance_date,
+                    tos_acceptance_ip: id.tos_acceptance_ip,
+                    external_account_account_holder_type: id
+                        .external_account_account_holder_type
+                        .and_then(bank_holder_type_to_string),
+                }
+            }),
+        })
     }
 }
 
@@ -1542,26 +1552,6 @@ fn bank_holder_type_to_string(value: i32) -> Option<String> {
     }
 }
 
-fn convert_payouts_address_to_domain(
-    addr: grpc_api_types::payouts::Address,
-) -> Result<crate::payment_address::Address, error_stack::Report<IntegrationError>> {
-    let payments_addr = grpc_api_types::payments::Address {
-        first_name: addr.first_name,
-        last_name: addr.last_name,
-        line1: addr.line1,
-        line2: addr.line2,
-        line3: addr.line3,
-        city: addr.city,
-        state: addr.state,
-        zip_code: addr.zip_code,
-        country_alpha2_code: addr.country_alpha2_code,
-        email: addr.email,
-        phone_number: addr.phone_number,
-        phone_country_code: addr.phone_country_code,
-    };
-    crate::payment_address::Address::foreign_try_from(payments_addr)
-}
-
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
     for payouts::payouts_types::PayoutGetRequest
 {
@@ -1575,7 +1565,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
             connector_payout_id: value.connector_payout_id,
             customer: value
                 .customer
-                .map(convert_payouts_customer_to_domain)
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
                 .transpose()?,
             source_bank_data: value
                 .source_bank_data
@@ -1830,7 +1820,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
@@ -1840,7 +1830,8 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let vendor_account_details = value
             .vendor_account_details
-            .map(convert_payout_vendor_account_details_to_domain);
+            .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
@@ -1915,12 +1906,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let vendor_account_details = value
             .vendor_account_details
-            .map(convert_payout_vendor_account_details_to_domain);
+            .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
@@ -2742,7 +2734,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
