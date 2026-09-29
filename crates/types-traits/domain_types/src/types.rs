@@ -5774,7 +5774,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::foreign_try_from(
                 value.payment_method.unwrap_or_default(),
             )?, // Use direct enum
@@ -5897,7 +5897,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: value
                 .payment_method
@@ -6002,7 +6002,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: value
                 .payment_method
@@ -6124,7 +6124,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
                 value.payment_method_type(),
@@ -6315,7 +6315,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: None,
             address,
@@ -6409,7 +6409,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: None,
             address,
@@ -10621,7 +10621,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: None,
             address,
@@ -10737,7 +10737,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: None,
             address,
@@ -12100,7 +12100,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "PAYMENT_ID".to_string(),
             attempt_id: "ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, // Default
             payment_method_type: None,
             address: PaymentAddress::default(),
@@ -12585,7 +12585,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: None,
             address,
@@ -12690,7 +12690,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: None,
             address,
@@ -14002,7 +14002,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: None,
             address,
@@ -15057,7 +15057,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: value
                 .payment_method
                 .map(PaymentMethod::foreign_try_from)
@@ -15248,7 +15248,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Wallet, // Default for recharge
             payment_method_type: None,
             address: PaymentAddress::default(),
@@ -15369,7 +15369,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Wallet,
             payment_method_type: None,
             address: PaymentAddress::default(),
@@ -15481,7 +15481,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Wallet,
             payment_method_type: None,
             address: PaymentAddress::default(),
@@ -15785,7 +15785,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card, // Default for connector customer creation
             payment_method_type: None,
             address, // Default address
@@ -15876,7 +15876,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Card,
             payment_method_type: None,
             address: PaymentAddress::default(),
@@ -19604,7 +19604,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::foreign_try_from(
                 value.payment_method.unwrap_or_default(),
             )?,
@@ -19729,7 +19729,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             // The Authenticate re-fetch carries no payment method, and `PaymentFlowData` has no
             // way to express that (non-optional field), so an absent or proto-default (empty
             // oneof) value falls back to `Card`; a populated but invalid value still fails the
@@ -19843,7 +19843,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: value
                 .payment_method
                 .map(PaymentMethod::foreign_try_from)
@@ -19934,7 +19934,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "MANDATE_REVOKE_ID".to_string(),
             attempt_id: "MANDATE_REVOKE_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unspecified,
             payment_method: common_enums::PaymentMethod::Card, // Default for mandate operations
             payment_method_type: None,
             address: PaymentAddress::default(),
