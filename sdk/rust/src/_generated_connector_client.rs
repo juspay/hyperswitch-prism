@@ -74,6 +74,12 @@ use grpc_api_types::surcharge::{
 ///   2. Execute the HTTP request via our standardized HttpClient (reqwest)
 ///   3. Parse the connector response via Rust core handlers
 ///
+/// Steps 1–3 are also individually callable per flow (`{flow}_build_request` /
+/// [`ConnectorClient::execute_connector_request`] / `{flow}_parse_response`) —
+/// see `impl_flow_method!` below. This lets an embedder validate that a request
+/// would build successfully without making a network call, and lets it execute
+/// the built request over its own HTTP stack instead of this crate's `HttpClient`.
+///
 /// This client maintains a cache of HTTP clients keyed by proxy configuration,
 /// so repeated calls with the same proxy settings reuse the same connection pool.
 pub struct ConnectorClient {
@@ -82,114 +88,190 @@ pub struct ConnectorClient {
     config: ConnectorConfig,
 }
 
-// ── Internal macro: generate a ConnectorClient method for a payment flow ──────
+/// The connector HTTP request built for one flow, not yet sent. Produced by a
+/// flow's `_build_request` method; consumed by
+/// [`ConnectorClient::execute_connector_request`] and that same flow's
+/// `_parse_response` method.
+///
+/// `http_request` is `None` when the flow's request-builder legitimately found
+/// no outgoing call was needed for this step. Inspecting it directly (rather
+/// than always executing) is what makes request-build validation callable as a
+/// pure, no-network check.
+pub struct PreparedRequest<Req> {
+    /// The original typed request, kept so `_parse_response` can rebuild the
+    /// FFI context it needs without the caller having to supply it again.
+    pub original_request: Req,
+    /// A clone of the metadata passed to `_build_request`, for the same reason.
+    pub metadata: HashMap<String, String>,
+    /// `None` if the flow's request-builder produced no outgoing call.
+    pub http_request: Option<ClientHttpRequest>,
+    /// The effective (client defaults merged with per-call overrides) HTTP
+    /// options this request should execute with.
+    pub effective_http_config: NativeHttpOptions,
+    ffi_options: FfiOptions,
+}
+
+// ── Internal macro: generate a ConnectorClient method triple for a payment flow ──
 //
-// Each generated method follows the same round-trip pattern:
-//   1. Build FfiRequestData from caller inputs
-//   2. Call the flow-specific req_handler to build the connector HTTP request
-//   3. Execute HTTP via the shared HttpClient
-//   4. Call the flow-specific res_handler to parse the response
+// Each flow gets three methods sharing the same round-trip pattern:
+//   1. `{flow}_build_request` — build FfiRequestData, call the req_handler,
+//      return a `PreparedRequest` (no network call).
+//   2. `execute_connector_request` (shared, not per-flow — see below) — execute
+//      HTTP via this crate's HttpClient.
+//   3. `{flow}_parse_response` — call the res_handler to parse the response.
+// `$method` itself is kept as a convenience wrapper calling all three in order,
+// for callers who don't need the split.
 //
 // Usage: impl_flow_method!(method_name, ReqType, ResType, req_handler_fn, res_handler_fn);
 macro_rules! impl_flow_method {
     ($method:ident, $req_type:ty, $res_type:ty, $req_handler:ident, $res_handler:ident) => {
-        pub async fn $method(
-            &self,
-            request: $req_type,
-            metadata: &HashMap<String, String>,
-            options: Option<RequestConfig>,
-        ) -> Result<$res_type, SdkError> {
-            use connector_service_ffi::handlers::payments::{$req_handler, $res_handler};
+        paste::paste! {
+            /// Builds the connector HTTP request for this flow without sending
+            /// it. Fails only if request-building itself fails (missing or
+            /// invalid fields) — callable as a pure pre-flight check.
+            pub fn [<$method _build_request>](
+                &self,
+                request: $req_type,
+                metadata: &HashMap<String, String>,
+                options: Option<RequestConfig>,
+            ) -> Result<PreparedRequest<$req_type>, SdkError> {
+                use connector_service_ffi::handlers::payments::$req_handler;
 
-            let ffi_options = self.resolve_ffi_options(&options);
-            let effective_http_config = self.resolve_http_options(options.as_ref());
+                let ffi_options = self.resolve_ffi_options(&options);
+                let effective_http_config = self.resolve_http_options(options.as_ref());
 
-            let ffi_request =
-                build_ffi_request(request.clone(), metadata, &ffi_options).map_err(|e| {
-                    SdkError::IntegrationError {
-                        error_code: "SDK_INTERNAL_ERROR".to_string(),
-                        error_message: format!("{:?}", e),
-                        suggested_action: None,
-                        doc_url: None,
-                    }
-                })?;
-            let environment = Some(
-                grpc_api_types::payments::Environment::try_from(ffi_options.environment).map_err(
-                    |e| SdkError::IntegrationError {
+                let ffi_request =
+                    build_ffi_request(request.clone(), metadata, &ffi_options).map_err(|e| {
+                        SdkError::IntegrationError {
+                            error_code: "SDK_INTERNAL_ERROR".to_string(),
+                            error_message: format!("{:?}", e),
+                            suggested_action: None,
+                            doc_url: None,
+                        }
+                    })?;
+                let environment = Some(
+                    grpc_api_types::payments::Environment::try_from(ffi_options.environment).map_err(
+                        |e| SdkError::IntegrationError {
+                            error_code: "INVALID_ENVIRONMENT".to_string(),
+                            error_message: format!("{:?}", e),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    )?,
+                );
+
+                let connector_request =
+                    $req_handler(ffi_request, environment).map_err(SdkError::from)?;
+
+                let http_request = connector_request
+                    .map(|connector_request| -> Result<ClientHttpRequest, SdkError> {
+                        let (body, boundary) = connector_request
+                            .body
+                            .as_ref()
+                            .map(|b| b.get_body_bytes())
+                            .transpose()
+                            .map_err(|e| SdkError::IntegrationError {
+                                error_code: "BODY_EXTRACTION_FAILED".to_string(),
+                                error_message: format!("{e}"),
+                                suggested_action: None,
+                                doc_url: None,
+                            })?
+                            .unwrap_or((None, None));
+                        let mut headers = connector_request.get_headers_map();
+                        if let Some(boundary) = boundary {
+                            headers.insert(
+                                "content-type".to_string(),
+                                format!("multipart/form-data; boundary={}", boundary),
+                            );
+                        }
+                        Ok(ClientHttpRequest {
+                            url: connector_request.url.clone(),
+                            method: connector_request.method,
+                            headers,
+                            body,
+                            // Threaded through so `HttpClient::execute` can build a
+                            // one-off mTLS-capable client for connectors that need
+                            // it — mirrors the gRPC-mode server's own
+                            // `external_services::service::create_client`, which
+                            // reads these same `Request` fields.
+                            certificate: connector_request.certificate.clone(),
+                            certificate_key: connector_request.certificate_key.clone(),
+                            ca_certificate: connector_request.ca_certificate.clone(),
+                        })
+                    })
+                    .transpose()?;
+
+                Ok(PreparedRequest {
+                    original_request: request,
+                    metadata: metadata.clone(),
+                    http_request,
+                    effective_http_config,
+                    ffi_options,
+                })
+            }
+
+            /// Parses the connector's response for this flow. Call after
+            /// [`ConnectorClient::execute_connector_request`] on the value this
+            /// flow's `_build_request` produced.
+            pub fn [<$method _parse_response>](
+                &self,
+                prepared: PreparedRequest<$req_type>,
+                response: Response,
+            ) -> Result<$res_type, SdkError> {
+                use connector_service_ffi::handlers::payments::$res_handler;
+
+                let environment = Some(
+                    grpc_api_types::payments::Environment::try_from(
+                        prepared.ffi_options.environment,
+                    )
+                    .map_err(|e| SdkError::IntegrationError {
                         error_code: "INVALID_ENVIRONMENT".to_string(),
                         error_message: format!("{:?}", e),
                         suggested_action: None,
                         doc_url: None,
-                    },
-                )?,
-            );
-
-            let connector_request = $req_handler(ffi_request, environment)
-                .map_err(SdkError::from)?
-                .ok_or_else(|| SdkError::IntegrationError {
-                    error_code: "NO_REQUEST_GENERATED".to_string(),
-                    error_message: "No connector request was generated".to_string(),
-                    suggested_action: None,
-                    doc_url: None,
-                })?;
-
-            let (body, boundary) = connector_request
-                .body
-                .as_ref()
-                .map(|b| b.get_body_bytes())
-                .transpose()
-                .map_err(|e| SdkError::IntegrationError {
-                    error_code: "BODY_EXTRACTION_FAILED".to_string(),
-                    error_message: format!("{e}"),
-                    suggested_action: None,
-                    doc_url: None,
-                })?
-                .unwrap_or((None, None));
-            let mut headers = connector_request.get_headers_map();
-            if let Some(boundary) = boundary {
-                headers.insert(
-                    "content-type".to_string(),
-                    format!("multipart/form-data; boundary={}", boundary),
+                    })?,
                 );
-            }
-            let http_req = ClientHttpRequest {
-                url: connector_request.url.clone(),
-                method: connector_request.method,
-                headers,
-                body,
-            };
-            let http_client = self
-                .get_or_create_client(&effective_http_config)
-                .map_err(SdkError::from)?;
-            let http_response = http_client
-                .execute(http_req, Some(effective_http_config))
-                .await
-                .map_err(SdkError::from)?;
-
-            let mut header_map = http::HeaderMap::new();
-            for (key, value) in &http_response.headers {
-                if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
-                    if let Ok(val) = http::header::HeaderValue::from_bytes(value.as_bytes()) {
-                        header_map.insert(name, val);
-                    }
-                }
-            }
-            let response = Response {
-                headers: Some(header_map),
-                response: bytes::Bytes::from(http_response.body),
-                status_code: http_response.status_code,
-            };
-
-            let ffi_request_for_res =
-                build_ffi_request(request, metadata, &ffi_options).map_err(|e| {
-                    SdkError::IntegrationError {
-                        error_code: "SDK_INTERNAL_ERROR".to_string(),
-                        error_message: format!("{:?}", e),
-                        suggested_action: None,
-                        doc_url: None,
-                    }
+                let ffi_request_for_res = build_ffi_request(
+                    prepared.original_request,
+                    &prepared.metadata,
+                    &prepared.ffi_options,
+                )
+                .map_err(|e| SdkError::IntegrationError {
+                    error_code: "SDK_INTERNAL_ERROR".to_string(),
+                    error_message: format!("{:?}", e),
+                    suggested_action: None,
+                    doc_url: None,
                 })?;
-            $res_handler(ffi_request_for_res, response, environment).map_err(SdkError::from)
+                $res_handler(ffi_request_for_res, response, environment).map_err(SdkError::from)
+            }
+
+            /// Convenience wrapper: build, execute, and parse in one call — the
+            /// original all-in-one behavior. Prefer the split methods above when
+            /// you need to validate request-building without a network call, or
+            /// need to execute over your own HTTP stack.
+            pub async fn $method(
+                &self,
+                request: $req_type,
+                metadata: &HashMap<String, String>,
+                options: Option<RequestConfig>,
+            ) -> Result<$res_type, SdkError> {
+                let prepared = self.[<$method _build_request>](request, metadata, options)?;
+                let effective_http_config = prepared.effective_http_config.clone();
+                let http_request =
+                    prepared
+                        .http_request
+                        .clone()
+                        .ok_or_else(|| SdkError::IntegrationError {
+                            error_code: "NO_REQUEST_GENERATED".to_string(),
+                            error_message: "No connector request was generated".to_string(),
+                            suggested_action: None,
+                            doc_url: None,
+                        })?;
+                let response = self
+                    .execute_connector_request(http_request, effective_http_config)
+                    .await?;
+                self.[<$method _parse_response>](prepared, response)
+            }
         }
     };
 }
@@ -200,6 +282,12 @@ impl ConnectorClient {
     /// # Arguments
     /// * `config` - The ConnectorConfig (connector_config with typed auth, options with environment).
     /// * `options` - Optional RequestConfig for default http/vault settings.
+    ///
+    /// Connector base URLs and related settings come from this crate's embedded
+    /// sandbox/production defaults, selected by `config.options.environment`,
+    /// unless an in-process embedder has called
+    /// `connector_service_ffi::handlers::payments::set_runtime_config` before
+    /// constructing any `ConnectorClient` — see that function's docs.
     pub fn new(
         config: ConnectorConfig,
         options: Option<RequestConfig>,
@@ -276,6 +364,38 @@ impl ConnectorClient {
         let new_client = HttpClient::new(effective_config.clone())?;
         cache.insert(cache_key, new_client.clone());
         Ok(new_client)
+    }
+
+    /// Executes an already-built connector HTTP request and wraps the raw
+    /// response as a domain [`Response`], ready for a flow's `_parse_response`
+    /// method. Flow-agnostic and shared by every flow, rather than generated
+    /// per flow, since HTTP execution doesn't vary by flow.
+    pub async fn execute_connector_request(
+        &self,
+        http_request: ClientHttpRequest,
+        effective_http_config: NativeHttpOptions,
+    ) -> Result<Response, SdkError> {
+        let http_client = self
+            .get_or_create_client(&effective_http_config)
+            .map_err(SdkError::from)?;
+        let http_response = http_client
+            .execute(http_request, Some(effective_http_config))
+            .await
+            .map_err(SdkError::from)?;
+
+        let mut header_map = http::HeaderMap::new();
+        for (key, value) in &http_response.headers {
+            if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
+                if let Ok(val) = http::header::HeaderValue::from_bytes(value.as_bytes()) {
+                    header_map.insert(name, val);
+                }
+            }
+        }
+        Ok(Response {
+            headers: Some(header_map),
+            response: bytes::Bytes::from(http_response.body),
+            status_code: http_response.status_code,
+        })
     }
 
     // ── CustomerService flows ───────────────────────────────────────────────────
