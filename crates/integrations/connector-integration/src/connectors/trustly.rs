@@ -367,9 +367,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &details.method,
             &details.params.data.messageid.clone().expose(),
         )?;
-
+        let connector_returned_payment_method_details =
+            trustly::extract_returned_bank_details(&details.params.data);
         Ok(domain_types::connector_types::WebhookDetailsResponse {
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     details.params.data.orderid.clone(),
