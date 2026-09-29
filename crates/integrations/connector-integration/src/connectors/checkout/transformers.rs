@@ -2238,7 +2238,7 @@ pub struct PaymentsResponse {
     scheme_id: Option<String>,
     processing: Option<PaymentProcessingDetails>,
     action_id: Option<String>,
-    status: CheckoutPaymentStatus,
+    pub status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
     balances: Option<Balances>,

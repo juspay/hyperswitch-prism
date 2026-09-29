@@ -276,12 +276,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // =============================================================================
 // AUTHORIZE — POST /v3/deposits (non-PCI deposit; WebPay "WP")
 // =============================================================================
-// NOTE: no impl_flow_status_mapping! for Authorize. The 201 response has no
-// result or decline field at all — a `deposit_id` plus an optional
-// `redirect_url` — so the TryFrom can only emit `AuthenticationPending`
-// (redirect handed out) or `Pending` (nothing actionable yet). No
-// success/failure variant exists on the wire to declare; the actual payment
-// outcome only ever arrives via PSync (`D24DepositStatus`).
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: D24<T>,
+    flow: Authorize,
+    statuses: [AuthenticationPending, Pending],
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: D24PaymentsResponse,
+        status: |_request, response| {
+            if response.redirect_url.is_some() {
+                common_enums::AttemptStatus::AuthenticationPending
+            } else {
+                common_enums::AttemptStatus::Pending
+            }
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for D24<T>
 {
@@ -332,11 +343,17 @@ domain_types::impl_flow_status_mapping! {
     source:    d24::D24DepositStatus,
     success:   Completed => Charged,
     failure:   Declined  => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: D24SyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Pending       => Pending,
         Created       => AuthenticationPending,
         Cancelled     => Voided,
-        Expired       => Failure,
+        Expired       => Expired,
         EarlyReleased => Pending,
         ForReview     => Pending,
         Unknown       => Pending,
@@ -421,6 +438,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    d24::D24RefundResult,
     success:   Success  => Success,
     failure:   Rejected => Failure,
+    extractors: {
+        request: RefundsData,
+        response: D24RefundResponse,
+        source: |response| response.refund_info.as_ref().and_then(|info| info.result).unwrap_or(d24::D24RefundResult::InProgress),
+        context: |_request, _response| (),
+    },
     {
         InProgress => Pending,
         Unknown    => Pending,
@@ -475,6 +498,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    d24::D24RefundSyncStatus,
     success:   Completed => Success,
     failure:   Rejected  => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: D24RefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Cancelled        => Failure,
         Pending          => Pending,

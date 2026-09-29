@@ -1232,6 +1232,12 @@ pub struct AdyenRepeatPaymentRequest(pub AdyenPaymentRequest<DefaultPCIHolder>);
 #[serde(transparent)]
 pub struct AdyenRepeatPaymentResponse(pub AdyenPaymentResponse);
 
+impl AdyenRepeatPaymentResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -4007,11 +4013,39 @@ pub enum AdyenPaymentResponse {
     WebhookResponse(Box<AdyenWebhookResponse>),
 }
 
+impl AdyenPaymentResponse {
+    /// The `result_code` carried by every payments-response leg; webhook responses
+    /// have no `result_code`, so they report `AdyenStatus::Unknown` (which maps to
+    /// `AttemptStatus::Unspecified`, preserving the prior attempt status).
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        match self {
+            Self::Response(x) => x.result_code.clone(),
+            Self::PresentToShopper(x) => x.result_code.clone(),
+            Self::QrCodeResponse(x) => x.result_code.clone(),
+            Self::RedirectionResponse(x) => x.result_code.clone(),
+            Self::RedirectionErrorResponse(x) => x.result_code.clone(),
+            Self::WebhookResponse(_) => AdyenStatus::Unknown,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AdyenPSyncResponse(AdyenPaymentResponse);
 
+impl AdyenPSyncResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetupMandateResponse(AdyenPaymentResponse);
+
+impl SetupMandateResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
 
 pub struct AdyenPaymentsResponseData {
     pub status: AttemptStatus,
@@ -4274,19 +4308,6 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
             AdyenWebhookStatus::Unknown => Ok(Self::Unspecified),
         }
     }
-}
-
-/// Mapping context for `impl_flow_status_mapping_ctx!` — carries the two pieces of
-/// request context `get_adyen_payment_status` needs beyond `AdyenStatus` alone:
-/// whether the payment uses manual capture (Authorised → Authorized vs Charged) and
-/// the payment method type (Pix Pending requires customer action).
-///
-/// `Default` = automatic capture, no payment method type (auto-capture path), used by
-/// `assert_terminal_mapping!` when probing the canonical success path.
-#[derive(Debug, Clone, Default)]
-pub struct AdyenAuthorizeCtx {
-    pub is_manual_capture: bool,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
 fn get_adyen_payment_status(

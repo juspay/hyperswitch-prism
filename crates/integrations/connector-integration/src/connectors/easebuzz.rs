@@ -149,6 +149,25 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failure,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: EasebuzzPaymentsResponse,
+        source: |response| {
+            use easebuzz::EasebuzzAuthorizeStatus as Status;
+            if response.0.get("error").and_then(serde_json::Value::as_str)
+                .is_some_and(|error| !error.is_empty() && error != "0")
+            {
+                Status::Failure
+            } else {
+                match response.0.get("status").and_then(serde_json::Value::as_str) {
+                    Some("success" | "SUCCESS") => Status::Success,
+                    Some("failure" | "FAILURE" | "failed" | "FAILED") => Status::Failure,
+                    _ => Status::Other,
+                }
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         match status {
@@ -173,6 +192,22 @@ domain_types::impl_flow_status_mapping! {
     source:    easebuzz::EasebuzzTxnStatus,
     success:   Success => Charged,
     failure:   Other   => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: EasebuzzSyncResponse,
+        source: |response| {
+            use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzTxnSyncMsg};
+            match &response.msg {
+                EasebuzzTxnSyncMsg::Success(transaction) => match transaction.status.to_lowercase().as_str() {
+                    "success" => Status::Success,
+                    "initiated" | "pending" | "in_process" => Status::InFlight,
+                    _ => Status::Other,
+                },
+                EasebuzzTxnSyncMsg::Error(_) => Status::InFlight,
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         InFlight => Pending
     }
@@ -193,6 +228,28 @@ domain_types::impl_flow_status_mapping! {
     source:    easebuzz::EasebuzzTxnStatus,
     success:   Success => Charged,
     failure:   Other   => Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: EasebuzzCaptureResponse,
+        source: |response| {
+            use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzCaptureResponse};
+            match response {
+                EasebuzzCaptureResponse::Success(response) => {
+                    if response.data.error.as_deref().is_some_and(|error| !error.is_empty() && error != "0") {
+                        Status::Other
+                    } else {
+                        match response.data.status.to_lowercase().as_str() {
+                            "success" => Status::Success,
+                            "initiated" | "pending" | "in_process" => Status::InFlight,
+                            _ => Status::Other,
+                        }
+                    }
+                }
+                EasebuzzCaptureResponse::Error(_) => Status::Other,
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         InFlight => Pending
     }
@@ -202,19 +259,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_refund_flow_status_mapping! for Refund. The refund initiation
-// response carries only a boolean `status` flag — `true` means the refund was
-// accepted for *processing* (the TryFrom hardcodes `RefundStatus::Pending`;
-// the terminal outcome arrives via RSync), `false` is an initiation rejection
-// (`Failure`). The truthful shape is Pending on accept, Failure on reject — but
-// the flow's TERMINAL_SUCCESS is `Success`, which no value of the initiation
-// response can ever honestly produce on this call, so there is no honest
-// `success_status` to declare (any declared success must map into
-// TERMINAL_SUCCESS per `assert_terminal_mapping!`). The ctx family does not fix
-// this: `success_connector_status()` and `failure_connector_status()` are
-// context-free values checked against the *same* context, so no single honest
-// context can make one input `true` land in TERMINAL_SUCCESS while
-// map_refund_status still displaces acceptance to Pending.
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Easebuzz<T>,
+    flow: Refund,
+    source: bool,
+    context: (),
+    params: [accepted, _context],
+    success_targets: [Success],
+    failure_sample: Some(false),
+    extractors: {
+        request: RefundsData,
+        response: EasebuzzRefundResponse,
+        source: |response| response.status,
+        context: |_request, _response| (),
+    },
+    {
+        if accepted {
+            common_enums::RefundStatus::Pending
+        } else {
+            common_enums::RefundStatus::Failure
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Easebuzz<T>
 {
@@ -224,18 +291,58 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ("refunded"/"settled" → Success, "cancelled"/"reverse chargeback"/"failed"
 // → Failure, anything else → Pending), typed as
 // `easebuzz::EasebuzzRefundSyncStatus`.
-domain_types::impl_refund_flow_status_mapping! {
+domain_types::impl_refund_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Easebuzz<T>,
     flow:      RSync,
-    source:    easebuzz::EasebuzzRefundSyncStatus,
-    success:   Refunded => Success,
-    failure:   Failed   => Failure,
+    source:    (),
+    context:   easebuzz::EasebuzzRefundSyncStatus,
+    params:    [_source, status],
+    success_targets: [Success],
+    failure_targets: [Failure],
+    extractors: {
+        request: RefundSyncData,
+        response: EasebuzzRefundSyncResponse,
+        source: |_response| (),
+        context: |request, response| match response {
+            EasebuzzRefundSyncResponse::Success(data) => {
+                let refund = data.refunds.as_ref().and_then(|refunds| {
+                    refunds
+                        .iter()
+                        .find(|refund| {
+                            refund.refund_id.as_deref()
+                                == Some(request.connector_refund_id.as_str())
+                                || refund.merchant_refund_id.as_deref()
+                                    == Some(request.connector_refund_id.as_str())
+                        })
+                        .or_else(|| refunds.first())
+                });
+                match refund
+                    .and_then(|refund| refund.refund_status.as_deref())
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .as_str()
+                {
+                    "refunded" => easebuzz::EasebuzzRefundSyncStatus::Refunded,
+                    "settled" => easebuzz::EasebuzzRefundSyncStatus::Settled,
+                    "cancelled" => easebuzz::EasebuzzRefundSyncStatus::Cancelled,
+                    "reverse chargeback" => easebuzz::EasebuzzRefundSyncStatus::ReverseChargeback,
+                    "failed" => easebuzz::EasebuzzRefundSyncStatus::Failed,
+                    _ => easebuzz::EasebuzzRefundSyncStatus::Other,
+                }
+            }
+            EasebuzzRefundSyncResponse::Error(_) => easebuzz::EasebuzzRefundSyncStatus::Other,
+        },
+    },
     {
-        Settled           => Success,
-        Cancelled         => Failure,
-        ReverseChargeback => Failure,
-        Other             => Pending
+        match status {
+            easebuzz::EasebuzzRefundSyncStatus::Refunded
+            | easebuzz::EasebuzzRefundSyncStatus::Settled => common_enums::RefundStatus::Success,
+            easebuzz::EasebuzzRefundSyncStatus::Cancelled
+            | easebuzz::EasebuzzRefundSyncStatus::ReverseChargeback
+            | easebuzz::EasebuzzRefundSyncStatus::Failed => common_enums::RefundStatus::Failure,
+            easebuzz::EasebuzzRefundSyncStatus::Other => common_enums::RefundStatus::Pending,
+        }
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

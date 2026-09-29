@@ -1328,7 +1328,7 @@ pub struct AirwallexPaymentAttempt {
     pub updated_at: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     RequiresPaymentMethod,
@@ -1370,7 +1370,7 @@ pub struct AirwallexCardInfo {
     pub fingerprint: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexNextActionType {
     Redirect,
@@ -1788,7 +1788,7 @@ pub struct AirwallexRefundResponse {
     pub metadata: Option<serde_json::Value>,        // Additional metadata
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexRefundStatus {
     Received,

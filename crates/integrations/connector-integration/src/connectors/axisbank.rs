@@ -46,15 +46,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
-// Authorize (Register Intent): the response is a UPI deeplink, so any non-failure
-// outer code with a payload lands on AuthenticationPending — `handle_authorize_response`
-// never yields Charged/Authorized here. Failure outer codes short-circuit to Failure.
-// Success (deeplink built) is represented by AuthenticationPending; RequestPending
-// (no payload yet) is the canonical "still starting" path.
-// Authorize macro intentionally omitted: axisbank is UPI-collect. The Authorize
-// TryFrom only ever emits AuthenticationPending (redirect) or Pending — neither
-// is in Authorize::TERMINAL_SUCCESS_SET, so no `success:` is declareable. The
-// authorized-or-charged outcome arrives via PSync / webhook, same as absa_sanlam.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow: Authorize,
+    statuses: [Failure, AuthenticationPending, Pending],
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: AxisbankPaymentsResponse,
+        status: |_request, response| {
+            if response.response_code.is_failure() {
+                common_enums::AttemptStatus::Failure
+            } else if response.payload.is_some() {
+                common_enums::AttemptStatus::AuthenticationPending
+            } else {
+                common_enums::AttemptStatus::Pending
+            }
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Axisbank<T>
 {
@@ -67,12 +77,18 @@ domain_types::impl_flow_status_mapping_ctx! {
     connector:       Axisbank<T>,
     flow:            PSync,
     source:          crate::connectors::juspay_upi_stack::types::OuterResponseCode,
-    context:         transformers::AxisbankSyncCtx,
+    context:         Option<String>,
     params:          [status, ctx],
     success_status:  Success,
     success_targets: [Charged],
     failure_status:  Failure,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: AxisbankSyncResponse,
+        source: |response| response.response_code.clone(),
+        context: |_request, response| response.payload.as_ref().map(|payload| payload.gateway_response_code.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use crate::connectors::juspay_upi_stack::types::{
@@ -98,7 +114,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             | Outer::RequestPending
             | Outer::ServiceUnavailable
             | Outer::GatewayTimeout => AttemptStatus::Pending,
-            Outer::Success => match ctx.gateway_response_code.as_deref() {
+            Outer::Success => match ctx.as_deref() {
                 Some(code) => match GatewayResponseCode::parse(code) {
                     GatewayResponseCode::Success => AttemptStatus::Charged,
                     GatewayResponseCode::Pending
@@ -139,6 +155,21 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    crate::connectors::juspay_upi_stack::types::RefundStatus,
     success:   Success => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request: RefundsData,
+        response: AxisbankRefundResponse,
+        source: |response| {
+            use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
+            response.payload.as_ref().map_or(Status::Failed, |payload| {
+                if payload.refund_type.eq_ignore_ascii_case("UDIR") {
+                    Status::from_udir_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                } else {
+                    Status::from_offline_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                }
+            })
+        },
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
         Deemed  => Pending,
@@ -156,6 +187,21 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    crate::connectors::juspay_upi_stack::types::RefundStatus,
     success:   Success => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: AxisbankRefundSyncResponse,
+        source: |response| {
+            use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
+            response.payload.as_ref().map_or(Status::Failed, |payload| {
+                if payload.refund_type.eq_ignore_ascii_case("UDIR") {
+                    Status::from_udir_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                } else {
+                    Status::from_offline_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                }
+            })
+        },
+        context: |_request, _response| (),
+    },
     {
         Pending => Pending,
         Deemed  => Pending,

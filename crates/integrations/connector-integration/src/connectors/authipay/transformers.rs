@@ -526,7 +526,7 @@ fn extract_network_fields(
 // ===== STATUS MAPPING FUNCTION =====
 // CRITICAL: This checks BOTH transactionResult AND transactionStatus, AND considers transactionType
 
-fn map_status(
+pub(crate) fn map_status(
     authipay_status: Option<AuthipayPaymentStatus>,
     authipay_result: Option<AuthipayPaymentResult>,
     authipay_state: Option<AuthipayTransactionState>,
@@ -847,7 +847,7 @@ use common_enums::RefundStatus;
 // 3. transactionState should be CAPTURED for success
 // ONLY returns RefundStatus::Success when ALL conditions are met
 
-fn map_refund_status(
+pub(crate) fn map_refund_status(
     transaction_type: Option<AuthipayTransactionType>,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,
@@ -987,7 +987,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // 3. transactionState should be VOIDED for success
 // ONLY returns AttemptStatus::Voided when ALL conditions are met
 
-fn map_void_status(
+pub(crate) fn map_void_status(
     transaction_type: AuthipayTransactionType,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,

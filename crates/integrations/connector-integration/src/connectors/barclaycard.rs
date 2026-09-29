@@ -78,6 +78,23 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Authorized, Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: BarclaycardAuthorizeResponse,
+        source: |response| match response {
+            responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info) => info
+                .status
+                .clone()
+                .unwrap_or(responses::BarclaycardPaymentStatus::StatusNotReceived),
+            responses::BarclaycardPaymentsResponse::ErrorInformation(_) => {
+                responses::BarclaycardPaymentStatus::Failed
+            }
+        },
+        context: |request, _response| matches!(
+            request.capture_method,
+            Some(common_enums::CaptureMethod::Automatic) | None
+        ),
+    },
     {
         use responses::BarclaycardPaymentStatus as S;
         match status {
@@ -113,6 +130,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// BLOCKED: PSync leaves the previous common status unchanged when
+// application_information.status is absent. Exact runtime mapping therefore
+// requires FlowStatusReader rather than an infallible inline source extractor.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Barclaycard<T>,
@@ -159,6 +180,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// BLOCKED: Void calls the common payment mapper with auto_capture=false; that
+// can return Authorized, Charged, or Voided and does not use the per-flow
+// VoidInitiated/VoidFailed coercions declared below.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Barclaycard<T>,
@@ -188,6 +213,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// BLOCKED: Capture calls the same common mapper with auto_capture=true; failure
+// branches return Failure and voided branches return Voided, unlike this macro
+// and outside the complete Capture status contract.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Barclaycard<T>,
@@ -217,6 +246,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// BLOCKED: SetupMandate only converts Authorized to Charged after running the
+// common mapper. Voided/Reversed/Cancelled still produce Voided, which is not
+// in SetupMandate::ALLOWED; this declaration converted them to Failure.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Barclaycard<T>,
@@ -246,6 +279,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// BLOCKED: RepeatPayment uses the common mapper unchanged. Its voided branches
+// return Voided, outside RepeatPayment::ALLOWED, while this macro changed them
+// to Failure.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Barclaycard<T>,
@@ -330,6 +367,15 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Succeeded,
     failure_status: Failed,
+    extractors: {
+        request: RefundsData,
+        response: BarclaycardRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response
+            .error_information
+            .as_ref()
+            .and_then(|error| error.reason.clone()),
+    },
     {
         use common_enums::RefundStatus;
         use responses::BarclaycardRefundStatus as S;
@@ -354,6 +400,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // RSync goes through the same `map_barclaycard_refund_status(status,
 // error_reason)` mapping as Refund — identical body, keyed on the same ctx.
+// BLOCKED: RSync leaves the previous common refund status unchanged when the
+// nested application status is absent. Exact runtime mapping needs
+// FlowStatusReader for that branch.
+#[cfg(any())]
 domain_types::impl_refund_flow_status_mapping_ctx! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Barclaycard<T>,

@@ -16,6 +16,122 @@
 
 pub mod transformers;
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        RSync,
+        RefundSyncData,
+        GlobalpaymentsHeartlandRSyncResponse,
+    > for GlobalpaymentsHeartland<T>
+{
+    type MappedStatus = common_enums::RefundStatus;
+
+    fn map_runtime_status<CommonData>(
+        common_data: &CommonData,
+        _request: &RefundSyncData,
+        response: &GlobalpaymentsHeartlandRSyncResponse,
+    ) -> Result<Self::MappedStatus, domain_types::ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        use transformers::{
+            GlobalpaymentsHeartlandFlowStatus as Status,
+            GlobalpaymentsHeartlandServiceName as Service, GlobalpaymentsHeartlandTxnStatus as Txn,
+        };
+        let ver = &response.body.pos_response.ver;
+        if ver.header.gateway_rsp_code.as_deref() != Some("0") {
+            return Ok(common_data.current_mapped_flow_status());
+        }
+        let body = ver
+            .transaction
+            .as_ref()
+            .and_then(|transaction| transaction.report_txn_detail.as_ref());
+        let service_name = match body.and_then(|body| body.service_name.as_deref()) {
+            Some("CreditAuth") => Service::CreditAuth,
+            Some("CreditSale") => Service::CreditSale,
+            Some("CreditVoid") => Service::CreditVoid,
+            Some("CreditReturn") => Service::CreditReturn,
+            _ => Service::Other,
+        };
+        let data = body.and_then(|body| body.data.as_ref());
+        let txn_status = match data.and_then(|data| data.txn_status.as_deref()) {
+            Some("A") => Txn::Active,
+            Some("R") => Txn::Reversed,
+            _ => Txn::Other,
+        };
+        let is_declined = matches!(service_name, Service::CreditReturn)
+            && data
+                .and_then(|data| data.rsp_code.as_deref())
+                .is_some_and(|code| !code.is_empty() && !matches!(code, "00" | "85"));
+        let status = if is_declined {
+            Status::Other
+        } else {
+            Status::Approved
+        };
+        Ok(<Self as domain_types::flow_status::ConnectorRefundTerminalMapping<RSync>>::map_refund_status(
+            status,
+            transformers::GlobalpaymentsHeartlandSyncCtx { service_name, txn_status, is_declined },
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        PSync,
+        PaymentsSyncData,
+        GlobalpaymentsHeartlandPSyncResponse,
+    > for GlobalpaymentsHeartland<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        common_data: &CommonData,
+        _request: &PaymentsSyncData,
+        response: &GlobalpaymentsHeartlandPSyncResponse,
+    ) -> Result<Self::MappedStatus, domain_types::ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        use transformers::{
+            GlobalpaymentsHeartlandFlowStatus as Status,
+            GlobalpaymentsHeartlandServiceName as Service, GlobalpaymentsHeartlandTxnStatus as Txn,
+        };
+        let ver = &response.body.pos_response.ver;
+        if ver.header.gateway_rsp_code.as_deref() != Some("0") {
+            return Ok(common_data.current_mapped_flow_status());
+        }
+        let body = ver
+            .transaction
+            .as_ref()
+            .and_then(|transaction| transaction.report_txn_detail.as_ref());
+        let service_name = match body.and_then(|body| body.service_name.as_deref()) {
+            Some("CreditAuth") => Service::CreditAuth,
+            Some("CreditSale") => Service::CreditSale,
+            Some("CreditVoid") => Service::CreditVoid,
+            Some("CreditReturn") => Service::CreditReturn,
+            _ => Service::Other,
+        };
+        let data = body.and_then(|body| body.data.as_ref());
+        let txn_status = match data.and_then(|data| data.txn_status.as_deref()) {
+            Some("A") => Txn::Active,
+            Some("R") => Txn::Reversed,
+            _ => Txn::Other,
+        };
+        let is_declined = matches!(service_name, Service::CreditAuth | Service::CreditSale)
+            && data
+                .and_then(|data| data.rsp_code.as_deref())
+                .is_some_and(|code| !code.is_empty() && !matches!(code, "00" | "85"));
+        let status = if is_declined {
+            Status::Other
+        } else {
+            Status::Approved
+        };
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<PSync>>::map_attempt_status(
+            status,
+            transformers::GlobalpaymentsHeartlandSyncCtx { service_name, txn_status, is_declined },
+        ))
+    }
+}
+
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
@@ -314,6 +430,22 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged, Authorized],
     failure_status:  Other,
     failure_target:  AuthorizationFailed,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GlobalpaymentsHeartlandPaymentsResponse,
+        source: |response| {
+            use transformers::GlobalpaymentsHeartlandFlowStatus as Status;
+            let body = response.body.pos_response.ver.transaction.as_ref()
+                .and_then(|transaction| transaction.credit_auth.as_ref().or(transaction.credit_sale.as_ref()));
+            if body.is_some_and(|body| matches!(body.rsp_code.as_deref(), Some("00" | "85"))) {
+                Status::Approved
+            } else { Status::Other }
+        },
+        context: |request, response| transformers::GlobalpaymentsHeartlandAuthorizeCtx {
+            gateway: if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+            is_auto_capture: request.is_auto_capture(),
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::GlobalpaymentsHeartlandFlowStatus;
@@ -401,6 +533,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GlobalpaymentsHeartlandFlowStatus,
     success:   Approved => Charged,
     failure:   Other    => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: GlobalpaymentsHeartlandCaptureResponse,
+        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -417,6 +555,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GlobalpaymentsHeartlandFlowStatus,
     success:   Approved => Voided,
     failure:   Other    => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: GlobalpaymentsHeartlandVoidResponse,
+        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -435,6 +579,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GlobalpaymentsHeartlandFlowStatus,
     success:   Approved => Success,
     failure:   Other    => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GlobalpaymentsHeartlandRefundResponse,
+        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

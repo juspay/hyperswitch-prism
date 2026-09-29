@@ -62,6 +62,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiuu<T>
 {
 }
+// BLOCKED: Authorize's response is mixed. QR and redirect branches hardcode
+// AuthenticationPending, recurring uses a different status type, Error preserves
+// the previous common status, and only NonThreeDS uses FiuuAuthorizeStatus.
+// An exact runtime mapping needs FlowStatusReader for the Error branch.
+#[cfg(any())]
 // Mirrors the non-3DS leg of the Authorize TryFrom
 // (`RequestData::NonThreeDS` in `TryFrom<ResponseRouterData<FiuuPaymentsResponse, ..>>`):
 // the raw `stat_code` string — typed as `FiuuAuthorizeStatus` — maps
@@ -117,6 +122,12 @@ domain_types::impl_flow_status_mapping! {
     source:    fiuu::FiuuVoidStatus,
     success:   Voided => Voided,
     failure:   Failed => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: FiuuPaymentCancelResponse,
+        source: |response| fiuu::FiuuVoidStatus::from_stat_code(&response.stat_code),
+        context: |_request, _response| (),
+    },
     {
         Other => VoidFailed
     }
@@ -125,17 +136,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiuu<T>
 {
 }
+// BLOCKED: RSync has Success, Error, and Webhook response branches. Error
+// preserves the previous refund status; Success can also produce RefundStatus::Unknown,
+// which is outside RSync::ALLOWED. The inline extractor cannot preserve common data.
+#[cfg(any())]
 // Mirrors `From<fiuu::RefundStatus> for RefundStatus` (transformers.rs:2749) as
 // used by the RSync TryFrom: Success → Success, Rejected → Failure, Pending /
-// Processing → Pending.  Differences from the connector's own From: the
-// `Unknown` fallback maps to `Pending` here rather than the terminal
-// `RefundStatus::Unknown` — `Unknown` is outside RSync's ALLOWED set
-// (Success/Failure/Pending/ManualReview/TransactionFailure), and treating an
-// unrecognised refund state as still-in-flight on a sync poll is the honest
-// reconciliation verdict.  The `_ctx` form + `assert_terminal_mapping!`-style
-// const-asserts are skipped (the ctx macro performs none): success must equal
-// RSync TERMINAL_SUCCESS (Success) and failure TERMINAL_FAILURE (Failure),
-// which the arms below declare directly.
+// BLOCKED: RSync maps `Unknown` to RefundStatus::Unknown and its Error response
+// branch preserves the existing common status. `Unknown` is outside the flow's
+// allowed set, and coercing it to Pending would change production behavior.
+#[cfg(any())]
 domain_types::impl_refund_flow_status_mapping_ctx! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Fiuu<T>,
@@ -162,6 +172,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiuu<T>
 {
 }
+// BLOCKED: Refund's Error response branch preserves the existing common status,
+// while the Success branch maps its status code. Exact runtime extraction needs
+// FlowStatusReader and cannot be expressed by the inline extractor alone.
+#[cfg(any())]
 // Mirrors the Refund TryFrom (`TryFrom<ResponseRouterData<FiuuRefundResponse,
 // ..>>`): the raw `status` string of `FiuuRefundSuccessResponse` — typed as
 // `FiuuRefundStatus` — maps "00" → Success, "11" → Failure, "22" → Pending;
@@ -182,6 +196,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiuu<T>
 {
 }
+// BLOCKED: Capture maps known failure codes to AttemptStatus::Failure, while the
+// declaration below used CaptureFailed. Unknown codes return a transformer error.
+// Keeping the declaration active would change production status behavior.
+#[cfg(any())]
 // Mirrors the Capture TryFrom (`TryFrom<ResponseRouterData<PaymentCaptureResponse,
 // ..>>`): the raw `stat_code` — typed as `FiuuCaptureStatus` — maps "00" →
 // Charged, "22" → Pending, the listed failure codes → Failure; unexpected
