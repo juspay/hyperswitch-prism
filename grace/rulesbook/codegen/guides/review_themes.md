@@ -1,19 +1,9 @@
 # Recurring Reviewer Themes
 
 This file is distilled from human reviewer comments on merged pull requests, not from a style guide. The
-prior edition covered the **20 merged PRs #2124–#2327** of `juspay/hyperswitch-prism`, collected
+current edition covers the **20 merged PRs #2124–#2327** of `juspay/hyperswitch-prism`, collected
 **2026-09-19**: 209 comments, of which 111 were substantive reviewer comments (bot output and author
-replies excluded).
-
-The current edition adds the **10 `GRACE-auto` PRs #2278–#2364** and their eight paired Hyperswitch PRs,
-collected **2026-09-28**: 102 comments fetched, of which **32 were substantive human reviewer comments** —
-the remainder were the pipeline's own overflow comments, bot output, author narrative, empty review records,
-and 26 findings from an automated reviewer running under a user account, which are review content but not
-human signal. Those 32 human comments are concentrated on three of the ten PRs and come from three reviewers.
-**Four of the ten received no review of any kind and three more received only the automated reviewer**, which
-is itself the argument for the mechanical checks below: on seven of ten PRs, nothing but this list stood
-between the diff and merge. Not one review thread on any of the ten was ever replied to or resolved. Twenty-one themes have recurred across two or
-more PRs; each is a `TH-NN` below.
+replies excluded). Sixteen themes recurred across two or more PRs; each is a `TH-NN` below.
 
 > **Why it exists.** In one connector run, 18 real defects of exactly these shapes survived four passing
 > test rounds and were caught only by a post-hoc review — two of them were literal repeats of comments on
@@ -72,11 +62,6 @@ Rules for editing this file:
 | TH-14 | Non-obvious logic gets a comment and a pinning test |
 | TH-15 | Capture intent is honoured on every path |
 | TH-16 | One reference id per payment, across all flows |
-| TH-17 | Webhook trust boundary |
-| TH-18 | Layer ownership |
-| TH-19 | A mapping cites the document it came from |
-| TH-20 | Collection selection |
-| TH-21 | Registration completeness |
 
 ---
 
@@ -118,8 +103,8 @@ converter constant while request paths route through a differently named one.
 **Check.**
 
 ```bash
-git diff {BASE} -- <files> | grep -nE '^\+\s*(pub\s+)?[a-z_]*amount[a-z_]*\s*:\s*(Option<)?(String|f64)\b'   # gate: blocking
-git diff {BASE} -- <files> | grep -nE '^\+.*(parse::<f64>|as f64).*amount'   # gate: blocking
+git diff {BASE} -- <files> | grep -nE '^\+\s*(pub\s+)?[a-z_]*amount[a-z_]*\s*:\s*(Option<)?(String|f64)\b'
+git diff {BASE} -- <files> | grep -nE '^\+.*(parse::<f64>|as f64).*amount'
 ```
 
 Then confirm the connector names exactly one amount converter and both directions use it.
@@ -200,8 +185,8 @@ all became a failed payment.
 **Check.**
 
 ```bash
-git diff {BASE} -- <files> | grep -nE '^\+.*attempt_status'          # one value repeated across flows?   # gate: advisory
-git diff {BASE} -- <files> | grep -nE '^\+.*(unwrap_or_default\(\)|"Unknown error")'   # gate: advisory
+git diff {BASE} -- <files> | grep -nE '^\+.*attempt_status'          # one value repeated across flows?
+git diff {BASE} -- <files> | grep -nE '^\+.*(unwrap_or_default\(\)|"Unknown error")'
 ```
 
 For every `build_error_response`-shaped call site, name the flow it serves and check the status matches.
@@ -218,8 +203,7 @@ limit, any transport or envelope error — or that returns no transaction status
 terminally failed. It leaves the existing status in place (or `Pending`) and passes `attempt_status: None`.
 Terminal connector states must not map to `Pending` either, and an unrecognised state maps to a
 non-terminal or unspecified arm. Consistency across flows is part of the rule: the payment sync and the
-refund sync must not read the same envelope condition two different ways. TH-19 is the companion rule: this
-theme decides whether an arm may be terminal, TH-19 whether its mapping can be cited.
+refund sync must not read the same envelope condition two different ways.
 
 **Seen as.** A reviewer pointing out that an in-band error *about the payment* terminally failed a
 **refund**, while the payment sync mapped the identical envelope condition to `Pending` — and asking which
@@ -246,7 +230,7 @@ invalid-data-format error to the caller, and asking that the reason be passed th
 **Check.**
 
 ```bash
-git diff {BASE} -- <files> | grep -nE '^\+.*IntegrationErrorContext::default\(\)|^\+.*context: Default::default\(\)'   # gate: blocking
+git diff {BASE} -- <files> | grep -nE '^\+.*IntegrationErrorContext::default\(\)|^\+.*context: Default::default\(\)'
 ```
 
 A connector that has a local context-builder helper should use it at every error site, not most of them.
@@ -289,8 +273,8 @@ successful response whose missing order identifier became an empty string downst
 **Check.**
 
 ```bash
-git diff {BASE} -- <files> | grep -nE '^\+.*\.unwrap_or(_default\(\)|\(""\)|_else\(String::new\))'   # gate: advisory
-git diff {BASE} -- <files> | grep -nE '^\+.*\.or_else\(|^\+.*\.unwrap_or\('   # gate: advisory
+git diff {BASE} -- <files> | grep -nE '^\+.*\.unwrap_or(_default\(\)|\(""\)|_else\(String::new\))'
+git diff {BASE} -- <files> | grep -nE '^\+.*\.or_else\(|^\+.*\.unwrap_or\('
 ```
 
 For each hit on a field that goes on the wire or identifies a resource, decide: required and refused, or
@@ -357,7 +341,7 @@ when the flow returned "not implemented" for every one of them.
 **Check.**
 
 ```bash
-git diff --name-only {BASE} | grep -vE '^(crates/integrations/connector-integration/src/connectors/<c>|crates/internal/integration-tests/src/connector_specs/<c>)'   # gate: blocking
+git diff --name-only {BASE} | grep -vE '^(crates/integrations/connector-integration/src/connectors/<c>|crates/internal/integration-tests/src/connector_specs/<c>)'
 ```
 
 Everything that survives is either deliberately in scope and called out in the PR body, or belongs in
@@ -416,177 +400,3 @@ agree, or the difference must be documented as the connector's own semantics.
 
 **PRs.** #2206, #2221 — representative:
 <https://github.com/juspay/hyperswitch-prism/pull/2221#discussion_r3931608159>
-
----
-
-### TH-17 — Webhook trust boundary
-
-**Rule.** The event type, the payment or refund status, and the record a webhook resolves to are derived
-**only** from fields inside the signed preimage. A field that the signature does not cover is untrusted
-input: it may not classify the event, set a status or select the record. Source verification fails closed —
-it never returns a success-shaped or "unsupported" default, and never substitutes the outbound request
-credential for the webhook secret when no webhook secret is configured. Signature comparison uses the
-platform's `crypto::HmacSha256` / `HmacSha1` / `HmacSha512` `verify_signature`, which compares in constant
-time, rather than a hand-rolled byte equality.
-
-**Seen as.** A reviewer showing that the status field sat *outside* the signed preimage, so a genuine
-declined notification replayed with the status flipped to approved still verified and marked the payment
-charged — and asking that the status be derived from the signed field instead. A reviewer on a
-source-verification impl that reported "unsupported" as a no-op, noting that defaulting verification to
-false means the webhook cannot be consumed at all and the flow silently falls back to sync. Verification
-keyed on the outbound API secret because the test harness delivered no webhook secret. Event and
-refund-versus-payment classification read from an attacker-controllable body field *before* verification, so
-a forged notification could flip a payment success into a refund success. Verification assuming the
-configured secret is a key-set document. A hand-rolled non-constant-time HMAC compare.
-
-**Check.**
-
-```bash
-# a source-verification impl that returns a default or success-shaped value
-git diff {BASE} -- <files> | grep -nE '^\+.*(fn verify_webhook_source|SourceVerified::(Unsupported|default)|Ok\(true\))'   # gate: blocking
-# a hand-rolled comparison instead of crypto::*::verify_signature
-git diff {BASE} -- <files> | grep -nE '^\+.*(eq_ignore_ascii_case|constant_time|ConstantTimeEq|\.as_bytes\(\) *==)'   # gate: blocking
-# the preimage itself, to enumerate the fields the signature actually covers
-git diff {BASE} -- <files> | grep -nE '^\+.*(preimage|to_sign|string_to_sign|signing_string)'   # gate: advisory
-```
-
-Then cross-check by hand: list every field the event-type mapper, the status mapper and the reference
-resolver read, and confirm each one appears in the preimage construction. A field read by a mapper and
-absent from the preimage is the defect. Also confirm no classification happens before verification.
-
-**PRs.** #2330, #2340, #2341, #2356, #2364 — representative:
-<https://github.com/juspay/hyperswitch-prism/pull/2356#discussion_r4111659599>
-
----
-
-### TH-18 — Layer ownership
-
-**Rule.** A connector integration adds no connector-specific branch to shared orchestration. On the UCS side
-that means the shared crates (`crates/types-traits/domain_types`, `crates/common/`); on the Hyperswitch side
-it means `crates/router` core flow code. A per-connector condition in shared code is refactored into a trait
-method or a named predicate the connector implements, and a conversion or default added to a shared type
-module becomes a reusable function rather than an inline arm. Decide the layer before writing the branch: a
-shared-code condition is also a reviewer's cue to ask whether the logic belongs in the other repository
-entirely.
-
-**Seen as.** A reviewer asking, on connector transformer logic, whether it should live in the orchestrator
-rather than in the connector service; the same reviewer asking that a capture validation not be added at
-that layer at all. A silent unspecified-to-`None` enum conversion added inside a shared types module, where
-the reviewer asked for a reusable function or trait covering every call site instead. On the Hyperswitch
-side, a maintainer's blocking comment on a core authorize flow against a literal `is_<connector> && …`
-condition, asking that a named predicate be introduced inside the existing gate function instead — a
-CHANGES_REQUESTED that is still blocking that PR.
-
-**Check.**
-
-```bash
-# does the diff touch shared crates at all?
-git diff --name-only {BASE} | grep -E '^crates/(types-traits/domain_types|common)/'   # gate: blocking
-# within anything it touches, a branch keyed on one connector
-git diff {BASE} -- <files> | grep -nE '^\+.*(ConnectorEnum::[A-Z]|eq_ignore_ascii_case\("|is_[a-z0-9_]+ *&&)'   # gate: blocking
-```
-
-Every hit needs either a trait method / predicate the connector implements, or a stated reason why the
-branch cannot be expressed that way. Run the second grep over the paired Hyperswitch diff as well.
-
-**PRs.** #2330, #2340, and Hyperswitch PR juspay/hyperswitch#14316 — representative:
-<https://github.com/juspay/hyperswitch-prism/pull/2330#discussion_r4102182541>
-
----
-
-### TH-19 — A mapping cites the document it came from
-
-**Rule.** Every status arm, every event-type arm and every verification scheme carries the
-connector-documentation reference it was derived from. An arm nobody can cite maps to a **non-terminal**
-status — never to a terminal success, and never to a terminal state the connector has no way to move off.
-This is the provenance half of TH-07: TH-07 governs whether an arm may be terminal at all, TH-19 governs
-whether anyone can show where the arm came from. Reviewers detect invented mappings by asking for the doc,
-so an arm without a citation is an arm that will be questioned.
-
-**Seen as.** A reviewer asking "can we check the doc for these two event?" on a webhook event mapping, and
-separately asking that the doc be checked to confirm how source verification is expected to be performed. A
-final catch-all arm mapping any unrecognised or missing status to authentication-successful, where the
-reviewer asked that success be mapped explicitly and everything else fail. An unknown webhook status mapped
-to a refund pending state the connector offers no way to resolve.
-
-**Check.**
-
-```bash
-# every catch-all arm and trailing else in the diff
-git diff {BASE} -- <files> | grep -nE '^\+.*(_ =>|\} else \{)'   # gate: advisory
-# the doc references the diff does carry
-git diff {BASE} -- <files> | grep -nE '^\+ *//.*(https?://|doc:|spec:)'   # gate: advisory
-```
-
-For each arm the first grep finds, name the documented state it came from. If none can be named, it must not
-resolve terminally. A diff whose second grep returns nothing near its status maps has no provenance at all.
-
-**PRs.** #2340, #2356 — representative:
-<https://github.com/juspay/hyperswitch-prism/pull/2340#discussion_r4119093019>
-
----
-
-### TH-20 — Collection selection
-
-**Rule.** Never take the first element of a connector's array of refunds, settlements, authorizations,
-captures or disputes. Select the element by the identifier being reconciled; when no element matches, that is
-an error, not a fallback to element zero. Reconciling one record must not overwrite another's identifier
-either — a refund notification keeps the original payment's transaction id distinct from the refund id.
-
-**Seen as.** A refund webhook always reading the first entry of the charge's refunds array, so a second
-partial refund credits the wrong record. A webhook mapper always taking the first authorization and the first
-settlement, so multi-authorization and multi-settlement events return the wrong reference, amount or status.
-A refund notification writing the refund id into the payment's transaction-id field, losing the original
-payment's identifier.
-
-**Check.**
-
-```bash
-git diff {BASE} -- <files> | grep -nE '^\+.*(\[0\]|\.get\(0\)|\.first\(\)|\.into_iter\(\)\.next\(\))'   # gate: blocking
-```
-
-Note that the selection and the collection are often on separate lines, so the grep is deliberately keyed on
-the selection alone: for every hit, name the collection it reads and the identifier that should have chosen
-the element. Then confirm each flow's reference mapping keeps the payment id and the refund id in their own
-fields.
-
-**PRs.** #2340, #2341, #2356 — representative:
-<https://github.com/juspay/hyperswitch-prism/pull/2356#discussion_r4111659628>
-
----
-
-### TH-21 — Registration completeness
-
-**Rule.** A flow declared in code is reachable through dispatch, and a config key added to one environment
-file is added to every environment file that needs it. A declaration without its registration is a flow that
-compiles and cannot be called. Overriding a per-flow predicate is not registration either: while the
-connector stays listed in a blanket default-impl macro, the generated empty impls win and the leg silently
-no-ops.
-
-**Seen as.** A blocking comment reporting a connector fully implemented but absent from the
-supported-connectors arm used by dispatch, so calls fall through to an invalid-connector error "even though
-the connector code exists". On the Hyperswitch side, a connector added to a supported-connectors config list
-in the integration-test, sandbox and development files but missed in the example and production files; and a
-connector whose 3DS leg predicates were overridden while it remained listed in the blanket
-authenticate-steps default-impl macro, so both legs resolved to the generated empty impls and 3DS
-transactions appeared to succeed while skipping authentication entirely.
-
-**Check.**
-
-```bash
-# every flow marker / trait impl the diff declares
-git diff {BASE} -- <files> | grep -nE '^\+.*(V2(<[A-Za-z]+>)? for|IncomingWebhook for|connector_flow::)'   # gate: advisory
-# the connector's own arm in the dispatch match
-grep -nE 'ConnectorEnum::<Connector> *=>' crates/types-traits/domain_types/src/types.rs
-# config keys: the environment files the diff touched, against the full set
-git diff --name-only {BASE} | grep -E '^config(/deployments)?/.*\.toml$'   # gate: advisory
-ls config/*.toml
-```
-
-Every marker from the first grep needs a dispatch arm from the second. For a new config key, grep a
-neighbouring key in the same table across `config/*.toml` and require the same file set. On the Hyperswitch
-side, also grep the blanket default-impl macros for the connector's name whenever the diff overrides one of
-their methods — being listed there and overriding are mutually exclusive.
-
-**PRs.** #2341, and Hyperswitch PRs juspay/hyperswitch#14347 and juspay/hyperswitch#14299 —
-representative: <https://github.com/juspay/hyperswitch-prism/pull/2341#issuecomment-5771011440>

@@ -183,8 +183,6 @@ prev_origin() {  # bug_ids_csv → {"<bug_id>": "<last origin>"} for first reapp
   rj --arg ids "$1" 'reduce ($ids | split(",")[]) as $b (.; if .bugs[$b].reappeared == 1 and (.bugs[$b].origins | length) > 0
     then .bugs[$b].escalated = true else . end)'; }
 select_checks() {  # N bug_ids_csv changed_units_csv → test/select/r<N>.json = (R1 ∪ R2) − withdrawn units
-                   # A **diagnosis** list only: what this round's fixes were aimed at. Never an ONLY_CHECKS value,
-                   # never the input of a verdict round — the verdict is the round's single FULL_RUN (S5 step 6).
   jq -n --arg b "$2" --arg u "$3" --slurpfile f "$R/test/final.json" --slurpfile g "$R/test/bugs.json" --slurpfile p "$R/plan/plan.json" '
     ($b | split(",")) as $B | ($u | split(",")) as $U | $f[0].checks as $K
     | [$g[0].bugs[] | select(.bug_id | IN($B[])) | .checks[]] as $r1
@@ -194,8 +192,7 @@ select_checks() {  # N bug_ids_csv changed_units_csv → test/select/r<N>.json =
   && mv "$R/test/select/r$1.json.tmp" "$R/test/select/r$1.json"; }
 # R3 (transitive dependents) and R4 (fast replay) are gone. The harness resolves and executes each scenario's
 # `depends_on` itself, so a selected scenario always brings its own prerequisites; and a full sweep is one
-# command, so there is nothing a "fast replay" subset saves. That same `depends_on` pull is why the list is
-# diagnostic and not a gate: a selection cannot state what it covered (S5 "A full sweep is the only verdict").
+# command, so there is nothing a "fast replay" subset saves.
 kill_warm() {  # [ucs|hs …] (default both) — R12 carve-out: the setsid bash wrapper leads its process group
   local n p; for n in ${@:-ucs hs}; do p=$(cat "$R/warm/$n.pid" 2>/dev/null) || continue
     case "$(readlink "/proc/$p/exe" 2>/dev/null)" in */bash) ;; *) continue;; esac
@@ -471,23 +468,10 @@ removed; nothing replaces it, because nothing should.
 
 ### S5 — test loop
 
-Every `2.6d_test_exec.md` spawn, in this order: `N=$(bump exec_round)`; stamp `S5:exec:$N`; spawn with
-`ROUND: $N`. Two spawn shapes exist and no third: `MODE: FULL_RUN` with no `ONLY_CHECKS`, and `MODE: ROUND`
-with `ONLY_CHECKS: none`, the bookkeeping call that writes no `test/results/r<N>.json`. `select_checks $N …`
-still runs at loop-back (Loop-back protocol rule 8), but only to record `test/select/r$N.json` as that round's
-diagnosis list; it is never passed to a spawn.
-
-**A full sweep is the only verdict.** A round routes **every** fix it has — all `env`/`hs_config` repairs, all
-`SCENARIO_DATA` AMENDs, every RCA brief and every unit those briefs touch — then runs **one** `__finalize__`,
-**one** env rebuild (Loop-back protocol rule 1 step 8) and **one** `FULL_RUN`. Only that sweep may say a bug is
-fixed or a unit converged. Narrow execution keeps exactly two legal uses, and neither is a verdict: RCA's own
-targeted probes (`2.6e_rca.md` "Phase 0: Verify live" — a `test_ucs --suite --scenario` re-run or a direct
-sandbox call), which diagnose one bug, and the bookkeeping spawn `ONLY_CHECKS: none`, which ingests and applies
-status updates without executing anything. **A narrow `ROUND` may never be cited as evidence that a bug is
-fixed.** Why, measured: in one run 9 partial rounds cost 37.9M tokens where a full sweep costs 6.4–7.3M, and one
-of those partial rounds executed 11 checks its own selection never named — because a scenario drags its
-`depends_on` prerequisites in with it (`2.6d_test_exec.md` "## Phase 2: Build the expected-check set") — so a
-narrow pass could not say what it had actually covered.
+Every `2.6d_test_exec.md` spawn, in this order: `N=$(bump exec_round)`; for `MODE: ROUND` write its selection to
+`test/select/r$N.json` (`select_checks $N …` for a retest; otherwise a JSON array of check ids via `.tmp` + `mv`,
+"same selection" = a copy of the previous file); stamp `S5:exec:$N`; spawn with `ROUND: $N`. `ONLY_CHECKS: none`
+is a bookkeeping call that writes no `test/results/r<N>.json`.
 
 **ENV repairs**: every `REPAIR` spawn first `bump env_repairs`; over `caps.env_repairs_per_round` →
 `SKIP cap:env_repairs_per_round`, no spawn: in step 3 its `env` issues go on to RCA, elsewhere flag `TEST_ENV_FAILED`
@@ -526,15 +510,13 @@ at cap, `SECRET_LEAK` or `TREE_MODIFIED` → flag `TEST_ENV_FAILED` (+ that toke
   RUN_DIR: {RUN_DIR}
   ROUND: <N>
   MODE: FULL_RUN | ROUND
-  ONLY_CHECKS: none  (ROUND only — the bookkeeping sentinel; a check list is never passed here, and the line is omitted for FULL_RUN)
+  ONLY_CHECKS: {RUN_DIR}test/select/r<N>.json  (ROUND only; omitted for FULL_RUN — `none` is the bookkeeping sentinel of the S7 prelude, never a FULL_RUN value)
   INGEST: <baseline | review>
   STATUS_UPDATES: {RUN_DIR}test/status_updates/u<k>.json
 ```
 
-Round 1 is `FULL_RUN` with `INGEST` = `baseline` (BASELINE `done` and `test/baseline_bugs.json` exists). Every `DONE`/`PARTIAL` that wrote `test/results/r<N>.json` → `note_exec <N>`. `DONE` → 3. `PARTIAL` → `REPAIR` (`RESULTS`) → another `FULL_RUN`.
-`BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → likewise another `FULL_RUN`: a sweep that stopped
-mid-round left its remaining checks `NOT_RUN`/`NO_ROW` and reached no verdict, and a subset re-run of just those
-would not produce one either. `FAILED` `ROUND_EXISTS` →
+Round 1 is `FULL_RUN` with `INGEST` = `baseline` (BASELINE `done` and `test/baseline_bugs.json` exists). Every `DONE`/`PARTIAL` that wrote `test/results/r<N>.json` → `note_exec <N>`. `DONE` → 3. `PARTIAL` → `REPAIR` (`RESULTS`) → `ROUND` over its
+`NOT_RUN` and `NO_ROW` checks. `BLOCKED` (`ENV`) → `REPAIR` (`rca/briefs/o-env-r<N>.json`) → same selection. `FAILED` `ROUND_EXISTS` →
 same spawn, next `N`. `FAILED` `SECRET_LEAK` → flag `TEST_ENV_FAILED` + `SECRET_LEAK` → S6 (as the env path at step 1:
 `TEST_ENV_FAILED` is what makes `exec_ready` false, so the S7 prelude does not re-enter the same security gate, and
 what 2.8 keys `INCOMPLETE` on). `FAILED` `MISSING <file>` → once per file
@@ -554,12 +536,10 @@ two need no orchestration (one is not a bug, the other goes to RCA in step 4).
 - `scenario_data` → **2.3b `AMEND`** per affected unit, brief `rca/briefs/o-scen-r<N>-<unit_fs>.json`
   (`origin: SCENARIO_DATA`, `units: [<unit>]`, evidence the failing checks' transcripts, `required_change`
   "correct the scenario data for <check ids> against plan §8's oracle; do not weaken an assertion"), under
-  `amend_codegen_per_unit`.
+  `amend_codegen_per_unit` → `__finalize__` (the gates re-run over the edited `connector_specs/`).
 
-Route **all** of them in one batch — every `env` and `hs_config` repair, and a `SCENARIO_DATA` AMEND for every
-affected unit — then **one** `__finalize__` for the whole batch (the gates re-run over the edited
-`connector_specs/`). Do **not** execute a check subset here: step 4's briefs land in the same round and share the
-one sweep that closes it. Go on to 4; at-cap failures simply have nothing left to route.
+Then one `ROUND` over the routed check ids plus the ids of every unit an AMEND changed. Repeat while routable
+failures under cap remain; when only at-cap ones remain, that one `ROUND`, then 4.
 
 **There is no inner loop any more.** The old one existed because two agents could rewrite a case until it passed,
 and both are gone: the scenario is committed data, codegen owns it, and every edit goes back through
@@ -584,13 +564,10 @@ reappeared twice → `unresolved` + withdraw brief for its units. No ids left, o
 `DONE`/`PARTIAL` → `bump rca_rounds`, `note_rca <N>`. `PARTIAL` with `NEXT` `needs a sandbox example for <bug_id>`
 → those bugs get no brief this round; they re-enter the next RCA round on the same evidence, and at
 `fix_attempts_per_bug` they become `unresolved`. There is no PROBE stage to spawn: RCA runs its own probes now,
-as a targeted `test_ucs --suite --scenario` re-run or a direct sandbox call (`2.6e_rca.md` "## Phase 0: Verify
-live"), neither of which needs an agent or a request file. Those probes are diagnosis, never a verdict — only a
-`FULL_RUN` says a bug is fixed.
-`BLOCKED` (`ENV`) → `REPAIR` → same RCA spawn. `FAILED` → one re-spawn, still → 6. Every brief of the round →
-**Loop-back protocol** (one `__finalize__`, one env rebuild) → the round's verdict sweep: `N=$(bump exec_round);
-select_checks $N <routed bug ids> <changed units>` for the record, then spawn `MODE: FULL_RUN` with `ROUND: $N`
-and no `ONLY_CHECKS` → 3.
+as a targeted `test_ucs --suite --scenario` re-run or a direct sandbox call (`2.6e_rca.md` Phase 0b), neither of
+which needs an agent or a request file.
+`BLOCKED` (`ENV`) → `REPAIR` → same RCA spawn. `FAILED` → one re-spawn, still → 6. Briefs → **Loop-back protocol** →
+retest `ROUND` (`N=$(bump exec_round); select_checks $N <routed bug ids> <changed units>`, spawn with `ROUND: $N`) → 3.
 
 **5. E2E, then stop early** — before the first stop-early evaluation, spawn the **E2E stage** below and join it
 (`e2e_join_min`); its records are what `e2e_status` is derived from, and a unit with no record fails closed.
@@ -606,10 +583,8 @@ jq --slurpfile p "$R/plan/plan.json" '([$p[0].order[] | select(.status == "withd
 
 → append to `blocking_open`; not lower than the previous value → `SKIP stop_early` → 6.
 
-**6. Converged** → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`; that sweep is the run's
-verdict. New blocking bugs, `rca_rounds` under cap and no stop-early → 4, and that round closes with its own
-`FULL_RUN` like every other one — there is no "retests only" shortcut, because a narrow `ROUND` is never evidence
-that a bug is fixed. Otherwise → 7.
+**6. Converged** → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`. New blocking bugs, `rca_rounds`
+under cap and no stop-early → 4, then retests only (no second full run). Otherwise → 7.
 
 **7. Hand off** — nothing left to route, and every `S5:e2e:*` row terminal → S6.
 
@@ -654,9 +629,8 @@ A 2.5 spawn may edit the HS worktree (its Phase 5, including the Cypress harness
 
 Take the `review` snapshot first; stamping the `FULL` spawn also sets `review_ref` = its `SNAPSHOT_REF`. `FULL` `DONE`
 with S0/S1 findings (`review/findings.json` entries whose `.sev` is `S0` or `S1`), time left,
-`exec_ready` and `bump review_rounds` ≤ `caps.review_remediation_rounds` → exec `FULL_RUN` with `INGEST: review`
-(the findings' units do not narrow it; the sweep is the verdict) → RCA (step 4) → loop-back → the round's
-`FULL_RUN` re-test → `INCREMENTAL`. No S0/S1 → S7. `FAILED` → one
+`exec_ready` and `bump review_rounds` ≤ `caps.review_remediation_rounds` → exec `ROUND`, `INGEST: review`, `ONLY_CHECKS` = the checks of the findings'
+units (all units when none) → RCA (step 4) → loop-back → retest → `INCREMENTAL`. No S0/S1 → S7. `FAILED` → one
 re-spawn; still → S7.
 
 **`exec_ready`** (guards every 2.6d spawn from S6 on): no `TEST_ENV_FAILED` flag is set and `plan/plan.json` and
@@ -724,7 +698,7 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    - 2.3a `BLOCKED` → drop. 2.3b `BLOCKED` → drop, plus a withdraw brief (rule 5) for a code unit unless REASON is
      `withdraw: shared code`.
 5. **Withdraw**: a brief with `withdraw: true` → `wd` brief to 2.3a and 2.3b; 2.3b `BLOCKED` (shared code) → bugs
-   `unresolved`, nothing withdrawn. Withdrawn units leave **every `FULL_RUN`** (and the `select_checks` diagnosis list)
+   `unresolved`, nothing withdrawn. Withdrawn units leave every retest (`select_checks`) **and every `FULL_RUN`**
    (`2.6d_test_exec.md` "Phase 2: Build the expected-check set" item 4), and their bugs count in neither step 4's
    `BUG_IDS` nor step 5's blocking count — otherwise step 6's convergence run re-executes a flow that is now
    `not_implemented`, files fresh bugs and routes RCA into re-implementing it.
@@ -741,11 +715,8 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    written with an object as a status and 2.6d rejects every update in it. A bug that no check can observe
    (log masking, a refusal only a direct caller can reach) never reaches `fixed` through a retest: move it
    yourself with the evidence in `note`, and say which round's scan or transcript is that evidence.
-8. **Re-test**: the round's re-test is one `FULL_RUN`, and no selection is passed to it. `select_checks $N <bug
-   ids> <changed units>` still runs first, writing `test/select/r<N>.json` as the round's **diagnosis** list —
-   **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of every AMEND this round) — which
-   RCA and the decisions files cite to say what the round's fixes were aimed at. It is never an `ONLY_CHECKS`
-   value and never the verdict round's input. That is the whole rule.
+8. **Re-test** (`select_checks`): **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of
+   every AMEND this round). That is the whole rule.
 
 ## Caps
 
@@ -754,8 +725,8 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
 | RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 × m / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
-| Gate iterations per codegen spawn / finalize | 5 + 2×(m−1) / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| Gate iterations per codegen spawn / finalize | 5 / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 2 | `env_repairs_per_round` |
 | Review remediation rounds / crash re-spawn per stage | 1 / 1 | `review_remediation_rounds` / `crash_respawn_per_stage` |
@@ -764,19 +735,6 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
 | Detached job wait per launch (minutes) | 120 | `detached_wait_min` |
-
-**`m` = the unit's marker count**, `jq '[.units[] | select(.unit == "<unit>") | .markers | length] | first // 1'
-`plan/plan.json`, floored at 1. A codegen spawn covers a whole **flow group** — `Refunds` is `Refund` + `RSync`,
-`ThreeDS` is up to three authentication legs — so two caps have to be read against the group, not the spawn:
-
-- `amend_codegen_per_unit` is counted in `counters.amend_codegen{<unit>}`, one counter for the group, so a flat 8
-  would give a 3-marker group a single marker's budget. The **cap** scales, the counter does not: the effective
-  cap is `caps.amend_codegen_per_unit × m` (8 for one marker, 16 for two, 24 for three). Every `SKIP
-  cap:amend_codegen_per_unit` compares against that product, and the `run.json .caps` value stays 8.
-- `gate_iterations_codegen` is per *spawn*, and a multi-marker spawn faces each marker's own transformers and its
-  own class of gate failures, so the per-spawn budget is `caps.gate_iterations_codegen + 2 × (m − 1)` (5 / 7 / 9).
-  It is sub-linear on purpose: the gate re-runs over the spawn's whole tree, so one iteration already covers every
-  marker in the group.
 
 `baseline_join_min` must exceed the `2.6a_test_env.md` BASELINE harness `timeout 3600` (60) plus a 90-minute boot margin.
 At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV_FAILED` → PR `INCOMPLETE`.
