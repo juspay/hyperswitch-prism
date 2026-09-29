@@ -551,32 +551,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // override cannot make the `company[…]` group contradict `business_type`.
         let is_company = business_type.eq_ignore_ascii_case(STRIPE_ACCOUNT_TYPE_COMPANY);
 
-        let account_type = request.get_account_type()?;
-        let phone = request.get_phone()?;
+        let account_type = request.get_account_type().ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "account_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Stripe requires the account type (custom, express or standard)"
+                            .to_string(),
+                    ),
+                    suggested_action: Some("Send account_type in vendor_details".to_string()),
+                    doc_url: None,
+                },
+            })
+        })?;
+        let phone = request.get_phone();
 
         // Name and date of birth describe a natural person, so they are only sent on
-        // `individual[…]` and only required for an individual account. Requiring them
+        // `individual[…]`. They are sent when the caller provides them; requiring them
         // for a company makes a company recipient impossible to create.
-        let (first_name, last_name, dob_day, dob_month, dob_year) = match is_company {
-            true => (None, None, None, None, None),
-            false => {
-                let (day, month, year) = request.get_date_of_birth_parts()?;
-                (
-                    Some(request.get_first_name()?),
-                    Some(request.get_last_name()?),
-                    Some(day),
-                    Some(month),
-                    Some(year),
-                )
-            }
+        let (first_name, last_name, dob_day, dob_month, dob_year) = if is_company {
+            (None, None, None, None, None)
+        } else {
+            let (day, month, year) = match request.get_date_of_birth_parts()? {
+                Some((day, month, year)) => (Some(day), Some(month), Some(year)),
+                None => (None, None, None),
+            };
+            (
+                request.get_first_name(),
+                request.get_last_name(),
+                day,
+                month,
+                year,
+            )
         };
 
         let business_profile_mcc = request.get_merchant_category_code_i32()?;
-        let business_profile_url = request.get_business_url()?;
-        let business_profile_name = request.get_business_name()?;
-        let statement_descriptor = request.get_statement_descriptor()?;
-        let tos_acceptance_ip = request.get_tos_acceptance_ip()?;
-        let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4()?;
+        let business_profile_url = request.get_business_url();
+        let business_profile_name = request.get_business_name();
+        let statement_descriptor = request.get_statement_descriptor();
+        let tos_acceptance_ip = request.get_tos_acceptance_ip();
+        let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4();
 
         let email = request.get_email_from_customer_or_billing();
         let billing = request.get_optional_billing_address();
@@ -610,19 +624,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             capabilities_card_payments: request.get_card_payments_enabled(),
             capabilities_transfers: request.get_transfers_enabled(),
             tos_acceptance_date: request.get_tos_acceptance_date(),
-            tos_acceptance_ip: Some(tos_acceptance_ip),
+            tos_acceptance_ip,
             business_type,
-            business_profile_mcc: Some(business_profile_mcc),
-            business_profile_url: Some(business_profile_url),
-            business_profile_name: Some(business_profile_name.clone()),
+            business_profile_mcc,
+            business_profile_url,
+            business_profile_name: business_profile_name.clone(),
 
-            company_name: is_company.then_some(business_profile_name),
+            company_name: if is_company {
+                business_profile_name
+            } else {
+                None
+            },
             company_address_line1: addr_line1.clone().filter(|_| is_company),
             company_address_line2: addr_line2.clone().filter(|_| is_company),
             company_address_postal_code: addr_zip.clone().filter(|_| is_company),
             company_address_city: addr_city.clone().filter(|_| is_company),
             company_address_state: addr_state.clone().filter(|_| is_company),
-            company_phone: is_company.then(|| phone.clone()),
+            company_phone: if is_company { phone.clone() } else { None },
             company_tax_id: id_number.clone().filter(|_| is_company),
             company_owners_provided: request.get_owners_provided(),
 
@@ -640,11 +658,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // email only rides on `individual[email]` for an individual account. The
             // top-level `email` above carries it either way.
             individual_email: email.filter(|_| !is_company),
-            individual_phone: (!is_company).then_some(phone),
+            individual_phone: if is_company { None } else { phone },
             individual_id_number: id_number.filter(|_| !is_company),
             individual_ssn_last_4: ssn_last_4.filter(|_| !is_company),
 
-            statement_descriptor: Some(statement_descriptor),
+            statement_descriptor,
         })
     }
 }

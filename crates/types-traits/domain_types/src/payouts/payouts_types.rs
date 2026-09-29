@@ -464,34 +464,33 @@ impl PayoutCreateRecipientRequest {
             .and_then(|v| v.individual_details.as_ref())
     }
 
-    pub fn get_phone(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.phone.clone())
-            .ok_or_else(missing_field_err("phone"))
+    pub fn get_phone(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.phone.clone())
     }
 
-    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.first_name.clone())
-            .ok_or_else(missing_field_err("first_name"))
+    pub fn get_first_name(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.first_name.clone())
     }
 
-    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.last_name.clone())
-            .ok_or_else(missing_field_err("last_name"))
+    pub fn get_last_name(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.last_name.clone())
     }
 
     /// Split `date_of_birth` (ISO 8601, `yyyy-MM-dd`) into day, month and year.
-    pub fn get_date_of_birth_parts(&self) -> Result<DateOfBirthParts, Error> {
-        let date_of_birth = self.get_date_of_birth()?;
+    pub fn get_date_of_birth_parts(&self) -> Result<Option<DateOfBirthParts>, Error> {
+        let Some(date_of_birth) = self
+            .individual_details()
+            .and_then(|i| i.date_of_birth.clone())
+        else {
+            return Ok(None);
+        };
         let mut parts = date_of_birth.peek().split('-');
         match (parts.next(), parts.next(), parts.next()) {
-            (Some(year), Some(month), Some(day)) => Ok((
+            (Some(year), Some(month), Some(day)) => Ok(Some((
                 Secret::new(day.to_string()),
                 Secret::new(month.to_string()),
                 Secret::new(year.to_string()),
-            )),
+            ))),
             _ => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "date_of_birth",
                 context: crate::errors::IntegrationErrorContext {
@@ -511,32 +510,25 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("date_of_birth"))
     }
 
-    pub fn get_account_type(&self) -> Result<String, Error> {
-        self.vendor_details()
-            .and_then(|v| v.account_type.clone())
-            .ok_or_else(missing_field_err("account_type"))
+    pub fn get_account_type(&self) -> Option<String> {
+        self.vendor_details().and_then(|v| v.account_type.clone())
     }
 
     pub fn get_business_type(&self) -> Option<String> {
         self.vendor_details().and_then(|v| v.business_type.clone())
     }
 
-    pub fn get_business_url(&self) -> Result<Secret<String>, Error> {
-        self.vendor_details()
-            .and_then(|v| v.business_url.clone())
-            .ok_or_else(missing_field_err("business_url"))
+    pub fn get_business_url(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.business_url.clone())
     }
 
-    pub fn get_business_name(&self) -> Result<Secret<String>, Error> {
-        self.vendor_details()
-            .and_then(|v| v.business_name.clone())
-            .ok_or_else(missing_field_err("business_name"))
+    pub fn get_business_name(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.business_name.clone())
     }
 
-    pub fn get_statement_descriptor(&self) -> Result<Secret<String>, Error> {
+    pub fn get_statement_descriptor(&self) -> Option<Secret<String>> {
         self.vendor_details()
             .and_then(|v| v.statement_descriptor.clone())
-            .ok_or_else(missing_field_err("statement_descriptor"))
     }
 
     pub fn get_owners_provided(&self) -> Option<bool> {
@@ -551,10 +543,9 @@ impl PayoutCreateRecipientRequest {
         self.vendor_details().and_then(|v| v.transfers_enabled)
     }
 
-    pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
+    pub fn get_tos_acceptance_ip(&self) -> Option<Secret<String>> {
         self.individual_details()
             .and_then(|i| i.tos_acceptance_ip.clone())
-            .ok_or_else(missing_field_err("tos_acceptance_ip"))
     }
 
     pub fn get_tos_acceptance_date(&self) -> Option<i64> {
@@ -562,12 +553,14 @@ impl PayoutCreateRecipientRequest {
             .and_then(|i| i.tos_acceptance_date)
     }
 
-    pub fn get_merchant_category_code_i32(&self) -> Result<i32, Error> {
-        let raw = self
+    pub fn get_merchant_category_code_i32(&self) -> Result<Option<i32>, Error> {
+        let Some(raw) = self
             .vendor_details()
             .and_then(|v| v.merchant_category_code.as_deref())
-            .ok_or_else(missing_field_err("merchant_category_code"))?;
-        raw.parse::<i32>().map_err(|_| {
+        else {
+            return Ok(None);
+        };
+        raw.parse::<i32>().map(Some).map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "merchant_category_code",
                 context: crate::errors::IntegrationErrorContext {
@@ -584,16 +577,11 @@ impl PayoutCreateRecipientRequest {
         })
     }
 
-    pub fn get_id_number_or_ssn_last_4(&self) -> Result<IdNumberOrSsnLast4, Error> {
+    pub fn get_id_number_or_ssn_last_4(&self) -> IdNumberOrSsnLast4 {
         let individual = self.individual_details();
         match individual.and_then(|i| i.id_number.clone()) {
-            Some(id) => Ok((Some(id), None)),
-            None => {
-                let ssn = individual
-                    .and_then(|i| i.ssn_last_4.clone())
-                    .ok_or_else(missing_field_err("ssn_last_4 or id_number"))?;
-                Ok((None, Some(ssn)))
-            }
+            Some(id) => (Some(id), None),
+            None => (None, individual.and_then(|i| i.ssn_last_4.clone())),
         }
     }
 
