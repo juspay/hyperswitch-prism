@@ -1,4 +1,5 @@
 use common_utils::request::Method;
+use domain_types::errors::ApiClientError;
 use grpc_api_types::payments::{CaCert, HttpConfig, HttpDefault, NetworkErrorCode};
 use std::collections::HashMap;
 use std::fmt;
@@ -81,11 +82,27 @@ pub fn merge_http_options(base: &HttpOptions, override_opts: &HttpOptions) -> Ht
     }
 }
 
+#[derive(Clone)]
 pub struct HttpRequest {
     pub url: String,
     pub method: Method,
     pub headers: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
+    /// Base64-encoded client certificate (PEM), for connectors requiring mutual
+    /// TLS. When set together with `certificate_key`, `execute` builds a
+    /// one-off client with that identity for this request, instead of using
+    /// the shared pooled client — mirrors
+    /// `external_services::service::create_client` on the gRPC-mode server,
+    /// which reads these same fields off `common_utils::request::Request` and
+    /// applies the same one-off-client behavior.
+    pub certificate: Option<hyperswitch_masking::Secret<String>>,
+    /// Base64-encoded client certificate private key (PEM). See `certificate`.
+    pub certificate_key: Option<hyperswitch_masking::Secret<String>>,
+    /// Base64-encoded CA certificate bundle (PEM), applied as an additional
+    /// root certificate alongside `certificate`/`certificate_key` for this
+    /// request. Distinct from `HttpOptions.ca_cert`, which is a client-wide
+    /// default rather than per-request.
+    pub ca_certificate: Option<hyperswitch_masking::Secret<String>>,
 }
 
 pub struct HttpResponse {
@@ -257,12 +274,24 @@ impl HttpClient {
         }
         let start_time = Instant::now();
 
+        // A client identity can only be set at client-build time in reqwest, not
+        // per-request, so a request carrying certificate material gets a one-off
+        // client instead of the shared pooled one. Built via UCS's own
+        // `create_client` (not re-derived here) so this SDK's mTLS handling can
+        // never drift from what the gRPC-mode server does for the same
+        // `Request.certificate`/`certificate_key`/`ca_certificate` fields.
+        let client = if request.certificate.is_some() || request.certificate_key.is_some() {
+            self.build_client_for_request(&request)?
+        } else {
+            self.client.clone()
+        };
+
         let mut req_builder = match request.method {
-            Method::Get => self.client.get(&request.url),
-            Method::Post => self.client.post(&request.url),
-            Method::Put => self.client.put(&request.url),
-            Method::Delete => self.client.delete(&request.url),
-            Method::Patch => self.client.patch(&request.url),
+            Method::Get => client.get(&request.url),
+            Method::Post => client.post(&request.url),
+            Method::Put => client.put(&request.url),
+            Method::Delete => client.delete(&request.url),
+            Method::Patch => client.patch(&request.url),
         };
 
         // Resolve and apply effective total timeout for this request.
@@ -333,6 +362,67 @@ impl HttpClient {
             headers: response_headers,
             body,
             latency_ms: latency,
+        })
+    }
+
+    /// Builds a one-off client carrying `request`'s certificate/key (and, if
+    /// present, its CA certificate) as its identity — for a connector needing
+    /// mutual TLS. Delegates entirely to
+    /// `external_services::service::create_client`, the same function the
+    /// gRPC-mode server uses for the same `Request` fields, so proxy/timeout
+    /// handling for this one-off client stays identical to the pooled one.
+    fn build_client_for_request(&self, request: &HttpRequest) -> Result<reqwest::Client, NetworkError> {
+        let proxy = self.options.proxy.as_ref();
+        let mut proxies = HashMap::new();
+        if let Some(p) = proxy {
+            proxies.insert(
+                "primary".to_string(),
+                domain_types::types::Proxy {
+                    http_url: p.http_url.clone(),
+                    https_url: p.https_url.clone(),
+                    ca_cert: None,
+                },
+            );
+        }
+        // `HttpOptions`'s timeouts are milliseconds (see its field names);
+        // `domain_types::types::ProxyConfig`'s are seconds (see its doc comment
+        // and `DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS`) — convert, don't copy raw.
+        let ucs_proxy_config = domain_types::types::ProxyConfig {
+            idle_pool_connection_timeout: self
+                .options
+                .keep_alive_timeout_ms
+                .map(|ms| u64::from(ms) / 1000),
+            connector_request_timeout: self
+                .options
+                .total_timeout_ms
+                .map(|ms| u64::from(ms) / 1000),
+            bypass_urls: proxy.map(|p| p.bypass_urls.clone()).unwrap_or_default(),
+            proxies,
+        };
+
+        external_services::service::create_client(
+            &ucs_proxy_config,
+            false,
+            "primary",
+            request.certificate.clone(),
+            request.certificate_key.clone(),
+            request.ca_certificate.clone(),
+            false,
+        )
+        .map_err(|report| {
+            let code = match report.current_context() {
+                ApiClientError::InvalidProxyConfiguration => {
+                    NetworkErrorCode::InvalidProxyConfiguration
+                }
+                ApiClientError::CertificateDecodeFailed
+                | ApiClientError::ClientConstructionFailed => NetworkErrorCode::InvalidCaCert,
+                _ => NetworkErrorCode::ClientInitializationFailure,
+            };
+            NetworkError {
+                code,
+                message: format!("Failed to build mTLS client: {report}"),
+                status_code: Some(500),
+            }
         })
     }
 }
