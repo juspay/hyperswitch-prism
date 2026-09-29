@@ -290,7 +290,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 /// Typed verdict for the flow-status macros: Paybox payment endpoints answer
 /// with a `CODEREPONSE` ack string, so the connector-local status is just
-/// "accepted" vs anything else. The TryFroms treat every non-`00000` code as
+/// "accepted" vs anything else. The `TryFrom` implementations treat every non-`00000` code as
 /// an `ErrorResponse` (a failed attempt), which folds to this binary verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PayboxPaymentVerdict {
