@@ -15,7 +15,7 @@ use domain_types::{
         EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RawConnectorStatus, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
@@ -126,6 +126,57 @@ impl From<TamaraRefundStatus> for RefundStatus {
             | TamaraRefundStatus::Updated => Self::Failure,
             TamaraRefundStatus::New => Self::Pending,
         }
+    }
+}
+impl TamaraPaymentStatus {
+    fn as_connector_status(&self) -> &'static str {
+        match self {
+            Self::New => "new",
+            Self::Approved => "approved",
+            Self::Declined => "declined",
+            Self::Authorised => "authorised",
+            Self::FullyCaptured => "fully_captured",
+            Self::PartiallyCaptured => "partially_captured",
+            Self::Canceled => "canceled",
+            Self::Updated => "updated",
+            Self::Expired => "expired",
+        }
+    }
+}
+
+impl TamaraRefundStatus {
+    fn as_connector_status(&self) -> &'static str {
+        match self {
+            Self::New => "new",
+            Self::Declined => "declined",
+            Self::Expired => "expired",
+            Self::Approved => "approved",
+            Self::Authorised => "authorised",
+            Self::PartiallyCaptured => "partially_captured",
+            Self::FullyCaptured => "fully_captured",
+            Self::PartiallyRefunded => "partially_refunded",
+            Self::FullyRefunded => "fully_refunded",
+            Self::Canceled => "canceled",
+            Self::Updated => "updated",
+        }
+    }
+}
+
+fn tamara_payment_raw_connector_status(status: &TamaraPaymentStatus) -> RawConnectorStatus {
+    let connector_status = status.as_connector_status().to_string();
+    RawConnectorStatus {
+        code: Some(connector_status),
+        message: None,
+        reason: None,
+    }
+}
+
+fn tamara_refund_raw_connector_status(status: &TamaraRefundStatus) -> RawConnectorStatus {
+    let connector_status = status.as_connector_status().to_string();
+    RawConnectorStatus {
+        code: Some(connector_status),
+        message: None,
+        reason: None,
     }
 }
 
@@ -393,6 +444,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TamaraPaymentsRespons
         item: ResponseRouterData<TamaraPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
+        let raw_connector_status = tamara_payment_raw_connector_status(&item.response.status);
         let connector_order_id = item.response.order_id.clone();
 
         let redirection_data = item
@@ -405,6 +457,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TamaraPaymentsRespons
             resource_common_data: PaymentFlowData {
                 status,
                 connector_order_id: Some(connector_order_id),
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -440,11 +493,13 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraPSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_status = tamara_payment_raw_connector_status(&item.response.status);
         let status = AttemptStatus::from(item.response.status);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -480,9 +535,14 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_status = tamara_refund_raw_connector_status(&item.response.status);
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(raw_connector_status),
+                ..item.router_data.resource_common_data.clone()
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.order_id.clone(),
                 refund_status,
@@ -575,11 +635,13 @@ impl TryFrom<ResponseRouterData<TamaraCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TamaraCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_connector_status = tamara_payment_raw_connector_status(&item.response.status);
         let status = AttemptStatus::from(item.response.status);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -671,11 +733,13 @@ impl TryFrom<ResponseRouterData<TamaraVoidResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_status = tamara_payment_raw_connector_status(&item.response.status);
         let status = AttemptStatus::from(item.response.status);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -770,9 +834,14 @@ impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_status = tamara_refund_raw_connector_status(&item.response.status);
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(raw_connector_status),
+                ..item.router_data.resource_common_data.clone()
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refund_id,
                 refund_status,
