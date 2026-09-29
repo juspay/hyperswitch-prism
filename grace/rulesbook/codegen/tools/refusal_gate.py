@@ -14,12 +14,6 @@ at all.
           agree in both directions
   CAP-02  a wire field the plan says this run added must appear in the probed request body
 
-REF-01 and CAP-02 answer only for an arm the probe actually built. When field-probe has no entry
-for the arm the plan names, the check is *inconclusive*, not failing: it is recorded in the check's
-`inconclusive[]`, counted in `summary`, and explained in `needs_human` (which arm, which flow key,
-which arms the probe does have), and the gate stays green on it. Reading another arm's entry --
-notably the `default` one -- in its place is what made this gate permanently red in the nuvei run.
-
 Exit codes: 0 pass, 1 fail, 2 could not evaluate (treated as fail by the caller).
 Stdlib only.
 """
@@ -95,58 +89,23 @@ def load(path):
         return None
 
 
-def flow_arms(probe, marker):
-    """(flow_key, arms dict) for a marker; arms is None when the probe has no such flow."""
+def arm_status(probe, marker, arm):
+    """field_probe status for one flow/arm, or None when the probe has no such entry."""
     flow_key = MARKER_TO_PROBE.get(marker)
     if not flow_key:
-        return None, None
-    arms = ((probe or {}).get("flows") or {}).get(flow_key)
-    return flow_key, arms if isinstance(arms, dict) else None
-
-
-def arm_entry(probe, marker, arm):
-    """The probe entry for exactly this flow/arm, or None.
-
-    There is deliberately **no** fallback to the `default` arm. field-probe builds `default` from
-    one synthetic single-flow request (Card, for the flows that have no per-arm probes), so reading
-    it for a NetworkToken / Wallet / NetworkMandateIdCard arm answers a different question than the
-    one asked. That fallback produced two permanent false failures in the nuvei run. A missing arm
-    is inconclusive -- see inconclusive_note() -- never evidence.
-    """
-    _, arms = flow_arms(probe, marker)
-    if arms is None:
         return None
-    entry = arms.get(arm)
-    return entry if isinstance(entry, dict) else None
-
-
-def arm_status(probe, marker, arm):
-    """field_probe status for one flow/arm, or None when the probe has no entry for that arm."""
-    entry = arm_entry(probe, marker, arm)
-    return entry.get("status") if entry else None
-
-
-def inconclusive_note(check, unit, marker, arm, probe, subject=""):
-    """One needs_human line naming the arm, its flow key and the arms the probe actually has."""
-    flow_key, arms = flow_arms(probe, marker)
-    names = sorted(arms) if arms else []
-    have = ("(no such flow in the probe)" if not names else
-            ", ".join(names[:12]) + ("" if len(names) <= 12
-                                     else ", ... (%d arms in all)" % len(names)))
-    return ("%s: %s/%s arm %r%s has no field_probe entry under flow key %r -- inconclusive, not a "
-            "failure. The probe has: %s. Extend crates/internal/field-probe to probe this arm."
-            % (check, unit, marker, arm, subject, flow_key, have))
-
-
-def inconclusive_row(check, unit, marker, arm, probe):
-    flow_key, arms = flow_arms(probe, marker)
-    return {"check": check, "unit": unit, "marker": marker, "arm": arm, "flow_key": flow_key,
-            "probe_arms": sorted(arms) if arms else []}
+    arms = ((probe or {}).get("flows") or {}).get(flow_key)
+    if not isinstance(arms, dict):
+        return None
+    entry = arms.get(arm) or arms.get("default")
+    if not isinstance(entry, dict):
+        return None
+    return entry.get("status")
 
 
 def check_ref01(probe, plan):
     """A claimed payment-method refusal must be visible in the probe."""
-    evidence, notes, inconclusive = [], [], []
+    evidence, notes = [], []
     for hook in ((plan or {}).get("test_hooks") or []):
         unit = hook.get("unit")
         for neg in (hook.get("negatives") or []):
@@ -159,10 +118,8 @@ def check_ref01(probe, plan):
             for marker in markers:
                 status = arm_status(probe, marker, arm)
                 if status is None:
-                    notes.append(inconclusive_note(
-                        "REF-01", unit, marker, arm, probe,
-                        " (guard %s)" % neg.get("guard_id")))
-                    inconclusive.append(inconclusive_row("REF-01", unit, marker, arm, probe))
+                    notes.append("%s/%s: no field_probe entry for arm %r; REF-01 not evaluated"
+                                 % (unit, neg.get("guard_id"), arm))
                 elif status not in REFUSED:
                     evidence.append({
                         "unit": unit, "guard": neg.get("guard_id"), "arm": arm,
@@ -170,7 +127,7 @@ def check_ref01(probe, plan):
                                   "status %r -- the connector builds a request for it, so the "
                                   "refusal does not precede request construction"
                                   % (neg.get("expect_error") or "refused", status)})
-    return evidence, notes, inconclusive
+    return evidence, notes
 
 
 def check_cap01(probe, specs, plan):
@@ -211,7 +168,7 @@ def check_cap01(probe, specs, plan):
 
 def check_cap02(probe, plan):
     """A wire field the plan says this run added must appear in the probed body."""
-    evidence, notes, inconclusive = [], [], []
+    evidence, notes = [], []
     checked = 0
     for hook in ((plan or {}).get("test_hooks") or []):
         unit = hook.get("unit")
@@ -219,12 +176,9 @@ def check_cap02(probe, plan):
             name = field.get("name") if isinstance(field, dict) else field
             arm = (field.get("arm") if isinstance(field, dict) else None) or "Card"
             marker = (field.get("marker") if isinstance(field, dict) else None) or unit
-            entry = arm_entry(probe, marker, arm)
-            if entry is None:
-                notes.append(inconclusive_note(
-                    "CAP-02", unit, marker, arm, probe, " carrying %r" % name))
-                inconclusive.append(inconclusive_row("CAP-02", unit, marker, arm, probe))
-                continue
+            flow_key = MARKER_TO_PROBE.get(marker)
+            arms = ((probe or {}).get("flows") or {}).get(flow_key) or {}
+            entry = arms.get(arm) or arms.get("default") or {}
             body = ((entry.get("sample") or {}).get("body")) or ""
             if entry.get("status") != "supported":
                 notes.append("%s: arm %s is not supported in field_probe; %r not checked"
@@ -238,7 +192,7 @@ def check_cap02(probe, plan):
                               "request body for %s/%s" % (name, marker, arm)})
     if not checked:
         notes.append("CAP-02: no plan wire_fields[] to check")
-    return evidence, notes, inconclusive
+    return evidence, notes
 
 
 def main():
@@ -269,37 +223,27 @@ def main():
         print(blob)
         return 2
 
-    ref01, n1, i1 = check_ref01(probe, plan)
+    ref01, n1 = check_ref01(probe, plan)
     cap01, n3 = check_cap01(probe, specs, plan)
-    cap02, n2, i2 = check_cap02(probe, plan)
+    cap02, n2 = check_cap02(probe, plan)
     report["needs_human"].extend(n1 + n2 + n3)
 
     report["checks"] = [
         {"id": "REF-01", "name": "refusal_precedes_request", "pass": not ref01,
-         "evidence": ref01, "inconclusive": i1,
+         "evidence": ref01,
          "message": "A refusal the plan claims is not visible in field_probe, which builds the "
                     "request without any network call. Either the guard does not fire before "
                     "request construction, or the plan is wrong." if ref01 else "ok"},
         # Advisory until MARKER_TO_PROBE is verified against the generator; a parity
         # mismatch is reported in needs_human, never as a failure.
         {"id": "CAP-01", "name": "flow_suite_parity", "pass": True, "evidence": [],
-         "inconclusive": [],
          "message": "advisory only; findings are in needs_human"},
         {"id": "CAP-02", "name": "wire_field_reaches_request", "pass": not cap02,
-         "evidence": cap02, "inconclusive": i2,
+         "evidence": cap02,
          "message": "A field the plan says was added never reaches the built request."
                     if cap02 else "ok"},
     ]
     report["pass"] = all(c["pass"] for c in report["checks"])
-    # An arm the probe does not build is not a pass -- it is an unanswered question. Counted here
-    # so it stays visible rather than passing silently; it never changes `pass` or the exit code.
-    report["summary"] = {
-        "failed_checks": sorted(c["id"] for c in report["checks"] if not c["pass"]),
-        "evidence": sum(len(c["evidence"]) for c in report["checks"]),
-        "inconclusive": sum(len(c["inconclusive"]) for c in report["checks"]),
-        "inconclusive_arms": sorted({"%s %s/%s:%s" % (r["check"], r["unit"], r["marker"], r["arm"])
-                                     for r in i1 + i2}),
-    }
 
     blob = json.dumps(report, indent=1)
     if args.out:
