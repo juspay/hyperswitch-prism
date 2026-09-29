@@ -1670,7 +1670,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRSyncResponse, Self>> for
 // `impl_flow_status_mapping_ctx!` declarations in `globalpayments_heartland.rs`.
 // They restate the decision gates the existing TryFrom bodies apply inline, so
 // the macros get a constructible `source:` / `context:` without touching the
-// TryFroms themselves.
+// `TryFrom` implementations themselves.
 
 /// The single binary decision surface every heartland flow reduces to.
 /// Mirrors `GlobalpaymentsHeartlandResponseHeader::is_gateway_accepted`
@@ -1707,7 +1707,7 @@ impl Default for GlobalpaymentsHeartlandAuthorizeCtx {
 }
 
 /// `ReportTxnDetail` `ServiceName` leg, typed for the PSync / RSync `_ctx`
-/// mappings (the TryFroms read the raw string; the same values).
+/// mappings (the `TryFrom` implementations read the raw string; the same values).
 #[derive(Debug, Clone, Default)]
 pub enum GlobalpaymentsHeartlandServiceName {
     CreditAuth,

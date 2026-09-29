@@ -107,7 +107,7 @@ pub enum EasebuzzTxnStatus {
     Success,
     /// `"initiated"` / `"pending"` / `"in_process"` — still in flight.
     InFlight,
-    /// Any other status string (the default) — the TryFroms map these to a
+    /// Any other status string (the default) — the `TryFrom` implementations map these to a
     /// failure outcome.
     #[default]
     Other,
