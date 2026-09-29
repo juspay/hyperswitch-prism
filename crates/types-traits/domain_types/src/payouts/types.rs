@@ -1505,12 +1505,17 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             .clone()
             .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
             .transpose()?;
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
+            payout_method_data,
             customer,
             browser_info,
             address,

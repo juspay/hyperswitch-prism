@@ -372,6 +372,7 @@ pub struct PayoutStageRequest {
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
+    pub payout_method_data: Option<crate::payouts::payout_method_data::PayoutMethodData>,
     pub customer: Option<PayoutCustomer>,
     pub browser_info: Option<crate::router_request_types::BrowserInformation>,
     pub address: Option<PayoutAddress>,

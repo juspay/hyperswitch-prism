@@ -9,6 +9,7 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     payment_method_data::PaymentMethodDataTypes,
+    payouts::payout_method_data::{BankRedirect, PayoutMethodData},
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
         PayoutGetResponse, PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest,
@@ -73,7 +74,7 @@ pub struct GigadatErrorResponse {
     pub err: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum GigadatTransactionType {
     Cpi,
@@ -91,7 +92,7 @@ pub struct GigadatPayoutMeta {
 pub struct GigadatPayoutData {
     pub transaction_id: String,
     #[serde(rename = "type")]
-    pub transaction_type: String,
+    pub transaction_type: GigadatTransactionType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -306,7 +307,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .and_then(|address| address.billing_address.as_ref())
             .ok_or_else(missing_field_err("address.billing_address"))?;
         let customer_id = customer.get_merchant_customer_id()?;
-        let email = customer.get_email()?;
+        // Interac e-transfers are sent to the email carried on the payout method.
+        // Fall back to the customer email when the caller does not send
+        // payout_method_data (the router does not populate the field yet).
+        let email = match request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::BankRedirect(BankRedirect::Interac(interac))) => {
+                interac.email.clone()
+            }
+            Some(_) => {
+                return Err(Report::new(IntegrationError::NotSupported {
+                    message: "Gigadat payouts only support bank_redirect.interac".to_string(),
+                    connector: "Gigadat",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Gigadat e-transfers are sent to the Interac email on the payout method"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Send payout_method_data as bank_redirect.interac with the recipient \
+                             email"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                }));
+            }
+            None => customer.get_email()?,
+        };
         let name = billing
             .get_optional_full_name()
             .ok_or_else(missing_field_err("address.billing_address.full_name"))?;

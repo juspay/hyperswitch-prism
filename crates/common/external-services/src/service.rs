@@ -1049,7 +1049,8 @@ where
                             info_log(
                                 "NETWORK_ERROR",
                                 &json!(format!(
-                                    "Failed getting response from connector. Error: {:?}",
+                                    "Failed getting response from connector (url: {}). Error: {:?}",
+                                    connector.get_url_for_logs(&url),
                                     err
                                 )),
                             );
@@ -1095,7 +1096,7 @@ where
                     // Create single event (response_data will be set by connector)
                     let mut event = create_event(
                         &event_params,
-                        Some(connector.get_url_for_logs(&url)),
+                        Some(connector.get_url_for_logs(&url).into_owned()),
                         Some(method.to_string()),
                         Some(latency),
                         &masked_headers,

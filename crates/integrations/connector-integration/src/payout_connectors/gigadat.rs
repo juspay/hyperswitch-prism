@@ -36,7 +36,7 @@ use interfaces::{
         PayoutCreateV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2,
     },
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use transformers::{
     self as gigadat, GigadatPayoutCreateResponse, GigadatPayoutGetResponse, GigadatPayoutMeta,
     GigadatPayoutStageRequest, GigadatPayoutStageResponse, GigadatPayoutTransferResponse,
@@ -140,7 +140,7 @@ fn get_psp_token_from_payout_metadata(
             .into()
         })
         .and_then(|metadata| {
-            serde_json::from_value::<GigadatPayoutMeta>(metadata.peek().clone())
+            GigadatPayoutMeta::deserialize(metadata.peek())
                 .map(|meta| meta.token)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "payout_connector_metadata",
@@ -156,6 +156,18 @@ fn get_psp_token_from_payout_metadata(
                     },
                 })
         })
+}
+
+fn get_webflow_token(
+    payout_method_data: &Option<domain_types::payouts::payout_method_data::PayoutMethodData>,
+    payout_connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<Secret<String>, IntegrationError> {
+    get_psp_token_from_payout_method_data(payout_method_data).or_else(|_| {
+        get_psp_token_from_payout_metadata(payout_connector_metadata).attach_printable(
+            "Gigadat psp_token was not present in payout_method_data.passthrough, so the \
+             staged-payout token from the preceding PayoutStage was used as a fallback",
+        )
+    })
 }
 
 /// Redacts the `token` query parameter before a webflow url reaches the logs.
@@ -305,21 +317,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            let auth = gigadat::GigadatAuthType::try_from(&req.connector_config).change_context(
-                IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Gigadat payouts requires a Gigadat connector auth type"
-                                .to_string(),
-                        ),
-                        suggested_action: Some(
-                            "Configure the merchant connector account with Gigadat credentials"
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                    },
-                },
-            )?;
+            let auth = gigadat::GigadatAuthType::try_from(&req.connector_config)?;
             Ok(format!(
                 "{}api/payment-token/{}",
                 self.connector_base_url_payouts(req),
@@ -387,15 +385,10 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let transfer_id = get_connector_payout_id(&req.request.connector_payout_id)?;
 
-            let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
-                .or_else(|_| {
-                    get_psp_token_from_payout_metadata(&req.request.payout_connector_metadata)
-                        .attach_printable(
-                            "Gigadat psp_token was not present in payout_method_data.passthrough, \
-                             so the staged-payout token from the preceding PayoutStage was used \
-                             as a fallback",
-                        )
-                })?;
+            let token = get_webflow_token(
+                &req.request.payout_method_data,
+                &req.request.payout_connector_metadata,
+            )?;
 
             Ok(format!(
                 "{}webflow/deposit?transaction={}&token={}",
@@ -404,8 +397,8 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_url_for_logs(&self, url: &str) -> String {
-            mask_webflow_token(url)
+        fn get_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+            std::borrow::Cow::Owned(mask_webflow_token(url))
         }
     }
 );
@@ -438,15 +431,10 @@ macros::macro_connector_implementation!(
                 &req.request.connector_quote_id,
             )?;
 
-            let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
-                .or_else(|_| {
-                    get_psp_token_from_payout_metadata(&req.request.payout_connector_metadata)
-                        .attach_printable(
-                            "Gigadat psp_token was not present in payout_method_data.passthrough, \
-                             so the staged-payout token from the preceding PayoutStage was used \
-                             as a fallback",
-                        )
-                })?;
+            let token = get_webflow_token(
+                &req.request.payout_method_data,
+                &req.request.payout_connector_metadata,
+            )?;
 
             Ok(format!(
                 "{}webflow?transaction={}&token={}",
@@ -455,8 +443,8 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_url_for_logs(&self, url: &str) -> String {
-            mask_webflow_token(url)
+        fn get_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+            std::borrow::Cow::Owned(mask_webflow_token(url))
         }
     }
 );
@@ -485,20 +473,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = gigadat::GigadatAuthType::try_from(auth_type).change_context(
-            IntegrationError::FailedToObtainAuthType {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Gigadat payouts requires a Gigadat connector auth type".to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Configure the merchant connector account with Gigadat credentials"
-                            .to_string(),
-                    ),
-                    doc_url: None,
-                },
-            },
-        )?;
+        let auth = gigadat::GigadatAuthType::try_from(auth_type)?;
 
         let auth_key = format!(
             "{}:{}",
@@ -554,5 +529,68 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             raw_connector_request: None,
             typed_connector_request: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_enums::PayoutStatus;
+    use transformers::GigadatPayoutStatus;
+
+    #[test]
+    fn masks_token_as_first_query_param() {
+        assert_eq!(
+            mask_webflow_token("https://x/webflow?token=abc&a=1"),
+            "https://x/webflow?token=***&a=1"
+        );
+    }
+
+    #[test]
+    fn masks_token_in_the_middle() {
+        assert_eq!(
+            mask_webflow_token("https://x/webflow?t=1&token=abc&a=2"),
+            "https://x/webflow?t=1&token=***&a=2"
+        );
+    }
+
+    #[test]
+    fn masks_token_as_last_query_param() {
+        assert_eq!(
+            mask_webflow_token("https://x/webflow?t=1&token=abc"),
+            "https://x/webflow?t=1&token=***"
+        );
+    }
+
+    #[test]
+    fn leaves_url_without_token_untouched() {
+        assert_eq!(
+            mask_webflow_token("https://x/webflow?t=1"),
+            "https://x/webflow?t=1"
+        );
+    }
+
+    #[test]
+    fn maps_known_statuses() {
+        assert_eq!(
+            PayoutStatus::from(GigadatPayoutStatus::StatusSuccess),
+            PayoutStatus::Success
+        );
+        assert_eq!(
+            PayoutStatus::from(GigadatPayoutStatus::StatusPending),
+            PayoutStatus::RequiresFulfillment
+        );
+        assert_eq!(
+            PayoutStatus::from(GigadatPayoutStatus::StatusFailed),
+            PayoutStatus::Failure
+        );
+    }
+
+    #[test]
+    fn maps_unknown_status_to_pending() {
+        assert_eq!(
+            PayoutStatus::from(GigadatPayoutStatus::Unknown),
+            PayoutStatus::Pending
+        );
     }
 }

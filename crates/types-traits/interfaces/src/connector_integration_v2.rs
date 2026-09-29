@@ -72,8 +72,8 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     /// Returns the url to record in logs. Defaults to the real url — this base
     /// implementation deliberately masks nothing. Override it in connectors whose url
     /// carries a secret (e.g. a token in the query string) that must not be logged.
-    fn get_url_for_logs(&self, url: &str) -> String {
-        url.to_owned()
+    fn get_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+        std::borrow::Cow::Borrowed(url)
     }
 
     /// returns request body
