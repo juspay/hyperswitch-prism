@@ -645,6 +645,18 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 // ===== TED CREATE REQUEST =====
 
 #[derive(Debug, Serialize)]
+pub enum SantanderTedPurpose {
+    #[serde(rename = "OTHERS-99999")]
+    Others,
+}
+
+#[derive(Debug, Serialize)]
+pub enum SantanderTedDestinationType {
+    #[serde(rename = "STR0008")]
+    Str0008,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderTedPayoutDestinationAccount {
     pub bank_code: String,
@@ -662,11 +674,20 @@ pub struct SantanderTedPayoutDestinationAccount {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SantanderTedSourceAccount {
+    pub branch_code: String,
+    pub account_number: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderTedPayoutCreateRequest {
     pub payment_value: StringMajorUnit,
-    pub destination_account: SantanderTedPayoutDestinationAccount,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub purpose: Option<String>,
+    pub source_account: Option<SantanderTedSourceAccount>,
+    pub destination_type: SantanderTedDestinationType,
+    pub destination_account: SantanderTedPayoutDestinationAccount,
+    pub purpose: SantanderTedPurpose,
 }
 
 impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
@@ -692,7 +713,36 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                 },
             })?;
 
-        let ted = match req.request.payout_method_data.clone() {
+        let source_account = match req.request.source_bank_data.clone() {
+            Some(Bank::Ted(TedBankTransfer { bank_branch, bank_account_number, .. })) => {
+                let branch_code =
+                    bank_branch.ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "source_bank_data.bank_branch",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "missing required field: bank_branch".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the source bank branch in source_bank_data".to_string(),
+                            ),
+                            doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                        },
+                    })?;
+                Some(SantanderTedSourceAccount {
+                    branch_code,
+                    account_number: bank_account_number.expose(),
+                })
+            }
+            Some(Bank::Pix(PixBankTransfer { bank_branch: Some(branch_code), bank_account_number, .. })) => {
+                Some(SantanderTedSourceAccount {
+                    branch_code,
+                    account_number: bank_account_number.expose(),
+                })
+            }
+            _ => None,
+        };
+
+        let ted = match &req.request.payout_method_data {
             Some(PayoutMethodData::Bank(Bank::Ted(ted))) => ted,
             _ => {
                 return Err(IntegrationError::NotSupported {
@@ -712,19 +762,17 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
             }
         };
 
-        let bank_code = ted
-            .bank_code
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payout_method_data.bank_code",
-                context: IntegrationErrorContext {
-                    additional_context: Some("missing required field: bank_code".to_string()),
-                    suggested_action: Some(
-                        "Provide the COMPE bank code in payout_method_data for TED transfers"
-                            .to_string(),
-                    ),
-                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
-                },
-            })?;
+        let bank_code = ted.bank_code.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.bank_code",
+            context: IntegrationErrorContext {
+                additional_context: Some("missing required field: bank_code".to_string()),
+                suggested_action: Some(
+                    "Provide the COMPE bank code in payout_method_data for TED transfers"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+            },
+        })?;
 
         let tax_id = ted
             .tax_id
@@ -765,21 +813,18 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                 .collect::<String>(),
         );
 
-        let name = ted
-            .account_holder_name
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payout_method_data.account_holder_name",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "missing required field: account_holder_name".to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Provide the beneficiary account holder name in payout_method_data"
-                            .to_string(),
-                    ),
-                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
-                },
-            })?;
+        let name = ted.account_holder_name.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.account_holder_name",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "missing required field: account_holder_name".to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide the beneficiary account holder name in payout_method_data".to_string(),
+                ),
+                doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+            },
+        })?;
 
         let account_type = ted
             .bank_account_type
@@ -800,30 +845,47 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
             })
             .and_then(SantanderTedAccountType::try_from)?;
 
-        let ispb_code = ted.ispb.map(|ispb_raw| {
+        let ispb_code = ted.ispb.map(|raw| {
             Secret::new(
-                ispb_raw
-                    .expose()
+                raw.expose()
                     .chars()
                     .filter(|ch| ch.is_ascii_digit())
                     .collect::<String>(),
             )
         });
 
-        Ok(Self {
-            payment_value,
-            destination_account: SantanderTedPayoutDestinationAccount {
-                bank_code,
-                ispb_code,
-                branch_code: ted.bank_branch,
-                account_number: ted.bank_account_number,
-                account_type,
-                legal_entity_identifier,
-                document_identifier_number,
-                name,
-            },
-            purpose: req.resource_common_data.description.clone(),
-        })
+        if matches!(account_type, SantanderTedAccountType::Payment) && ispb_code.is_none() {
+            Err(error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.ispb",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "ispb is required when bank_account_type is Payment (PG)".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the 8-digit ISPB code in payout_method_data for Payment account TED transfers"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            }))
+        } else {
+            Ok(Self {
+                payment_value,
+                source_account,
+                destination_type: SantanderTedDestinationType::Str0008,
+                destination_account: SantanderTedPayoutDestinationAccount {
+                    bank_code,
+                    ispb_code,
+                    branch_code: ted.bank_branch.clone(),
+                    account_number: ted.bank_account_number.clone(),
+                    account_type,
+                    legal_entity_identifier,
+                    document_identifier_number,
+                    name,
+                },
+                purpose: SantanderTedPurpose::Others,
+            })
+        }
     }
 }
 
