@@ -1187,13 +1187,12 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::Payhere
-            | common_enums::PaymentMethodType::QwikcilverWallet => {
-                Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("stripe"),
-                    Default::default(),
-                )
-                .into())
-            }
+            | common_enums::PaymentMethodType::QwikcilverWallet
+            | common_enums::PaymentMethodType::Ted => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -2275,9 +2274,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             };
         let payment_method_token = card_token.clone().or(payment_method_id.clone());
         // Stripe's split-payment tokenize flow replaces the address blocks with the tokenized
-        // payment method; every other tokenized payment still carries them. Mirrors
-        // `is_payment_method_tokenize_flow_required` on the hyperswitch side.
-        let is_tokenize_flow = payment_method_token.is_some()
+        // payment method, but only for *card* tokens: hyperswitch's
+        // `is_payment_method_tokenize_flow_required` also requires `is_card_payment()`, and a
+        // wallet token (Apple Pay / Google Pay) is not a card payment. `payment_method_id` is the
+        // card arm of the match above, so gating on it keeps billing, shipping and browser info
+        // on wallet tokens the way Direct does.
+        let is_tokenize_flow = payment_method_id.is_some()
             && matches!(
                 item.request.split_payments,
                 Some(SplitPaymentsDetails::StripeSplitPayment(_))

@@ -448,7 +448,15 @@ fn capture_connector_reply<E>(
 #[cfg(feature = "injector-client")]
 use common_utils::events::record_json_fields_on_span;
 
-/// Handles the connector response, processing both successful and error responses
+#[derive(Clone, Copy, Debug)]
+pub enum ConnectorHttpErrorHandling {
+    /// SDK/FFI callers expose connector HTTP errors through their error result.
+    ReturnAsError,
+    /// Unified gRPC flows expose a parsed connector HTTP error in the flow response.
+    ReturnInRouterData,
+}
+
+/// Handles connector responses according to the caller's boundary contract.
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -474,6 +482,7 @@ pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     method: &str,
     url: String,
     event_params: Option<&EventProcessingParams<'_>>,
+    connector_http_error_handling: ConnectorHttpErrorHandling,
 ) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
 where
     F: Clone + 'static,
@@ -672,9 +681,15 @@ where
                             error_response.typed_connector_request = None;
                         }
                     }
-                    Err(error_stack::report!(
-                        ConnectorError::ConnectorErrorResponse(Box::new(error_response))
-                    ))?
+                    match connector_http_error_handling {
+                        ConnectorHttpErrorHandling::ReturnAsError => Err(error_stack::report!(
+                            ConnectorError::ConnectorErrorResponse(Box::new(error_response))
+                        ))?,
+                        ConnectorHttpErrorHandling::ReturnInRouterData => {
+                            updated_router_data.response = Err(error_response);
+                            updated_router_data
+                        }
+                    }
                 }
             };
             // Centralised success-path payment outcome: every connector flow returns
@@ -1177,6 +1192,7 @@ where
                             &method.to_string(),
                             url,
                             Some(&event_params),
+                            ConnectorHttpErrorHandling::ReturnInRouterData,
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(transport_err) => Err(transport_err),
@@ -1298,6 +1314,7 @@ where
                             "PUBLISH",
                             topic,
                             Some(&event_params),
+                            ConnectorHttpErrorHandling::ReturnInRouterData,
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(publish_err) => Err(publish_err),

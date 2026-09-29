@@ -19,6 +19,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.29.2
+
+### Features
+
+- **connector:** Add support for santander ted banktransfer payouts ([#2337](https://github.com/juspay/connector-service/pull/2337)) ([`a9f7681`](https://github.com/juspay/connector-service/commit/a9f76818d705f21aff639383a461ae5f272cb1b0))
+
+### Bug Fixes
+
+- **connector:** [Trustly] map each bank to its own BankNames variant ([#2389](https://github.com/juspay/connector-service/pull/2389)) ([`636462a`](https://github.com/juspay/connector-service/commit/636462ae8a17841cef63b86ae048863f3b351b95))
+- **connectors:** [Adyen] card SetupMandate shopperName, [Stripe] wallet-token address gate ([#2385](https://github.com/juspay/connector-service/pull/2385)) ([`52fa84d`](https://github.com/juspay/connector-service/commit/52fa84d4e97825da99382d20f92321b3fccdefd9))
+- **grpc:** Return connector HTTP errors in flow responses ([#1480](https://github.com/juspay/connector-service/pull/1480)) ([`19d02b8`](https://github.com/juspay/connector-service/commit/19d02b8dad4937e95d1401ff1de801c7bb733254))
+
+**Full Changelog:** [`2026.09.29.1...2026.09.29.2`](https://github.com/juspay/connector-service/compare/2026.09.29.1...2026.09.29.2)
+
+- - -
+
+## 2026.09.29.1
+
+### Features
+
+- **connector:** [Trustly] Implement returning user journey for Trustly ([#2373](https://github.com/juspay/connector-service/pull/2373)) ([`50c2058`](https://github.com/juspay/connector-service/commit/50c20584fbfad9598ba96fd5d85e9d7ae235bcfb))
+
+**Full Changelog:** [`2026.09.29.0...2026.09.29.1`](https://github.com/juspay/connector-service/compare/2026.09.29.0...2026.09.29.1)
+
+- - -
+
+## 2026.09.29.0
+
+### Bug Fixes
+
+- **ci:** Stop shadowing reserved GITHUB_WORKFLOW_REF env var in hotfix-branch check ([#2377](https://github.com/juspay/connector-service/pull/2377)) ([`e8eab21`](https://github.com/juspay/connector-service/commit/e8eab21f61028bde45c63c46d5d8dd4014e34b53))
+
+### Miscellaneous Tasks
+
+- **framework:** Group codegen by category, make a full sweep the only verdict, document HS integration ([#2378](https://github.com/juspay/connector-service/pull/2378)) ([`2ae7ae5`](https://github.com/juspay/connector-service/commit/2ae7ae53c5fd7a4d310eec83e9256a7d6cfea43e))
+
+**Full Changelog:** [`2026.09.28.1...2026.09.29.0`](https://github.com/juspay/connector-service/compare/2026.09.28.1...2026.09.29.0)
+
+- - -
+
 ## 2026.09.28.1
 
 ### Bug Fixes
