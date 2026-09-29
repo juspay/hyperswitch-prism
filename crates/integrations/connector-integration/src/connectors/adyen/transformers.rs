@@ -6539,8 +6539,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            // Hyperswitch does not send shopperName for wallet setup mandates.
-            shopper_name: None,
+            shopper_name: get_shopper_name(
+                item.router_data.resource_common_data.get_optional_billing(),
+            ),
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -6734,12 +6735,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            // Hyperswitch does not send shopperName for wallet setup mandates.
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
