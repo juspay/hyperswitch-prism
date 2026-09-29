@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.29.1
+
+### Features
+
+- **connector:** [Trustly] Implement returning user journey for Trustly ([#2373](https://github.com/juspay/connector-service/pull/2373)) ([`50c2058`](https://github.com/juspay/connector-service/commit/50c20584fbfad9598ba96fd5d85e9d7ae235bcfb))
+
+**Full Changelog:** [`2026.09.29.0...2026.09.29.1`](https://github.com/juspay/connector-service/compare/2026.09.29.0...2026.09.29.1)
+
+- - -
+
 ## 2026.09.29.0
 
 ### Bug Fixes
