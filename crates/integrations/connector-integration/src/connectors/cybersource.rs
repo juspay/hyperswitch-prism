@@ -430,7 +430,7 @@ domain_types::impl_flow_status_mapping! {
     failure:   Declined            => AuthorizationFailed,
     extractors: {
         request:  PaymentsIncrementalAuthorizationData,
-        response: cybersource::CybersourcePaymentsIncrementalAuthorizationResponse,
+        response: CybersourcePaymentsIncrementalAuthorizationResponse,
         source:   |response| response.status.clone(),
         context:  |_request, _response| (),
     },

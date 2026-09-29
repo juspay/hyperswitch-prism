@@ -280,11 +280,11 @@ domain_types::impl_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Authorize,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
     success_targets: [Authorized, Charged],
-    failure_sample: Some(transformers::PayboxPaymentVerdict::Rejected),
+    failure_sample: Some(PayboxPaymentVerdict::Rejected),
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
@@ -294,14 +294,14 @@ domain_types::impl_flow_status_mapping_ctx! {
     {
         use common_enums::AttemptStatus;
         match status {
-            transformers::PayboxPaymentVerdict::Approved => {
+            PayboxPaymentVerdict::Approved => {
                 if is_auto_capture {
                     AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
                 }
             }
-            transformers::PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
+            PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
         }
     }
 }
@@ -340,7 +340,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Capture,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     success:   Approved => Charged,
     failure:   Rejected => CaptureFailed,
     extractors: {
@@ -362,7 +362,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Void,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     success:   Approved => Voided,
     failure:   Rejected => Failure,
     extractors: {
@@ -384,7 +384,7 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Refund,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     success:   Approved => Success,
     failure:   Rejected => Failure,
     extractors: {
@@ -413,7 +413,7 @@ domain_types::impl_refund_flow_status_mapping! {
         request: RefundSyncData,
         response: PayboxRSyncResponse,
         source: |response| response.status.clone().unwrap_or_else(|| {
-            if response.response_code == transformers::SUCCESS_CODE { PayboxStatus::Refunded } else { PayboxStatus::Rejected }
+            if response.response_code == SUCCESS_CODE { PayboxStatus::Refunded } else { PayboxStatus::Rejected }
         }),
         context: |_request, _response| (),
     },
@@ -434,11 +434,11 @@ domain_types::impl_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      RepeatPayment,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
     success_targets: [Charged],
-    failure_sample: Some(transformers::PayboxPaymentVerdict::Rejected),
+    failure_sample: Some(PayboxPaymentVerdict::Rejected),
     extractors: {
         request:  RepeatPaymentData<T>,
         response: PayboxRepeatPaymentResponse,
@@ -448,10 +448,10 @@ domain_types::impl_flow_status_mapping_ctx! {
     {
         use common_enums::AttemptStatus;
         match status {
-            transformers::PayboxPaymentVerdict::Approved => {
+            PayboxPaymentVerdict::Approved => {
                 if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
             }
-            transformers::PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
+            PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
         }
     }
 }
@@ -466,7 +466,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      SetupMandate,
-    source:    transformers::PayboxPaymentVerdict,
+    source:    PayboxPaymentVerdict,
     success:   Approved => Charged,
     failure:   Rejected => Failure,
     extractors: {

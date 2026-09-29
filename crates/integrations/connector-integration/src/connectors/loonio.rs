@@ -134,7 +134,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsSyncData,
         response: LoonioPaymentResponseData,
         source: |response| match response {
-            LoonioPaymentResponseData::Sync(sync) => sync.state.clone(),
+            LoonioPaymentResponseData::Sync(sync) => sync.state,
             LoonioPaymentResponseData::Webhook(_) => transformers::LoonioTransactionStatus::Pending,
         },
         context: |_request, _response| (),
