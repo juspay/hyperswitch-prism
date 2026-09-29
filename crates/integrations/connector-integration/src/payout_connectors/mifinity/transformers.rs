@@ -1,8 +1,11 @@
+use std::fmt::Debug;
+
 use common_enums::{Currency, PayoutStatus};
 use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::{
         payout_method_data::{Bank, PayoutMethodData, SepaBankTransfer, Wallet},
         payouts_types::{
@@ -17,6 +20,7 @@ use domain_types::{
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use super::MifinityPayoutsRouterData;
 use crate::types::ResponseRouterData;
 
 const MIFINITY_CONNECTOR: &str = "mifinity";
@@ -126,6 +130,18 @@ impl TryFrom<&MifinityPayoutRouterData> for MifinityPayoutRequest {
             )
             .into()),
         }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<MifinityPayoutsRouterData<MifinityPayoutRouterData, T>> for MifinityPayoutRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MifinityPayoutsRouterData<MifinityPayoutRouterData, T>,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&item.router_data)
     }
 }
 
