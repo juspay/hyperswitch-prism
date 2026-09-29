@@ -1894,8 +1894,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     pub fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
         AmountMismatchTolerance {
             allow_lower: AllowLowerAmount(
-                self.accept_amount_mismatch
-                    || self.enable_partial_authorization.unwrap_or(false),
+                self.accept_amount_mismatch || self.enable_partial_authorization.unwrap_or(false),
             ),
             allow_higher: AllowHigherAmount(
                 self.accept_amount_mismatch || self.enable_overcapture.unwrap_or(false),

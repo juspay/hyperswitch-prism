@@ -12399,7 +12399,8 @@ pub fn generate_payment_capture_response(
                     .as_ref()
                     .filter(|res| {
                         res.currency == router_data_v2.request.currency
-                            && res.amount_to_capture != router_data_v2.request.minor_amount_to_capture
+                            && res.amount_to_capture
+                                != router_data_v2.request.minor_amount_to_capture
                             && router_data_v2.request.amount_mismatch_tolerance().permits(
                                 router_data_v2.request.minor_amount_to_capture,
                                 res.amount_to_capture,

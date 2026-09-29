@@ -2226,7 +2226,9 @@ mod amount_tolerance_tests {
     use common_utils::types::MinorUnit;
     use domain_types::connector_types::{AllowHigherAmount, AllowLowerAmount};
 
-    use super::{AmountMismatchTolerance, AuthoriseIntegrityObject, CaptureIntegrityObject, FlowIntegrity};
+    use super::{
+        AmountMismatchTolerance, AuthoriseIntegrityObject, CaptureIntegrityObject, FlowIntegrity,
+    };
 
     const NO_TOLERANCE: AmountMismatchTolerance = AmountMismatchTolerance {
         allow_lower: AllowLowerAmount(false),
@@ -2261,12 +2263,8 @@ mod amount_tolerance_tests {
     fn tolerant_mode_accepts_lower_amount() {
         let req = authorise(1000, Currency::USD);
         let res = authorise(900, Currency::USD);
-        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
-            req,
-            res,
-            None,
-            FULL_TOLERANCE,
-        );
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, FULL_TOLERANCE);
         assert!(result.is_ok(), "full tolerance must accept a lower amount");
     }
 
@@ -2274,12 +2272,8 @@ mod amount_tolerance_tests {
     fn tolerant_mode_accepts_higher_amount() {
         let req = authorise(1000, Currency::USD);
         let res = authorise(1100, Currency::USD);
-        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
-            req,
-            res,
-            None,
-            FULL_TOLERANCE,
-        );
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, FULL_TOLERANCE);
         assert!(result.is_ok(), "full tolerance must accept a higher amount");
     }
 
@@ -2299,12 +2293,8 @@ mod amount_tolerance_tests {
     fn tolerant_mode_still_fails_on_currency_mismatch() {
         let req = authorise(1000, Currency::USD);
         let res = authorise(1000, Currency::EUR);
-        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
-            req,
-            res,
-            None,
-            FULL_TOLERANCE,
-        );
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, FULL_TOLERANCE);
         assert!(
             result.is_err(),
             "tolerance must never relax a currency mismatch"
@@ -2315,12 +2305,8 @@ mod amount_tolerance_tests {
     fn tolerant_mode_still_passes_matching_amount() {
         let req = authorise(1000, Currency::USD);
         let res = authorise(1000, Currency::USD);
-        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
-            req,
-            res,
-            None,
-            FULL_TOLERANCE,
-        );
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, FULL_TOLERANCE);
         assert!(result.is_ok());
     }
 

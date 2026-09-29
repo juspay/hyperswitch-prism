@@ -469,7 +469,10 @@ pub fn extract_merchant_id_from_metadata(
 /// Only the exact value `"true"` opts in; a missing header or any other value (including
 /// unparseable ones) is treated as `false`, so behaviour is unchanged when it's absent.
 pub fn extract_accept_amount_mismatch_from_metadata(metadata: &MaskedMetadata) -> bool {
-    metadata.get_raw(consts::X_ACCEPT_AMOUNT_MISMATCH).as_deref() == Some("true")
+    metadata
+        .get_raw(consts::X_ACCEPT_AMOUNT_MISMATCH)
+        .as_deref()
+        == Some("true")
 }
 
 #[cfg(test)]
