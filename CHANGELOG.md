@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.29.0
+
+### Bug Fixes
+
+- **ci:** Stop shadowing reserved GITHUB_WORKFLOW_REF env var in hotfix-branch check ([#2377](https://github.com/juspay/connector-service/pull/2377)) ([`e8eab21`](https://github.com/juspay/connector-service/commit/e8eab21f61028bde45c63c46d5d8dd4014e34b53))
+
+### Miscellaneous Tasks
+
+- **framework:** Group codegen by category, make a full sweep the only verdict, document HS integration ([#2378](https://github.com/juspay/connector-service/pull/2378)) ([`2ae7ae5`](https://github.com/juspay/connector-service/commit/2ae7ae53c5fd7a4d310eec83e9256a7d6cfea43e))
+
+**Full Changelog:** [`2026.09.28.1...2026.09.29.0`](https://github.com/juspay/connector-service/compare/2026.09.28.1...2026.09.29.0)
+
+- - -
+
 ## 2026.09.28.1
 
 ### Bug Fixes
