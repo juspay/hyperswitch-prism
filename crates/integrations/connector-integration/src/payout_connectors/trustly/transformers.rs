@@ -30,6 +30,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 // connector implementation.
 use crate::connectors::trustly::transformers::{
     TrustlyErrorResponse, TrustlyWebhookBody, TrustlyWebhookMethod,
+    TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX,
 };
 
 const TRUSTLY_VERSION: &str = "1.1";
@@ -150,15 +151,15 @@ fn generate_trustly_signature<T: Serialize>(
     ))
 }
 
-fn unsupported_payout_method_error(flow: &str) -> Report<IntegrationError> {
+fn unsupported_payout_method_error(flow: &str, supported: &str) -> Report<IntegrationError> {
     IntegrationError::NotSupported {
         message: "Payout method is not supported".to_string(),
         connector: "Trustly",
         context: IntegrationErrorContext {
             additional_context: Some(format!(
-                "Trustly {flow} - only the Trustly bank transfer payout method is supported"
+                "Trustly {flow} - only the {supported} payout method is supported"
             )),
-            suggested_action: Some("Use a Trustly bank transfer payout method".to_string()),
+            suggested_action: Some(format!("Use a {supported} payout method")),
             doc_url: None,
         },
     }
@@ -312,7 +313,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let item = &item.router_data;
         let trustly_data = match item.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Bank(Bank::Trustly(data))) => data,
-            _ => return Err(unsupported_payout_method_error("Payout Create Recipient")),
+            _ => {
+                return Err(unsupported_payout_method_error(
+                    "Payout Create Recipient",
+                    "Trustly bank transfer",
+                ))
+            }
         };
 
         let (account_number, bank_number) = if let Some(iban) = trustly_data.iban.clone() {
@@ -527,20 +533,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let item = &item.router_data;
-        // The Trustly payout only makes sense for the Trustly bank transfer method.
-        match item.request.payout_method_data.as_ref() {
-            Some(PayoutMethodData::Bank(Bank::Trustly(_))) => {}
-            _ => return Err(unsupported_payout_method_error("Payout Transfer")),
-        }
-
-        // The account id created by the RegisterAccount (recipient) step is
-        // carried over in payout_connector_metadata.
-        let metadata = item
-            .request
-            .payout_connector_metadata
-            .clone()
-            .map(|secret| secret.expose());
-        let account_id: TrustlyAccountId = to_payout_connector_meta(metadata)?;
+        let (account_id, passthrough_end_user_id) = match item.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Bank(Bank::Trustly(_))) => {
+                let metadata = item
+                    .request
+                    .payout_connector_metadata
+                    .clone()
+                    .map(|secret| secret.expose());
+                let account_id: TrustlyAccountId = to_payout_connector_meta(metadata)?;
+                (account_id.account_id, None)
+            }
+            Some(PayoutMethodData::Passthrough(passthrough)) => (
+                passthrough.psp_token.clone(),
+                passthrough.psp_customer_id.clone(),
+            ),
+            _ => {
+                return Err(unsupported_payout_method_error(
+                    "Payout Transfer",
+                    "Trustly bank transfer or passthrough",
+                ))
+            }
+        };
 
         let amount = domain_utils::convert_amount(
             &StringMajorUnitForConnector,
@@ -560,21 +573,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .ok_or_else(|| missing_field("description", "Payout Transfer"))?;
 
-        let end_user_id = item
-            .request
-            .get_customer_id()?
-            .get_string_repr()
-            .to_string();
+        let end_user_id = match passthrough_end_user_id {
+            Some(psp_customer_id) => psp_customer_id.expose(),
+            None => item
+                .request
+                .get_customer_id()?
+                .get_string_repr()
+                .to_string(),
+        };
 
         let auth = TrustlyAuthType::try_from(&item.connector_config)?;
 
         let account_payout_data = AccountPayoutData {
-            account_i_d: account_id.account_id,
+            account_i_d: account_id,
             amount,
             attributes: Some(AccountPayoutAttributes { shopper_statement }),
             currency: item.request.destination_currency,
             end_user_i_d: end_user_id,
-            message_i_d: format!("payout_{}", item.resource_common_data.payout_id),
+            message_i_d: format!(
+                "{TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX}{}",
+                item.resource_common_data.payout_id
+            ),
             notification_u_r_l: notification_url,
             password: auth.password.clone(),
             username: auth.username.clone(),

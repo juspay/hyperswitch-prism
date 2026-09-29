@@ -122,6 +122,8 @@ pub enum ConnectorEnum {
     Nexixpay,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Airwallex,
     Tsys,
     Bankofamerica,
@@ -159,7 +161,6 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
-    Kount,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -173,6 +174,10 @@ pub enum ConnectorEnum {
     Paynearme,
     D24,
     Paydotcom,
+    ElavonPg,
+    GlobalpaymentsRealex,
+    GlobalpaymentsHeartland,
+    Payhere,
 }
 
 // snake case for enum variants
@@ -519,6 +524,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Zift => Ok(Self::Zift),
             grpc_api_types::payments::Connector::Revolv3 => Ok(Self::Revolv3),
             grpc_api_types::payments::Connector::Moneris => Ok(Self::Moneris),
+            grpc_api_types::payments::Connector::Etisalat => Ok(Self::Etisalat),
+            grpc_api_types::payments::Connector::Merchante => Ok(Self::Merchante),
             grpc_api_types::payments::Connector::Ppro => Ok(Self::Ppro),
             grpc_api_types::payments::Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
@@ -532,6 +539,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
+            grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
+                Ok(Self::GlobalpaymentsRealex)
+            }
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
@@ -539,12 +549,14 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
-            grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
+            grpc_api_types::payments::Connector::GlobalpaymentsHeartland => {
+                Ok(Self::GlobalpaymentsHeartland)
+            }
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
@@ -554,6 +566,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
             grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
+            grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
+            grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -864,6 +878,31 @@ pub struct PaymentFlowData {
 impl PaymentFlowData {
     pub fn set_status(&mut self, status: AttemptStatus) {
         self.status = status;
+    }
+
+    /// Set `status` for a specific flow, validating at runtime that the status is in
+    /// the flow's `ALLOWED` set.  Prefer this over `set_status` in connector response
+    /// handlers — it prevents cross-flow status leaks (e.g. Capture returning `Voided`).
+    ///
+    /// Returns `Err` if `status` is not allowed for `F`.
+    pub fn set_status_for_flow<F: crate::flow_status::FlowStatusRules>(
+        mut self,
+        status: AttemptStatus,
+    ) -> Result<Self, crate::ConnectorError> {
+        if crate::flow_status::const_contains(F::ALLOWED, status) {
+            self.status = status;
+            Ok(self)
+        } else {
+            Err(
+                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(format!(
+                        "status {:?} is not allowed in flow {}",
+                        status,
+                        F::NAME,
+                    )),
+                ),
+            )
+        }
     }
 
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
@@ -1630,9 +1669,9 @@ pub struct PaymentMethodEligibilityData {
     /// (Billing/shipping address and order line items are carried on the
     /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
     pub country_code: Option<common_enums::CountryAlpha2>,
-    /// The specific payment method (e.g. a BNPL variant) eligibility is being
-    /// checked for, when the caller wants to scope the check.
-    pub payment_method_type: Option<PaymentMethodType>,
+    /// Payment methods to check, as the wire enum echoed back verbatim (so
+    /// `Credit`/`Debit` aren't collapsed as the domain enum would). Never empty.
+    pub payment_method_types: Vec<grpc_api_types::payments::PaymentMethodType>,
     /// description/language hint for connector-rendered eligibility messaging.
     pub description: Option<String>,
     /// Connector-specific extras that don't have a first-class field.
@@ -1645,12 +1684,36 @@ pub struct PaymentMethodEligibilityData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
+    /// Per-payment-method eligibility verdicts, one per requested payment
+    /// method. Connectors that make a single PM-agnostic processor call fan the
+    /// same verdict across every requested payment method.
+    pub results: Vec<PMEligibility>,
+    pub status_code: u32,
+}
+
+/// Eligibility verdict for a single payment method.
+#[derive(Debug, Clone)]
+pub struct PMEligibility {
+    /// The payment method this verdict is for (wire enum, echoed verbatim).
+    pub payment_method_type: grpc_api_types::payments::PaymentMethodType,
+    /// Eligibility verdict for this payment method.
     pub eligibility: common_enums::EligibilityStatus,
+    /// Reason/error details for this payment method (e.g. why it is
+    /// ineligible). `None` when eligible or when the connector gives no reason.
+    pub error_info: Option<EligibilityErrorInfo>,
     /// Payment method details resolved as part of the eligibility check (e.g.
     /// wallet/gift-card balance and items), when the connector call that
     /// determines eligibility also returns them.
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub status_code: u32,
+}
+
+/// Lightweight per-payment-method error/reason, mapped to the proto
+/// `ErrorInfo.connector_details` in the response generator.
+#[derive(Debug, Clone)]
+pub struct EligibilityErrorInfo {
+    pub code: String,
+    pub message: String,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2146,6 +2209,19 @@ pub struct PaymentCreateOrderData {
     // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
     // at order/intent creation time.
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
+    /// Store-for-later intent of the payment this order is created for, from
+    /// `PaymentServiceCreateOrderRequest.setup_future_usage` (`None` when unset).
+    /// Connectors that fix an order's reusability at creation time read it (e.g.
+    /// PayNearMe creates a standing order for `OffSession`).
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Customer the order is created for, from
+    /// `PaymentServiceCreateOrderRequest.customer.id` (`None` when unset).
+    ///
+    /// It is carried here rather than in `PaymentFlowData.customer_id`, which
+    /// CreateOrder leaves `None`, so that connectors already reading
+    /// `PaymentFlowData.customer_id` in their CreateOrder transformer keep seeing
+    /// exactly what they saw before this field existed.
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -3129,6 +3205,9 @@ pub enum EventType {
     MandateFailed,
     MandateRevoked,
 
+    // Associated Data events
+    PaymentAssociatedDataUpdate,
+
     // Misc events
     EndpointVerification,
     ExternalAuthenticationAres,
@@ -3176,6 +3255,7 @@ impl EventType {
                 | Self::PaymentActionRequired
                 | Self::SourceChargeable
                 | Self::SourceTransactionCreated
+                | Self::PaymentAssociatedDataUpdate
                 | Self::Payment
         )
     }
@@ -3327,6 +3407,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::MandateActive => Ok(Self::MandateActive),
             grpc_api_types::payments::WebhookEventType::MandateFailed => Ok(Self::MandateFailed),
             grpc_api_types::payments::WebhookEventType::MandateRevoked => Ok(Self::MandateRevoked),
+            grpc_api_types::payments::WebhookEventType::PaymentAssociatedDataUpdate => {
+                Ok(Self::PaymentAssociatedDataUpdate)
+            }
             grpc_api_types::payments::WebhookEventType::EndpointVerification => {
                 Ok(Self::EndpointVerification)
             }
@@ -3401,6 +3484,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::MandateActive => Ok(Self::MandateActive),
             EventType::MandateFailed => Ok(Self::MandateFailed),
             EventType::MandateRevoked => Ok(Self::MandateRevoked),
+            EventType::PaymentAssociatedDataUpdate => Ok(Self::PaymentAssociatedDataUpdate),
             EventType::EndpointVerification => Ok(Self::EndpointVerification),
             EventType::ExternalAuthenticationAres => Ok(Self::ExternalAuthenticationAres),
             EventType::FrmApproved => Ok(Self::FrmApproved),
@@ -4269,6 +4353,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
+                payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -4958,6 +5043,16 @@ impl CustomerInfo {
         self.date_of_birth
             .clone()
             .ok_or_else(missing_field_err("customer.date_of_birth"))
+    }
+
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
+    /// `None` when the customer has no phone number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        PhoneDetails {
+            number: self.customer_phone_number.clone(),
+            country_code: self.customer_phone_country_code.clone(),
+        }
+        .get_e123_phone_number()
     }
 }
 
@@ -5903,12 +5998,14 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Moneris(_) => Ok(Self::Payment(ConnectorEnum::Moneris)),
+            AuthType::Etisalat(_) => Ok(Self::Payment(ConnectorEnum::Etisalat)),
+            AuthType::Merchante(_) => Ok(Self::Payment(ConnectorEnum::Merchante)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
-            AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
+            AuthType::Kount(_) => Ok(Self::Frm(FrmConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
@@ -5916,6 +6013,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::GlobalpaymentsHeartland(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsHeartland))
+            }
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
@@ -5923,8 +6023,13 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
             AuthType::D24(_) => Ok(Self::Payment(ConnectorEnum::D24)),
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
+            AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
+            AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
+            AuthType::GlobalpaymentsRealex(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsRealex))
+            }
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))

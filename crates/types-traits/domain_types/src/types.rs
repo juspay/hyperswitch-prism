@@ -7,10 +7,10 @@ use crate::{
     },
     connector_types::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PayoutConnectorEnum, RechargeRequestData,
-        RechargeResponseData, SurchargeConnectorEnum,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, EligibilityErrorInfo,
+        FrmConnectorEnum, GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PayoutConnectorEnum,
+        RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
     router_request_types::AuthoriseIntegrityObject,
@@ -431,9 +431,12 @@ pub struct Connectors {
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
     pub ilixium: ConnectorParams,
+    pub globalpayments_heartland: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub etisalat: ConnectorParams,
+    pub merchante: ConnectorParams,
     pub worldpayraft: ConnectorParams,
     pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
@@ -441,6 +444,9 @@ pub struct Connectors {
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
     pub paydotcom: ConnectorParams,
+    pub elavon_pg: ConnectorParams,
+    pub globalpayments_realex: ConnectorParams,
+    pub payhere: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -712,6 +718,12 @@ impl Connectors {
             ConnectorEnum::Moneris => {
                 patched.moneris.apply(params_patch);
             }
+            ConnectorEnum::Etisalat => {
+                patched.etisalat.apply(params_patch);
+            }
+            ConnectorEnum::Merchante => {
+                patched.merchante.apply(params_patch);
+            }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);
             }
@@ -810,6 +822,12 @@ impl Connectors {
             ConnectorEnum::Ilixium => {
                 patched.ilixium.apply(params_patch);
             }
+            ConnectorEnum::ElavonPg => {
+                patched.elavon_pg.apply(params_patch);
+            }
+            ConnectorEnum::GlobalpaymentsHeartland => {
+                patched.globalpayments_heartland.apply(params_patch);
+            }
             ConnectorEnum::Maya => {
                 patched.maya.apply(params_patch);
             }
@@ -822,6 +840,12 @@ impl Connectors {
             ConnectorEnum::D24 => {
                 patched.d24.apply(params_patch);
             }
+            ConnectorEnum::GlobalpaymentsRealex => {
+                patched.globalpayments_realex.apply(params_patch);
+            }
+            ConnectorEnum::Payhere => {
+                patched.payhere.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -829,7 +853,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex",
                             connector
                         )),
                         ..Default::default()
@@ -1382,6 +1406,41 @@ impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::U
     }
 }
 
+impl ForeignFrom<common_enums::FundingSource> for grpc_api_types::payments::FundingSource {
+    fn foreign_from(value: common_enums::FundingSource) -> Self {
+        match value {
+            common_enums::FundingSource::Credit => Self::Credit,
+            common_enums::FundingSource::Debit => Self::Debit,
+            common_enums::FundingSource::Prepaid => Self::Prepaid,
+            common_enums::FundingSource::ChargeCard => Self::ChargeCard,
+            common_enums::FundingSource::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardSegmentType> for grpc_api_types::payments::CardSegmentType {
+    fn foreign_from(value: common_enums::CardSegmentType) -> Self {
+        match value {
+            common_enums::CardSegmentType::Business => Self::Business,
+            common_enums::CardSegmentType::Commercial => Self::Commercial,
+            common_enums::CardSegmentType::Consumer => Self::Consumer,
+            common_enums::CardSegmentType::Government => Self::Government,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardType> for grpc_api_types::payments::CardType {
+    fn foreign_from(value: common_enums::CardType) -> Self {
+        match value {
+            common_enums::CardType::Credit => Self::Credit,
+            common_enums::CardType::Debit => Self::Debit,
+            common_enums::CardType::Prepaid => Self::Prepaid,
+            common_enums::CardType::Store => Self::Store,
+            common_enums::CardType::ChargeCard => Self::ChargeCard,
+        }
+    }
+}
+
 impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
     for grpc_api_types::payments::PaymentMethod
 {
@@ -1425,6 +1484,46 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
                     additional_details,
                     bank_name: bank_name
                         .map(|bn| grpc_api_types::payments::BankNames::foreign_from(bn) as i32),
+                })
+            }
+            PaymentMethodData::BankRedirect(payment_method_data::BankRedirectData::Trustly {
+                country,
+                account_holder_name,
+                bank_name,
+                additional_details,
+                bank_last_digits,
+                connector_instrument_id,
+            }) => {
+                let additional_details = additional_details
+                    .map(|details| {
+                        serde_json::to_string(details.peek()).map(Secret::new).change_context(
+                            ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to serialize connector-returned Trustly additional payment details"
+                                            .to_owned(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            },
+                        )
+                    })
+                    .transpose()?;
+
+                let country = country
+                    .map(|c| {
+                        grpc_api_types::payments::CountryAlpha2::foreign_try_from(c).map(|c| c as i32)
+                    })
+                    .transpose()?;
+
+                ProtoPaymentMethod::Trustly(grpc_api_types::payments::Trustly {
+                    country,
+                    account_holder_name,
+                    bank_name: bank_name
+                        .map(|bn| grpc_api_types::payments::BankNames::foreign_from(bn) as i32),
+                    additional_details,
+                    bank_last_digits,
+                    connector_instrument_id,
                 })
             }
             _ => {
@@ -1733,6 +1832,9 @@ impl<
                         payment_method_data::PaymayaRedirection {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PayhereRedirect {}))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
                         Box::new(payment_method_data::CashappQr {}),
@@ -1803,6 +1905,10 @@ impl<
                                                 decrypted_data.application_expiration_year,
                                             )?,
                                             payment_data,
+                                            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier,
+                                            merchant_token_identifier: decrypted_data
+                                                .merchant_token_identifier
+                                                .map(Secret::new),
                                         }
                                     ))
                                 },
@@ -2416,6 +2522,10 @@ impl<
                             token_source: decrypted_wallet_token_details_for_nti.token_source
                                 .and_then(|source_i32| grpc_api_types::payments::TokenSource::try_from(source_i32).ok())
                                 .and_then(|source| payment_method_data::TokenSource::foreign_try_from(source).ok()),
+                            card_network: decrypted_wallet_token_details_for_nti
+                                .card_network
+                                .and_then(|network_i32| grpc_payment_types::CardNetwork::try_from(network_i32).ok())
+                                .and_then(|network| CardNetwork::foreign_try_from(network).ok()),
 
                         },
                     ))
@@ -2429,8 +2539,31 @@ impl<
                         grpc_payment_types::CountryAlpha2::Unspecified => None,
                         country_code => Some(CountryAlpha2::foreign_try_from(country_code)?),
                     };
+                    let bank_name = match trustly_data.bank_name() {
+                        grpc_payment_types::BankNames::Unspecified => None,
+                        bank => Some(common_enums::BankNames::foreign_try_from(bank)?),
+                    };
                     Ok(Self::BankRedirect(
-                        payment_method_data::BankRedirectData::Trustly { country },
+                        payment_method_data::BankRedirectData::Trustly {
+                            country,
+                            bank_name,
+                            bank_last_digits: trustly_data.bank_last_digits,
+                            account_holder_name: trustly_data.account_holder_name,
+                            connector_instrument_id: trustly_data.connector_instrument_id,
+                            additional_details: trustly_data
+                                .additional_details
+                                .and_then(|details| {
+                                    serde_json::from_str(details.peek())
+                                        .map(Secret::new)
+                                        .map_err(|error| {
+                                            tracing::error!(
+                                                ?error,
+                                                "Failed to parse Trustly additional_details; the saved account cannot be charged and the customer will be asked to select their bank again"
+                                            );
+                                        })
+                                        .ok()
+                                }),
+                        },
                     ))
                 }
 
@@ -2805,6 +2938,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(PaymentMethodType::Payhere),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -2859,6 +2993,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => {
+                Ok(PaymentMethodType::Tamara)
+            }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             grpc_api_types::payments::PaymentMethodType::Ach => Ok(PaymentMethodType::Ach),
             grpc_api_types::payments::PaymentMethodType::OnlineBankingFpx => {
@@ -2952,6 +3089,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::PayBright)
             }
             grpc_api_types::payments::PaymentMethodType::Pix => Ok(PaymentMethodType::Pix),
+            grpc_api_types::payments::PaymentMethodType::Ted => Ok(PaymentMethodType::Ted),
             grpc_api_types::payments::PaymentMethodType::PaySafeCard => {
                 Ok(PaymentMethodType::PaySafeCard)
             }
@@ -3170,6 +3308,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => Ok(Some(PaymentMethodType::Payhere)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -3619,6 +3758,10 @@ pub struct SetupRecurringRequest {
     /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
     /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
     pub test_mode: Option<bool>,
+    /// Capture method of the mandate-setup authorization. Connectors that switch the
+    /// authorization type on manual capture (e.g. Adyen's
+    /// `additionalData.authorisationType`/`manualCapture`) need the real value.
+    pub capture_method: Option<grpc_payment_types::CaptureMethod>,
 }
 
 /// ============================================================================
@@ -3815,6 +3958,9 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
             test_mode: req.test_mode,
+            capture_method: req
+                .capture_method
+                .and_then(|v| grpc_payment_types::CaptureMethod::try_from(v).ok()),
         }
     }
 }
@@ -3869,6 +4015,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             recipient_details: None,
             additional_connector_details: None,
             test_mode: req.test_mode,
+            capture_method: None,
         }
     }
 }
@@ -5015,7 +5162,10 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url,
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(CaptureMethod::foreign_try_from)
+                .transpose()?,
             merchant_order_id: value.merchant_order_id,
             minor_amount: Some(common_utils::types::MinorUnit::new(amount.minor_amount)),
             shipping_cost: value
@@ -6073,7 +6223,7 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            status: common_enums::AttemptStatus::Unknown,
             payment_method: PaymentMethod::Card, //TODO
             payment_method_type: None,
             address,
@@ -6552,23 +6702,76 @@ impl ForeignTryFrom<ConnectorResponseData> for grpc_api_types::payments::Connect
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::GooglePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            card_type,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
                                         grpc_api_types::payments::GooglePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| {
+                                                let grpc_segment_type: grpc_api_types::payments::CardSegmentType = ForeignFrom::foreign_from(cs);
+                                                grpc_segment_type as i32
+                                            }),
+                                            funding_source: funding_source.map(|fs| {
+                                                let grpc_funding_source: grpc_api_types::payments::FundingSource = ForeignFrom::foreign_from(fs);
+                                                grpc_funding_source as i32
+                                            }),
+                                            card_type: card_type.map(|ct| {
+                                                let grpc_card_type: grpc_api_types::payments::CardType = ForeignFrom::foreign_from(ct);
+                                                grpc_card_type as i32
+                                            }),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.and_then(|c| {
+                                                grpc_api_types::payments::CountryAlpha2::foreign_try_from(c).ok().map(|v| v as i32)
+                                            }),
                                         }
                                     )
                                 ),
                             }
                         }
-                        AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code } => {
+                        AdditionalPaymentMethodConnectorResponse::ApplePay {
+                            auth_code,
+                            device_pan_bin,
+                            card_bin,
+                            card_subtype,
+                            card_segment_type,
+                            funding_source,
+                            issuer_name,
+                            issuer_country,
+                        } => {
                             grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
                                 payment_method_data: Some(
                                     grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
                                         grpc_api_types::payments::ApplePayConnectorResponse {
                                             auth_code: auth_code.clone(),
+                                            device_pan_bin: device_pan_bin.clone(),
+                                            card_bin: card_bin.clone(),
+                                            card_subtype: card_subtype.clone(),
+                                            card_segment_type: card_segment_type.map(|cs| {
+                                                let grpc_segment_type: grpc_api_types::payments::CardSegmentType = ForeignFrom::foreign_from(cs);
+                                                grpc_segment_type as i32
+                                            }),
+                                            funding_source: funding_source.map(|fs| {
+                                                let grpc_funding_source: grpc_api_types::payments::FundingSource = ForeignFrom::foreign_from(fs);
+                                                grpc_funding_source as i32
+                                            }),
+                                            issuer_name: issuer_name.clone(),
+                                            issuer_country: issuer_country.and_then(|c| {
+                                                grpc_api_types::payments::CountryAlpha2::foreign_try_from(c).ok().map(|v| v as i32)
+                                            }),
                                         }
                                     )
                                 ),
@@ -6722,6 +6925,41 @@ impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilitySta
 
 /// Generates a PaymentMethodServiceEligibilityResponse from the router data.
 /// Used by PaymentMethodService.Eligibility (new route).
+/// Builds a proto per-PM eligibility result; the payment method type is echoed verbatim.
+impl ForeignFrom<EligibilityErrorInfo> for grpc_api_types::payments::ErrorInfo {
+    fn foreign_from(value: EligibilityErrorInfo) -> Self {
+        Self {
+            unified_details: None,
+            connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                code: Some(value.code),
+                reason: value.reason,
+                connector_transaction_id: None,
+                message: Some(value.message),
+                status: None,
+            }),
+            issuer_details: None,
+        }
+    }
+}
+
+impl ForeignFrom<PMEligibility> for grpc_api_types::payments::PaymentMethodEligibilityResult {
+    fn foreign_from(result: PMEligibility) -> Self {
+        Self {
+            payment_method_type: i32::from(result.payment_method_type),
+            eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+                result.eligibility,
+            )),
+            error_info: result
+                .error_info
+                .map(grpc_api_types::payments::ErrorInfo::foreign_from),
+            payment_method_details: result
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
+        }
+    }
+}
+
+#[allow(deprecated)] // mirrors results[0] into the deprecated top-level response fields
 pub fn generate_payment_method_eligibility_response(
     router_data_v2: RouterDataV2<
         PaymentMethodEligibility,
@@ -6747,30 +6985,43 @@ pub fn generate_payment_method_eligibility_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
+    let unknown_eligibility = i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+        EligibilityStatus::Unknown,
+    ));
+    // Captured before `response` is moved; used to fan an error across requested PMs.
+    let requested_payment_method_types = router_data_v2.request.payment_method_types.clone();
     match router_data_v2.response {
-        Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
-                response.eligibility,
-            )
-            .into(),
-            status_code: response.status_code,
-            error_info: None,
-            payment_method_details: response
-                .payment_method_details
-                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            raw_connector_request,
-            typed_connector_request,
-            raw_connector_response,
-            typed_connector_response,
-            response_headers,
-        }),
-        Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
-                EligibilityStatus::Unknown,
-            )
-            .into(),
-            status_code: err.status_code as u32,
-            error_info: Some(grpc_api_types::payments::ErrorInfo {
+        Ok(response) => {
+            let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> = response
+                .results
+                .into_iter()
+                .map(grpc_api_types::payments::PaymentMethodEligibilityResult::foreign_from)
+                .collect();
+            // Mirror results[0] into the deprecated top-level fields.
+            let (legacy_eligibility, legacy_error_info, legacy_payment_method_details) =
+                match results.first() {
+                    Some(first) => (
+                        first.eligibility,
+                        first.error_info.clone(),
+                        first.payment_method_details.clone(),
+                    ),
+                    None => (unknown_eligibility, None, None),
+                };
+            Ok(PaymentMethodServiceEligibilityResponse {
+                eligibility: Some(legacy_eligibility),
+                status_code: response.status_code,
+                error_info: legacy_error_info,
+                payment_method_details: legacy_payment_method_details,
+                results,
+                raw_connector_request,
+                typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
+                response_headers,
+            })
+        }
+        Err(err) => {
+            let error_info = grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
@@ -6780,14 +7031,33 @@ pub fn generate_payment_method_eligibility_response(
                     status: None,
                 }),
                 issuer_details: None,
-            }),
-            payment_method_details: None,
-            raw_connector_request,
-            typed_connector_request,
-            raw_connector_response,
-            typed_connector_response,
-            response_headers,
-        }),
+            };
+            // One Unknown result per requested PM carrying the connector error.
+            let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> =
+                requested_payment_method_types
+                    .into_iter()
+                    .map(
+                        |pm| grpc_api_types::payments::PaymentMethodEligibilityResult {
+                            payment_method_type: i32::from(pm),
+                            eligibility: unknown_eligibility,
+                            error_info: Some(error_info.clone()),
+                            payment_method_details: None,
+                        },
+                    )
+                    .collect();
+            Ok(PaymentMethodServiceEligibilityResponse {
+                eligibility: Some(unknown_eligibility),
+                status_code: err.status_code as u32,
+                error_info: Some(error_info),
+                payment_method_details: None,
+                results,
+                raw_connector_request,
+                typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
+                response_headers,
+            })
+        }
     }
 }
 
@@ -7389,6 +7659,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -7732,9 +8006,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             context: IntegrationErrorContext::default(),
         })?;
         let currency = common_enums::Currency::foreign_try_from(amount.currency())?;
-        // Create ResponseId from resource_id
-        let connector_transaction_id =
-            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone());
+        // An empty id from the caller means "no connector transaction id yet". Keep that as
+        // `NoResponseId` so connector-level checks (`validate_psync_reference_id`,
+        // `get_connector_transaction_id`) reject the sync instead of building a request URL
+        // with an empty path segment.
+        let connector_transaction_id = if value.connector_transaction_id.trim().is_empty() {
+            ResponseId::NoResponseId
+        } else {
+            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone())
+        };
 
         let setup_future_usage = match value.setup_future_usage() {
             grpc_payment_types::FutureUsage::Unspecified => None,
@@ -7840,7 +8120,7 @@ impl ForeignFrom<common_enums::AttemptStatus> for grpc_api_types::payments::Paym
             common_enums::AttemptStatus::PartialChargedAndChargeable => {
                 Self::PartialChargedAndChargeable
             }
-            common_enums::AttemptStatus::IntegrityFailure => Self::Failure,
+            common_enums::AttemptStatus::IntegrityFailure => Self::Conflicted,
             common_enums::AttemptStatus::Unspecified => Self::Unspecified,
             common_enums::AttemptStatus::Unknown => Self::Unspecified,
         }
@@ -7915,6 +8195,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
                 Ok(Self::PartialChargedAndChargeable)
             }
             grpc_api_types::payments::PaymentStatus::Unspecified => Ok(Self::Unknown),
+            grpc_api_types::payments::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
         }
     }
 }
@@ -8508,6 +8789,26 @@ pub fn generate_access_token_response(
                 merchant_access_token_id: None,
             },
         ),
+    }
+}
+
+/// A PSync that connector pre-flight validation rejected before dispatch.
+pub struct PaymentSyncSkipped {
+    pub connector_transaction_id: String,
+    pub merchant_transaction_id: Option<String>,
+}
+
+impl ForeignFrom<PaymentSyncSkipped> for PaymentServiceGetResponse {
+    fn foreign_from(skipped: PaymentSyncSkipped) -> Self {
+        // Unspecified + no error: UCS is stateless, so this is its "keep the previous
+        // attempt status" reply.
+        Self {
+            connector_transaction_id: skipped.connector_transaction_id,
+            merchant_transaction_id: skipped.merchant_transaction_id,
+            status: grpc_api_types::payments::PaymentStatus::Unspecified as i32,
+            error: None,
+            ..Default::default()
+        }
     }
 }
 
@@ -9166,6 +9467,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
@@ -9175,6 +9477,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
@@ -9686,7 +9989,15 @@ pub fn generate_refund_sync_response(
 
     match refunds_response {
         Ok(response) => {
-            let status = response.refund_status;
+            // `resource_common_data.status` only ever diverges from `response.refund_status` when the server-side
+            // integrity check set it to `ManualReview`.
+            let status = if router_data_v2.resource_common_data.status
+                == common_enums::RefundStatus::ManualReview
+            {
+                router_data_v2.resource_common_data.status
+            } else {
+                response.refund_status
+            };
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
             let response_headers = router_data_v2
                 .resource_common_data
@@ -9923,6 +10234,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
 impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEligibilityData {
     type Error = IntegrationError;
 
+    #[allow(deprecated)] // reads the deprecated scalar payment_method_type as a fallback
     fn foreign_try_from(
         value: PaymentMethodServiceEligibilityRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -9946,8 +10258,14 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         // before moving any owned fields out of `value`.
         let country = convert_optional_country_alpha2(value.country())?;
 
-        let payment_method_type =
-            <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
+        // Prefer the repeated field; else the deprecated scalar as one entry
+        // (`Unspecified` when unset), so omitting the PM still yields a verdict.
+        let payment_method_types: Vec<grpc_api_types::payments::PaymentMethodType> =
+            if value.payment_method_types.is_empty() {
+                vec![value.payment_method_type()]
+            } else {
+                value.payment_method_types().collect()
+            };
 
         let customer = value
             .customer
@@ -9970,7 +10288,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             customer,
             connector_payment_method_id: value.connector_payment_method_id,
             country_code: country,
-            payment_method_type,
+            payment_method_types,
             description: value.description,
             metadata,
             connector_feature_data,
@@ -11447,7 +11765,17 @@ pub fn generate_refund_response(
 
     match refund_response {
         Ok(response) => {
-            let status = response.refund_status;
+            // `resource_common_data.status` starts at `Pending` and is only ever moved to
+            // `ManualReview` by the server-side integrity check (see
+            // `SetIntegrityFailureStatus`). So this only ever
+            // overrides `response.refund_status` for the integrity-check case.
+            let status = if router_data_v2.resource_common_data.status
+                == common_enums::RefundStatus::ManualReview
+            {
+                router_data_v2.resource_common_data.status
+            } else {
+                response.refund_status
+            };
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
 
             Ok(RefundResponse {
@@ -12548,7 +12876,14 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             complete_authorize_url: value.complete_authorize_url.clone(),
-            capture_method: None,
+            capture_method: value
+                .capture_method
+                .map(|cm| {
+                    CaptureMethod::foreign_try_from(
+                        grpc_api_types::payments::CaptureMethod::try_from(cm).unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
             integrity_object: None,
             minor_amount: Some(amount.amount),
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
@@ -12990,7 +13325,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                     amount_data
                         .amount_money
                         .map(|amount_money| amount_money.minor_amount)
-                        .unwrap_or(amount_data.amount),
+                        .or(amount_data.amount)
+                        .unwrap_or_default(),
                 ),
                 currency: common_enums::Currency::foreign_try_from(
                     amount_data
@@ -13188,7 +13524,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
-                network_txn_link_id: _,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -13320,6 +13656,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         )
                     }),
                     payment_account_reference,
+                    network_txn_link_id,
                 }
             }
             _ => {
@@ -13384,6 +13721,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 splits: None,
                 payment_account_reference: None,
+                network_txn_link_id: None,
             }
         }
     };
@@ -13580,6 +13918,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         let payment_method_type = <Option<common_enums::PaymentMethodType>>::foreign_try_from(
             value.payment_method_type(),
         )?;
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            future_usage => Some(common_enums::FutureUsage::foreign_try_from(future_usage)?),
+        };
+        // Carried on the CreateOrder request data, not on `PaymentFlowData`, which
+        // stays `None` here so connectors reading `resource_common_data.customer_id`
+        // in their CreateOrder transformer are unaffected.
+        let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
@@ -13602,6 +13948,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             webhook_url,
             payment_method_type,
             order_details,
+            setup_future_usage,
+            customer_id,
         })
     }
 }
@@ -13959,6 +14307,7 @@ pub enum PaymentMethodDataType {
     PayURedirect,
     EaseBuzzRedirect,
     PaymayaRedirect,
+    PayhereRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
@@ -14647,7 +14996,10 @@ impl<
             amount: money.amount,
             currency,
             payment_method_data,
-            browser_info: None,
+            browser_info: value
+                .browser_info
+                .map(BrowserInformation::foreign_try_from)
+                .transpose()?,
             capture_method: None,
             customer_acceptance,
             setup_future_usage,
@@ -17859,6 +18211,98 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::Seb => Ok(Self::Seb),
             grpc_api_types::payments::BankNames::Swedbank => Ok(Self::Swedbank),
             grpc_api_types::payments::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+            grpc_api_types::payments::BankNames::Abanca => Ok(Self::Abanca),
+            grpc_api_types::payments::BankNames::AlmBrand => Ok(Self::AlmBrand),
+            grpc_api_types::payments::BankNames::AlphaFx => Ok(Self::AlphaFx),
+            grpc_api_types::payments::BankNames::ArbejdernesLandsbank => {
+                Ok(Self::ArbejdernesLandsbank)
+            }
+            grpc_api_types::payments::BankNames::ArbuthnotLatham => Ok(Self::ArbuthnotLatham),
+            grpc_api_types::payments::BankNames::BancoPopular => Ok(Self::BancoPopular),
+            grpc_api_types::payments::BankNames::BankPocztowy => Ok(Self::BankPocztowy),
+            grpc_api_types::payments::BankNames::Bankia => Ok(Self::Bankia),
+            grpc_api_types::payments::BankNames::BnBank => Ok(Self::BnBank),
+            grpc_api_types::payments::BankNames::CaterAllen => Ok(Self::CaterAllen),
+            grpc_api_types::payments::BankNames::ChelseaBuildingSociety => {
+                Ok(Self::ChelseaBuildingSociety)
+            }
+            grpc_api_types::payments::BankNames::Citadele => Ok(Self::Citadele),
+            grpc_api_types::payments::BankNames::CoopPank => Ok(Self::CoopPank),
+            grpc_api_types::payments::BankNames::CooperativeBank => Ok(Self::CooperativeBank),
+            grpc_api_types::payments::BankNames::Cumberland => Ok(Self::Cumberland),
+            grpc_api_types::payments::BankNames::DabBank => Ok(Self::DabBank),
+            grpc_api_types::payments::BankNames::DjurslandsBank => Ok(Self::DjurslandsBank),
+            grpc_api_types::payments::BankNames::Dnb => Ok(Self::Dnb),
+            grpc_api_types::payments::BankNames::EtneSparebank => Ok(Self::EtneSparebank),
+            grpc_api_types::payments::BankNames::FanaSparebank => Ok(Self::FanaSparebank),
+            grpc_api_types::payments::BankNames::FidorBank => Ok(Self::FidorBank),
+            grpc_api_types::payments::BankNames::FlekkefjordSparebank => {
+                Ok(Self::FlekkefjordSparebank)
+            }
+            grpc_api_types::payments::BankNames::ForexBank => Ok(Self::ForexBank),
+            grpc_api_types::payments::BankNames::HaugesundSparebank => Ok(Self::HaugesundSparebank),
+            grpc_api_types::payments::BankNames::HoareAndCo => Ok(Self::HoareAndCo),
+            grpc_api_types::payments::BankNames::IcaBanken => Ok(Self::IcaBanken),
+            grpc_api_types::payments::BankNames::JyskeBank => Ok(Self::JyskeBank),
+            grpc_api_types::payments::BankNames::KleinwortHambros => Ok(Self::KleinwortHambros),
+            grpc_api_types::payments::BankNames::KlpBanken => Ok(Self::KlpBanken),
+            grpc_api_types::payments::BankNames::Kreditbanken => Ok(Self::Kreditbanken),
+            grpc_api_types::payments::BankNames::LandkredittBank => Ok(Self::LandkredittBank),
+            grpc_api_types::payments::BankNames::Lansforsakringar => Ok(Self::Lansforsakringar),
+            grpc_api_types::payments::BankNames::LhvPank => Ok(Self::LhvPank),
+            grpc_api_types::payments::BankNames::LillesandsSparebank => {
+                Ok(Self::LillesandsSparebank)
+            }
+            grpc_api_types::payments::BankNames::Luminor => Ok(Self::Luminor),
+            grpc_api_types::payments::BankNames::LusterSparebank => Ok(Self::LusterSparebank),
+            grpc_api_types::payments::BankNames::MetroBank => Ok(Self::MetroBank),
+            grpc_api_types::payments::BankNames::NordfynsBank => Ok(Self::NordfynsBank),
+            grpc_api_types::payments::BankNames::NordjyskeBank => Ok(Self::NordjyskeBank),
+            grpc_api_types::payments::BankNames::Norisbank => Ok(Self::Norisbank),
+            grpc_api_types::payments::BankNames::NykreditBank => Ok(Self::NykreditBank),
+            grpc_api_types::payments::BankNames::ObosBanken => Ok(Self::ObosBanken),
+            grpc_api_types::payments::BankNames::OrangeFinanse => Ok(Self::OrangeFinanse),
+            grpc_api_types::payments::BankNames::ParetoBank => Ok(Self::ParetoBank),
+            grpc_api_types::payments::BankNames::PkoBankPolski => Ok(Self::PkoBankPolski),
+            grpc_api_types::payments::BankNames::RingkjobingLandbobank => {
+                Ok(Self::RingkjobingLandbobank)
+            }
+            grpc_api_types::payments::BankNames::Sbanken => Ok(Self::Sbanken),
+            grpc_api_types::payments::BankNames::SiauliuBankas => Ok(Self::SiauliuBankas),
+            grpc_api_types::payments::BankNames::SiliconValleyBank => Ok(Self::SiliconValleyBank),
+            grpc_api_types::payments::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
+            grpc_api_types::payments::BankNames::SkjernBank => Ok(Self::SkjernBank),
+            grpc_api_types::payments::BankNames::SkudenesOgAakraSparebank => {
+                Ok(Self::SkudenesOgAakraSparebank)
+            }
+            grpc_api_types::payments::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
+            grpc_api_types::payments::BankNames::SparNordBank => Ok(Self::SparNordBank),
+            grpc_api_types::payments::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
+            grpc_api_types::payments::BankNames::SpardaBank => Ok(Self::SpardaBank),
+            grpc_api_types::payments::BankNames::SpareBank1 => Ok(Self::SpareBank1),
+            grpc_api_types::payments::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
+            grpc_api_types::payments::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
+            grpc_api_types::payments::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
+            grpc_api_types::payments::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
+            grpc_api_types::payments::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
+            grpc_api_types::payments::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),
+            grpc_api_types::payments::BankNames::SparekassenSjaellandFyn => {
+                Ok(Self::SparekassenSjaellandFyn)
+            }
+            grpc_api_types::payments::BankNames::Spareskillingsbanken => {
+                Ok(Self::Spareskillingsbanken)
+            }
+            grpc_api_types::payments::BankNames::Sydbank => Ok(Self::Sydbank),
+            grpc_api_types::payments::BankNames::VanquisBank => Ok(Self::VanquisBank),
+            grpc_api_types::payments::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
+            grpc_api_types::payments::BankNames::VossSparebank => Ok(Self::VossSparebank),
+            grpc_api_types::payments::BankNames::YorkshireBuildingSociety => {
+                Ok(Self::YorkshireBuildingSociety)
+            }
         }
     }
 }
@@ -18586,6 +19030,76 @@ impl ForeignFrom<common_enums::BankNames> for grpc_api_types::payments::BankName
             common_enums::BankNames::Seb => Self::Seb,
             common_enums::BankNames::Swedbank => Self::Swedbank,
             common_enums::BankNames::MockUkPayments => Self::MockUkPayments,
+            common_enums::BankNames::Abanca => Self::Abanca,
+            common_enums::BankNames::AlmBrand => Self::AlmBrand,
+            common_enums::BankNames::AlphaFx => Self::AlphaFx,
+            common_enums::BankNames::ArbejdernesLandsbank => Self::ArbejdernesLandsbank,
+            common_enums::BankNames::ArbuthnotLatham => Self::ArbuthnotLatham,
+            common_enums::BankNames::BancoPopular => Self::BancoPopular,
+            common_enums::BankNames::BankPocztowy => Self::BankPocztowy,
+            common_enums::BankNames::Bankia => Self::Bankia,
+            common_enums::BankNames::BnBank => Self::BnBank,
+            common_enums::BankNames::CaterAllen => Self::CaterAllen,
+            common_enums::BankNames::ChelseaBuildingSociety => Self::ChelseaBuildingSociety,
+            common_enums::BankNames::Citadele => Self::Citadele,
+            common_enums::BankNames::CoopPank => Self::CoopPank,
+            common_enums::BankNames::CooperativeBank => Self::CooperativeBank,
+            common_enums::BankNames::Cumberland => Self::Cumberland,
+            common_enums::BankNames::DabBank => Self::DabBank,
+            common_enums::BankNames::DjurslandsBank => Self::DjurslandsBank,
+            common_enums::BankNames::Dnb => Self::Dnb,
+            common_enums::BankNames::EtneSparebank => Self::EtneSparebank,
+            common_enums::BankNames::FanaSparebank => Self::FanaSparebank,
+            common_enums::BankNames::FidorBank => Self::FidorBank,
+            common_enums::BankNames::FlekkefjordSparebank => Self::FlekkefjordSparebank,
+            common_enums::BankNames::ForexBank => Self::ForexBank,
+            common_enums::BankNames::HaugesundSparebank => Self::HaugesundSparebank,
+            common_enums::BankNames::HoareAndCo => Self::HoareAndCo,
+            common_enums::BankNames::IcaBanken => Self::IcaBanken,
+            common_enums::BankNames::JyskeBank => Self::JyskeBank,
+            common_enums::BankNames::KleinwortHambros => Self::KleinwortHambros,
+            common_enums::BankNames::KlpBanken => Self::KlpBanken,
+            common_enums::BankNames::Kreditbanken => Self::Kreditbanken,
+            common_enums::BankNames::LandkredittBank => Self::LandkredittBank,
+            common_enums::BankNames::Lansforsakringar => Self::Lansforsakringar,
+            common_enums::BankNames::LhvPank => Self::LhvPank,
+            common_enums::BankNames::LillesandsSparebank => Self::LillesandsSparebank,
+            common_enums::BankNames::Luminor => Self::Luminor,
+            common_enums::BankNames::LusterSparebank => Self::LusterSparebank,
+            common_enums::BankNames::MetroBank => Self::MetroBank,
+            common_enums::BankNames::NordfynsBank => Self::NordfynsBank,
+            common_enums::BankNames::NordjyskeBank => Self::NordjyskeBank,
+            common_enums::BankNames::Norisbank => Self::Norisbank,
+            common_enums::BankNames::NykreditBank => Self::NykreditBank,
+            common_enums::BankNames::ObosBanken => Self::ObosBanken,
+            common_enums::BankNames::OrangeFinanse => Self::OrangeFinanse,
+            common_enums::BankNames::ParetoBank => Self::ParetoBank,
+            common_enums::BankNames::PkoBankPolski => Self::PkoBankPolski,
+            common_enums::BankNames::RingkjobingLandbobank => Self::RingkjobingLandbobank,
+            common_enums::BankNames::Sbanken => Self::Sbanken,
+            common_enums::BankNames::SiauliuBankas => Self::SiauliuBankas,
+            common_enums::BankNames::SiliconValleyBank => Self::SiliconValleyBank,
+            common_enums::BankNames::Skandiabanken => Self::Skandiabanken,
+            common_enums::BankNames::SkjernBank => Self::SkjernBank,
+            common_enums::BankNames::SkudenesOgAakraSparebank => Self::SkudenesOgAakraSparebank,
+            common_enums::BankNames::SogneOgGreipstadSparebank => Self::SogneOgGreipstadSparebank,
+            common_enums::BankNames::SparNordBank => Self::SparNordBank,
+            common_enums::BankNames::SparbankenSyd => Self::SparbankenSyd,
+            common_enums::BankNames::SpardaBank => Self::SpardaBank,
+            common_enums::BankNames::SpareBank1 => Self::SpareBank1,
+            common_enums::BankNames::SparebankenMore => Self::SparebankenMore,
+            common_enums::BankNames::SparebankenOst => Self::SparebankenOst,
+            common_enums::BankNames::SparebankenSognOgFjordane => Self::SparebankenSognOgFjordane,
+            common_enums::BankNames::SparebankenSor => Self::SparebankenSor,
+            common_enums::BankNames::SparebankenVest => Self::SparebankenVest,
+            common_enums::BankNames::SparekassenDanmark => Self::SparekassenDanmark,
+            common_enums::BankNames::SparekassenSjaellandFyn => Self::SparekassenSjaellandFyn,
+            common_enums::BankNames::Spareskillingsbanken => Self::Spareskillingsbanken,
+            common_enums::BankNames::Sydbank => Self::Sydbank,
+            common_enums::BankNames::VanquisBank => Self::VanquisBank,
+            common_enums::BankNames::VestjyskBank => Self::VestjyskBank,
+            common_enums::BankNames::VossSparebank => Self::VossSparebank,
+            common_enums::BankNames::YorkshireBuildingSociety => Self::YorkshireBuildingSociety,
         }
     }
 }
@@ -19066,10 +19580,13 @@ impl
             access_token,
             session_token: None,
             reference_id: None,
-            connector_order_id: None,
+            // Elavon PG's hosted-payment-page 3DS opens its payment session against
+            // an Order created by PaymentService/CreateOrder, so the order created
+            // before pre-authentication has to reach this leg.
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -20245,8 +20762,9 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
-        // TokenSetupRecurringRequest has no test_mode field
+        // TokenSetupRecurringRequest has no test_mode or capture_method field
         test_mode: None,
+        capture_method: None,
     }
 }
 
@@ -20472,6 +20990,7 @@ pub fn proxied_setup_recurring_to_base(
         recipient_details: None,
         additional_connector_details: None,
         test_mode: v.test_mode,
+        capture_method: None,
     })
 }
 
