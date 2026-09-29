@@ -522,7 +522,10 @@ pub enum TrustpayAuthorizeStatus {
 }
 
 impl TrustpayAuthorizeStatus {
-    pub fn attempt_status(self, previous_attempt_status: enums::AttemptStatus) -> enums::AttemptStatus {
+    pub fn attempt_status(
+        self,
+        previous_attempt_status: enums::AttemptStatus,
+    ) -> enums::AttemptStatus {
         match self {
             Self::Card(card_status) => match card_status {
                 TrustpayCardPaymentStatus::Charged => enums::AttemptStatus::Charged,
@@ -547,16 +550,14 @@ impl TrustpayAuthorizeStatus {
     }
 }
 
-pub fn authorize_flow_status(
-    response: &TrustpayPaymentsResponse,
-) -> TrustpayAuthorizeStatus {
+pub fn authorize_flow_status(response: &TrustpayPaymentsResponse) -> TrustpayAuthorizeStatus {
     match response {
-        TrustpayPaymentsResponse::CardsPayments(response) => TrustpayAuthorizeStatus::Card(
-            card_payment_flow_status(
+        TrustpayPaymentsResponse::CardsPayments(response) => {
+            TrustpayAuthorizeStatus::Card(card_payment_flow_status(
                 response.payment_status.clone(),
                 response.redirect_url.clone(),
-            ),
-        ),
+            ))
+        }
         TrustpayPaymentsResponse::BankRedirectPayments(_) => {
             TrustpayAuthorizeStatus::BankRedirectInitiated
         }
@@ -576,16 +577,20 @@ pub fn authorize_flow_status(
     }
 }
 
-pub fn refund_flow_status(response: &RefundResponse) -> Result<enums::RefundStatus, ConnectorError> {
+pub fn refund_flow_status(
+    response: &RefundResponse,
+) -> Result<enums::RefundStatus, ConnectorError> {
     match response {
         RefundResponse::CardsRefund(response) => Ok(get_refund_status(&response.payment_status).0),
-        RefundResponse::WebhookRefund(response) => enums::RefundStatus::try_from(response.status.clone()),
+        RefundResponse::WebhookRefund(response) => {
+            enums::RefundStatus::try_from(response.status.clone())
+        }
         RefundResponse::BankRedirectRefund(response) => {
             Ok(get_refund_status_from_result_info(response.result_info.result_code).0)
         }
-        RefundResponse::BankRedirectRefundSyncResponse(response) => {
-            Ok(enums::RefundStatus::from(response.payment_information.status.clone()))
-        }
+        RefundResponse::BankRedirectRefundSyncResponse(response) => Ok(enums::RefundStatus::from(
+            response.payment_information.status.clone(),
+        )),
         RefundResponse::BankRedirectError(_) => Ok(enums::RefundStatus::Failure),
     }
 }

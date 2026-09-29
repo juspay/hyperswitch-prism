@@ -207,9 +207,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-fn aci_runtime_status_error(
-    _error: error_stack::Report<ConnectorError>,
-) -> ConnectorError {
+fn aci_runtime_status_error(_error: error_stack::Report<ConnectorError>) -> ConnectorError {
     ConnectorError::unexpected_response_error_http_status_unknown()
 }
 
@@ -286,11 +284,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        Void,
-        PaymentVoidData,
-        AciVoidResponse,
-    > for Aci<T>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<Void, PaymentVoidData, AciVoidResponse>
+    for Aci<T>
 {
     type MappedStatus = common_enums::AttemptStatus;
 
@@ -302,19 +297,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     where
         CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
     {
-        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Void>>::map_attempt_status(
-            response.flow_status().map_err(aci_runtime_status_error)?,
-            (),
-        ))
+        Ok(
+            <Self as domain_types::flow_status::ConnectorTerminalMapping<Void>>::map_attempt_status(
+                response.flow_status().map_err(aci_runtime_status_error)?,
+                (),
+            ),
+        )
     }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        Refund,
-        RefundsData,
-        AciRefundResponse,
-    > for Aci<T>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<Refund, RefundsData, AciRefundResponse>
+    for Aci<T>
 {
     type MappedStatus = common_enums::RefundStatus;
 

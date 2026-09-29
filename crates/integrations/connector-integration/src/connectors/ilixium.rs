@@ -726,16 +726,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let current_status =
             domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(common_data);
         let connector_request_reference_id =
-            domain_types::flow_status::FlowStatusReader::connector_request_reference_id(common_data)
-                .ok_or_else(|| {
-                    errors::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                        Some(
-                            "Ilixium PSync requires connector_request_reference_id to derive \
+            domain_types::flow_status::FlowStatusReader::connector_request_reference_id(
+                common_data,
+            )
+            .ok_or_else(|| {
+                errors::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(
+                        "Ilixium PSync requires connector_request_reference_id to derive \
                              transaction.merchantRef for POST /history/operations"
-                                .to_string(),
-                        ),
-                    )
-                })?;
+                            .to_string(),
+                    ),
+                )
+            })?;
         let merchant_ref = transformers::derive_merchant_ref(connector_request_reference_id)
             .map_err(|_| errors::ConnectorError::ResponseHandlingFailed {
                 context: errors::ResponseTransformationErrorContext {

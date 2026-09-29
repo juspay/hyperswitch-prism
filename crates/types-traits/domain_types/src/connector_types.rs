@@ -1554,8 +1554,8 @@ impl PaymentFlowData {
     }
 }
 
-impl<F: crate::flow_status::FlowStatusRules>
-    crate::flow_status::FlowStatusSetter<F, AttemptStatus> for PaymentFlowData
+impl<F: crate::flow_status::FlowStatusRules> crate::flow_status::FlowStatusSetter<F, AttemptStatus>
+    for PaymentFlowData
 {
     fn set_mapped_flow_status(
         &mut self,

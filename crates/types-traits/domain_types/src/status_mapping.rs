@@ -189,15 +189,13 @@ macro_rules! __impl_connector_flow_allowed_status_mapping_flow_guard {
     (Authenticate) => {};
     (PostAuthenticate) => {};
     ($flow:ident) => {
-        compile_error!(
-            concat!(
-                "impl_connector_flow_allowed_status_mapping is only for initiate/authentication ",
-                "payment flows (Authorize, PreAuthenticate, Authenticate, PostAuthenticate), not `",
-                stringify!($flow),
-                "`. Use impl_flow_status_mapping! / impl_flow_status_mapping_ctx! for terminal ",
-                "payment flows."
-            )
-        );
+        compile_error!(concat!(
+            "impl_connector_flow_allowed_status_mapping is only for initiate/authentication ",
+            "payment flows (Authorize, PreAuthenticate, Authenticate, PostAuthenticate), not `",
+            stringify!($flow),
+            "`. Use impl_flow_status_mapping! / impl_flow_status_mapping_ctx! for terminal ",
+            "payment flows."
+        ));
     };
 }
 

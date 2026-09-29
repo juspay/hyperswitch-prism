@@ -221,11 +221,8 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        Refund,
-        RefundsData,
-        RefundResponse,
-    > for Trustpay<T>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<Refund, RefundsData, RefundResponse>
+    for Trustpay<T>
 {
     type MappedStatus = common_enums::RefundStatus;
 

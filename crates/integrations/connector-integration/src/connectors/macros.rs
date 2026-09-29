@@ -144,27 +144,23 @@ impl<Connector, Flow, CommonData, Request, Response, RawResponse>
     ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse>
     for &FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
 where
-    Connector:
-        domain_types::flow_status::ConnectorRuntimeStatusMapping<Flow, Request, RawResponse>,
+    Connector: domain_types::flow_status::ConnectorRuntimeStatusMapping<Flow, Request, RawResponse>,
     CommonData: domain_types::flow_status::FlowStatusSetter<
-        Flow,
-        <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
             Flow,
-            Request,
-            RawResponse,
-        >>::MappedStatus,
-    > + domain_types::flow_status::FlowStatusReader<
-        <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
-            Flow,
-            Request,
-            RawResponse,
-        >>::MappedStatus,
-    >,
-    RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
-        types::ResponseRouterData<
-            RawResponse,
-            RouterDataV2<Flow, CommonData, Request, Response>,
+            <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
+                Flow,
+                Request,
+                RawResponse,
+            >>::MappedStatus,
+        > + domain_types::flow_status::FlowStatusReader<
+            <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
+                Flow,
+                Request,
+                RawResponse,
+            >>::MappedStatus,
         >,
+    RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
+        types::ResponseRouterData<RawResponse, RouterDataV2<Flow, CommonData, Request, Response>>,
         Error = error_stack::Report<ConnectorError>,
     >,
 {
@@ -182,12 +178,11 @@ where
             &response.response,
         )
         .map_err(error_stack::Report::new)?;
-        let mut result =
-            RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    status_code,
-                    "macros",
-                ))?;
+        let mut result = RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "macros",
+            ))?;
         result
             .resource_common_data
             .set_mapped_flow_status(mapped_status)
@@ -201,10 +196,7 @@ impl<Connector, Flow, CommonData, Request, Response, RawResponse>
     for &&FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
 where
     RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
-        types::ResponseRouterData<
-            RawResponse,
-            RouterDataV2<Flow, CommonData, Request, Response>,
-        >,
+        types::ResponseRouterData<RawResponse, RouterDataV2<Flow, CommonData, Request, Response>>,
         Error = error_stack::Report<ConnectorError>,
     >,
 {
