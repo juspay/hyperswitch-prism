@@ -13,7 +13,9 @@ use crate::{
         RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
-    router_request_types::{AuthoriseIntegrityObject, RepeatPaymentIntegrityObject},
+    router_request_types::{
+        AuthoriseIntegrityObject, PaymentSynIntegrityObject, RepeatPaymentIntegrityObject,
+    },
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
@@ -7166,6 +7168,29 @@ impl TryFrom<&RepeatPaymentIntegrityObject> for grpc_api_types::payments::Money 
     }
 }
 
+impl TryFrom<&PaymentSynIntegrityObject> for grpc_api_types::payments::Money {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(integrity_obj: &PaymentSynIntegrityObject) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: integrity_obj.amount.get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(integrity_obj.currency)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "Failed to convert currency to gRPC Currency type".to_string(),
+                        ),
+                    },
+                })
+                .attach_printable(format!(
+                    "source currency for integrity object: {:?}",
+                    integrity_obj.currency
+                ))? as i32,
+        })
+    }
+}
+
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -8847,6 +8872,13 @@ pub fn generate_payment_sync_response(
         })
         .transpose()?;
 
+    let connector_reported_money = router_data_v2
+        .request
+        .integrity_object
+        .as_ref()
+        .map(grpc_api_types::payments::Money::try_from)
+        .transpose()?;
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -8916,6 +8948,7 @@ pub fn generate_payment_sync_response(
                     network_transaction_id: network_txn_id,
                     network_txn_link_id,
                     amount,
+                    connector_reported_money,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     payment_method_type: None,
                     capture_method: None,
@@ -9043,6 +9076,7 @@ pub fn generate_payment_sync_response(
                     network_transaction_id: None,
                     network_txn_link_id: None,
                     amount,
+                    connector_reported_money,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     payment_method_type: None,
                     capture_method: None,
@@ -9147,6 +9181,7 @@ pub fn generate_payment_sync_response(
                 network_transaction_id: None,
                 network_txn_link_id: None,
                 amount,
+                connector_reported_money,
                 captured_amount: None,
                 payment_method_type: None,
                 capture_method: None,
@@ -10168,6 +10203,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
             amount: None,
+            // `WebhookDetailsResponse` has no integrity_object 
+            connector_reported_money: None,
             captured_amount: value
                 .minor_amount_captured
                 .map(|amount_captured| amount_captured.get_amount_as_i64()),
@@ -16310,7 +16347,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     grpc_payment_types::MandateReference::foreign_from(*mandate_reference)
                 });
 
-                let authorized_money = router_data_v2
+                let connector_reported_money = router_data_v2
                     .request
                     .integrity_object
                     .as_ref()
@@ -16377,7 +16414,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         connector_response,
                         captured_amount: router_data_v2.resource_common_data.amount_captured,
                         capturable_amount,
-                        authorized_money,
+                        connector_reported_money,
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
@@ -16447,7 +16484,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_response,
                     captured_amount: None,
                     capturable_amount: None,
-                    authorized_money: None,
+                    connector_reported_money: None,
                     incremental_authorization_allowed: None,
                     splits: None,
                     payment_account_reference: None,

@@ -3011,6 +3011,10 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // The amount and currency the connector actually reported for this sync, populated from
+  // PaymentSynIntegrityObject and used for the integrity check.
+  optional Money connector_reported_money = 43;
 }
 
 // Request message for voiding a payment
@@ -4023,8 +4027,10 @@ message RecurringPaymentServiceChargeResponse {
 
   // Amount still capturable, in minor currency units (manual-capture repeat/MIT charges).
   optional int64 capturable_amount = 25;
-  // Authorized amount and currency, populated from RepeatPaymentIntegrityObject for integrity check.
-  optional Money authorized_money = 26;
+  // The amount and currency the connector actually reported for this charge — an authorized
+  // amount for a manual-capture repeat/MIT charge, or a charged amount for an auto-captured
+  // one. Populated from RepeatPaymentIntegrityObject and used for the integrity check.
+  optional Money connector_reported_money = 26;
 }
 
 // Request message for a mandate revoke operation
