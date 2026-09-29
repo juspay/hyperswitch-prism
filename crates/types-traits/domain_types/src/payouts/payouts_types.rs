@@ -406,6 +406,9 @@ pub struct PayoutCreateRecipientRequest {
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
 
+/// Day, month and year parts of a date of birth.
+pub type DateOfBirthParts = (Secret<String>, Secret<String>, Secret<String>);
+
 #[derive(Debug, Clone, Default)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: Option<PayoutVendorDetails>,
@@ -480,9 +483,7 @@ impl PayoutCreateRecipientRequest {
     }
 
     /// Split `date_of_birth` (ISO 8601, `yyyy-MM-dd`) into day, month and year.
-    pub fn get_date_of_birth_parts(
-        &self,
-    ) -> Result<(Secret<String>, Secret<String>, Secret<String>), Error> {
+    pub fn get_date_of_birth_parts(&self) -> Result<DateOfBirthParts, Error> {
         let date_of_birth = self.get_date_of_birth()?;
         let mut parts = date_of_birth.peek().split('-');
         match (parts.next(), parts.next(), parts.next()) {
