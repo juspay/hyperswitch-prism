@@ -1619,6 +1619,7 @@ pub enum PaymentMethodType {
     Paymaya,
     Payhere,
     QwikcilverWallet,
+    Ted,
 }
 
 impl PaymentMethodType {
