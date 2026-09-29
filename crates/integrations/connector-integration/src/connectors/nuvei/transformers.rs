@@ -236,12 +236,19 @@ pub enum NuveiPlatformType {
     Browser,
 }
 
+/// threeD.browserDetails. Nuvei's REST 1.0 reference marks every member
+/// "Required for 3DS" except `javaEnabled`, which is "Conditional for 3DS —
+/// REQUIRED when javaScriptEnabled is TRUE". The required ones stay non-
+/// optional and are rejected with a missing-field error rather than defaulted,
+/// because a fabricated browser fingerprint fails authentication silently.
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiBrowserDetails {
     pub accept_header: String,
     pub ip: Secret<String, pii::IpAddress>,
-    pub java_enabled: String,
+    /// Conditional: required only when `java_script_enabled` is TRUE.
+    pub java_enabled: Option<String>,
     pub java_script_enabled: String,
     pub language: String,
     pub color_depth: u8,
@@ -597,7 +604,9 @@ fn get_required_billing_address(
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiShippingAddress {
-    pub email: pii::Email,
+    /// Nuvei documents `shippingAddress.email` as conditional (required only for
+    /// certain APMs), so it is omitted when the shopper did not supply one.
+    pub email: Option<pii::Email>,
     pub country: common_enums::CountryAlpha2,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
@@ -609,18 +618,13 @@ pub struct NuveiShippingAddress {
     pub zip: Option<Secret<String>>,
 }
 
-/// Nuvei `shippingAddress`, emitted only when a shipping address with a
-/// country is present; email falls back to the billing email.
-fn get_shipping_address(
-    resource_data: &PaymentFlowData,
-    billing_email: Option<pii::Email>,
-) -> Option<NuveiShippingAddress> {
+/// Nuvei `shippingAddress`, emitted whenever a shipping country is present.
+/// `email` carries the shipping email only: the billing email describes the
+/// payer, not the consignee, so it is never copied here.
+fn get_shipping_address(resource_data: &PaymentFlowData) -> Option<NuveiShippingAddress> {
     let country = resource_data.get_optional_shipping_country()?;
-    let email = resource_data
-        .get_optional_shipping_email()
-        .or(billing_email)?;
     Some(NuveiShippingAddress {
-        email,
+        email: resource_data.get_optional_shipping_email(),
         country,
         first_name: resource_data.get_optional_shipping_first_name(),
         last_name: resource_data.get_optional_shipping_last_name(),
@@ -2331,7 +2335,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // billing email and country are mandatory
         let billing_address = get_required_billing_address(resource, email.clone())?;
-        let shipping_address = get_shipping_address(resource, Some(billing_address.email.clone()));
+        let shipping_address = get_shipping_address(resource);
 
         // deviceDetails.ipAddress is mandatory
         let ip_address = request
@@ -2598,6 +2602,17 @@ fn get_nuvei_browser_details(
             "Send the full browser_info of the customer for Nuvei 3DS",
         )
     };
+    let java_script_enabled = browser_info
+        .java_script_enabled
+        .ok_or_else(|| missing("browser_info.java_script_enabled"))?;
+    // javaEnabled is REQUIRED only when javaScriptEnabled is TRUE.
+    let java_enabled = match browser_info.java_enabled {
+        Some(enabled) => Some(enabled.to_string().to_uppercase()),
+        None if java_script_enabled => {
+            return Err(missing("browser_info.java_enabled").into());
+        }
+        None => None,
+    };
     Ok(NuveiBrowserDetails {
         accept_header: browser_info
             .accept_header
@@ -2607,16 +2622,8 @@ fn get_nuvei_browser_details(
             .ip_address
             .map(|ip| Secret::new(ip.to_string()))
             .ok_or_else(|| missing("browser_info.ip_address"))?,
-        java_enabled: browser_info
-            .java_enabled
-            .ok_or_else(|| missing("browser_info.java_enabled"))?
-            .to_string()
-            .to_uppercase(),
-        java_script_enabled: browser_info
-            .java_script_enabled
-            .ok_or_else(|| missing("browser_info.java_script_enabled"))?
-            .to_string()
-            .to_uppercase(),
+        java_enabled,
+        java_script_enabled: java_script_enabled.to_string().to_uppercase(),
         language: browser_info
             .language
             .clone()
@@ -3101,7 +3108,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_email()
             .or_else(|| request.email.clone());
         let billing_address = get_required_billing_address(resource, email)?;
-        let shipping_address = get_shipping_address(resource, Some(billing_address.email.clone()));
+        let shipping_address = get_shipping_address(resource);
 
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
@@ -4715,7 +4722,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Billing email and country are mandatory; shipping only when present
         let billing_address = get_required_billing_address(resource, request.email.clone())?;
-        let shipping_address = get_shipping_address(resource, Some(billing_address.email.clone()));
+        let shipping_address = get_shipping_address(resource);
 
         let dynamic_descriptor = get_dynamic_descriptor(request.billing_descriptor.as_ref())?;
 
@@ -5612,73 +5619,25 @@ pub fn payment_dmn_checksum_message(
     .concat())
 }
 
-/// A JSON object whose members keep their document order and raw text.
-struct OrderedRawObject(Vec<Box<serde_json::value::RawValue>>);
-
-impl<'de> Deserialize<'de> for OrderedRawObject {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct ObjectVisitor;
-        impl<'de> serde::de::Visitor<'de> for ObjectVisitor {
-            type Value = OrderedRawObject;
-            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("a JSON object")
-            }
-            fn visit_map<A: serde::de::MapAccess<'de>>(
-                self,
-                mut map: A,
-            ) -> Result<Self::Value, A::Error> {
-                let mut values = Vec::new();
-                while let Some((_key, value)) =
-                    map.next_entry::<String, Box<serde_json::value::RawValue>>()?
-                {
-                    values.push(value);
-                }
-                Ok(OrderedRawObject(values))
-            }
-        }
-        deserializer.deserialize_map(ObjectVisitor)
-    }
-}
-
-/// Append every JSON leaf value of `raw` in document order: strings unquoted,
-/// null as "", numbers and booleans as their raw JSON text.
-fn push_json_leaf_values(
-    raw: &serde_json::value::RawValue,
-    out: &mut String,
-) -> Result<(), serde_json::Error> {
-    let text = raw.get().trim();
-    match text.as_bytes().first() {
-        Some(b'{') => {
-            let object: OrderedRawObject = serde_json::from_str(text)?;
-            for value in &object.0 {
-                push_json_leaf_values(value, out)?;
-            }
-        }
-        Some(b'[') => {
-            let items: Vec<Box<serde_json::value::RawValue>> = serde_json::from_str(text)?;
-            for item in &items {
-                push_json_leaf_values(item, out)?;
-            }
-        }
-        Some(b'"') => out.push_str(&serde_json::from_str::<String>(text)?),
-        Some(_) if text == "null" => {}
-        Some(_) | None => out.push_str(text),
-    }
-    Ok(())
-}
-
-/// Chargeback DMN checksum message: secret + the body's JSON leaf values
-/// concatenated in document order.
+/// Chargeback (Control Panel *event*) DMN checksum message.
+///
+/// Nuvei computes the event-DMN checksum as
+/// `SHA-256(merchantSecretKey || <the JSON payload exactly as sent>)`, and
+/// delivers the result in the `Checksum` request header — see "Authenticating
+/// the DMN" at
+/// <https://docs.nuvei.com/documentation/integration/webhooks/control-panel/>.
+/// The worked example on that page hashes the verbatim body, so the raw bytes
+/// are used here: re-serialising the parsed struct would drop unknown members,
+/// reorder keys and normalise whitespace, none of which the checksum tolerates.
+/// This is deliberately different from `payment_dmn_checksum_message`, which
+/// concatenates a fixed list of named payment-DMN fields.
 pub fn chargeback_checksum_message(
     body: &[u8],
     secret: &str,
 ) -> Result<String, Report<WebhookError>> {
-    let raw: Box<serde_json::value::RawValue> =
-        serde_json::from_slice(body).change_context(WebhookError::WebhookBodyDecodingFailed)?;
-    let mut message = secret.to_string();
-    push_json_leaf_values(&raw, &mut message)
-        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-    Ok(message)
+    let payload =
+        std::str::from_utf8(body).change_context(WebhookError::WebhookBodyDecodingFailed)?;
+    Ok(format!("{secret}{payload}"))
 }
 
 /// Payment/refund DMN -> event (hyperswitch `map_notification_to_event`).

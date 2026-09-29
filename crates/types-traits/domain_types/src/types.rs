@@ -17,8 +17,8 @@ use crate::{
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
-    CaptureMethod, CardNetwork, CountryAlpha2, EligibilityStatus, FutureUsage, PaymentMethod,
-    PaymentMethodType, SamsungPayCardBrand,
+    CaptureMethod, CardNetwork, CountryAlpha2, EligibilityStatus, PaymentMethod, PaymentMethodType,
+    SamsungPayCardBrand,
 };
 use common_utils::config_patch::Patch;
 use common_utils::{
@@ -80,6 +80,29 @@ fn convert_optional_country_alpha2(
         Ok(None)
     } else {
         CountryAlpha2::foreign_try_from(value).map(Some)
+    }
+}
+
+/// gRPC enums reserve variant 0 for "unspecified", which the wire uses to mean the
+/// caller did not set the field at all. Running that variant through
+/// `foreign_try_from` would turn an unset field into a deliberate choice, so it
+/// becomes `None` here instead. These two exist so that decision lives in one place
+/// rather than being restated in every request conversion that happens to need it.
+fn optional_future_usage(
+    value: grpc_payment_types::FutureUsage,
+) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<IntegrationError>> {
+    match value {
+        grpc_payment_types::FutureUsage::Unspecified => Ok(None),
+        set => Ok(Some(common_enums::FutureUsage::foreign_try_from(set)?)),
+    }
+}
+
+fn optional_payment_channel(
+    value: grpc_payment_types::PaymentChannel,
+) -> Result<Option<common_enums::PaymentChannel>, error_stack::Report<IntegrationError>> {
+    match value {
+        grpc_payment_types::PaymentChannel::Unspecified => Ok(None),
+        set => Ok(Some(common_enums::PaymentChannel::foreign_try_from(set)?)),
     }
 }
 
@@ -4766,10 +4789,7 @@ impl<
             .and_then(|v| v.as_str())
             .map(str::to_string);
 
-        let setup_future_usage = match value.setup_future_usage {
-            grpc_payment_types::FutureUsage::Unspecified => None,
-            _ => Some(FutureUsage::foreign_try_from(value.setup_future_usage)?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage)?;
 
         let customer_acceptance = value.customer_acceptance.clone();
         let authentication_data = value
@@ -4818,12 +4838,7 @@ impl<
                 }
             });
 
-        let payment_channel = match value.payment_channel {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel,
-            )?),
-        };
+        let payment_channel = optional_payment_channel(value.payment_channel)?;
         let tokenization = match value.tokenization_strategy {
             None => None,
             Some(tokenization_strategy) => Some(common_enums::Tokenization::foreign_try_from(
@@ -5028,10 +5043,7 @@ impl<
             })
         })?;
 
-        let setup_future_usage = match value.setup_future_usage {
-            grpc_payment_types::FutureUsage::Unspecified => None,
-            _ => Some(FutureUsage::foreign_try_from(value.setup_future_usage)?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage)?;
 
         let customer_acceptance = value.customer_acceptance.clone();
 
@@ -7951,10 +7963,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone())
         };
 
-        let setup_future_usage = match value.setup_future_usage() {
-            grpc_payment_types::FutureUsage::Unspecified => None,
-            _ => Some(FutureUsage::foreign_try_from(value.setup_future_usage())?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage())?;
 
         let sync_type = match value.sync_type() {
             grpc_payment_types::SyncRequestType::MultipleCaptureSync => {
@@ -12760,12 +12769,7 @@ impl<
                     reference: descriptor.reference.clone(),
                 });
 
-        let payment_channel = match value.payment_channel() {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel(),
-            )?),
-        };
+        let payment_channel = optional_payment_channel(value.payment_channel())?;
 
         let mit_category = match value.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
@@ -13853,10 +13857,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         let payment_method_type = <Option<common_enums::PaymentMethodType>>::foreign_try_from(
             value.payment_method_type(),
         )?;
-        let setup_future_usage = match value.setup_future_usage() {
-            grpc_payment_types::FutureUsage::Unspecified => None,
-            future_usage => Some(common_enums::FutureUsage::foreign_try_from(future_usage)?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage())?;
         // Carried on the CreateOrder request data, not on `PaymentFlowData`, which
         // stays `None` here so connectors reading `resource_common_data.customer_id`
         // in their CreateOrder transformer are unaffected.
@@ -14915,10 +14916,7 @@ impl<
         }?;
         let currency = money.currency;
 
-        let setup_future_usage = match value.setup_future_usage() {
-            grpc_payment_types::FutureUsage::Unspecified => None,
-            fu => Some(common_enums::FutureUsage::foreign_try_from(fu)?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage())?;
         let customer_acceptance = value
             .customer_acceptance
             .map(mandates::CustomerAcceptance::foreign_try_from)
@@ -19029,14 +19027,8 @@ impl<
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Enum accessors borrow the whole request, so they run before any field moves.
-        let setup_future_usage = match value.setup_future_usage() {
-            grpc_api_types::payments::FutureUsage::Unspecified => None,
-            future_usage => Some(FutureUsage::foreign_try_from(future_usage)?),
-        };
-        let payment_channel = match value.payment_channel() {
-            grpc_api_types::payments::PaymentChannel::Unspecified => None,
-            channel => Some(common_enums::PaymentChannel::foreign_try_from(channel)?),
-        };
+        let setup_future_usage = optional_future_usage(value.setup_future_usage())?;
+        let payment_channel = optional_payment_channel(value.payment_channel())?;
         let customer_acceptance = value
             .customer_acceptance
             .map(mandates::CustomerAcceptance::foreign_try_from)
