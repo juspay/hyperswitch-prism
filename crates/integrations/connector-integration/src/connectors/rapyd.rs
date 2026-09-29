@@ -236,7 +236,7 @@ domain_types::impl_flow_status_mapping_ctx! {
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
-            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Pending,
+            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,

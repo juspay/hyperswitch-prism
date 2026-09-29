@@ -163,12 +163,17 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
     flow:      SetupMandate,
-    source:    aci::AciPaymentStatus,
+    source:    aci::AciMandateStatus,
     success:   Succeeded        => Charged,
     failure:   Failed           => Failure,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: AciMandateResponse,
+        source: |response| response.flow_status(),
+        context: |_request, _response| (),
+    },
     {
         Pending         => Pending,
-        RedirectShopper => AuthenticationPending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -176,22 +181,182 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Aci<T>,
-    flow:      RepeatPayment,
-    source:    aci::AciPaymentStatus,
-    success:   Succeeded        => Charged,
-    failure:   Failed           => Failure,
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Aci<T>,
+    flow:           RepeatPayment,
+    source:         aci::AciPaymentStatus,
+    context:        bool,
+    params:         [status, auto_capture],
+    success_status:  Succeeded,
+    success_targets: [Charged],
+    failure_status:  Failed,
+    failure_target:  Failure,
     {
-        Pending         => Pending,
-        RedirectShopper => Failure, // a repeat payment should never redirect the shopper since it's merchant-initiated with no customer interaction
+        match (status, auto_capture) {
+            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
+            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
+            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
+            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Pending,
+            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
+        }
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Aci<T>
 {
 }
+
+fn aci_runtime_status_error(
+    _error: error_stack::Report<ConnectorError>,
+) -> ConnectorError {
+    ConnectorError::unexpected_response_error_http_status_unknown()
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Authorize,
+        PaymentsAuthorizeData<T>,
+        AciPaymentsResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &PaymentsAuthorizeData<T>,
+        response: &AciPaymentsResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Authorize>>::map_attempt_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            request.is_auto_capture(),
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        PSync,
+        PaymentsSyncData,
+        AciPaymentsSyncResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &PaymentsSyncData,
+        response: &AciPaymentsSyncResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<PSync>>::map_attempt_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            request.is_auto_capture(),
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Capture,
+        PaymentsCaptureData,
+        AciCaptureResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &PaymentsCaptureData,
+        response: &AciCaptureResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Capture>>::map_attempt_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            (),
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Void,
+        PaymentVoidData,
+        AciVoidResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &PaymentVoidData,
+        response: &AciVoidResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Void>>::map_attempt_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            (),
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Refund,
+        RefundsData,
+        AciRefundResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::RefundStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &RefundsData,
+        response: &AciRefundResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorRefundTerminalMapping<Refund>>::map_refund_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            (),
+        ))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        RepeatPayment,
+        RepeatPaymentData<T>,
+        AciRepeatPaymentResponse,
+    > for Aci<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &RepeatPaymentData<T>,
+        response: &AciRepeatPaymentResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<RepeatPayment>>::map_attempt_status(
+            response.flow_status().map_err(aci_runtime_status_error)?,
+            request.is_auto_capture(),
+        ))
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Aci<T>
 {

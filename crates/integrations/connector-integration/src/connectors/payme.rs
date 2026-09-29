@@ -54,7 +54,15 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
+        source: |response| {
+            if response.status_code != 0
+                && (response.payme_status != "success" || response.status_error_code.is_some())
+            {
+                payme::SaleStatus::Failed
+            } else {
+                response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
+            }
+        },
         context: |_request, _response| (),
     },
     {
@@ -83,11 +91,15 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsSyncData,
         response: PaymeSyncResponse,
         source: |response| {
-            response
-                .items
-                .first()
-                .and_then(|item| item.sale_status.clone())
-                .unwrap_or(payme::SaleStatus::Initial)
+            if response.status_code != 0 {
+                payme::SaleStatus::Failed
+            } else {
+                response
+                    .items
+                    .first()
+                    .and_then(|item| item.sale_status.clone())
+                    .unwrap_or(payme::SaleStatus::Initial)
+            }
         },
         context: |_request, _response| (),
     },
@@ -110,23 +122,18 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
     flow:      Void,
-    source:    payme::SaleStatus,
+    source:    payme::PaymeVoidFlowStatus,
     success:   Voided       => Voided,
-    failure:   Failed       => Failure,
+    failure:   Failed       => VoidFailed,
     extractors: {
         request: PaymentVoidData,
         response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
+        source: |response| response.void_flow_status(),
         context: |_request, _response| (),
     },
     {
-        Initial      => Pending,
-        Completed    => VoidFailed,
-        Authorized   => VoidInitiated,
-        Refunded     => VoidFailed,
-        PartialRefund => VoidFailed,
-        PartialVoid  => Voided,
-        Chargeback   => VoidFailed,
+        Pending       => Pending,
+        DefaultVoided => Voided,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -144,7 +151,15 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: PaymePaymentResponse,
-        source: |response| response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial),
+        source: |response| {
+            if response.status_code != 0
+                && (response.payme_status != "success" || response.status_error_code.is_some())
+            {
+                payme::SaleStatus::Failed
+            } else {
+                response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
+            }
+        },
         context: |_request, _response| (),
     },
     {
@@ -181,9 +196,9 @@ domain_types::impl_refund_flow_status_mapping! {
         Completed      => Success,
         Initial        => Pending,
         Authorized     => Pending,
-        Voided         => Failure,
-        PartialVoid    => Failure,
-        Chargeback     => Failure,
+        Voided         => Pending,
+        PartialVoid    => Pending,
+        Chargeback     => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -209,9 +224,9 @@ domain_types::impl_refund_flow_status_mapping! {
         Completed      => Success,
         Initial        => Pending,
         Authorized     => Pending,
-        Voided         => Failure,
-        PartialVoid    => Failure,
-        Chargeback     => Failure,
+        Voided         => Pending,
+        PartialVoid    => Pending,
+        Chargeback     => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

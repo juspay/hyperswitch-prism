@@ -16,7 +16,7 @@ macro_rules! __impl_runtime_payment_status_mapping {
                 _common_data: &CommonData,
                 request: &$request,
                 response: &$response,
-            ) -> Self::MappedStatus
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
@@ -27,10 +27,10 @@ macro_rules! __impl_runtime_payment_status_mapping {
                     <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::MappingContext =
                     $context_from;
 
-                <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::map_attempt_status(
+                Ok(<Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::map_attempt_status(
                     source_from(response),
                     context_from(request, response),
-                )
+                ))
             }
         }
     };
@@ -82,13 +82,13 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
                 _common_data: &CommonData,
                 request: &$request,
                 response: &$response,
-            ) -> Self::MappedStatus
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
                 let status_from: fn(&$request, &$response) -> common_enums::AttemptStatus =
                     $status_from;
-                status_from(request, response)
+                Ok(status_from(request, response))
             }
         }
     };
@@ -127,11 +127,11 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
                 _common_data: &CommonData,
                 _request: &$request,
                 _response: &$response,
-            ) -> Self::MappedStatus
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
-                common_enums::AttemptStatus::$status
+                Ok(common_enums::AttemptStatus::$status)
             }
         }
     };
@@ -219,7 +219,7 @@ macro_rules! __impl_runtime_refund_status_mapping {
                 _common_data: &CommonData,
                 request: &$request,
                 response: &$response,
-            ) -> Self::MappedStatus
+            ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
@@ -230,10 +230,10 @@ macro_rules! __impl_runtime_refund_status_mapping {
                     <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::MappingContext =
                     $context_from;
 
-                <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::map_refund_status(
+                Ok(<Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::map_refund_status(
                     source_from(response),
                     context_from(request, response),
-                )
+                ))
             }
         }
     };

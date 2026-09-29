@@ -521,6 +521,32 @@ pub enum TrustpayAuthorizeStatus {
     Webhook(WebhookStatus),
 }
 
+impl TrustpayAuthorizeStatus {
+    pub fn attempt_status(self, previous_attempt_status: enums::AttemptStatus) -> enums::AttemptStatus {
+        match self {
+            Self::Card(card_status) => match card_status {
+                TrustpayCardPaymentStatus::Charged => enums::AttemptStatus::Charged,
+                TrustpayCardPaymentStatus::Failed => enums::AttemptStatus::Failure,
+                TrustpayCardPaymentStatus::AuthenticationPending => {
+                    enums::AttemptStatus::AuthenticationPending
+                }
+                TrustpayCardPaymentStatus::Pending => enums::AttemptStatus::Pending,
+            },
+            Self::BankRedirectInitiated => enums::AttemptStatus::AuthenticationPending,
+            Self::BankRedirect(bank_status) => enums::AttemptStatus::from(bank_status),
+            Self::BankRedirectErrorRetainPrevious => previous_attempt_status,
+            Self::BankRedirectErrorRejected => enums::AttemptStatus::AuthorizationFailed,
+            Self::Webhook(webhook_status) => match webhook_status {
+                WebhookStatus::Paid => enums::AttemptStatus::Charged,
+                WebhookStatus::Rejected => enums::AttemptStatus::AuthorizationFailed,
+                WebhookStatus::Refunded | WebhookStatus::Chargebacked | WebhookStatus::Unknown => {
+                    enums::AttemptStatus::Failure
+                }
+            },
+        }
+    }
+}
+
 pub fn authorize_flow_status(
     response: &TrustpayPaymentsResponse,
 ) -> TrustpayAuthorizeStatus {
@@ -547,6 +573,20 @@ pub fn authorize_flow_status(
         TrustpayPaymentsResponse::WebhookResponse(response) => {
             TrustpayAuthorizeStatus::Webhook(response.status.clone())
         }
+    }
+}
+
+pub fn refund_flow_status(response: &RefundResponse) -> Result<enums::RefundStatus, ConnectorError> {
+    match response {
+        RefundResponse::CardsRefund(response) => Ok(get_refund_status(&response.payment_status).0),
+        RefundResponse::WebhookRefund(response) => enums::RefundStatus::try_from(response.status.clone()),
+        RefundResponse::BankRedirectRefund(response) => {
+            Ok(get_refund_status_from_result_info(response.result_info.result_code).0)
+        }
+        RefundResponse::BankRedirectRefundSyncResponse(response) => {
+            Ok(enums::RefundStatus::from(response.payment_information.status.clone()))
+        }
+        RefundResponse::BankRedirectError(_) => Ok(enums::RefundStatus::Failure),
     }
 }
 

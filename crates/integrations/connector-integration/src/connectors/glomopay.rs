@@ -688,7 +688,7 @@ domain_types::impl_flow_status_mapping! {
     },
     {
         InProgress    => AuthenticationPending,
-        ActionRequired => Pending,
+        ActionRequired => Failure,
         Pending       => Pending,
     }
 }

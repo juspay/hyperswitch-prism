@@ -105,27 +105,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
-domain_types::impl_flow_status_mapping! {
+// Authorize only prepares an Interac redirect form; the response carries no
+// transaction status, so the attempt is always AuthenticationPending (matches
+// the TryFrom, which hardcodes the same status).
+domain_types::impl_connector_flow_allowed_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Gigadat<T>,
     flow:      Authorize,
-    source:    transformers::GigadatTransactionStatus,
-    success:   StatusSuccess   => Charged,
-    failure:   StatusFailed    => Failure,
-    extractors: {
-        request: PaymentsAuthorizeData<T>,
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
         response: GigadatPaymentsResponse,
-        source: |_response| transformers::GigadatTransactionStatus::StatusPending,
-        context: |_request, _response| (),
     },
-    {
-        StatusInited   => Pending,
-        StatusPending  => Pending,
-        StatusRejected => Failure,
-        StatusRejected1 => Failure,
-        StatusExpired  => Failure,
-        StatusAborted1 => Failure,
-    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Gigadat<T>

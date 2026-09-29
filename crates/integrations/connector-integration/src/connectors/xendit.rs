@@ -60,19 +60,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping! {
+domain_types::impl_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
     flow:      Authorize,
     source:    transformers::PaymentStatus,
-    success:   AwaitingCapture   => Authorized,
-    failure:   Failed            => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: XenditPaymentResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    context:   bool,
+    params:    [status, is_auto_capture],
+    success_status:  Succeeded,
+    success_targets: [Charged, Authorized],
+    failure_status:  Failed,
+    failure_target:  Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: XenditPaymentResponse,
+        source:   |response| response.status.clone(),
+        context:  |request, _response| request.is_auto_capture(),
+    },
     {
-        Succeeded        => Charged,
-        Verified         => Charged,
-        Pending          => Pending,
-        RequiresAction   => AuthenticationPending,
+        use common_enums::AttemptStatus;
+        match status {
+            transformers::PaymentStatus::Succeeded | transformers::PaymentStatus::Verified => {
+                if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
+            }
+            transformers::PaymentStatus::Pending => AttemptStatus::Pending,
+            transformers::PaymentStatus::RequiresAction => AttemptStatus::AuthenticationPending,
+            transformers::PaymentStatus::AwaitingCapture => AttemptStatus::Authorized,
+            transformers::PaymentStatus::Failed => AttemptStatus::Failure,
+        }
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

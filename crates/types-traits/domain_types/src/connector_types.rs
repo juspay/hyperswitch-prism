@@ -1582,6 +1582,10 @@ impl crate::flow_status::FlowStatusReader<AttemptStatus> for PaymentFlowData {
     fn current_mapped_flow_status(&self) -> AttemptStatus {
         self.status
     }
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        Some(&self.connector_request_reference_id)
+    }
 }
 
 impl RawConnectorRequestResponse for PaymentFlowData {
@@ -2986,6 +2990,10 @@ impl<F: crate::flow_status::RefundFlowStatusRules>
 impl crate::flow_status::FlowStatusReader<common_enums::RefundStatus> for RefundFlowData {
     fn current_mapped_flow_status(&self) -> common_enums::RefundStatus {
         self.status
+    }
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        Some(&self.connector_request_reference_id)
     }
 }
 

@@ -578,7 +578,7 @@ pub trait ConnectorRuntimeStatusMapping<Flow, Request, Response> {
         common_data: &CommonData,
         request: &Request,
         response: &Response,
-    ) -> Self::MappedStatus
+    ) -> Result<Self::MappedStatus, crate::ConnectorError>
     where
         CommonData: FlowStatusReader<Self::MappedStatus>;
 }
@@ -588,6 +588,10 @@ pub trait ConnectorRuntimeStatusMapping<Flow, Request, Response> {
 /// previous value for specific gateway responses.
 pub trait FlowStatusReader<Status> {
     fn current_mapped_flow_status(&self) -> Status;
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// Applies a mapped status to the flow's common data after response

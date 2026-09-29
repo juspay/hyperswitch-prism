@@ -180,7 +180,8 @@ where
             &response.router_data.resource_common_data,
             &response.router_data.request,
             &response.response,
-        );
+        )
+        .map_err(error_stack::Report::new)?;
         let mut result =
             RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
                 .change_context(crate::utils::response_handling_fail_for_connector(

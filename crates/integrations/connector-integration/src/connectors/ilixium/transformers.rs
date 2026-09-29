@@ -1826,7 +1826,7 @@ fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Charged,
         IlixiumStatusCode::Pending => AttemptStatus::CaptureInitiated,
-        IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
+        IlixiumStatusCode::Cancelled => AttemptStatus::CaptureFailed,
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::CaptureFailed
         }
@@ -2969,6 +2969,27 @@ impl IlixiumHistoryResponse {
                     .then_with(|| left_index.cmp(right_index))
             })
             .map(|(_, operation)| operation)
+    }
+
+    pub fn payment_sync_flow_status(
+        &self,
+        merchant_ref: &str,
+        current_status: AttemptStatus,
+        requested_auto_capture: bool,
+    ) -> AttemptStatus {
+        if self.status.code != IlixiumHistoryStatusCode::Success {
+            return current_status;
+        }
+
+        let Some(operation) = self.latest_payment_operation(merchant_ref) else {
+            return current_status;
+        };
+
+        let Some(operation_status) = operation.status.as_ref() else {
+            return current_status;
+        };
+
+        map_history_sync_status(operation, operation_status, requested_auto_capture)
     }
 }
 
