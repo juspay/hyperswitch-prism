@@ -6,7 +6,6 @@ description: >
   Refund, RSync, Void). Use when integrating a new payment gateway that does not yet exist.
   Requires a technical specification at grace/rulesbook/codegen/references/{connector_name}/technical_specification.md.
 license: Apache-2.0
-compatibility: Requires Rust toolchain with cargo. Linux or macOS.
 metadata:
   author: parallal
   version: "2.0"
@@ -17,7 +16,11 @@ metadata:
 
 ## Overview
 
-This skill produces a complete payment connector in the UCS Rust codebase.
+This skill produces a complete payment connector in the UCS Rust codebase. If
+the requested integration is an FRM / fraud-risk connector, route it through the
+FRM connector rules instead of the payment defaults: read
+`grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md`, scaffold with
+`add_connector.sh --kind frm`, and keep it out of `src/connectors/`.
 
 **MANDATORY SUBAGENT DELEGATION: You are the orchestrator. You MUST delegate every step
 to a subagent using the prompts in `references/subagent-prompts.md`. Do NOT implement
@@ -42,7 +45,10 @@ code, run tests, or review quality yourself. Spawn subagents and coordinate thei
 |---------|------|
 | Main connector file | `crates/integrations/connector-integration/src/connectors/{connector_name}.rs` |
 | Transformers module | `crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs` |
+| FRM connector file | `crates/integrations/connector-integration/src/frm_connectors/{connector_name}.rs` |
+| FRM transformers module | `crates/integrations/connector-integration/src/frm_connectors/{connector_name}/transformers.rs` |
 | Connector registry | `crates/integrations/connector-integration/src/connectors.rs` |
+| FRM connector registry | `crates/integrations/connector-integration/src/frm_connectors.rs` |
 | Enum definitions | `crates/common/common_enums/src/enums.rs` |
 | Domain utilities | `crates/types-traits/domain_types/src/utils.rs` |
 | Macro definitions | `crates/integrations/connector-integration/src/connectors/macros.rs` |
@@ -56,6 +62,13 @@ These rules apply to ALL subagents. Include them in every subagent prompt.
 - Use `RouterDataV2` (NEVER `RouterData`), `ConnectorIntegrationV2` (NEVER `ConnectorIntegration`)
 - Import from `domain_types` (NEVER `hyperswitch_domain_models`)
 - Connector struct MUST be generic: `ConnectorName<T>`
+- FRM connectors are first-class FRM connectors now. They live in
+  `src/frm_connectors/`, register in `frm_connectors.rs`,
+  `FrmConnectorEnum`, `FrmConnectorData`, `patch_frm_connector_urls`, and map
+  `AuthType::{Connector}` to `ConnectorVariant::Frm(...)`. They do NOT get
+  `ConnectorEnum`, `ConnectorData`, `default_implementations.rs`, field-probe,
+  or `connector_specs/<name>/specs.json`. Use
+  `pattern_frm_connector.md` as the source of truth.
 - NEVER hardcode status values -- always map from connector response via `From`/`TryFrom`
 - Use macros (`create_all_prerequisites!` + `macro_connector_implementation!`) for all flows
 - Flows you do NOT implement are stubbed by `macro_connector_flow_status_impls!`
@@ -135,6 +148,11 @@ waits for completion, and passes outputs to the next step.
 
 **Outputs:** connector config, list of flows, list of pre-auth flows
 
+If the tech spec is an FRM / fraud-risk product rather than a payment processor,
+the output also marks the connector category as `FRM`. That changes Step 2:
+use `add_connector.sh --kind frm`, create files under `src/frm_connectors/`,
+and do not create a certification manifest.
+
 **Gate (HARD STOP — no exceptions):**
 If tech spec missing → **STOP IMMEDIATELY. Do NOT proceed to Step 2.**
 Tell the user: "No tech spec found for {ConnectorName}. Please either:
@@ -154,6 +172,11 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
 - Runs `.skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --force -y`
   (that path is a symlink to the real script, `grace/rulesbook/codegen/add_connector.sh`; either
   path works, there is no `scripts/add_connector.sh` at the repo root)
+  - add `--kind frm` when Step 1 classified the connector as FRM / fraud-risk.
+    That writes `src/frm_connectors/{connector_name}.rs`, registers
+    `FrmConnectorEnum` / `FrmConnectorData`, and skips payment-only side effects
+    such as `ConnectorEnum`, default implementations, field-probe, and
+    `connector_specs/`.
   - add `--production-url {production_base_url}` when the live URL differs from the sandbox base URL
   - add `--flows {Flow1},{Flow2},...` only when this connector needs suites beyond the six core
     flows; see "specs.json" below
@@ -185,9 +208,16 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
   GetConnectorCustomer, PaymentMethodToken, PaymentMethodEligibility, ServerAuthenticationToken,
   ClientAuthenticationToken, ServerSessionAuthenticationToken, PreAuthenticate, Authenticate,
   PostAuthenticate, CreateOrder, IncrementalAuthorization). An unrecognised name aborts the run.
+  FRM is the exception: `--kind frm` deliberately does not write
+  `connector_specs/<name>/specs.json`, because the checker scans only
+  `src/connectors/` and would reject a specs directory for `src/frm_connectors/`.
 
 **Outputs:** scaffold created, superposition URLs registered + URL patching wired,
 `crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json` written, build passing, files list
+
+For `--kind frm`, report `connector_specs` as `N/A`, and verify
+`frm_connectors.rs`, `FrmConnectorEnum`, `FrmConnectorData`,
+`ConnectorVariant::Frm`, and `patch_frm_connector_urls` instead.
 
 **Gate:** Build must pass before proceeding.
 
@@ -376,6 +406,8 @@ commit. Splitting the PR does not change that. Every connector this skill produc
 2. `cargo run --bin check_connector_specs` prints `All checks passed. OK.`
    *(Run it locally. Phase 1 exits 1 when a file under `connectors/` has no matching
    `connector_specs/<name>/` directory, so a scaffold without specs.json cannot merge.)*
+   Pure FRM connectors under `src/frm_connectors/` are outside this parity gate;
+   do not add `connector_specs/<name>/` for them.
 3. `specs.json` **trimmed to what is actually implemented**. It is a certification claim,
    not a scaffold artifact: a suite declared but not implemented fails against the sandbox;
    a flow implemented but not declared fails `check_connector_specs` Phase 2. If it declares
@@ -431,4 +463,5 @@ the merge queue, where `merge_group` turns the gate back on.
 | `references/quality-checklist.md` | Pre-submission checklist, §15 Pre-Flight Gate, §16 PR-body disclosure, common mistakes |
 | `.skills/_shared/references/certification.md` | The merge-blocking certification gate: `check_connector_specs` phases, `verify-new-connectors.sh` fail paths, `alpha_connectors.json`, definition of done |
 | `references/flow-patterns/*.md` | Per-flow: authorize, psync, capture, refund, rsync, void |
+| `grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md` | FRM connector directory, registration, macro, and certification rules |
 | `.skills/new-connector/scripts/add_connector.sh` | Scaffold script that generates initial connector files (symlink to `grace/rulesbook/codegen/add_connector.sh`) |

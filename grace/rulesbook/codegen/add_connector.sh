@@ -296,16 +296,15 @@ readonly DEFAULT_SPEC_FLOWS="Authorize,PSync,Capture,Void,Refund,RSync"
 # its own `patch_*_connector_urls` fn and its own service trait:
 #
 #   src/connectors/               ConnectorEnum            ConnectorData
+#   src/frm_connectors/           FrmConnectorEnum         FrmConnectorData
 #   src/payout_connectors/        PayoutConnectorEnum      PayoutConnectorData
 #   src/surcharge_connectors/     SurchargeConnectorEnum   SurchargeConnectorData
 #   src/authenticator_connectors/ AuthenticatorConnectorEnum AuthenticatorConnectorData
 #
-# FRM is the odd one out: it has NO directory of its own. `connectors/kount.rs`
-# is a full payment connector (it is in `ConnectorEnum`, in
-# `default_implementations.rs`, in field-probe and in connector_specs/) that
-# ALSO implements `FrmServiceTrait` and appears in `FrmConnectorEnum`. So
-# `--kind frm` scaffolds a payment connector and then prints the FRM-only
-# registration as a checklist - see show_kind_checklist().
+# FRM used to be modelled as a payment-connector add-on. It is now a real
+# sibling directory (`frm_connectors/`) and `--kind frm` must not touch
+# ConnectorEnum, ConnectorData, default_implementations, field-probe or
+# connector_specs.
 #
 # Verified against HEAD with:
 #   ls crates/integrations/connector-integration/src/
@@ -345,11 +344,11 @@ KIND_HAS_CHECKLIST=false        # print a manual-completion checklist at the end
 #     Verify: grep -n 'let connectors_src' \
 #       crates/internal/integration-tests/src/bin/check_connector_specs.rs
 #
-#   * superposition.toml - payout, surcharge and FRM connectors have no entry
-#     (gotyme_sanlam, santander, deutschebank, interpayments, kount are all
-#     absent); `plaid` does. Verify:
-#       grep -c 'gotyme_sanlam\|interpayments\|kount' config/superposition.toml
-#       grep -c 'connector = "plaid"' config/superposition.toml
+#   * superposition.toml - payout and surcharge connectors have no entry.
+#     FRM does not get one by default either: Kount is present because it needs
+#     dynamic Orders/OAuth hosts, while nSure is not. Verify:
+#       grep -c 'gotyme_sanlam\|interpayments\|nsure' config/superposition.toml
+#       grep -c 'connector = "kount"' config/superposition.toml
 resolve_kind_profile() {
     local src_dir="$CRATES_INTEGRATIONS/connector-integration/src"
 
@@ -423,23 +422,20 @@ resolve_kind_profile() {
             KIND_HAS_CHECKLIST=true
             ;;
         frm)
-            # FRM has no directory of its own: connectors/kount.rs is a payment
-            # connector that also implements FrmServiceTrait. Scaffold the
-            # payment side in full, then hand the operator the FRM-only steps.
-            KIND_DIR="connectors"
-            KIND_ENUM="ConnectorEnum"
-            KIND_VARIANT="Payment"
-            KIND_PROVIDER="ConnectorData"
-            KIND_PATCH_FN="patch_connector_urls"
-            KIND_SERVICE_TRAIT="ConnectorServiceTrait"
+            KIND_DIR="frm_connectors"
+            KIND_ENUM="FrmConnectorEnum"
+            KIND_VARIANT="Frm"
+            KIND_PROVIDER="FrmConnectorData"
+            KIND_PATCH_FN="patch_frm_connector_urls"
+            KIND_SERVICE_TRAIT="FrmServiceTrait"
             KIND_TYPE_SUFFIX=""
             KIND_GENERIC=true
-            KIND_IN_CONNECTOR_ENUM=true
-            KIND_NEEDS_SPECS=true
+            KIND_IN_CONNECTOR_ENUM=false
+            KIND_NEEDS_SPECS=false
             KIND_NEEDS_SUPERPOSITION=false
-            KIND_NEEDS_FIELD_PROBE=true
-            KIND_NEEDS_DEFAULT_IMPLS=true
-            KIND_HAS_CHECKLIST=true
+            KIND_NEEDS_FIELD_PROBE=false
+            KIND_NEEDS_DEFAULT_IMPLS=false
+            KIND_HAS_CHECKLIST=false
             ;;
         *)
             fatal_error "Unknown --kind '$CONNECTOR_KIND' (expected: payment, payout, surcharge, frm, authenticator)"
@@ -612,9 +608,9 @@ OPTIONS:
                             authenticator src/authenticator_connectors/,
                                           AuthenticatorConnectorEnum. Bank-account
                                           linking / identity - NOT 3DS.
-                            frm           connectors/ + FrmConnectorEnum. Scaffolds the
-                                          PAYMENT side (kount.rs is a payment connector
-                                          too) and prints the FRM-only steps.
+                            frm           src/frm_connectors/, FrmConnectorEnum,
+                                          FrmConnectorData. NO ConnectorEnum,
+                                          NO connector_specs, NO field-probe arm.
     --list-flows     Show auto-detected flows from codebase
     --force          Ignore git status and force creation
     -y, --yes        Skip confirmation prompts
@@ -649,8 +645,9 @@ FEATURES:
     • Future-proof: automatically includes new flows when added to codebase
     • Creates empty implementations for all detected flows
     • No manual flow configuration required
-    • Writes connector_specs/<name>/specs.json (required by CI's
-      check_connector_specs); merges into an existing file, never overwrites
+    • Writes connector_specs/<name>/specs.json for payment connectors (required
+      by CI's check_connector_specs); merges into an existing file, never
+      overwrites
     • Allocates payment.proto numbers against $PROTO_BASE_REF, not the local tree
     • --kind routes every write to that category's real registration sites
 
@@ -667,7 +664,7 @@ WORKFLOW:
     2. Validates environment and inputs
     3. Generates connector boilerplate with all flows
     4. Updates integration files
-    5. Generates connector_specs/<name>/specs.json (payment / frm kinds only)
+    5. Generates connector_specs/<name>/specs.json (payment kind only)
     6. Validates compilation
     7. Provides next steps guidance
 
@@ -1073,8 +1070,9 @@ create_backup() {
                 log_debug "Backed up: field-probe/auth.rs"
             elif [[ "$file" == "$KIND_MODULE_FILE" ]]; then
                 # payout_connectors.rs / surcharge_connectors.rs /
-                # authenticator_connectors.rs. For --kind payment|frm this path
-                # equals CONNECTORS_MODULE_FILE and was already copied above, so
+                # authenticator_connectors.rs / frm_connectors.rs. For
+                # --kind payment this path equals CONNECTORS_MODULE_FILE and was
+                # already copied above, so
                 # `cp` here is a harmless no-op overwrite of the same bytes.
                 cp "$file" "$BACKUP_DIR/$(basename "$file")"
                 log_debug "Backed up: $(basename "$file")"
@@ -1146,12 +1144,12 @@ create_connector_files() {
             write_surcharge_connector_file "$connectors_dir/$NAME_SNAKE.rs"
             write_minimal_transformers "$connector_subdir/transformers.rs"
             ;;
-        payout|authenticator)
+        payout|authenticator|frm)
             # Same generic struct + ConnectorCommon shell as a payment connector,
             # but the payment-shaped Authorize transformers in
             # transformers.rs.template do not belong here: PayoutFlowData /
-            # MerchantAuthenticationFlowData are the resource_common_data for
-            # these kinds, not PaymentFlowData. Emit only the two types the
+            # MerchantAuthenticationFlowData / FrmFlowData are the
+            # resource_common_data for these kinds. Emit only the two types the
             # ConnectorCommon shell actually needs.
             substitute_template_variables "$CONNECTOR_TEMPLATE" "$connectors_dir/$NAME_SNAKE.rs"
             write_minimal_transformers "$connector_subdir/transformers.rs"
@@ -1638,6 +1636,145 @@ EOF
     log_success "Generated authenticator implementations (AuthenticatorServiceTrait + 3 flow stubs)"
 }
 
+# Append the FRM trait block.
+#
+# FrmServiceTrait = ConnectorCommon + ValidationTrait + ServerAuthentication +
+# five FRM marker traits + PaymentPreAuthenticateV2<DefaultPCIHolder>. FRM lives
+# in src/frm_connectors/, not src/connectors/, so it does NOT get
+# ConnectorServiceTrait, ConnectorEnum, default_implementations, field-probe or
+# connector_specs.
+generate_frm_implementations() {
+    local connector_file="$1"
+
+    log_step "Generating FRM trait implementations"
+
+    cat >> "$connector_file" <<EOF
+
+// =============================================================================
+// DYNAMICALLY GENERATED IMPLEMENTATIONS (--kind frm)
+// =============================================================================
+// Exemplar: frm_connectors/nsure.rs.
+//
+// FRM connectors live in src/frm_connectors/ and are dispatched through
+// FrmConnectorEnum + FrmConnectorData. They are NOT payment connectors:
+// do not add ConnectorServiceTrait, ConnectorEnum, ConnectorData,
+// default_implementations.rs, field-probe or connector_specs/<name>/specs.json.
+// =============================================================================
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for ${NAME_PASCAL}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::verification::SourceVerification for ${NAME_PASCAL}<T>
+{
+}
+
+// FrmServiceTrait requires all five FRM marker traits. Keep these marker impls
+// even when replacing a stub below with a real macro_connector_implementation!
+// block; remove only the matching frm_flow_not_implemented! block.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PreRiskCheckV2 for ${NAME_PASCAL}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PostRiskCheckV2 for ${NAME_PASCAL}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::FrmPaymentOutcomeV2 for ${NAME_PASCAL}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::FrmRefundProcessedV2 for ${NAME_PASCAL}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::FrmChargebackReceivedV2 for ${NAME_PASCAL}<T>
+{
+}
+
+// Support-flow stubs required by FrmServiceTrait. This macro emits both the
+// marker trait and the ConnectorIntegrationV2 stub for each listed support flow.
+// Replace ServerAuthenticationToken with a real implementation if the FRM
+// provider has an OAuth/token endpoint. Replace PreAuthenticate if the provider
+// has browser-side device data collection.
+crate::connectors::macros::macro_connector_flow_status_impls!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [ServerAuthenticationToken, PreAuthenticate],
+);
+
+// FRM-flow stubs. Unlike macro_connector_flow_status_impls!, this macro emits
+// only ConnectorIntegrationV2, so the marker traits above are still required.
+crate::connectors::macros::frm_flow_not_implemented!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: connector_flow::PreRiskCheck,
+    request: domain_types::frm::frm_types::PreRiskCheckRequest,
+    response: domain_types::frm::frm_types::PreRiskCheckResponse,
+    flow_name: "pre_risk_check",
+);
+
+crate::connectors::macros::frm_flow_not_implemented!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: connector_flow::PostRiskCheck,
+    request: domain_types::frm::frm_types::PostRiskCheckRequest,
+    response: domain_types::frm::frm_types::PostRiskCheckResponse,
+    flow_name: "post_risk_check",
+);
+
+crate::connectors::macros::frm_flow_not_implemented!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: connector_flow::FrmPaymentOutcome,
+    request: domain_types::frm::frm_types::FrmPaymentOutcomeRequest,
+    response: domain_types::frm::frm_types::FrmPaymentOutcomeResponse,
+    flow_name: "frm_payment_outcome",
+);
+
+crate::connectors::macros::frm_flow_not_implemented!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: connector_flow::FrmRefundProcessed,
+    request: domain_types::frm::frm_types::FrmRefundProcessedRequest,
+    response: domain_types::frm::frm_types::FrmRefundProcessedResponse,
+    flow_name: "frm_refund_processed",
+);
+
+crate::connectors::macros::frm_flow_not_implemented!(
+    connector: ${NAME_PASCAL},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: connector_flow::FrmChargebackReceived,
+    request: domain_types::frm::frm_types::FrmChargebackReceivedRequest,
+    response: domain_types::frm::frm_types::FrmChargebackReceivedResponse,
+    flow_name: "frm_chargeback_received",
+);
+
+// Not generic over T: FrmServiceTrait requires
+// PaymentPreAuthenticateV2<DefaultPCIHolder>, and FrmConnectorData only ever
+// constructs the DefaultPCIHolder monomorphisation.
+impl connector_types::FrmServiceTrait
+    for ${NAME_PASCAL}<domain_types::payment_method_data::DefaultPCIHolder>
+{
+}
+EOF
+
+    log_success "Generated FRM implementations (FrmServiceTrait + 5 FRM stubs + support stubs)"
+}
+
 # Generate dynamic implementation code for all flows and append to connector file.
 #
 # The new connector starts with every flow stubbed out via
@@ -1663,6 +1800,10 @@ generate_dynamic_implementations() {
             ;;
         authenticator)
             generate_authenticator_implementations "$connector_file"
+            return 0
+            ;;
+        frm)
+            generate_frm_implementations "$connector_file"
             return 0
             ;;
     esac
@@ -1821,9 +1962,12 @@ PYEOF
 #
 # Which edits apply depends on --kind:
 #
-#   payment / frm  -> ConnectorEnum variant
+#   payment       -> ConnectorEnum variant
 #                   + grpc_api_types::payments::Connector -> ConnectorEnum mapping
 #                   + ConnectorVariant arm  Ok(Self::Payment(ConnectorEnum::X))
+#   frm           -> FrmConnectorEnum variant
+#                   + ForeignTryFrom<AuthType> for FrmConnectorEnum arm
+#                   + ConnectorVariant arm  Ok(Self::Frm(FrmConnectorEnum::X))
 #   payout         -> PayoutConnectorEnum variant
 #                   + ForeignTryFrom<AuthType> for PayoutConnectorEnum arm
 #                   + ConnectorVariant arm  Ok(Self::Payout(PayoutConnectorEnum::X))
@@ -2022,7 +2166,7 @@ update_router_data() {
     log_step "Updating router_data.rs (ConnectorSpecificAuth + match arm)"
 
     # Check if already exists
-    if grep -q "ConnectorEnum::$NAME_PASCAL =>" "$ROUTER_DATA_FILE" 2>/dev/null; then
+    if grep -q "ConnectorSpecificConfig::$NAME_PASCAL" "$ROUTER_DATA_FILE" 2>/dev/null; then
         log_warning "Skipping router_data update - $NAME_PASCAL already exists"
         return 0
     fi
@@ -2253,7 +2397,8 @@ PYEOF
 
 # Declare + re-export the new module in this kind's module file.
 #
-#   payment / frm  -> src/connectors.rs
+#   payment        -> src/connectors.rs
+#   frm            -> src/frm_connectors.rs
 #   payout         -> src/payout_connectors.rs      (re-exports <Pascal>Payouts)
 #   surcharge      -> src/surcharge_connectors.rs
 #   authenticator  -> src/authenticator_connectors.rs
@@ -2663,12 +2808,12 @@ update_config() {
 }
 
 update_superposition_config() {
-    # Payout, surcharge and FRM connectors have NO superposition entry on HEAD -
-    # gotyme_sanlam, santander, deutschebank, interpayments and kount are all
-    # absent from config/superposition.toml. `plaid` (authenticator) does have
-    # one, so authenticator keeps this step.
+    # Payout and surcharge connectors have no superposition entry on HEAD. FRM
+    # does not get one by default either: Kount has dynamic Orders/OAuth URL
+    # overrides, while nSure does not. `plaid` (authenticator) does have one, so
+    # authenticator keeps this step.
     #   Verify: grep -c 'gotyme_sanlam' config/superposition.toml     # -> 0
-    #           grep -c 'connector = "plaid"' config/superposition.toml
+    #           grep -c 'connector = "kount"' config/superposition.toml
     if [[ "$KIND_NEEDS_SUPERPOSITION" != "true" ]]; then
         log_info "Skipping superposition.toml - no entry is used by --kind $CONNECTOR_KIND"
         return 0
@@ -2792,8 +2937,8 @@ generate_connector_specs() {
     # and it FAILS a connector_specs/<name>/ directory that has no matching .rs
     # file in it ("have a connector_specs/ directory but NO integration .rs
     # file"). Writing specs.json for a payout/surcharge/authenticator connector
-    # therefore BREAKS CI rather than satisfying it. Only kinds that live in
-    # connectors/ (payment, frm) get a manifest.
+    # therefore BREAKS CI rather than satisfying it. FRM lives in
+    # src/frm_connectors/ now, so only the payment kind gets a manifest.
     #   Verify: grep -n 'let connectors_src' \
     #     crates/internal/integration-tests/src/bin/check_connector_specs.rs
     if [[ "$KIND_NEEDS_SPECS" != "true" ]]; then
@@ -3043,7 +3188,7 @@ emergency_rollback() {
                     "connectors.rs")
                         cp "$backup_file" "$CONNECTORS_MODULE_FILE"
                         ;;
-                    "payout_connectors.rs" | "surcharge_connectors.rs" | "authenticator_connectors.rs")
+                    "payout_connectors.rs" | "surcharge_connectors.rs" | "authenticator_connectors.rs" | "frm_connectors.rs")
                         cp "$backup_file" "$CRATES_INTEGRATIONS/connector-integration/src/$filename"
                         ;;
                     "development.toml")
@@ -3232,32 +3377,17 @@ show_kind_checklist() {
             ;;
         frm)
             echo "FRM-SPECIFIC:"
-            echo "  FRM has no directory of its own. What ran above scaffolded the PAYMENT half"
-            echo "  (connectors/$NAME_SNAKE.rs, ConnectorEnum, default_implementations, field-probe,"
-            echo "  connector_specs) exactly as connectors/kount.rs has it. The FRM half is"
-            echo "  hand-written because expand_flow_status_impl! has NO arms for FRM flows:"
+            echo "  FRM now has its own directory. The scaffold writes"
+            echo "  frm_connectors/$NAME_SNAKE.rs and registers FrmConnectorEnum,"
+            echo "  FrmConnectorData, ConnectorVariant::Frm and patch_frm_connector_urls."
+            echo "  It deliberately does NOT add ConnectorEnum, ConnectorData,"
+            echo "  default_implementations, field-probe or connector_specs."
             echo
-            echo "  1. domain_types/src/connector_types.rs"
-            echo "       • add $NAME_PASCAL to pub enum FrmConnectorEnum"
-            echo "       • add AuthType::$NAME_PASCAL(_) => Ok(Self::$NAME_PASCAL) to"
-            echo "         impl ForeignTryFrom<AuthType> for FrmConnectorEnum"
-            echo "       • decide which ConnectorVariant this connector reports. The arm written"
-            echo "         above says Ok(Self::Payment(ConnectorEnum::$NAME_PASCAL)); change it to"
-            echo "         Ok(Self::Frm(FrmConnectorEnum::$NAME_PASCAL)) if it is FRM-first."
-            echo "  2. domain_types/src/types.rs -> patch_frm_connector_urls (exhaustive match)"
-            echo "  3. domain_types/src/router_data.rs -> the ConnectorVariant::Frm(connector_enum)"
-            echo "     block (exhaustive match)"
-            echo "  4. connector-integration/src/types.rs -> FrmConnectorData::convert_connector"
-            echo "  5. connectors/$NAME_SNAKE.rs:"
-            echo "       • impl connector_types::FrmServiceTrait for ${NAME_PASCAL}<DefaultPCIHolder>"
-            echo "         NOT generic in T: FrmServiceTrait also requires"
-            echo "         PaymentPreAuthenticateV2<DefaultPCIHolder>, and DefaultPCIHolder is the"
-            echo "         only monomorphisation FrmConnectorData ever constructs."
-            echo "       • hand-write the five FRM marker impls (PreRiskCheckV2, PostRiskCheckV2,"
-            echo "         FrmPaymentOutcomeV2, FrmRefundProcessedV2, FrmChargebackReceivedV2)"
-            echo "         and stub the flows with macros::frm_flow_not_implemented! - that macro"
-            echo "         emits ONLY the ConnectorIntegrationV2 impl, never the marker trait."
-            echo "     Exemplar for all of the above: connectors/kount.rs."
+            echo "  Replace the generated frm_flow_not_implemented! blocks one at a time as"
+            echo "  you implement PreRiskCheck, PostRiskCheck, FrmPaymentOutcome,"
+            echo "  FrmRefundProcessed and FrmChargebackReceived. Keep the marker trait"
+            echo "  impls; frm_flow_not_implemented! emits only ConnectorIntegrationV2."
+            echo "  Exemplar: frm_connectors/nsure.rs."
             ;;
     esac
     echo

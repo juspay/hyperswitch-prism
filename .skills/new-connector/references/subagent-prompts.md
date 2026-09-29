@@ -21,6 +21,12 @@ Extract and report:
 1. Connector name: snake_case and PascalCase forms
 2. Base URL for the API
 3. Authentication method (API key / Basic Auth / OAuth / Bearer token)
+3a. Connector category:
+   - FRM when the product is a fraud/risk scoring provider with risk checks
+     and lifecycle notifications rather than a payment processor.
+   - Payment otherwise.
+   If FRM, read grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md
+   before Step 2.
 4. Amount format -- read the vendor spec's wire format and match it. There is no safe
    default. The five types in crates/common/common_utils/src/types.rs:
      MinorUnit            integer minor units, e.g. 1050
@@ -52,6 +58,7 @@ Output format:
   CONNECTOR: {ConnectorName}
   BASE_URL: ...
   AUTH: HeaderKey | SignatureKey | BodyKey
+  CATEGORY: Payment | FRM
   AMOUNT: MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit
   CONTENT_TYPE: Json | FormUrlEncoded | Xml
   CORE_FLOWS: [Authorize, PSync, Capture, Refund, RSync, Void]
@@ -75,6 +82,17 @@ Set up the foundation for the {ConnectorName} connector.
    That path is a symlink to the real script, grace/rulesbook/codegen/add_connector.sh —
    either path works. There is NO scripts/add_connector.sh at the repo root.
 
+   If Subagent 1 reported CATEGORY: FRM, use:
+   .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --kind frm --force -y
+
+   FRM connectors live under
+   crates/integrations/connector-integration/src/frm_connectors/. They register
+   through frm_connectors.rs, FrmConnectorEnum, FrmConnectorData,
+   ConnectorVariant::Frm, and patch_frm_connector_urls. Do NOT add them to
+   src/connectors/, ConnectorEnum, ConnectorData, default_implementations.rs,
+   field-probe, or connector_specs/<name>/specs.json. Read
+   grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md.
+
    If the production base URL differs from the sandbox {base_url}, pass it too so the
    superposition production override is correct:
    .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --production-url {production_base_url} --force -y
@@ -92,6 +110,9 @@ Set up the foundation for the {ConnectorName} connector.
    GetConnectorCustomer, PaymentMethodToken, PaymentMethodEligibility, ServerAuthenticationToken,
    ClientAuthenticationToken, ServerSessionAuthenticationToken, PreAuthenticate, Authenticate,
    PostAuthenticate, CreateOrder, IncrementalAuthorization. An unrecognised name aborts the run.
+   Exception: --kind frm intentionally writes no connector_specs manifest because
+   check_connector_specs scans only src/connectors/ and rejects specs without a
+   matching integration file there.
 
 2. Verify the build:
    cargo build --package connector-integration
@@ -100,6 +121,10 @@ Set up the foundation for the {ConnectorName} connector.
    - Connector file: crates/integrations/connector-integration/src/connectors/{connector_name}.rs
    - Transformers: crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
    - Registry: crates/integrations/connector-integration/src/connectors.rs (has pub mod {connector_name})
+   For CATEGORY: FRM, use these paths instead:
+   - Connector file: crates/integrations/connector-integration/src/frm_connectors/{connector_name}.rs
+   - Transformers: crates/integrations/connector-integration/src/frm_connectors/{connector_name}/transformers.rs
+   - Registry: crates/integrations/connector-integration/src/frm_connectors.rs
 
 4. Convention checks (fix any violations):
    - Struct is {ConnectorName}<T> (generic), not {ConnectorName}
@@ -183,6 +208,8 @@ Set up the foundation for the {ConnectorName} connector.
 9. VERIFY the CI spec file landed:
    crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json exists and its
    supported_suites list is non-empty. Without it, CI's check_connector_specs job fails.
+   For CATEGORY: FRM, verify the opposite: no connector_specs/{connector_name}/
+   directory was created.
 
 10. Verify: cargo build --package connector-integration
 
@@ -192,7 +219,7 @@ Output:
   FILES_MODIFIED: [config/superposition.toml, crates/types-traits/domain_types/src/types.rs, ...]
   SUPERPOSITION_URLS_REGISTERED: YES | NO
   URL_PATCHING_WIRED: YES | NO
-  CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING
+  CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM
   BUILD: PASS | FAIL
   CONVENTION_VIOLATIONS: [none] or [list]
 ```
