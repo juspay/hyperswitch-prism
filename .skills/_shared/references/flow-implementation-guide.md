@@ -3,12 +3,6 @@
 This is the step-by-step procedure for implementing a single flow in a UCS connector.
 Each flow follows the same 4-part pattern: add to prerequisites macro, add implementation
 macro, create transformer types, and **de-register the flow's stub**. Then build and fix.
-When the request type carries an `integrity_object`, the response transformer also
-populates that object so the framework can compare request invariants against
-connector-echoed response values. Read
-`grace/rulesbook/codegen/guides/patterns/pattern_integrity_checks.md`; Transit
-(`tsys_transit`) is the exemplar.
-
 Part 0 below is the step most guides omit, and skipping it produces a conflicting-implementation
 error that looks nothing like the mistake that caused it.
 

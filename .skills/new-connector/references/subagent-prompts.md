@@ -254,6 +254,9 @@ Output:
   FILES_CREATED: [list of files]
   FILES_MODIFIED: [config/superposition.toml, crates/types-traits/domain_types/src/types.rs, ...]
   SUPERPOSITION_URLS_REGISTERED: YES | NO | N/A_FOR_CATEGORY
+  (YES for payment/authenticator scaffold wiring, YES for FRM only when dynamic URL overrides
+   are required, NO when FRM was verified to need no override, and N/A only for categories
+   that do not support superposition such as payout/surcharge)
   URL_PATCHING_WIRED: YES | NO
   CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM | N/A_FOR_AUTHENTICATOR
   BUILD: PASS | FAIL

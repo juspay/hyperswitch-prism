@@ -435,7 +435,7 @@ resolve_kind_profile() {
             KIND_NEEDS_SUPERPOSITION=false
             KIND_NEEDS_FIELD_PROBE=false
             KIND_NEEDS_DEFAULT_IMPLS=false
-            KIND_HAS_CHECKLIST=false
+            KIND_HAS_CHECKLIST=true
             ;;
         *)
             fatal_error "Unknown --kind '$CONNECTOR_KIND' (expected: payment, payout, surcharge, frm, authenticator)"

@@ -66,6 +66,65 @@ AuthType::Foo(_) => Ok(Self::Frm(FrmConnectorEnum::Foo)),
 Using `ConnectorVariant::Payment(ConnectorEnum::Foo)` is the old rule and is now
 wrong for FRM-first connectors.
 
+### Routing, Flow Data, And gRPC Surface
+
+Every FRM request must carry `x-frm-connector`, whose constant is
+`common_utils::consts::X_FRM_CONNECTOR_NAME`. The
+`connector_variant_from_config_and_metadata` branch in
+`crates/types-traits/ucs_interface_common/src/auth.rs` checks that header and
+selects `FrmConnectorEnum::foreign_try_from(config)`. Without it, the generic
+fallback resolves the config through the payment registry, so
+`FrmConnectorData::from_connector_variant` cannot reach the FRM connector.
+
+The composite FRM layer fetches an OAuth token before risk checks when the
+connector requires one. `build_access_token_request` in
+`crates/internal/composite-service/src/frm.rs` supplies the token, and the
+composite layer stores it in `FrmFlowData.access_token`.
+
+```rust
+pub struct FrmFlowData {
+    pub merchant_id: MerchantId,
+    pub connectors: Arc<Connectors>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
+    pub connector_response_headers: Option<http::HeaderMap>,
+}
+```
+
+The seven non-token fields are plumbing for request/response capture; read the
+bearer token from `access_token`, as Kount's `frm_bearer_header` does.
+
+The two direct RPCs are `FraudAndRiskManagementService/{PreRiskCheck,PostRiskCheck}`
+and their composite equivalents. `FrmPaymentOutcome`, `FrmRefundProcessed`, and
+`FrmChargebackReceived` arrive through `EventService/NotifyConnector`, not as
+separate FRM RPCs. In `grpc-server/src/server/events.rs`,
+`FRM_PAYMENT_SUCCEEDED` and `FRM_PAYMENT_FAILURE` intentionally collapse into
+one `FrmPaymentOutcome` dispatch arm; the distinction is carried by
+`FrmPaymentOutcomeRequest.payment_status` / `frm_decision`.
+
+### Request And Response Data Shapes
+
+All five FRM flows use `FrmFlowData`. `PreRiskCheckResponse` and
+`PostRiskCheckResponse` carry `frm_decision`, `risk_score`, `reason`,
+`frm_transaction_id`, and `status_code`; notification responses carry only
+`status_code`. Read the complete request field lists from
+`crates/types-traits/domain_types/src/frm/frm_types.rs` rather than copying a
+stale doc: pre-risk has 13 fields, post-risk 12, payment outcome 8, refund
+processed 8, and chargeback received 7.
+
+Use `common_enums::FrmDecision` in connector transformers. It is distinct from
+`grpc_api_types::frm::FrmDecision` in `payment.proto`; the conversion lives in
+`domain_types/src/frm/types.rs`, and proto `Unspecified` folds onto domain
+`Review`. Map connector decisions exhaustively and handle unknown wire values
+explicitly; never let an enum mismatch silently become `Approve`.
+
+`PreRiskCheckResponse.frm_transaction_id` is the join key. Return it when the
+provider creates a risk transaction because the payment-outcome, refund, and
+chargeback notifications send that value back later.
+
 ## Service Trait Requirements
 
 `FrmServiceTrait` has this supertrait list:
