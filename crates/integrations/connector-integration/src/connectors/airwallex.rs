@@ -78,6 +78,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: AirwallexPaymentsResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
@@ -122,6 +128,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: AirwallexSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
@@ -172,6 +184,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Voided],
     failure_status:  Succeeded,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentVoidData,
+        response: AirwallexVoidResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::AirwallexPaymentStatus;
@@ -210,6 +228,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: AirwallexCaptureResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::AirwallexPaymentStatus;
@@ -248,6 +272,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::AirwallexRefundStatus,
     success:   Settled => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request: RefundsData,
+        response: AirwallexRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Received => Pending,
         Accepted => Pending,
@@ -267,6 +297,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::AirwallexRefundStatus,
     success:   Settled => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: AirwallexRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Received => Pending,
         Accepted => Pending,
@@ -290,6 +326,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: AirwallexSetupMandateResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
@@ -331,6 +373,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: AirwallexRepeatPaymentResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};

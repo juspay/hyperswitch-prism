@@ -404,6 +404,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // `AuthorizationFailed`, matching `failure_status`'s catch-all — the
 // (ResponseCode, TransTypeID) granularity cannot distinguish an ACS-stage
 // abort (`103`/`106`/`700`/`800`) from a plain bank decline.
+// BLOCKED: Authorize distinguishes authentication failures (103/106/700/800
+// and malformed 600) from authorization failures. CitigateAuthStatus collapses
+// all of those into NotReceived, so the declaration cannot mirror every branch.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
@@ -446,6 +450,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // TryFrom's error arm (`999` + `TransTypeID 99` — "MerchantRef not found" —
 // included) — ACS aborts (`103`/`106`/`700`/`800`) cannot be told apart at
 // this granularity.
+// BLOCKED: PSync likewise distinguishes authentication-failure response codes
+// before its general Failure arm; CitigateSyncStatus loses that code detail.
+#[cfg(any())]
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
@@ -489,6 +496,16 @@ domain_types::impl_flow_status_mapping! {
     source:    citigate::CitigatePostAuthStatus,
     success:   Approved    => Charged,
     failure:   NotReceived => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CitigateCaptureResponse,
+        source: |response| if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        },
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -506,6 +523,16 @@ domain_types::impl_flow_status_mapping! {
     source:    citigate::CitigatePostAuthStatus,
     success:   Approved    => Voided,
     failure:   NotReceived => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CitigateVoidResponse,
+        source: |response| if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        },
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -519,6 +546,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // reproduce the doc-driven transient-code refinement (issuer/acquirer errors →
 // Pending for retry) under a fail-safe wildcard (`_ => Failure`). The `()`
 // context is unused; the match is on the code only.
+// BLOCKED: Refund maps five documented transient response codes to Pending and
+// other failures to Failure. CitigatePostAuthStatus collapses all non-zero codes,
+// so this declaration cannot preserve that distinction.
+#[cfg(any())]
 domain_types::impl_refund_flow_status_mapping_ctx! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,
@@ -547,6 +578,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Pending, transient infra codes read Pending, and a fail-safe wildcard fails the
 // rest. So `source = CitigatePostAuthStatus` (the bare code) plus
 // `context = CitigateFlowCtx` (the `TransTypeID` echo).
+// BLOCKED: RSync also needs the raw response code to distinguish transient
+// Pending responses from terminal failures; the current source type loses it.
+#[cfg(any())]
 domain_types::impl_refund_flow_status_mapping_ctx! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,

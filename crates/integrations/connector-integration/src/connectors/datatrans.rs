@@ -58,11 +58,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
-// NOTE: no impl_flow_status_mapping! for Authorize. The TryFrom never surfaces
-// a terminal-failure status — the response enum is `TransactionResponse` /
-// `ThreeDSResponse` (settled-or-enrolled), and *every* connector-declined
-// outcome arrives as a non-2xx handled by `build_error_response`, so the
-// status enum carries no terminal-failure variant to declare.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: Authorize,
+    source: bool,
+    context: bool,
+    params: [requires_challenge, manual_capture],
+    success_targets: [Authorized, Charged],
+    failure_sample: None,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: DatatransPaymentsResponse,
+        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |request, _response| !request.is_auto_capture(),
+    },
+    {
+        if requires_challenge {
+            common_enums::AttemptStatus::AuthenticationPending
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Datatrans<T>
 {
@@ -82,9 +102,15 @@ domain_types::impl_flow_status_mapping_ctx! {
     context:         datatrans::DatatransTransactionType,
     params:          [status, txn_type],
     success_status:  Settled,
-    success_targets: [Charged],
+    success_targets: [Voided],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: DatatransSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.transaction_type.clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use datatrans::{DatatransPaymentStatus, DatatransTransactionType};
@@ -123,10 +149,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for Void. The cancel endpoint returns a
-// bare 200 with an optional `transactionId` echo and **no status field**, so
-// the TryFrom hardcodes `AttemptStatus::Voided` on a 2xx — there is no typed
-// connector status to map (same shape as adyen.rs Capture / VoidPC).
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: Void,
+    source: (),
+    context: (),
+    params: [_ack, _context],
+    success_targets: [Voided],
+    failure_sample: None,
+    extractors: {
+        request: PaymentVoidData,
+        response: DatatransVoidResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    { common_enums::AttemptStatus::Voided }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Datatrans<T>
 {
@@ -141,35 +180,83 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for Capture. The settle endpoint answers
-// with a 200 JSON body that carries only `transactionId` /
-// `acquirerAuthorizationCode` and **no status field** — the TryFrom hardcodes
-// `AttemptStatus::Charged` on a 2xx (failures arrive as non-2xx into
-// `build_error_response`). There is no typed connector status to map.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: Capture,
+    source: (),
+    context: (),
+    params: [_ack, _context],
+    success_targets: [Charged],
+    failure_sample: None,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: DatatransCaptureResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    { common_enums::AttemptStatus::Charged }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Datatrans<T>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for SetupMandate. Checked whether a macro is
-// derivable from the shared helper: the TryFrom calls
-// `get_authorize_status(response, true)` (a `card_check` outcome is `Charged` and a
-// zero-auth alias has no capture step), but the mapping is over the same two-variant
-// `DatatransPaymentsResponse` enum as Authorize — `TransactionResponse` /
-// `ThreeDSResponse`, which carries **no terminal-failure variant** (declines arrive as
-// non-2xx and go through `build_error_response`). The macro must declare a
-// `failure:` source variant, so it cannot be grounded in this enum.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: SetupMandate,
+    source: bool,
+    context: bool,
+    params: [requires_challenge, manual_capture],
+    success_targets: [Charged],
+    failure_sample: None,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: DatatransSetupMandateResponse,
+        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |_request, _response| false,
+    },
+    {
+        if requires_challenge {
+            common_enums::AttemptStatus::AuthenticationPending
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Datatrans<T>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for RepeatPayment. The TryFrom calls
-// `get_authorize_status(response, is_auto_capture)` with the same two-variant
-// `DatatransPaymentsResponse` enum — a transaction is `Charged` (auto-capture) or
-// `Authorized`, and MIT declines are non-2xx through `build_error_response`. As with
-// SetupMandate, the enum has no terminal-failure variant, so the macro's mandatory
-// `failure:` source variant cannot be declared.
+domain_types::impl_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: RepeatPayment,
+    source: bool,
+    context: bool,
+    params: [requires_challenge, manual_capture],
+    success_targets: [Charged],
+    failure_sample: None,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: DatatransRepeatPaymentResponse,
+        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |request, _response| !request.is_auto_capture(),
+    },
+    {
+        if requires_challenge {
+            common_enums::AttemptStatus::AuthenticationPending
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Datatrans<T>
 {
@@ -193,11 +280,23 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
-// NOTE: no impl_refund_flow_status_mapping! for Refund. The credit endpoint
-// answers 200 with a body that carries no status field, and the TryFrom
-// hardcodes `RefundStatus::Success` — failures arrive as non-2xx into
-// `build_error_response`. There is no typed connector refund status to map
-// (same shape as Capture/Void above).
+domain_types::impl_refund_flow_status_mapping_ctx! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: Refund,
+    source: (),
+    context: (),
+    params: [_ack, _context],
+    success_targets: [Success],
+    failure_sample: None,
+    extractors: {
+        request: RefundsData,
+        response: DatatransRefundResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    { common_enums::RefundStatus::Success }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Datatrans<T>
 {
@@ -218,6 +317,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, txn_type],
     success_status: Settled,
     failure_status: Failed,
+    extractors: {
+        request: RefundSyncData,
+        response: DatatransRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.transaction_type.clone(),
+    },
     {
         use common_enums::RefundStatus;
         use datatrans::{DatatransPaymentStatus, DatatransTransactionType};

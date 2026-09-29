@@ -101,12 +101,21 @@ domain_types::impl_flow_status_mapping_ctx! {
     connector:       Adyen<T>,
     flow:            Authorize,
     source:          adyen::AdyenStatus,
-    context:         adyen::AdyenAuthorizeCtx,
+    context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
     success_status:  Authorised,
     success_targets: [Authorized, Charged],
     failure_status:  Refused,
     failure_target:  Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: AdyenPaymentResponse,
+        source: |r| r.result_code(),
+        context: |req, _| (
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        ),
+    },
     {
         use common_enums::{AttemptStatus, PaymentMethodType};
         use adyen::AdyenStatus;
@@ -114,7 +123,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
             AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
             AdyenStatus::Authorised => {
-                if ctx.is_manual_capture {
+                if ctx.0 {
                     AttemptStatus::Authorized
                 } else {
                     AttemptStatus::Charged
@@ -125,7 +134,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             | AdyenStatus::RedirectShopper
             | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
             AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
-            AdyenStatus::Pending => match ctx.payment_method_type {
+            AdyenStatus::Pending => match ctx.1 {
                 Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
                 _ => AttemptStatus::Pending,
             },
@@ -152,12 +161,21 @@ domain_types::impl_flow_status_mapping_ctx! {
     connector:       Adyen<T>,
     flow:            PSync,
     source:          adyen::AdyenStatus,
-    context:         adyen::AdyenAuthorizeCtx,
+    context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
     success_status:  Authorised,
     success_targets: [Authorized, Charged],
     failure_status:  Refused,
     failure_target:  Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: AdyenPSyncResponse,
+        source: |r| r.result_code(),
+        context: |req, _| (
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        ),
+    },
     {
         use common_enums::{AttemptStatus, PaymentMethodType};
         use adyen::AdyenStatus;
@@ -165,7 +183,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
             AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
             AdyenStatus::Authorised => {
-                if ctx.is_manual_capture {
+                if ctx.0 {
                     AttemptStatus::Authorized
                 } else {
                     AttemptStatus::Charged
@@ -176,7 +194,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             | AdyenStatus::RedirectShopper
             | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
             AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
-            AdyenStatus::Pending => match ctx.payment_method_type {
+            AdyenStatus::Pending => match ctx.1 {
                 Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
                 _ => AttemptStatus::Pending,
             },
@@ -189,17 +207,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// The Void response carries `AdyenVoidStatus` (received/processing), but the current
-// TryFrom hardcodes `AttemptStatus::Pending`. The mapping enforces what the connector
-// actually reports: Received ⇒ the cancel was accepted ⇒ Voided.
-domain_types::impl_flow_status_mapping! {
+// Adyen modification responses acknowledge async processing; the terminal outcome
+// is reported via webhook.
+domain_types::impl_connector_flow_allowed_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Adyen<T>,
-    flow:      Void,
-    source:    adyen::AdyenVoidStatus,
-    success:   Received   => Voided,
-    failure:   Processing => Failure,
-    {}
+    connector_name: "adyen",
+    flow: Void,
+    status: Pending,
+    runtime: {
+        request:  PaymentVoidData,
+        response: AdyenVoidResponse,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Adyen<T>
@@ -217,10 +236,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Adyen<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for Capture. Adyen's /payments/{pspReference}/captures
-// response has no result_code field and the TryFrom hardcodes `AttemptStatus::Pending`;
-// the actual capture outcome arrives via the CAPTURE webhook. No typed payment status
-// exists to map.
+// Adyen's /payments/{pspReference}/captures response has no terminal result_code;
+// it acknowledges the request and the actual capture outcome arrives via the
+// CAPTURE webhook.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    connector_name: "adyen",
+    flow: Capture,
+    status: Pending,
+    runtime: {
+        request: PaymentsCaptureData,
+        response: AdyenCaptureResponse,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Adyen<T>
 {
@@ -235,6 +264,12 @@ domain_types::impl_flow_status_mapping! {
     source:    adyen::AdyenStatus,
     success:   Authorised => Charged,
     failure:   Refused    => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: SetupMandateResponse,
+        source: |r| r.result_code(),
+        context: |_req, _| (),
+    },
     {
         AuthenticationFinished    => AuthenticationSuccessful,
         AuthenticationNotRequired => Pending,
@@ -272,12 +307,21 @@ domain_types::impl_flow_status_mapping_ctx! {
     connector:       Adyen<T>,
     flow:            RepeatPayment,
     source:          adyen::AdyenStatus,
-    context:         adyen::AdyenAuthorizeCtx,
+    context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
     success_status:  Authorised,
     success_targets: [Charged],
     failure_status:  Refused,
     failure_target:  Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: AdyenRepeatPaymentResponse,
+        source: |r| r.result_code(),
+        context: |req, _| (
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        ),
+    },
     {
         use common_enums::{AttemptStatus, PaymentMethodType};
         use adyen::AdyenStatus;
@@ -285,7 +329,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
             AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
             AdyenStatus::Authorised => {
-                if ctx.is_manual_capture {
+                if ctx.0 {
                     AttemptStatus::Authorized
                 } else {
                     AttemptStatus::Charged
@@ -296,7 +340,7 @@ domain_types::impl_flow_status_mapping_ctx! {
             | AdyenStatus::RedirectShopper
             | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
             AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
-            AdyenStatus::Pending => match ctx.payment_method_type {
+            AdyenStatus::Pending => match ctx.1 {
                 Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
                 _ => AttemptStatus::Pending,
             },

@@ -65,6 +65,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Authorized, Charged],
     failure_status:  Fail,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: BluesnapAuthorizeResponse,
+        source: |response| response.processing_info.processing_status.clone(),
+        context: |_request, response| response.card_transaction_type.clone(),
+    },
     {
         use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
@@ -98,6 +104,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Authorized, Charged, Voided],
     failure_status:  Fail,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: BluesnapPSyncResponse,
+        source: |response| response.processing_info.processing_status.clone(),
+        context: |_request, response| response.card_transaction_type.clone(),
+    },
     {
         use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
@@ -131,6 +143,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Voided],
     failure_status:  Fail,
     failure_target:  VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: BluesnapVoidResponse,
+        source: |response| response.processing_info.processing_status.clone(),
+        context: |_request, response| response.card_transaction_type.clone(),
+    },
     {
         use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
@@ -178,6 +196,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Fail,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: BluesnapCaptureResponse,
+        source: |response| response.processing_info.processing_status.clone(),
+        context: |_request, response| response.card_transaction_type.clone(),
+    },
     {
         use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
@@ -205,14 +229,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Mirrors `From<BluesnapRefundStatus> for RefundStatus`. The enum has no
 // failure variant — BlueSnap refunds are initiated (Pending) or done
 // (Success); rejections arrive as non-2xx into `build_error_response`.
-domain_types::impl_refund_flow_status_mapping! {
+domain_types::impl_refund_flow_status_mapping_ctx! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bluesnap<T>,
-    flow:      Refund,
-    source:    bluesnap::BluesnapRefundStatus,
-    success:   Success => Success,
-    failure:   Pending => Failure,
-    {}
+    flow: Refund,
+    source: bluesnap::BluesnapRefundStatus,
+    context: (),
+    params: [status, _context],
+    success_targets: [Success],
+    failure_sample: None,
+    extractors: {
+        request: RefundsData,
+        response: BluesnapRefundResponse,
+        source: |response| response.refund_status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            bluesnap::BluesnapRefundStatus::Success => common_enums::RefundStatus::Success,
+            bluesnap::BluesnapRefundStatus::Pending => common_enums::RefundStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Bluesnap<T>
@@ -234,6 +271,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Success,
     failure_status: Fail,
+    extractors: {
+        request: RefundSyncData,
+        response: BluesnapRefundSyncResponse,
+        source: |response| response.processing_info.processing_status.clone(),
+        context: |_request, _response| None,
+    },
     {
         let _ = ctx;
         use bluesnap::BluesnapProcessingStatus as P;

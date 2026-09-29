@@ -2484,7 +2484,7 @@ pub struct FiuuPaymentCancelRequest {
 pub struct FiuuPaymentCancelResponse {
     #[serde(rename = "TranID")]
     tran_id: String,
-    stat_code: String,
+    pub stat_code: String,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
 }

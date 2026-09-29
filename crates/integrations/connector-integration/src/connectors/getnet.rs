@@ -76,6 +76,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged, Authorized],
     failure_status:  Denied,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GetnetAuthorizeResponse,
+        source: |response| response.status.clone(),
+        context: |_request, response| response.redirect_url.as_deref().or_else(|| response.next_step.as_ref().and_then(|next| next.redirect_url.as_deref())).and_then(|url| url::Url::parse(url).ok()).is_some(),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::GetnetPaymentStatus;
@@ -146,6 +152,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::GetnetPaymentStatus,
     success:   Approved => Charged,
     failure:   Denied   => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GetnetSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Captured       => Charged,
         Authorized     => Authorized,
@@ -167,67 +179,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// ── Void ─────────────────────────────────────────────────────────────────────
-// The Void TryFrom is a plain `AttemptStatus::from(&GetnetPaymentStatus)`.
-// Per-flow mapping: already-canceled is the terminal success; a settled payment
-// (Approved/Captured) can no longer be voided; mid-flight statuses map to
-// VoidInitiated; an unknown status advances nothing.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Getnet<T>,
-    flow:      Void,
-    source:    transformers::GetnetPaymentStatus,
-    success:   Canceled => Voided,
-    failure:   Denied   => VoidFailed,
-    {
-        Cancelled      => Voided,
-        Approved       => VoidFailed,
-        Captured       => VoidFailed,
-        Failed         => VoidFailed,
-        Error          => VoidFailed,
-        Expired        => VoidFailed,
-        Pending        => VoidInitiated,
-        Waiting        => VoidInitiated,
-        Open           => VoidInitiated,
-        RequiresAction => VoidInitiated,
-        Redirect       => VoidInitiated,
-        Authorized     => VoidInitiated,
-        Unknown        => Pending,
-    }
-}
+// BLOCKED: Void uses the shared `From<&GetnetPaymentStatus>` transformer.
+// `Approved | Captured -> Charged`, which is not allowed for Void. A mapping
+// declaration cannot both mirror the transformer and satisfy Void::ALLOWED.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Getnet<T>
 {
 }
 
-// ── Capture ──────────────────────────────────────────────────────────────────
-// The Capture TryFrom is the generic `From<&GetnetPaymentStatus>`, whose
-// capture-success semantics are `Approved|Captured => Charged`. A still-open
-// authorization reports Authorized → CaptureInitiated; already-canceled cannot
-// be captured → CaptureFailed.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Getnet<T>,
-    flow:      Capture,
-    source:    transformers::GetnetPaymentStatus,
-    success:   Captured => Charged,
-    failure:   Denied   => CaptureFailed,
-    {
-        Approved       => Charged,
-        Failed         => CaptureFailed,
-        Error          => CaptureFailed,
-        Expired        => CaptureFailed,
-        Canceled       => CaptureFailed,
-        Cancelled      => CaptureFailed,
-        Authorized     => CaptureInitiated,
-        Pending        => CaptureInitiated,
-        Waiting        => CaptureInitiated,
-        Open           => CaptureInitiated,
-        RequiresAction => CaptureInitiated,
-        Redirect       => CaptureInitiated,
-        Unknown        => Pending,
-    }
-}
+// BLOCKED: Capture also uses the shared status conversion. In particular,
+// `Canceled | Cancelled -> Voided`, which is not in Capture::ALLOWED, while
+// `Denied | Failed | Error | Expired -> Failure` (not CaptureFailed). Remapping
+// those branches here would diverge from the production transformer.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Getnet<T>
 {
@@ -245,6 +208,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GetnetPaymentStatus,
     success:   Cancelled => Success,
     failure:   Failed    => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GetnetRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Approved       => Pending,
         Captured       => Pending,
@@ -275,6 +244,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::GetnetPaymentStatus,
     success:   Cancelled => Success,
     failure:   Failed    => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: GetnetRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Approved       => Pending,
         Captured       => Pending,

@@ -1191,6 +1191,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GrabpayAuthorizeResponse,
+        source: |response| response.tx_status.clone(),
+        context: |_request, _response| (),
+    },
     {
         use common_enums::AttemptStatus;
         use grabpay::GrabpayPaymentStatus;
@@ -1222,6 +1228,12 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GrabpayChargeCompleteResponse,
+        source: |response| response.tx_status.clone(),
+        context: |_request, _response| (),
+    },
     {
         use common_enums::AttemptStatus;
         use grabpay::GrabpayPaymentStatus;
@@ -1252,6 +1264,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Success,
     failure_status: Failed,
+    extractors: {
+        request: RefundsData,
+        response: GrabpayRefundResponse,
+        source: |response| response.tx_status.clone(),
+        context: |_request, _response| (),
+    },
     {
         use common_enums::RefundStatus;
         use grabpay::GrabpayRefundStatus;
@@ -1282,6 +1300,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Success,
     failure_status: Failed,
+    extractors: {
+        request: RefundSyncData,
+        response: GrabpayRefundSyncResponse,
+        source: |response| response.tx_status.clone(),
+        context: |_request, _response| (),
+    },
     {
         use common_enums::RefundStatus;
         use grabpay::GrabpayRefundStatus;

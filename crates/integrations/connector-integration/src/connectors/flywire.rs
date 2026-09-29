@@ -63,10 +63,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for Authorize.  The /confirm TryFrom never
-// emits a terminal status — HTTP 200 is deliberately mapped to
-// `AttemptStatus::Pending` (funds are not yet guaranteed; the charged outcome
-// arrives async via webhook / PSync) — so no `success:` target is declareable.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authorize,
+    status: Pending,
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: FlywireConfirmResponse,
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Flywire<T>
 {
@@ -85,6 +91,12 @@ domain_types::impl_flow_status_mapping! {
     source:    flywire::FlywirePaymentStatus,
     success:   Guaranteed => Charged,
     failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: FlywirePSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Delivered   => Charged,
         Authorized  => Authorized,
@@ -113,6 +125,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    flywire::FlywireRefundStatus,
     success:   Finished => Success,
     failure:   Failed   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FlywireRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Completed => Success,
         Approved  => Success,
@@ -135,29 +153,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// RSync re-queries the parent payment (no per-refund GET) and maps it through
-// `FlywirePaymentStatus::to_refund_status`: only a cancelled parent reports the
-// refund as settled; failed/expired is a terminal failure; every other parent
-// state (guaranteed, delivered, reversed, still-open) reads Pending — the `_`
-// catch-all in the method is enumerated variant-by-variant here.
+// RSync deserializes FlywireRefundResponse, like Refund.
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Flywire<T>,
-    flow:      RSync,
-    source:    flywire::FlywirePaymentStatus,
-    success:   Cancelled => Success,
-    failure:   Failed    => Failure,
+    flow: RSync,
+    source: flywire::FlywireRefundStatus,
+    success: Finished => Success,
+    failure: Failed => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: FlywireRSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
-        Expired    => Failure,
-        Initiated  => Pending,
-        Authorized => Pending,
-        Adjusted   => Pending,
-        Processed  => Pending,
-        Guaranteed => Pending,
-        Delivered  => Pending,
-        Reversed   => Pending,
-        Pending    => Pending,
-        Unknown    => Pending,
+        Completed => Success,
+        Approved => Success,
+        Rejected => Failure,
+        Cancelled => Failure,
+        Returned => Failure,
+        Initiated => Pending,
+        Pending => Pending,
+        Received => Pending,
+        Unknown => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -2594,7 +2594,7 @@ pub enum ResultCode {
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessages {
-    result_code: ResultCode,
+    pub result_code: ResultCode,
     pub message: Vec<ResponseMessage>,
 }
 
@@ -2651,7 +2651,7 @@ pub enum AuthorizedotnetVoidOutcome {
     HeldForReview,
 }
 
-fn get_hs_status(
+pub(crate) fn get_hs_status(
     response: &AuthorizedotnetPaymentsResponse,
     _http_status_code: u16,
     operation: Operation,

@@ -86,6 +86,20 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CashfreeCaptureResponse,
+        source: |response| {
+            use cashfree::CashfreeCaptureStatus as Status;
+            match response.payment_status.as_deref().or(response.status.as_deref()) {
+                Some("SUCCESS" | "CAPTURE") => Status::Success,
+                Some("FAILED") => Status::Failed,
+                Some("PENDING") => Status::Pending,
+                _ => Status::Other,
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use cashfree::CashfreeCaptureStatus;
@@ -116,6 +130,20 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Voided],
     failure_status:  Failed,
     failure_target:  VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CashfreeVoidResponse,
+        source: |response| {
+            use cashfree::CashfreeVoidStatus as Status;
+            match response.payment_status.as_deref().or(response.status.as_deref()).or(response.action.as_deref()) {
+                Some("VOID") => Status::Void,
+                Some("FAILED") => Status::Failed,
+                Some("PENDING") => Status::Pending,
+                _ => Status::Other,
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use cashfree::CashfreeVoidStatus;
@@ -129,17 +157,21 @@ domain_types::impl_flow_status_mapping_ctx! {
     }
 }
 
-// NOTE: no impl_flow_status_mapping! for Authorize. Cashfree's authorize
-// response carries no payment status at all — only a payment session/link.
-// The TryFrom derives the attempt status from the response `channel` string:
-// "link" (wallet/netbanking redirect or UPI intent/QR deep link) →
-// AuthenticationPending, "collect" (UPI collect — customer approves in-app,
-// no redirect) → Pending, any other channel → Failure. These are
-// redirect-stage verdicts, not terminal outcomes (the payment resolves via
-// PSync), and the macro demands success/failure terminals the flow produces
-// from the connector status — AuthenticationPending is a non-terminal in
-// Authorize::ALLOWED that cannot satisfy the TERMINAL_SUCCESS_SET const
-// assertion, and there is no success terminal to declare.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cashfree<T>,
+    flow: Authorize,
+    statuses: [AuthenticationPending, Pending, Failure],
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: CashfreePaymentResponse,
+        status: |_request, response| match response.channel.as_str() {
+            "link" => AttemptStatus::AuthenticationPending,
+            "collect" => AttemptStatus::Pending,
+            _ => AttemptStatus::Failure,
+        },
+    },
+}
 
 // NOTE: no impl_flow_status_mapping! for CreateOrder. Order creation is an
 // ack-only step — the TryFrom hardcodes `AttemptStatus::Pending` regardless
@@ -161,6 +193,17 @@ domain_types::impl_flow_status_mapping_ctx! {
     success_targets: [Charged],
     failure_status:  Failed,
     failure_target:  Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CashfreeSyncResponse,
+        source: |response| {
+            let payment = response.iter().find(|payment| payment.payment_status == "SUCCESS")
+                .or_else(|| response.iter().find(|payment| payment.payment_status == "PENDING"))
+                .or_else(|| response.first());
+            payment.map_or(cashfree::CashfreePaymentStatus::Pending, |payment| cashfree::CashfreePaymentStatus::from(payment.payment_status.as_str()))
+        },
+        context: |_request, _response| (),
+    },
     {
         match status {
             cashfree::CashfreePaymentStatus::Success => AttemptStatus::Charged,
@@ -200,6 +243,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Success,
     failure_status: Failed,
+    extractors: {
+        request: RefundSyncData,
+        response: CashfreeRefundSyncResponse,
+        source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use common_enums::RefundStatus;
@@ -229,6 +278,12 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     params:         [status, ctx],
     success_status: Success,
     failure_status: Failed,
+    extractors: {
+        request: RefundsData,
+        response: CashfreeRefundResponse,
+        source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use common_enums::RefundStatus;
