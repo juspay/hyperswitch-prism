@@ -371,7 +371,10 @@ impl HttpClient {
     /// `external_services::service::create_client`, the same function the
     /// gRPC-mode server uses for the same `Request` fields, so proxy/timeout
     /// handling for this one-off client stays identical to the pooled one.
-    fn build_client_for_request(&self, request: &HttpRequest) -> Result<reqwest::Client, NetworkError> {
+    fn build_client_for_request(
+        &self,
+        request: &HttpRequest,
+    ) -> Result<reqwest::Client, NetworkError> {
         let proxy = self.options.proxy.as_ref();
         let mut proxies = HashMap::new();
         if let Some(p) = proxy {
@@ -392,10 +395,7 @@ impl HttpClient {
                 .options
                 .keep_alive_timeout_ms
                 .map(|ms| u64::from(ms) / 1000),
-            connector_request_timeout: self
-                .options
-                .total_timeout_ms
-                .map(|ms| u64::from(ms) / 1000),
+            connector_request_timeout: self.options.total_timeout_ms.map(|ms| u64::from(ms) / 1000),
             bypass_urls: proxy.map(|p| p.bypass_urls.clone()).unwrap_or_default(),
             proxies,
         };
