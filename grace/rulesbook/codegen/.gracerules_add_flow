@@ -200,6 +200,9 @@ independently. Those are named as a **flow group**, and the group name is a vali
 | Flow group | Also accepted as             | Markers implemented together                                     |
 |------------|------------------------------|------------------------------------------------------------------|
 | `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `Authorize`, plus whichever of `PreAuthenticate`, `Authenticate`, `PostAuthenticate` the LEG-COUNT PROCEDURE selects — which may be none of them |
+| `Payments` | `payments`, `payment`        | `Authorize`, `Capture`, `PSync`                                   |
+| `Refunds`  | `refunds`, `refund_family`   | `Refund`, `RSync`                                                 |
+| `Mandates` | `mandates`, `mandate`        | `SetupMandate`, `RepeatPayment`                                   |
 
 **A flow group is ONE agent invocation, ONE commit. Do NOT
 decompose it into one invocation per marker.** The markers in a group share
@@ -209,6 +212,21 @@ request and response types, share connector state across legs (the
 them forces each leg to guess at contracts a later leg will change, and pushes
 all the cross-leg wiring into whichever leg happens to run last — where it
 arrives too late for the legs that needed it.
+
+**The same reasoning makes each category one group.** A category's markers share request and
+response types and the helpers over them: `Refund` and `RSync` share the amount/checksum
+construction and the refund sync response shape; `Capture` and `PSync` both read the response
+shape `Authorize` defines; `SetupMandate` and `RepeatPayment` share the mandate reference and the
+stored-credential fields. Split them and each marker has to guess at a contract the other is about
+to change, and the last one to land silently rewrites the earlier ones' structs.
+
+**Ownership where categories overlap.** `Payments` and `ThreeDS` both name `Authorize`.
+`Payments` owns the non-3DS request and response — their structs, field sets, amount and status
+mapping. `ThreeDS` owns the authentication legs, the 3DS branches inside `Authorize` and
+external-MPI handling. Neither edits the other's half. Without this split, two categories plan
+items against the same function and the second overwrites the first.
+
+The rest of this section is `ThreeDS`-specific.
 
 **The group is not a fixed set of three.** Of the 20 UCS connectors that implement any
 authentication marker, exactly **one** (`getnet`) reaches all three in a single payment; 8 use one
