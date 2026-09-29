@@ -960,12 +960,40 @@ impl<T: PaymentMethodDataTypes>
         // G-ThreeDS-01: a card flagged for 3DS is charged only with the outcome of an
         // authentication (a Shift4 3DS token, or the merchant's external results).
         // Refused locally, before any HTTP call, rather than downgraded to a sale.
-        let three_ds_settlement = if item.resource_common_data.is_three_ds()
-            && matches!(item.request.payment_method_data, PaymentMethodData::Card(_))
-        {
-            Some(Shift4ThreeDsSettlement::try_from_authentication_data(
-                item.request.authentication_data.as_ref(),
-            )?)
+        let three_ds_settlement = if item.resource_common_data.is_three_ds() {
+            match &item.request.payment_method_data {
+                PaymentMethodData::Card(_) => {
+                    Some(Shift4ThreeDsSettlement::try_from_authentication_data(
+                        item.request.authentication_data.as_ref(),
+                    )?)
+                }
+                // Shift4 only ever authenticates a card: its PreAuthenticate
+                // /3d-secure enrolment and merchant-supplied external 3DS results
+                // both apply to a card only (see the PreAuthenticate rejection
+                // above). A non-card payment method flagged THREE_DS has no
+                // Shift4 authentication path, so refuse it the same way instead
+                // of silently charging it as a plain sale.
+                _ => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "3D Secure authentication for a non-card payment method"
+                            .to_string(),
+                        connector: "Shift4",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Shift4 only authenticates cards, via PreAuthenticate \
+                                 /3d-secure or merchant-supplied external 3DS results."
+                                    .to_string()
+                            ),
+                            suggested_action: Some(
+                                "Authorize this payment method without requesting 3DS, \
+                                 or use a card."
+                                    .to_string()
+                            ),
+                            doc_url: Some(SHIFT4_3DS_DOC.to_string()),
+                        },
+                    }));
+                }
+            }
         } else {
             None
         };
@@ -1514,7 +1542,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &item.router_data.request;
 
         shift4_reject_unsupported_capture_method(request.capture_method)?;
-        let captured = request.is_auto_capture()?;
+        // Same rule as Authorize and RepeatPayment: Shift4 rejects a captured
+        // zero-amount charge ("Zero amount charge cannot be captured"), and a
+        // $0 PreAuthenticate enrolment moves no funds. Without this guard a $0
+        // verification can set `captured=true` while the settle Authorize that
+        // follows (which does apply this guard) sends `captured=false` for the
+        // same zero amount — Shift4 rejects the charge because it disagrees
+        // with the enrolment it bound the 3DS result to.
+        let is_zero_amount = request.amount == MinorUnit::new(0);
+        let captured = !is_zero_amount && request.is_auto_capture()?;
 
         let card = match &request.payment_method_data {
             Some(PaymentMethodData::Card(card)) => card,
@@ -1644,10 +1680,15 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4ThreeDsResponse
                     })
             })
             .transpose()?;
+        // A frictionless exit (not enrolled, no redirectUrl) is a completed
+        // authentication step, not an in-flight one: nothing further happens on
+        // this leg, and the caller proceeds straight to the settling charge.
+        // `Pending` would wrongly suggest polling or waiting for a callback that
+        // will never arrive.
         let status = if redirection_data.is_some() {
             AttemptStatus::AuthenticationPending
         } else {
-            AttemptStatus::Pending
+            AttemptStatus::AuthenticationSuccessful
         };
 
         // The token rides `threeds_server_transaction_id`: it is the only
@@ -3997,11 +4038,17 @@ pub(crate) fn get_webhook_reference(
                     },
                 )));
             }
+            // `refunds` accumulates every refund made on this charge, oldest
+            // first; the one this CHARGE_REFUNDED event is actually about is
+            // whichever one was just added, i.e. the last entry, not the
+            // first. Taking `refunds[0]` here would keep pointing at the same
+            // (first) refund forever, misattributing every later partial
+            // refund's webhook to it.
             let refund_id = charge
                 .refunds
-                .and_then(|refunds| refunds.into_iter().next())
+                .and_then(|refunds| refunds.into_iter().next_back())
                 .and_then(|refund| refund.id)
-                .ok_or_else(|| missing("data.refunds[0].id"))?;
+                .ok_or_else(|| missing("data.refunds[-1].id"))?;
             Ok(Some(WebhookResourceReference::Refund(
                 RefundWebhookReference {
                     connector_refund_id: Some(refund_id),
@@ -4128,13 +4175,15 @@ pub(crate) fn build_webhook_refund_response(
             if charge.is_released_authorization() {
                 return Err(report!(WebhookError::WebhookProcessingFailed));
             }
+            // Same reasoning as `get_webhook_reference`: the refund this event
+            // is about is the most recently added one, not `refunds[0]`.
             let refund_id = charge
                 .refunds
-                .and_then(|refunds| refunds.into_iter().next())
+                .and_then(|refunds| refunds.into_iter().next_back())
                 .and_then(|refund| refund.id)
                 .ok_or_else(|| {
                     report!(WebhookError::WebhookMissingRequiredField {
-                        field: "data.refunds[0].id"
+                        field: "data.refunds[-1].id"
                     })
                 })?;
             (refund_id, RefundStatus::Success)
@@ -4202,9 +4251,25 @@ pub(crate) fn build_webhook_dispute_response(
     )?
     .data;
     let mapped = dispute.status.and_then(map_dispute_status);
-    let stage = mapped
-        .map(|(_, stage)| stage)
-        .unwrap_or(DisputeStage::Dispute);
+    // `CHARGE_DISPUTE_CREATED` / `_WON` / `_LOST` are chargeback-stage events by
+    // construction (the retrieval-request / pre-dispute statuses only ever
+    // arrive via `CHARGE_DISPUTE_UPDATED`'s `status` field), so an *absent*
+    // `data.status` on one of them defaults to `Dispute` safely. A *present but
+    // unrecognized* status (`Shift4DisputeStatus::Unknown` — a value Shift4
+    // started sending that this connector doesn't map) must not be folded into
+    // that same default: it needs to surface as an error for review, not be
+    // silently staged as an ordinary chargeback.
+    let stage = match dispute.status {
+        None => DisputeStage::Dispute,
+        Some(_) => match mapped {
+            Some((_, stage)) => stage,
+            None => {
+                return Err(report!(WebhookError::WebhookMissingRequiredField {
+                    field: "data.status"
+                }))
+            }
+        },
+    };
     let status = match event {
         Shift4WebhookEvent::ChargeDisputeCreated => DisputeStatus::DisputeOpened,
         Shift4WebhookEvent::ChargeDisputeWon => DisputeStatus::DisputeWon,

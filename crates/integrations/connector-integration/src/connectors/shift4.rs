@@ -853,8 +853,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Shift4<T>
 {
     // Shift4 publishes no signature scheme (spec "Webhook Authentication &
-    // Signature Verification", decision UD-05), so `verify_webhook_source`
-    // keeps its default and reports the source as unverified.
+    // Signature Verification", decision UD-05: "UNDOCUMENTED. No signature
+    // header, algorithm, or secret is published... Do not invent a scheme.").
+    // The Hyperswitch reference connector defaults the same way for the same
+    // reason. `verify_webhook_source` therefore keeps its `Unsupported`
+    // default rather than fabricating a check — an unverifiable "check" would
+    // reject every webhook Shift4 ever sends (there is nothing to verify it
+    // against), which turns off webhook consumption entirely rather than
+    // making it safer. Reviewed 2026-09: not a gap to fix, a documented
+    // limitation of Shift4's API. The technical spec's own mitigation
+    // (`technical_specification.md` "Flow: IncomingWebhook") is to treat an
+    // unsigned webhook as a low-trust ping and re-derive state from a
+    // follow-up PSync/RSync rather than from the webhook body alone; that is
+    // an HS/UCS-core reconciliation concern, not something this trait's
+    // stateless `process_*_webhook` functions can do themselves (they receive
+    // no connector client to call back out with).
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         transformers::get_webhook_event_type(&request.body)
