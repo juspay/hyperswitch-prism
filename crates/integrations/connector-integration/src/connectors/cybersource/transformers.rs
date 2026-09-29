@@ -397,8 +397,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             action_list,
             action_token_types,
             authorization_options,
-            commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or_else(|| String::from("internet")),
+            commerce_indicator: commerce_indicator_for_external_authentication.or_else(|| {
+                get_commerce_indicator_for_wallet_payment(
+                    solution.as_ref(),
+                    &item.router_data.request.payment_method_data,
+                    item.router_data.resource_common_data.auth_type,
+                    None,
+                )
+            }),
             payment_solution: solution.map(String::from),
             bank_transfer_options: None,
         };
@@ -458,7 +464,8 @@ pub struct ProcessingInformation {
     action_list: Option<Vec<CybersourceActionsList>>,
     action_token_types: Option<Vec<CybersourceActionsTokenType>>,
     authorization_options: Option<CybersourceAuthorizationOptions>,
-    commerce_indicator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commerce_indicator: Option<String>,
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
     payment_solution: Option<String>,
@@ -1156,20 +1163,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let commerce_indicator = solution
-            .as_ref()
-            .map(|pm_solution| match pm_solution {
-                PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
-                    .as_ref()
-                    .map(|card_network| match card_network.to_lowercase().as_str() {
-                        "mastercard" => "spa",
-                        _ => "internet",
-                    })
-                    .unwrap_or("internet"),
-                PaymentSolution::GooglePay => "internet",
-            })
-            .unwrap_or("internet")
-            .to_string();
+        let commerce_indicator = get_commerce_indicator_for_wallet_payment(
+            solution.as_ref(),
+            &item.router_data.request.payment_method_data,
+            item.router_data.resource_common_data.auth_type,
+            network.as_deref(),
+        );
 
         let auth = CybersourceAuthType::try_from(&item.router_data.connector_config)?;
         let connector_merchant_config = CybersourceConnectorMetadataObject {
@@ -1266,7 +1265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             authorization_options,
             capture_options: None,
             commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or(commerce_indicator),
+                .or(commerce_indicator),
             bank_transfer_options: None,
         })
     }
@@ -2274,7 +2273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     action_list: None,
                     action_token_types: None,
                     authorization_options: None,
-                    commerce_indicator: String::from("internet"),
+                    commerce_indicator: Some(String::from("internet")),
                     capture: None,
                     capture_options: None,
                     payment_solution: None,
@@ -2827,7 +2826,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 action_token_types: None,
                 authorization_options: None,
                 capture: None,
-                commerce_indicator: String::from("internet"),
+                commerce_indicator: Some(String::from("internet")),
                 payment_solution: None,
                 bank_transfer_options: None,
             },
@@ -3301,7 +3300,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ignore_avs_result: None,
                 ignore_cv_result: None,
             }),
-            commerce_indicator: CybersourceCommerceIndicator::Internet.to_string(),
+            commerce_indicator: Some(CybersourceCommerceIndicator::Internet.to_string()),
             capture: None,
             capture_options: None,
             payment_solution: None,
@@ -4970,20 +4969,21 @@ pub fn get_error_response(
 ) -> ErrorResponse {
     let avs_message = risk_information
         .clone()
-        .map(|client_risk_information| {
-            client_risk_information.rules.map(|rules| {
-                rules
+        .and_then(|client_risk_information| {
+            client_risk_information.rules.and_then(|rules| {
+                let message = rules
                     .iter()
-                    .map(|risk_info| {
-                        risk_info.name.clone().map_or("".to_string(), |name| {
-                            format!(" , {}", name.clone().expose())
-                        })
+                    .filter_map(|risk_info| {
+                        risk_info
+                            .name
+                            .as_ref()
+                            .map(|name| format!(" , {}", name.clone().expose()))
                     })
                     .collect::<Vec<String>>()
-                    .join("")
+                    .join("");
+                (!message.is_empty()).then_some(message)
             })
-        })
-        .unwrap_or(Some("".to_string()));
+        });
 
     let detailed_error_info = error_data.as_ref().and_then(|error_data| {
         error_data.details.as_ref().map(|details| {
@@ -5779,8 +5779,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or(commerce_indicator),
+            commerce_indicator: Some(
+                commerce_indicator_for_external_authentication.unwrap_or(commerce_indicator),
+            ),
             bank_transfer_options: None,
         })
     }
@@ -5803,6 +5804,60 @@ fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'st
         "062" | "unionpay" | "upi" => Some("unionpay"),
         _ => None,
     })
+}
+
+fn get_commerce_indicator_for_wallet_payment<T: PaymentMethodDataTypes>(
+    payment_solution: Option<&PaymentSolution>,
+    payment_method_data: &PaymentMethodData<T>,
+    authentication_type: common_enums::AuthenticationType,
+    card_network: Option<&str>,
+) -> Option<String> {
+    match payment_solution {
+        Some(PaymentSolution::GooglePay) => {
+            let is_pan_only = matches!(
+                payment_method_data,
+                PaymentMethodData::Wallet(WalletData::GooglePay(data))
+                    if data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .is_some_and(|details| !details.card_holder_authenticated)
+            );
+
+            if is_pan_only {
+                Some(
+                    if authentication_type == common_enums::AuthenticationType::ThreeDs {
+                        match normalize_cybersource_card_network(card_network) {
+                            Some("diners") => "pb",
+                            Some("mastercard") | Some("maestro") => "spa",
+                            Some("visa") => "vbv",
+                            Some("amex") => "aesk",
+                            Some("discover") => "dipb",
+                            Some("jcb") => "js",
+                            _ => "internet",
+                        }
+                    } else {
+                        "internet"
+                    }
+                    .to_string(),
+                )
+            } else {
+                // CRYPTOGRAM_3DS tokens already carry their cryptogram and ECI,
+                // so direct Hyperswitch omits commerceIndicator.
+                None
+            }
+        }
+        Some(PaymentSolution::ApplePay) | Some(PaymentSolution::SamsungPay) => Some(
+            card_network
+                .map(|network| match network.to_lowercase().as_str() {
+                    "mastercard" => "spa",
+                    _ => "internet",
+                })
+                .unwrap_or("internet")
+                .to_string(),
+        ),
+        None => Some(String::from("internet")),
+    }
 }
 
 fn get_commerce_indicator_for_external_authentication(

@@ -451,7 +451,7 @@
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "Payment method BankRedirect(Trustly { country: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+        "error": "Payment method BankRedirect(Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
       },
       "Twint": {
         "status": "not_implemented",
