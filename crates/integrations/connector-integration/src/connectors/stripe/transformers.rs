@@ -6562,6 +6562,76 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
 }
 
 #[cfg(test)]
+mod error_on_requires_action_tests {
+    use common_utils::types::MinorUnit;
+    use domain_types::payment_method_data::DefaultPCIHolder;
+
+    use super::{PaymentIntentRequest, StripeBillingAddress, StripeCaptureMethod};
+
+    /// Minimal request carrying only the field under test; everything else is the
+    /// empty/default value, so the assertions below cannot pass by accident.
+    fn request(error_on_requires_action: Option<bool>) -> PaymentIntentRequest<DefaultPCIHolder> {
+        PaymentIntentRequest {
+            amount: MinorUnit::new(1000),
+            currency: "USD".to_string(),
+            statement_descriptor_suffix: None,
+            statement_descriptor: None,
+            meta_data: std::collections::HashMap::new(),
+            return_url: String::new(),
+            confirm: true,
+            payment_method: None,
+            customer: None,
+            setup_mandate_details: None,
+            description: None,
+            shipping: None,
+            billing: StripeBillingAddress::default(),
+            payment_data: None,
+            capture_method: StripeCaptureMethod::Automatic,
+            payment_method_options: None,
+            setup_future_usage: None,
+            off_session: None,
+            payment_method_types: None,
+            expand: None,
+            browser_info: None,
+            charges: None,
+            line_items: None,
+            moto: None,
+            on_behalf_of: None,
+            error_on_requires_action,
+        }
+    }
+
+    /// Stripe bodies go out as form-urlencoded (`RequestContent::FormUrlEncoded` ->
+    /// `serde_urlencoded::to_string`), so assert on that encoding rather than JSON.
+    fn encoded(error_on_requires_action: Option<bool>) -> String {
+        serde_urlencoded::to_string(request(error_on_requires_action)).unwrap_or_default()
+    }
+
+    #[test]
+    fn mit_flag_reaches_the_stripe_body() {
+        let body = encoded(Some(true));
+        assert!(
+            body.contains("error_on_requires_action=true"),
+            "expected the MIT flag in the body, got: {body}"
+        );
+    }
+
+    /// Without `skip_serializing_if` this would emit `error_on_requires_action=`
+    /// on every CIT authorize, which is not what hyperswitch sends on the Direct
+    /// path and not what Stripe should receive. The `amount` assertion proves the
+    /// body encoded at all, so an encoding failure cannot masquerade as success.
+    #[test]
+    fn unset_flag_is_omitted_entirely_rather_than_sent_empty() {
+        let body = encoded(None);
+        assert!(body.contains("amount=1000"), "body did not encode: {body}");
+        assert!(
+            !body.contains("error_on_requires_action"),
+            "the key must be absent, not empty, got: {body}"
+        );
+    }
+}
+
+#[cfg(test)]
 mod dispute_network_details_tests {
     use super::{
         DisputeAdditionalDetails, DisputeNetworkDetails, StripeDisputeNetworkDetails,
@@ -6571,18 +6641,23 @@ mod dispute_network_details_tests {
     /// `network_details` sits on the Stripe Dispute object (`data.object`) and is
     /// internally tagged by `type`. Parse it off a realistic payload rather than
     /// constructing the enum, so a rename of either key is caught here.
-    fn network_details_from(json: &str) -> Option<StripeDisputeNetworkDetails> {
-        let body = format!(
+    fn dispute_object(network_details: &str) -> Option<WebhookEventObjectData> {
+        serde_json::from_str(&format!(
             r#"{{"id":"dp_1","object":"dispute","amount":100,"currency":"usd",
-                 "created":1758000000,"reason":"fraudulent"{json}}}"#
-        );
-        serde_json::from_str::<WebhookEventObjectData>(&body)
-            .expect("dispute object should deserialize")
-            .network_details
+                 "created":1758000000,"reason":"fraudulent"{network_details}}}"#
+        ))
+        .ok()
     }
 
-    fn rdr_applied(details: Option<DisputeAdditionalDetails>) -> Option<bool> {
-        match details?.network_details? {
+    /// `Some(_)` only if the payload parsed AND the tagged enum was recognised,
+    /// which keeps a parse failure distinguishable from a missing RDR flag.
+    fn parsed_network(network_details: &str) -> Option<StripeDisputeNetworkDetails> {
+        dispute_object(network_details)?.network_details
+    }
+
+    fn rdr_applied(network_details: Option<StripeDisputeNetworkDetails>) -> Option<bool> {
+        let additional: Option<DisputeAdditionalDetails> = network_details?.into();
+        match additional?.network_details? {
             DisputeNetworkDetails::Visa {
                 rapid_dispute_resolution,
             } => Some(rapid_dispute_resolution?.applied),
@@ -6591,29 +6666,36 @@ mod dispute_network_details_tests {
 
     #[test]
     fn visa_rapid_dispute_resolution_is_carried_through() {
-        let details = network_details_from(
+        let network = parsed_network(
             r#","network_details":{"type":"visa","visa":{"rapid_dispute_resolution":true}}"#,
-        )
-        .expect("visa network_details should parse");
-        assert_eq!(rdr_applied(details.into()), Some(true));
+        );
+        assert!(network.is_some(), "visa network_details should parse");
+        assert_eq!(rdr_applied(network), Some(true));
     }
 
-    /// Visa without the RDR flag, a network we do not model, and no
-    /// `network_details` at all must all leave `additional_details` empty rather
-    /// than inventing an `applied: false`.
+    /// Visa without the RDR flag, and a network we do not model, must both parse
+    /// (an unmodelled network must not fail the whole dispute object) yet leave
+    /// `additional_details` empty rather than inventing an `applied: false`.
     #[test]
-    fn absent_or_unknown_network_details_yield_nothing() {
-        let visa_without_rdr =
-            network_details_from(r#","network_details":{"type":"visa","visa":{}}"#)
-                .expect("visa network_details should parse");
-        assert_eq!(rdr_applied(visa_without_rdr.into()), None);
+    fn known_shapes_without_rdr_yield_nothing() {
+        let visa_without_rdr = parsed_network(r#","network_details":{"type":"visa","visa":{}}"#);
+        assert!(visa_without_rdr.is_some(), "visa should parse");
+        assert_eq!(rdr_applied(visa_without_rdr), None);
 
-        let mastercard = network_details_from(
+        let mastercard = parsed_network(
             r#","network_details":{"type":"mastercard","mastercard":{"some_field":true}}"#,
-        )
-        .expect("unknown network should parse as Unknown");
-        assert_eq!(rdr_applied(mastercard.into()), None);
+        );
+        assert!(mastercard.is_some(), "unknown network should parse");
+        assert_eq!(rdr_applied(mastercard), None);
+    }
 
-        assert!(network_details_from("").is_none());
+    #[test]
+    fn a_dispute_without_network_details_is_still_accepted() {
+        let object = dispute_object("");
+        assert!(
+            object.is_some(),
+            "a dispute with no network_details must parse"
+        );
+        assert!(object.and_then(|o| o.network_details).is_none());
     }
 }
