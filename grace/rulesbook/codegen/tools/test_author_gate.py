@@ -127,15 +127,28 @@ def response_asserting(rules):
 
 # ------------------------------------------------------------------ report helpers
 
-def report_rows(report_path):
-    """(suite, scenario) -> list of assertion_result, for non-dependency rows."""
+def report_rows(report_path, unparsed=None):
+    """(suite, scenario) -> list of assertion_result, for non-dependency rows.
+
+    "No report was asked for" and "a report was asked for and is not there" are different
+    facts and must not collapse into the same empty dict. The second one used to be silent:
+    the caller passed a path that did not exist, got {} back, and every report-backed check
+    reported "not evaluated" -- which the pass rule then counted as a pass. A gate whose
+    input is missing has not checked anything, so it says so through `unparsed`.
+    """
     rows = {}
-    if not report_path or report_path == "none" or not os.path.isfile(report_path):
+    if not report_path or report_path == "none":
+        return rows
+    if not os.path.isfile(report_path):
+        if unparsed is not None:
+            unparsed.append({"what": "report", "why": "path given but missing: %s" % report_path})
         return rows
     try:
         with open(report_path, "r", encoding="utf-8") as fh:
             blob = json.load(fh)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        if unparsed is not None:
+            unparsed.append({"what": "report", "why": "unreadable: %s: %s" % (report_path, exc)})
         return rows
     for entry in blob.get("runs") or []:
         if entry.get("is_dependency"):
@@ -170,6 +183,37 @@ def prior_passes(run_dir):
 
 # ------------------------------------------------------------------------- checks
 
+# Strength order for a single assertion rule. A replacement must bind at least as
+# tightly as what it replaces: `equals` names the value, `one_of` names a set,
+# `contains` names a substring, `must_exist` names only presence. `must_not_exist`
+# is an absence claim and can never stand in for a claim about a value.
+_STRENGTH = {"equals": 4, "one_of": 3, "contains": 2, "echo": 2, "must_exist": 1}
+
+
+def rule_strength(rule):
+    if not isinstance(rule, dict):
+        return 0
+    return max([_STRENGTH.get(k, 0) for k in rule] or [0])
+
+
+def replaced_at_equal_strength(field, base_rules, kept):
+    """True when deleting `field` left something at least as binding behind.
+
+    Either the same field survives at equal-or-greater strength, or the patch adds a
+    value-level claim (`equals`/`one_of`) on a field the base did not constrain at all --
+    a genuinely different assertion, not a weaker restatement of the deleted one.
+    """
+    want = rule_strength((base_rules or {}).get(field))
+    if rule_strength((kept or {}).get(field)) >= want:
+        return True
+    for f, r in (kept or {}).items():
+        if f in (base_rules or {}):
+            continue
+        if rule_strength(r) >= 3:
+            return True
+    return False
+
+
 def check_assertions(cur_priv, base_priv, cur_ovr, base_ovr):
     """ASSERT-01 and ASSERT-02 over the scenarios this run added or patched."""
     ev01, ev02 = [], []
@@ -199,11 +243,35 @@ def check_assertions(cur_priv, base_priv, cur_ovr, base_ovr):
                 continue
             deleted = [f for f, r in rules.items() if r is None]
             kept = {f: r for f, r in rules.items() if r is not None}
-            if deleted and not response_asserting(kept):
+            if not deleted:
+                continue
+
+            # A money suite does not get to trade one assertion for another. The old rule
+            # accepted any surviving response assertion as cover, so a row could delete
+            # `status: one_of [REFUND_SUCCESS, ...]`, keep `error: {must_exist: true}`, and
+            # pass -- leaving a refund row whose entire claim was that something went wrong.
+            if suite in MONEY_SUITES:
+                ev02.append({
+                    "file": OVERRIDE, "suite": suite, "scenario": name,
+                    "detail": "deletes %s on a money suite; no replacement is accepted there"
+                              % deleted,
+                    "severity": "S0"})
+                continue
+
+            base_rules = (base_suite.get(name) or {}).get("assert") or {}
+            weak = [f for f in deleted
+                    if not replaced_at_equal_strength(f, base_rules, kept)]
+            if weak and not response_asserting(kept):
                 ev02.append({
                     "file": OVERRIDE, "suite": suite, "scenario": name,
                     "detail": "deletes %s and adds no replacement response assertion" % deleted,
-                    "severity": "S0" if suite in MONEY_SUITES else "S1"})
+                    "severity": "S1"})
+            elif weak:
+                ev02.append({
+                    "file": OVERRIDE, "suite": suite, "scenario": name,
+                    "detail": "deletes %s; what remains does not constrain those fields at "
+                              "equal or greater strength" % weak,
+                    "severity": "S1"})
     return ev01, ev02
 
 
@@ -286,19 +354,35 @@ def check_waivers(cur_specs, base_specs, passed_before, plan):
     return ev01, ev02, ev03
 
 
-def check_suites(cur_specs, base_specs, rows):
-    """SUITE-01: a suite this run declares must have an executed PASS behind it."""
+def check_suites(cur_specs, base_specs, rows, touched_suites=None, needs_human=None):
+    """SUITE-01: a suite this run declares must have an executed PASS behind it.
+
+    Every declared suite is audited, not only the ones this run added. A weak declaration
+    does not become true by ageing, and scoping the check to `cur - base` meant the longer
+    an unproven claim survived the less anything looked at it.
+
+    A suite the run neither added nor touched is grandfathered: it is reported through
+    `needs_human` rather than failing the gate, so inherited debt is visible without making
+    every unrelated run red. Touch any scenario or override under it and it is audited like
+    a new declaration -- editing a suite is adopting it.
+    """
     evidence = []
     cur = set((cur_specs or {}).get("supported_suites") or [])
     base = set((base_specs or {}).get("supported_suites") or [])
-    for suite in sorted(cur - base):
+    touched = set(touched_suites or ())
+    for suite in sorted(cur):
         passes = [r for (s, _sc), outs in rows.items() if s == suite for r in outs if r == "PASS"]
-        if not passes:
-            evidence.append({
-                "file": SPECS, "suite": suite, "scenario": None,
-                "detail": "declared in supported_suites but no scenario of it PASSed in the report "
-                          "(declaring a suite with nothing behind it is what lets a green run hide "
-                          "an untested flow)"})
+        if passes:
+            continue
+        detail = ("declared in supported_suites but no scenario of it PASSed in the report "
+                  "(declaring a suite with nothing behind it is what lets a green run hide "
+                  "an untested flow)")
+        if suite in (cur - base) or suite in touched:
+            evidence.append({"file": SPECS, "suite": suite, "scenario": None, "detail": detail})
+        elif needs_human is not None:
+            needs_human.append(
+                "SUITE-01 grandfathered: %s was declared before this run and still has no "
+                "executed PASS" % suite)
     return evidence
 
 
@@ -314,6 +398,11 @@ def main():
                     help="RUN_DIR, so WAIV-02 can see earlier rounds' reports")
     ap.add_argument("--plan", default="none")
     ap.add_argument("--out")
+    ap.add_argument("--allow-unevaluated", action="store_true",
+                    help="treat a check that could not run as non-failing. Legitimate only "
+                         "before the first execution round (run.json .counters.exec_round == 0), "
+                         "when no report exists yet. Never pass it to make a red gate green: "
+                         "the unevaluated ids are recorded in needs_human[] either way.")
     args = ap.parse_args()
 
     base = os.path.join(args.specs_dir, args.connector)
@@ -347,7 +436,7 @@ def main():
         with open(args.plan, "r", encoding="utf-8") as fh:
             plan = json.load(fh)
 
-    rows = report_rows(args.report)
+    rows = report_rows(args.report, report["unparsed"])
     have_report = bool(rows)
     passed_before = prior_passes(None if args.run_dir == "none" else args.run_dir)
 
@@ -388,7 +477,9 @@ def main():
         add("WAIV-02", "waiver_not_over_a_pass", [], "", skipped="no report from an earlier round")
 
     if have_report:
-        add("SUITE-01", "declared_suite_has_a_pass", check_suites(cur_specs, base_specs, rows),
+        touched_suites = set(cur_priv or {}) | set(cur_ovr or {})
+        add("SUITE-01", "declared_suite_has_a_pass",
+            check_suites(cur_specs, base_specs, rows, touched_suites, report["needs_human"]),
             "A declared suite with no passing scenario behind it is an untested flow that reads "
             "as covered.")
     else:
@@ -398,8 +489,24 @@ def main():
         if chk.get("skipped"):
             report["needs_human"].append("%s not evaluated: %s" % (chk["id"], chk["skipped"]))
 
-    report["pass"] = all(c["pass"] is not False for c in report["checks"]) \
+    # A check that could not run has not passed. `pass` is None for those (see add()), and
+    # `None is not False` is True -- so the old rule counted every unevaluated check as green.
+    # That is how SUITE-01 reported a pass in four consecutive rounds while its --report path
+    # did not exist: the one check that asks whether a declared suite has anything behind it
+    # was the check most able to go missing, and going missing is what made it agreeable.
+    unevaluated = [c["id"] for c in report["checks"] if c["pass"] is None]
+    report["unevaluated"] = unevaluated
+    report["pass"] = all(c["pass"] is True for c in report["checks"]) \
         and not report["unparsed"]
+
+    # Before the first execution round there is genuinely no report to read, and the
+    # report-backed checks cannot bind yet. That is the one case where unevaluated is not a
+    # failure -- and the caller has to say so deliberately rather than it being the default.
+    if unevaluated and args.allow_unevaluated:
+        report["pass"] = all(c["pass"] is not False for c in report["checks"]) \
+            and not report["unparsed"]
+        report["needs_human"].append(
+            "unevaluated checks allowed by --allow-unevaluated: %s" % ", ".join(unevaluated))
 
     blob = json.dumps(report, indent=1)
     if args.out:
@@ -409,6 +516,8 @@ def main():
     print(blob)
 
     if report["unparsed"]:
+        return 2
+    if report.get("unevaluated") and not args.allow_unevaluated:
         return 2
     return 0 if report["pass"] else 1
 

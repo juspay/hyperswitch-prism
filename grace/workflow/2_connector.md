@@ -21,7 +21,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 | `{HS_REPO_PATH}` | Hyperswitch checkout; empty → HS surfaces `E2E_SKIPPED` | `/home/dev/hyperswitch` |
 | `{CREDS}` | Optional credentials from the operator: a JSON object, `key value` / `key=value` lines, or a path to either. Merged into the creds file by `2.0_preflight.md` Phase 2, never echoed. Absent **and** no entry in the creds file → the run is **alpha** (mock, below) | `api_key 8068…` |
 | `{RUN_ID}` | Optional: resume `grace/runs/{RUN_ID}/` (see Resume) | `braintree-a1b2c3` |
-| `{MAX_RUN_HOURS}` | R9 time budget; default 12 | `12` |
+| `{MAX_RUN_HOURS}` | R9 time budget; default 24 | `24` |
 | `{MIN_FREE_GB}` | S0 disk threshold; empty = `2.0_preflight.md` default | `80` |
 | `{MIN_FREE_GB_RUNTIME}` | R10 threshold; default 20 | `20` |
 | `{STALE_DAYS}` | S0 cleanup: idle age that makes a clean checkout's `target/` eligible; default 3 | `3` |
@@ -43,7 +43,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - **Hyperswitch checkout**: a worktree and branch `feat/{connector}-ucs-<run6>` are created inside it; its own tree is
   not modified. Empty `{HS_REPO_PATH}` = no HS surface (`E2E_SKIPPED`), no HS PR, no HS parity.
 - **Network**: one push of the run branch and one PR on `juspay/hyperswitch-prism` at S7, plus at most one Hyperswitch PR.
-- **Duration**: hours, not minutes (`MAX_RUN_HOURS`, default 12). The session must stay alive; after a crash, resume with
+- **Duration**: hours, not minutes (`MAX_RUN_HOURS`, default 24). The session must stay alive; after a crash, resume with
   `{RUN_ID}` (run ids are the directory names under `grace/runs/`, which is gitignored).
 
 ## RULES
@@ -56,7 +56,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
 - R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
-- R9 **Time budget** `MAX_RUN_HOURS` (default 12): when exceeded, finish the current stage and go to S6/S7.
+- R9 **Time budget** `MAX_RUN_HOURS` (default 24): when exceeded, finish the current stage and go to S6/S7.
 - R10 **Disk guard** before S4, S4z and each S5 build: if free space < `MIN_FREE_GB_RUNTIME` (20), re-run the 2.0 cleanup; if still low, stop at the stage boundary (resumable).
 - R11 **Autonomous**: no questions; every ambiguity is decided and recorded in the stage's `decisions.md`.
 - R12 **Process ownership**: kill only PIDs recorded in this run dir whose `/proc/<pid>/exe` is under this repo.
@@ -258,7 +258,7 @@ comma-joined string. **Derived briefs** `rca/briefs/<brief_id>.<nc|u|wd>.json` c
 |---|---|---|---|
 | warm UCS build | BASELINE spawn | `warm/ucs_build.exit` (`2.0_preflight.md` "Phase 9: Background warm builds") | `warm_build_wait_min` → `kill_warm ucs`, spawn BASELINE anyway |
 | BASELINE | S3, first S4 spawn | `BASELINE` row terminal | `baseline_join_min` from the later of S2's return and BASELINE's spawn → join rule 4 |
-| e2e | S5 step 5 (stop-early) and S6 | every `S5:e2e:*` row terminal; **or** `env/env.json .hs.available` not true → satisfied at once, `ev JOIN e2e skipped`, no timer | `e2e_join_min` → the units with no `e2e/<N>.json` get `e2e_status: FAILED` (`NO_E2E_RUN`); S5 continues |
+| e2e | S5 step 5 (stop-early) and S6 | every `S5:e2e:*` row terminal **and `e2e/expected.json` satisfied** (step 7's E2E floor); **or** `env/env.json .hs.available` not true → satisfied at once, `ev JOIN e2e skipped`, no timer | `e2e_join_min` → the units with no `e2e/<N>.json` get `e2e_status: FAILED` (`NO_E2E_RUN`); S5 continues |
 | `__hs__` | S5 | its `S4:<NN>:__hs__` row terminal; **or** no `S4:*:__hs__` row and (`run.json .hs_mode` ≠ `worktree` or no `__hs__` entry in `plan_order`) → satisfied at once, `ev JOIN __hs__ present`, no timer | `hs_join_min` → `plan.json .hs_changes` stay unresolved; S5 continues |
 
 ## Pipeline
@@ -444,7 +444,25 @@ R10 spawn `DISK:<tag>` (`2.0_preflight.md`): `CONNECTOR`, `UNITS` (JSON array), 
 | `SPEC_GAP` | `rca/briefs/o-sg-<NN>.json` → links for the unit (FOCUS = REASON topic) → S1m → S2 `AMEND` → S3 `AMEND` → S3 follow-up; at cap → withdraw |
 | `BLOCKED` | recorded: `withdraw: shared code` → unit unresolved; `no hs-wt` → `__hs__` skipped |
 
-Withdraw = `rca/briefs/o-wd-<unit_fs>.json` (`withdraw: true`, `fix: []`, `required_change` "<unit>: <why>") → S3 `AMEND`
+Withdraw = `rca/briefs/o-wd-<unit_fs>.json` (`withdraw: true`, `fix: []`, `withdraw_kind`, `required_change`
+"<unit>: <why>"). **`withdraw_kind` is required, and the two kinds are not interchangeable** — the word
+"withdrawn" was covering both "this connector's API has no such feature" and "we ran out of attempts", and
+only the first is a fact about the world:
+
+- **`api_gap`** — the connector genuinely cannot do it. Requires **at least one** of: (a) a documentation
+  citation — url, verbatim quote, and the `links/*.json` entry id it came from — stating the API has no such
+  endpoint or field; or (b) a live probe under `rca/probes/r<N>/` run **≥2 times** showing a 404, an explicit
+  "not supported", or a provisioning refusal. Use the `CONNECTOR_API_LACKS` class string, so this and the
+  `unsupported_scenarios` waivers say it the same way. `2.8_pr_run.md` Phase 1 asserts the cited artefacts
+  exist on disk. An `api_gap` unit leaves READY's denominator and permits `PARTIAL`: nothing is owed, because
+  there is nothing there to build.
+- **`exhausted`** — everything else: `SKIP cap:*`, 2.3b `BLOCKED`, repeated `PLAN_CONFLICT`/`SPEC_GAP` at cap,
+  a fingerprint reappearing twice. This forces `PR_STATUS: INCOMPLETE` and therefore run `STATUS: FAILED`.
+  Running out of budget is a fact about the run, not about the connector, and it used to launder into
+  `PARTIAL` → `SUCCESS` — a cap exhaustion reported as a delivery.
+
+A `WITHDRAWN` unit with no `withdraw_kind` is read as `exhausted`; the burden is on the evidence, not on the
+reader. Then → S3 `AMEND`
 → S3 follow-up → S4z. 2.3a also marks every §9 `hs_changes[]` item whose `flows_unblocked` are all withdrawn
 `withdrawn: true` (`2.3a_plan.md` "Phase 12: AMEND" step 3), so no HS PR is raised for a flow UCS no longer
 implements; an `hs-wt` commit already made for such an item is simply never pushed. **S3 follow-up** of an S3 `AMEND` on brief `B` (here and in Loop-back rules 2 and 4): 2.3b `AMEND`
@@ -570,9 +588,16 @@ convincing the oracle.
 
 **4. RCA** — `2.6e_rca.md` (`S5:rca:<N>`, `N` = latest exec round with `test/results/r<N>.json` and no `rca/r<N>.json`).
 `BUG_IDS` = in-scope bugs whose `flows[]` are not all markers of withdrawn units, with status `open`
-(or `rca` after `needs_probe`), `duplicate_of` null, `attempts` <
+(or `rca` after `needs_probe`, **or `unresolved` with `attempts == 0`**), `duplicate_of` null, `attempts` <
 `fix_attempts_per_bug`, `run.json .bugs[].reappeared` ≤ 1. Over the fix cap → `unresolved`;
 reappeared twice → `unresolved` + withdraw brief for its units. No ids left, or `rca_rounds` at cap → 6.
+
+**Why `unresolved` is selectable when nothing was attempted.** `unresolved` normally means "tried and
+not fixed", and such a bug is correctly out of scope for another round. But it is also where the S7
+prelude sweeps every non-terminal bug, and where a cap-drop leaves a brief's remaining targets — so a
+bug could arrive at `unresolved` having never been attempted at all, and then be excluded from RCA
+*by the very status that recorded the exclusion*. `attempts == 0` distinguishes the two cases: one
+was judged, the other was never picked up.
 
 ```
   RUN_DIR: {RUN_DIR}
@@ -606,12 +631,38 @@ jq --slurpfile p "$R/plan/plan.json" '([$p[0].order[] | select(.status == "withd
 
 → append to `blocking_open`; not lower than the previous value → `SKIP stop_early` → 6.
 
-**6. Converged** → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`; that sweep is the run's
+**6. Converged** → **first, settle the e2e debts.** For every `e2e/deferred.json` row whose every
+`cause_bug_ids` entry is now `fixed` or `invalid`, spawn that group again with a fresh `E2E_ID`, join at
+`e2e_join_min`, and set `requeued: true` / `requeued_as: <N>`. **Convergence may not be declared while a
+deferral whose causes are all resolved is still un-requeued** — the reason for postponing it has gone, so
+the postponement has expired with it. A deferral is a debt the run owes its own evidence, and the run that
+incurs it is the run that pays it; carrying it to the PR converts "not yet" into "never" silently. This is
+also what makes `2.6d_test_exec.md`'s `hs_unreachable → fixed` rule reachable at all: that rule closes such a
+bug only on a *newer* `e2e:<flow>` record reporting `SUCCESS`, and without a re-queue nothing could ever
+produce one.
+
+Then → Env if needed → one `FULL_RUN` carrying pending `STATUS_UPDATES`; that sweep is the run's
 verdict. New blocking bugs, `rca_rounds` under cap and no stop-early → 4, and that round closes with its own
 `FULL_RUN` like every other one — there is no "retests only" shortcut, because a narrow `ROUND` is never evidence
 that a bug is fixed. Otherwise → 7.
 
-**7. Hand off** — nothing left to route, and every `S5:e2e:*` row terminal → S6.
+**7. Hand off** — nothing left to route, every `S5:e2e:*` row terminal, **and both floors below clear** → S6.
+
+- **E2E floor.** Every `e2e/expected.json` row holds a terminal record, `skip_reason: NO_CHECKOUT`, or a
+  deferral whose causes are still open. Any row that does not → spawn the missing group now, do not hand off.
+  A `skipped` row counts as terminal only when its `skip_reason` is `NO_CHECKOUT`.
+- **RCA floor.** No blocking, in-scope, non-terminal bug may reach S6 having never been attempted while
+  `rca_rounds` is still under cap:
+
+  ```bash
+  jq '[.bugs[] | select(.blocking and .in_scope and .duplicate_of == null and (.attempts // 0) == 0
+       and (.status | IN("fixed","invalid","wont_fix","flaky") | not))] | length' {RUN_DIR}test/bugs.json
+  ```
+
+  Non-zero with `counters.rca_rounds < caps.rca_rounds` → **go to 4**, not to S6. The caps are a ceiling on
+  effort, never a floor under it: a run may exhaust six RCA rounds and still fail, but it may not hand a
+  blocking bug to the PR having spent none. `attempts: 0` on a blocking bug is not a verdict about the bug —
+  it is a statement that the run never looked.
 
 ### E2E stage — `2.5_e2e.md` (`S5:e2e:<N>`, background, one spawn per flow group)
 
@@ -620,7 +671,34 @@ that a bug is fixed. Otherwise → 7.
 `FAILED` otherwise, which is the fail-closed half of the rule and must not be softened here.
 
 Otherwise one spawn per flow group of the non-withdrawn units (a group = the units 2.5's spec table maps to the
-same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(bump e2e)`:
+same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(bump e2e)`.
+
+**Write `e2e/expected.json` before the first spawn**, one row per group — this is the spawn set, and
+it is what makes the rule above auditable rather than aspirational:
+
+```
+[{group, units:[...], record: null, skip_reason: null, deferred: null}]
+```
+
+A group leaves that ledger only by acquiring a terminal `e2e/<N>.json` record, a `skip_reason` from
+the **closed enum `{NO_CHECKOUT}`**, or a legal deferral (below). Nothing else closes a row — not a
+free-text `ev SKIP`, not another group's record, not a judgement that the run already knows the
+answer. `2.5_e2e.md` "Read the result honestly" already states the only meaning `E2E_SKIPPED` has:
+*"no Hyperswitch checkout exists. That is the only meaning. 'We did not run it' is `FAILED`."* The
+enum is that sentence made unbypassable, because a spawn set nothing compares against an expectation
+is a spawn set that can quietly lose groups — three of six, in the run this rule comes from, two of
+them with no row, no event and no reason recorded anywhere.
+
+**Deferral — `e2e/deferred.json`.** A group may be postponed *only* when a blocking defect another
+group already found would make its run uninformative:
+
+```
+[{group, units:[...], deferred_at_round, cause_bug_ids:[...], requeued: false, requeued_as: null}]
+```
+
+`cause_bug_ids` must be non-empty and name bugs that exist. "Each Cypress payment spends real
+sandbox money" is a true statement and is **not** a deferral reason on its own; cost decides
+*ordering*, never whether a flow is ever proven. A deferral is a debt, not a decision: see step 6.
 
 ```
   RUN_DIR: {RUN_DIR}
@@ -637,6 +715,13 @@ same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(b
 `DONE`/`PARTIAL` → its `e2e/<N>.json` is read by the next 2.6d spawn. `FAILED`/`BLOCKED` → one re-spawn; still →
 the row stays terminal and its units have no record, which 2.6d turns into `e2e_status: FAILED` with reason
 `NO_E2E_RUN`. **Do not convert that into a skip.** `HS_PR` from any record is carried to 2.8.
+
+**Every e2e join is followed by one `FULL_RUN`** — the first join and every re-queue alike — before
+any stop-early evaluation and before hand-off. *An e2e record that no `FULL_RUN` has consumed is not
+evidence.* Phase 3c of `2.6d_test_exec.md` is what turns `e2e/*.json` into `e2e:<flow>` checks, and
+until it has run the unit still carries its fail-closed default. Without this, a run can finish with
+a `SUCCESS` record sitting on disk and the unit it belongs to reported `FAILED / NO_E2E_RUN` — which
+is not a conservative reading of the evidence, it is a failure to read it.
 
 A 2.5 spawn may edit the HS worktree (its Phase 5, including the Cypress harness defects). Those edits are
 `__hs__`'s territory in every other stage, so a 2.5 spawn runs only when no `S4:*:__hs__` row is `running`, and
@@ -659,6 +744,25 @@ with S0/S1 findings (`review/findings.json` entries whose `.sev` is `S0` or `S1`
 `FULL_RUN` re-test → `INCREMENTAL`. No S0/S1 → S7. `FAILED` → one
 re-spawn; still → S7.
 
+**A remediation round that changed no code does not consume the cap.** After the round's `FULL_RUN`, diff
+the tree against the snapshot the round started from:
+
+```bash
+git diff --name-only "$(jq -r .review_ref {RUN_DIR}run.json)" HEAD
+```
+
+- Intersects the `file` fields of the S0/S1 findings being remediated → the round counts, normally.
+- Non-empty but disjoint from those files → it still counts, with one decision row naming why the file
+  touched answers the finding (a shared transformer often does).
+- **Empty** → `rj '.counters.review_rounds -= 1'`, `ev SKIP S6:remediation:<N> reason=no_tree_delta`, and the
+  findings stay `open` — which `2.8_pr_run.md` Phase 1 already reads as `INCOMPLETE`.
+
+The gate used to be the counter bump alone, so a round spent entirely on the plan and the decision files —
+changing what the run *said* about itself while every finding stayed open — consumed the single available
+remediation and ended the loop. Rewriting the account of a defect is not remediating it. `2.7_review.md`
+already refuses to mark a finding `fixed` unless its `file:line` re-read shows the defect gone; this is the
+same standard applied one step earlier, to the round rather than the finding.
+
 **`exec_ready`** (guards every 2.6d spawn from S6 on): no `TEST_ENV_FAILED` flag is set and `plan/plan.json` and
 `env/env.json` both exist — without them 2.6d returns `FAILED  MISSING <file|creds|binary>`
 (`2.6d_test_exec.md` "Inputs"), and the `FAILED` routing of the stage that just failed would re-spawn it. Not
@@ -670,7 +774,11 @@ re-spawn; still → S7.
 **S7 prelude** (`exec_ready` only): bookkeeping execs (`ONLY_CHECKS: none`, no `r<N>.json`): after every S6 return that
 wrote `review/findings.json` — `FULL` without remediation included — first one with `INGEST: review` only; then one
 whose `STATUS_UPDATES`, built from the resulting `test/bugs.json`, move every non-terminal, non-`fixed` bug to
-`unresolved`. `test/bugs.json` and `test/final.json` are then final.
+`unresolved` — **provided it has `attempts >= 1`**. A bug at `attempts: 0` may not be moved to `unresolved`
+by a bookkeeping exec: the prelude does not run while any such blocking bug exists (step 7's RCA floor sends
+it to RCA first), and a non-blocking one keeps its status so the next round can still pick it up. Marking a
+bug "unresolved" is a claim to have tried, and a bookkeeping exec that executes nothing is not entitled to
+make it. `test/bugs.json` and `test/final.json` are then final.
 
 ### S7 — `2.8_pr_run.md` (foreground)
 
@@ -741,6 +849,16 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
    written with an object as a status and 2.6d rejects every update in it. A bug that no check can observe
    (log masking, a refusal only a direct caller can reach) never reaches `fixed` through a retest: move it
    yourself with the evidence in `note`, and say which round's scan or transcript is that evidence.
+   **All three of these must hold, and the move carries `verified_by: "self_attested"`:**
+   (a) no surface in the bug's `surfaces[]` is one a check can reach — name each surface and the round whose
+   check set covered it, rather than asserting it in the abstract;
+   (b) `attempts >= 1` with an `rca/verify/r<N>/<bug_id>/` transcript, i.e. the run actually tried the surface
+   that filed the bug before concluding nothing could;
+   (c) the note says which scan or transcript is the evidence.
+   A `self_attested` fix **stays in `pr/blocking_bugs.json`** (`2.8_pr_run.md` Phase 1). This is the hatch's
+   whole point restored: it exists so a genuinely unobservable repair can be *recorded*, not so it can be
+   *credited*. "No check can observe it" was self-declared and unfalsifiable, and it was reached most easily
+   by exactly the bugs a check could have observed had anyone re-run the gate that filed them.
 8. **Re-test**: the round's re-test is one `FULL_RUN`, and no selection is passed to it. `select_checks $N <bug
    ids> <changed units>` still runs first, writing `test/select/r<N>.json` as the round's **diagnosis** list —
    **R1** the bugs' checks; **R2** all checks of changed units (`CHANGED_UNITS` of every AMEND this round) — which
@@ -751,15 +869,29 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
 
 Single source of truth; stage files cite this section. Copied into `run.json .caps` at init.
 
+**These numbers were measured, not guessed, and they were raised for a specific reason.** An audit of the
+run these rules come from found that essentially none of them ever bound: `rca_rounds` 0 of 6,
+`fix_attempts_per_bug` 0 of 4 on every one of its five blocking bugs, `amend_codegen` 7 of an effective 24,
+`amend_links` and `amend_techspec` 0, the time budget 10.33 h of 12, `stop_early` never fired, and not one
+`SKIP cap:` event in 22 stage spawns. The single cap it exhausted was `review_remediation_rounds` at 1 — on
+a round that changed no repo file. So the run did not stop because it ran out of budget; it stopped because
+its *selectors* found nothing to do, and the budget sat unspent.
+
+Those selectors are now fixed — e2e is mandatory for every unit, the RCA floor forbids handing off a
+blocking bug at `attempts: 0`, deferrals are re-queued, and a remediation round that changes nothing no
+longer consumes its cap. That makes loops run which previously never ran, so the slack above is where the
+constraint moves next. Raise these when a live run shows one of them binding, and record the consumption
+figures alongside, the way these were.
+
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
-| RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 × m / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| RCA rounds / fix attempts per bug | 10 / 6 | `rca_rounds` / `fix_attempts_per_bug` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 20 × m / 8 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
 | Gate iterations per codegen spawn / finalize | 5 + 2×(m−1) / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 2 | `env_repairs_per_round` |
-| Review remediation rounds / crash re-spawn per stage | 1 / 1 | `review_remediation_rounds` / `crash_respawn_per_stage` |
-| Stop early | a round where the blocking open count doesn't fall | `stop_early` |
+| Review remediation rounds / crash re-spawn per stage | 5 / 2 | `review_remediation_rounds` / `crash_respawn_per_stage` |
+| Stop early | a round where the blocking open count doesn't fall — **never while a blocking bug has `attempts: 0` and `rca_rounds` is under cap** (step 7's RCA floor) | `stop_early` |
 | Warm UCS build wait / BASELINE join wait (minutes) | 120 / 180 | `warm_build_wait_min` / `baseline_join_min` |
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
@@ -771,8 +903,11 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 
 - `amend_codegen_per_unit` is counted in `counters.amend_codegen{<unit>}`, one counter for the group, so a flat 8
   would give a 3-marker group a single marker's budget. The **cap** scales, the counter does not: the effective
-  cap is `caps.amend_codegen_per_unit × m` (8 for one marker, 16 for two, 24 for three). Every `SKIP
-  cap:amend_codegen_per_unit` compares against that product, and the `run.json .caps` value stays 8.
+  cap is `caps.amend_codegen_per_unit × m` (20 for one marker, 40 for two, 60 for three). Every `SKIP
+  cap:amend_codegen_per_unit` compares against that product, and the `run.json .caps` value stays 20. A
+  three-marker group such as `Payments` therefore carries 60, which is deliberate: a group that must now
+  pass end to end for *every* marker keeps amending after the point where one that could stop at the first
+  green gate was finished.
 - `gate_iterations_codegen` is per *spawn*, and a multi-marker spawn faces each marker's own transformers and its
   own class of gate failures, so the per-spawn budget is `caps.gate_iterations_codegen + 2 × (m − 1)` (5 / 7 / 9).
   It is sub-linear on purpose: the gate re-runs over the spawn's whole tree, so one iteration already covers every
