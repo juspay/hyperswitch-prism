@@ -14,8 +14,8 @@ use domain_types::{
     connector_types::{
         EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RawConnectorStatus, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RawConnectorStatus,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
