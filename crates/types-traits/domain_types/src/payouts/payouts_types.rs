@@ -415,13 +415,13 @@ pub struct PayoutVendorAccountDetails {
 pub struct PayoutVendorDetails {
     pub account_type: Option<String>,
     pub business_type: Option<String>,
-    pub business_profile_mcc: Option<String>,
-    pub business_profile_url: Option<Secret<String>>,
-    pub business_profile_name: Option<Secret<String>>,
+    pub merchant_category_code: Option<String>,
+    pub business_url: Option<Secret<String>>,
+    pub business_name: Option<Secret<String>>,
     pub statement_descriptor: Option<Secret<String>>,
-    pub company_owners_provided: Option<bool>,
-    pub capabilities_card_payments: Option<bool>,
-    pub capabilities_transfers: Option<bool>,
+    pub owners_provided: Option<bool>,
+    pub card_payments_enabled: Option<bool>,
+    pub transfers_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -431,9 +431,7 @@ pub struct PayoutIndividualDetails {
     pub phone: Option<Secret<String>>,
     pub ssn_last_4: Option<Secret<String>>,
     pub id_number: Option<Secret<String>>,
-    pub dob_day: Option<Secret<String>>,
-    pub dob_month: Option<Secret<String>>,
-    pub dob_year: Option<Secret<String>>,
+    pub date_of_birth: Option<Secret<String>>,
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,
@@ -481,22 +479,35 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("last_name"))
     }
 
-    pub fn get_dob_day(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.dob_day.clone())
-            .ok_or_else(missing_field_err("dob_day"))
+    /// Split `date_of_birth` (ISO 8601, `yyyy-MM-dd`) into day, month and year.
+    pub fn get_date_of_birth_parts(
+        &self,
+    ) -> Result<(Secret<String>, Secret<String>, Secret<String>), Error> {
+        let date_of_birth = self.get_date_of_birth()?;
+        let mut parts = date_of_birth.peek().split('-');
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(year), Some(month), Some(day)) => Ok((
+                Secret::new(day.to_string()),
+                Secret::new(month.to_string()),
+                Secret::new(year.to_string()),
+            )),
+            _ => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "date_of_birth",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "date_of_birth must be an ISO 8601 date, yyyy-MM-dd".to_string(),
+                    ),
+                    suggested_action: Some("Send the date of birth as yyyy-MM-dd".to_string()),
+                    doc_url: None,
+                },
+            })),
+        }
     }
 
-    pub fn get_dob_month(&self) -> Result<Secret<String>, Error> {
+    pub fn get_date_of_birth(&self) -> Result<Secret<String>, Error> {
         self.individual_details()
-            .and_then(|i| i.dob_month.clone())
-            .ok_or_else(missing_field_err("dob_month"))
-    }
-
-    pub fn get_dob_year(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.dob_year.clone())
-            .ok_or_else(missing_field_err("dob_year"))
+            .and_then(|i| i.date_of_birth.clone())
+            .ok_or_else(missing_field_err("date_of_birth"))
     }
 
     pub fn get_account_type(&self) -> Result<String, Error> {
@@ -509,16 +520,16 @@ impl PayoutCreateRecipientRequest {
         self.vendor_details().and_then(|v| v.business_type.clone())
     }
 
-    pub fn get_business_profile_url(&self) -> Result<Secret<String>, Error> {
+    pub fn get_business_url(&self) -> Result<Secret<String>, Error> {
         self.vendor_details()
-            .and_then(|v| v.business_profile_url.clone())
-            .ok_or_else(missing_field_err("business_profile_url"))
+            .and_then(|v| v.business_url.clone())
+            .ok_or_else(missing_field_err("business_url"))
     }
 
-    pub fn get_business_profile_name(&self) -> Result<Secret<String>, Error> {
+    pub fn get_business_name(&self) -> Result<Secret<String>, Error> {
         self.vendor_details()
-            .and_then(|v| v.business_profile_name.clone())
-            .ok_or_else(missing_field_err("business_profile_name"))
+            .and_then(|v| v.business_name.clone())
+            .ok_or_else(missing_field_err("business_name"))
     }
 
     pub fn get_statement_descriptor(&self) -> Result<Secret<String>, Error> {
@@ -527,18 +538,16 @@ impl PayoutCreateRecipientRequest {
             .ok_or_else(missing_field_err("statement_descriptor"))
     }
 
-    pub fn get_company_owners_provided(&self) -> Option<bool> {
-        self.vendor_details()
-            .and_then(|v| v.company_owners_provided)
+    pub fn get_owners_provided(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.owners_provided)
     }
 
-    pub fn get_capabilities_card_payments(&self) -> Option<bool> {
-        self.vendor_details()
-            .and_then(|v| v.capabilities_card_payments)
+    pub fn get_card_payments_enabled(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.card_payments_enabled)
     }
 
-    pub fn get_capabilities_transfers(&self) -> Option<bool> {
-        self.vendor_details().and_then(|v| v.capabilities_transfers)
+    pub fn get_transfers_enabled(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.transfers_enabled)
     }
 
     pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
@@ -552,17 +561,17 @@ impl PayoutCreateRecipientRequest {
             .and_then(|i| i.tos_acceptance_date)
     }
 
-    pub fn get_business_profile_mcc_i32(&self) -> Result<i32, Error> {
+    pub fn get_merchant_category_code_i32(&self) -> Result<i32, Error> {
         let raw = self
             .vendor_details()
-            .and_then(|v| v.business_profile_mcc.as_deref())
-            .ok_or_else(missing_field_err("business_profile_mcc"))?;
+            .and_then(|v| v.merchant_category_code.as_deref())
+            .ok_or_else(missing_field_err("merchant_category_code"))?;
         raw.parse::<i32>().map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "business_profile_mcc",
+                field_name: "merchant_category_code",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "business_profile_mcc must be a 4-digit numeric MCC".to_string(),
+                        "merchant_category_code must be a 4-digit numeric MCC".to_string(),
                     ),
                     suggested_action: Some(
                         "Send the merchant category code as digits only, for example 5734"

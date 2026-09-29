@@ -1490,15 +1490,15 @@ fn convert_payout_vendor_account_details_to_domain(
     payouts::payouts_types::PayoutVendorAccountDetails {
         vendor_details: value.vendor_details.map(|vd| {
             payouts::payouts_types::PayoutVendorDetails {
-                account_type: vd.account_type,
-                business_type: vd.business_type,
-                business_profile_mcc: vd.business_profile_mcc,
-                business_profile_url: vd.business_profile_url,
-                business_profile_name: vd.business_profile_name,
+                account_type: vd.account_type.and_then(payout_account_type_to_string),
+                business_type: vd.business_type.and_then(bank_holder_type_to_string),
+                merchant_category_code: vd.merchant_category_code,
+                business_url: vd.business_url,
+                business_name: vd.business_name,
                 statement_descriptor: vd.statement_descriptor,
-                company_owners_provided: vd.company_owners_provided,
-                capabilities_card_payments: vd.capabilities_card_payments,
-                capabilities_transfers: vd.capabilities_transfers,
+                owners_provided: vd.owners_provided,
+                card_payments_enabled: vd.card_payments_enabled,
+                transfers_enabled: vd.transfers_enabled,
             }
         }),
         individual_details: value.individual_details.map(|id| {
@@ -1508,14 +1508,37 @@ fn convert_payout_vendor_account_details_to_domain(
                 phone: id.phone,
                 ssn_last_4: id.ssn_last_4,
                 id_number: id.id_number,
-                dob_day: id.dob_day,
-                dob_month: id.dob_month,
-                dob_year: id.dob_year,
+                date_of_birth: id.date_of_birth,
                 tos_acceptance_date: id.tos_acceptance_date,
                 tos_acceptance_ip: id.tos_acceptance_ip,
-                external_account_account_holder_type: id.external_account_account_holder_type,
+                external_account_account_holder_type: id
+                    .external_account_account_holder_type
+                    .and_then(bank_holder_type_to_string),
             }
         }),
+    }
+}
+
+fn payout_account_type_to_string(value: i32) -> Option<String> {
+    match grpc_api_types::payouts::payout_enums::PayoutAccountType::try_from(value) {
+        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Custom) => {
+            Some("custom".to_string())
+        }
+        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Express) => {
+            Some("express".to_string())
+        }
+        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Standard) => {
+            Some("standard".to_string())
+        }
+        _ => None,
+    }
+}
+
+fn bank_holder_type_to_string(value: i32) -> Option<String> {
+    match grpc_api_types::payouts::BankHolderType::try_from(value) {
+        Ok(grpc_api_types::payouts::BankHolderType::Business) => Some("company".to_string()),
+        Ok(grpc_api_types::payouts::BankHolderType::Personal) => Some("individual".to_string()),
+        _ => None,
     }
 }
 

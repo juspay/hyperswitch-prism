@@ -559,18 +559,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // for a company makes a company recipient impossible to create.
         let (first_name, last_name, dob_day, dob_month, dob_year) = match is_company {
             true => (None, None, None, None, None),
-            false => (
-                Some(request.get_first_name()?),
-                Some(request.get_last_name()?),
-                Some(request.get_dob_day()?),
-                Some(request.get_dob_month()?),
-                Some(request.get_dob_year()?),
-            ),
+            false => {
+                let (day, month, year) = request.get_date_of_birth_parts()?;
+                (
+                    Some(request.get_first_name()?),
+                    Some(request.get_last_name()?),
+                    Some(day),
+                    Some(month),
+                    Some(year),
+                )
+            }
         };
 
-        let business_profile_mcc = request.get_business_profile_mcc_i32()?;
-        let business_profile_url = request.get_business_profile_url()?;
-        let business_profile_name = request.get_business_profile_name()?;
+        let business_profile_mcc = request.get_merchant_category_code_i32()?;
+        let business_profile_url = request.get_business_url()?;
+        let business_profile_name = request.get_business_name()?;
         let statement_descriptor = request.get_statement_descriptor()?;
         let tos_acceptance_ip = request.get_tos_acceptance_ip()?;
         let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4()?;
@@ -604,8 +607,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             account_type,
             country: Some(addr_country),
             email: email.clone(),
-            capabilities_card_payments: request.get_capabilities_card_payments(),
-            capabilities_transfers: request.get_capabilities_transfers(),
+            capabilities_card_payments: request.get_card_payments_enabled(),
+            capabilities_transfers: request.get_transfers_enabled(),
             tos_acceptance_date: request.get_tos_acceptance_date(),
             tos_acceptance_ip: Some(tos_acceptance_ip),
             business_type,
@@ -621,7 +624,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             company_address_state: addr_state.clone().filter(|_| is_company),
             company_phone: is_company.then(|| phone.clone()),
             company_tax_id: id_number.clone().filter(|_| is_company),
-            company_owners_provided: request.get_company_owners_provided(),
+            company_owners_provided: request.get_owners_provided(),
 
             individual_first_name: first_name,
             individual_last_name: last_name,
