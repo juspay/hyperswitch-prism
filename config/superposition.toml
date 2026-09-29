@@ -428,6 +428,7 @@ connector_base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-
 [[overrides]]
 _context_ = { connector = "datatrans" }
 connector_base_url = "https://api.sandbox.datatrans.com"
+connector_secondary_base_url = "https://pay.sandbox.datatrans.com"
 
 # Silverflow
 [[overrides]]
@@ -836,6 +837,7 @@ connector_base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/
 [[overrides]]
 _context_ = { connector = "datatrans", environment = "production" }
 connector_base_url = "https://api.datatrans.com"
+connector_secondary_base_url = "https://pay.datatrans.com"
 
 # Silverflow Production
 [[overrides]]

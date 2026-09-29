@@ -129,6 +129,27 @@
           }
         }
       }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_manual_inc_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
     }
   },
   "PaymentService/Capture": {
@@ -179,6 +200,132 @@
     "refund_with_reason": {
       "grpc_req": {
         "merchant_refund_id": "dt_ref_rsn_001"
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS",
+            "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+          ]
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_FAILURE"
+          ]
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "WEBHOOK_REFUND_SUCCESS"
+          ]
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS",
+            "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+          ]
+        }
       }
     }
   }

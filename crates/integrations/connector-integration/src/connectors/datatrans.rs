@@ -3,28 +3,31 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
         RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -44,6 +47,7 @@ use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
@@ -128,6 +132,77 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Datatrans<T>
 {
+    /// Verifies `Datatrans-Signature: t=<ts>,s0=<hex>`.
+    ///
+    /// spec: "Webhook Authentication & Signature Verification" —
+    /// https://docs.datatrans.ch/docs/api-webhooks: HMAC-SHA256 with the dashboard key
+    /// **hex-decoded** to bytes, over the preimage `String(t) + rawPayload`, compared with `s0`.
+    /// Fails closed (`Ok(false)`) when the secret is absent or not hex, or the header is missing
+    /// or malformed. The comparison is constant time (`HmacSha256::verify_signature`).
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let Some(secrets) = connector_webhook_secret else {
+            return Ok(false);
+        };
+        let key = match hex::decode(&secrets.secret) {
+            Ok(key) if !key.is_empty() => key,
+            _ => return Ok(false),
+        };
+        let Some(signature) = datatrans::DatatransWebhookSignature::from_headers(&request.headers)
+        else {
+            return Ok(false);
+        };
+        let message = signature.message(&request.body);
+
+        common_utils::crypto::HmacSha256
+            .verify_signature(&key, &signature.s0, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let body = datatrans::parse_datatrans_webhook_body(&request.body)?;
+        Ok(datatrans::datatrans_webhook_event_type(&body))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body = datatrans::parse_datatrans_webhook_body(&request.body)?;
+        Ok(Some(datatrans::datatrans_webhook_reference(&body)))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let body = datatrans::parse_datatrans_webhook_body(&request.body)?;
+        datatrans::build_datatrans_payment_webhook_details(&body, &request.body)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let body = datatrans::parse_datatrans_webhook_body(&request.body)?;
+        datatrans::build_datatrans_refund_webhook_details(&body, &request.body)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"transactionId":"260928150333612088","type":"payment","status":"settled","refno":"Test-1234"}"#
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Datatrans<T>
@@ -283,6 +358,21 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.datatrans.base_url
         }
+
+        /// Parses the error body via `build_error_response` and sets the flow-aware
+        /// `attempt_status` (see `datatrans::datatrans_error_attempt_status`).
+        fn build_flow_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+            error_flow: datatrans::DatatransErrorFlow,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let status_code = res.status_code;
+            let mut error_response = self.build_error_response(res, event_builder, connector_config)?;
+            error_response.attempt_status = datatrans::datatrans_error_attempt_status(error_flow, status_code);
+            Ok(error_response)
+        }
     }
 );
 
@@ -358,7 +448,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.generate_basic_auth().into(),
+            auth.generate_basic_auth().into_masked(),
         )])
     }
 
@@ -391,7 +481,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.code(),
             message: response.message(),
             reason: Some(response.message()),
-            attempt_status: None,
+            // Flow-agnostic default (always `None`); flows that own a terminal failure
+            // override `get_error_response_v2` via `build_flow_error_response`.
+            attempt_status: datatrans::datatrans_error_attempt_status(
+                datatrans::DatatransErrorFlow::Other,
+                res.status_code,
+            ),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -405,7 +500,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransPaymentsRequest<T>),
     curl_response: DatatransPaymentsResponse,
@@ -428,35 +523,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            // Endpoint selection mirrors HS Direct:
-            // - Native 3DS (Datatrans-driven challenge, no external authentication data) OR a CIT
-            //   alias registration (`is_mandate_payment`) use the redirect-capable
-            //   `/v1/transactions` endpoint (both may return a 3DS redirect).
-            // - Passthrough external 3DS (cavv present) and no-3DS payments use the split
-            //   `/v1/transactions/authorize` endpoint that authorizes immediately, no redirect.
+            // Endpoint selection mirrors HS Direct (see `authorize_uses_init_endpoint`):
+            // native 3DS or a raw-card CIT alias registration use the redirect-capable
+            // `/v1/transactions` init endpoint; passthrough external 3DS and no-3DS payments
+            // use `/v1/transactions/authorize`, which authorizes immediately with no redirect.
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
-            let native_three_ds =
-                req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            // A Google Pay alias charge (produced by the PaymentMethodToken flow) is
-            // card-like: native 3DS on the alias needs the redirect-capable
-            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge.
-            let is_alias_charge = matches!(
-                req.request.payment_method_data,
-                PaymentMethodData::PaymentMethodToken(_)
-            );
-            if (req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()))
-                || (is_alias_charge && native_three_ds)
-            {
+            if datatrans::authorize_uses_init_endpoint(req) {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
                 Ok(format!("{base_url}/v1/transactions/authorize"))
             }
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Payment)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_response: DatatransSyncResponse,
     flow_name: PSync,
@@ -483,11 +573,19 @@ macros::macro_connector_implementation!(
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/v1/transactions/{}", self.connector_base_url_payments(req), transaction_id))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Sync)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransCaptureRequest),
     curl_response: DatatransCaptureResponse,
@@ -516,11 +614,19 @@ macros::macro_connector_implementation!(
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/v1/transactions/{}/settle", self.connector_base_url_payments(req), transaction_id))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Capture)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransVoidRequest),
     curl_response: DatatransVoidResponse,
@@ -544,6 +650,14 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/v1/transactions/{}/cancel", self.connector_base_url_payments(req), transaction_id))
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Void)
         }
     }
 );
@@ -578,7 +692,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransRefundRequest),
     curl_response: DatatransRefundResponse,
@@ -603,11 +717,19 @@ macros::macro_connector_implementation!(
             let transaction_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/v1/transactions/{}/credit", self.connector_base_url_refunds(req), transaction_id))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Refund)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_response: DatatransRefundSyncResponse,
     flow_name: RSync,
@@ -630,6 +752,14 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let refund_transaction_id = req.request.connector_refund_id.clone();
             Ok(format!("{}/v1/transactions/{}", self.connector_base_url_refunds(req), refund_transaction_id))
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Sync)
         }
     }
 );
@@ -663,7 +793,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransSetupMandateRequest<T>),
     curl_response: DatatransSetupMandateResponse,
@@ -685,15 +815,30 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Zero-auth CIT alias creation uses the redirect-capable `/v1/transactions`
-            // endpoint (createAlias + native 3DS), never the split authorize endpoint.
-            Ok(format!("{}/v1/transactions", self.connector_base_url_payments(req)))
+            // Endpoint selection follows the request body (see `setup_mandate_uses_validate`):
+            // a raw card without 3DS uses the zero-amount card check `/v1/transactions/validate`,
+            // which returns `card.alias` synchronously; native 3DS or a Google Pay alias
+            // registration uses the redirect-capable `/v1/transactions` init endpoint.
+            let base_url = self.connector_base_url_payments(req);
+            if datatrans::setup_mandate_uses_validate(req) {
+                Ok(format!("{base_url}/v1/transactions/validate"))
+            } else {
+                Ok(format!("{base_url}/v1/transactions"))
+            }
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Payment)
         }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Datatrans,
     curl_request: Json(DatatransRepeatPaymentRequest<T>),
     curl_response: DatatransRepeatPaymentResponse,
@@ -718,6 +863,14 @@ macros::macro_connector_implementation!(
             // MIT charges the stored alias via the split authorize endpoint (no redirect):
             // the alias was already 3DS-authenticated at SetupMandate time.
             Ok(format!("{}/v1/transactions/authorize", self.connector_base_url_payments(req)))
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_flow_error_response(res, event_builder, connector_config, datatrans::DatatransErrorFlow::Payment)
         }
     }
 );
@@ -761,9 +914,6 @@ macros::macro_connector_flow_status_impls!(
         IncrementalAuthorization,
         CreateOrder,
         ServerSessionAuthenticationToken,
-        Accept,
-        DefendDispute,
-        SubmitEvidence,
         ServerAuthenticationToken,
         PreAuthenticate,
         Authenticate,
@@ -774,5 +924,8 @@ macros::macro_connector_flow_status_impls!(
     ],
     not_supported: [
         VoidPostRefund,
+        Accept,
+        DefendDispute,
+        SubmitEvidence,
     ],
 );
