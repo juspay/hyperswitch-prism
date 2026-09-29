@@ -365,13 +365,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             };
 
+        // When external 3DS authentication data is present the request carries a
+        // cryptogram, so `commerceIndicator` must declare the authenticated
+        // network-specific value (`vbv`, `spa`, ...). Leaving it at "internet"
+        // contradicts the cryptogram and the issuer declines with a Mastercard
+        // "Policy" response (processorInformation.responseCode 82).
+        let commerce_indicator_for_external_authentication =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ccard) => item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .and_then(|authn_data| {
+                        authn_data.eci.clone().map(|eci| {
+                            get_commerce_indicator_for_external_authentication(
+                                ccard
+                                    .card_network
+                                    .as_ref()
+                                    .map(|network| network.to_string()),
+                                eci,
+                            )
+                        })
+                    }),
+                _ => None,
+            };
+
         let processing_information = ProcessingInformation {
             capture: Some(false),
             capture_options: None,
             action_list,
             action_token_types,
             authorization_options,
-            commerce_indicator: String::from("internet"),
+            commerce_indicator: commerce_indicator_for_external_authentication.or_else(|| {
+                get_commerce_indicator_for_wallet_payment(
+                    solution.as_ref(),
+                    &item.router_data.request.payment_method_data,
+                    item.router_data.resource_common_data.auth_type,
+                    None,
+                )
+            }),
             payment_solution: solution.map(String::from),
             bank_transfer_options: None,
         };
@@ -431,7 +464,8 @@ pub struct ProcessingInformation {
     action_list: Option<Vec<CybersourceActionsList>>,
     action_token_types: Option<Vec<CybersourceActionsTokenType>>,
     authorization_options: Option<CybersourceAuthorizationOptions>,
-    commerce_indicator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commerce_indicator: Option<String>,
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
     payment_solution: Option<String>,
@@ -1129,20 +1163,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let commerce_indicator = solution
-            .as_ref()
-            .map(|pm_solution| match pm_solution {
-                PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
-                    .as_ref()
-                    .map(|card_network| match card_network.to_lowercase().as_str() {
-                        "mastercard" => "spa",
-                        _ => "internet",
-                    })
-                    .unwrap_or("internet"),
-                PaymentSolution::GooglePay => "internet",
-            })
-            .unwrap_or("internet")
-            .to_string();
+        let commerce_indicator = get_commerce_indicator_for_wallet_payment(
+            solution.as_ref(),
+            &item.router_data.request.payment_method_data,
+            item.router_data.resource_common_data.auth_type,
+            network.as_deref(),
+        );
 
         let auth = CybersourceAuthType::try_from(&item.router_data.connector_config)?;
         let connector_merchant_config = CybersourceConnectorMetadataObject {
@@ -1239,7 +1265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             authorization_options,
             capture_options: None,
             commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or(commerce_indicator),
+                .or(commerce_indicator),
             bank_transfer_options: None,
         })
     }
@@ -2247,7 +2273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     action_list: None,
                     action_token_types: None,
                     authorization_options: None,
-                    commerce_indicator: String::from("internet"),
+                    commerce_indicator: Some(String::from("internet")),
                     capture: None,
                     capture_options: None,
                     payment_solution: None,
@@ -2800,7 +2826,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 action_token_types: None,
                 authorization_options: None,
                 capture: None,
-                commerce_indicator: String::from("internet"),
+                commerce_indicator: Some(String::from("internet")),
                 payment_solution: None,
                 bank_transfer_options: None,
             },
@@ -3274,7 +3300,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ignore_avs_result: None,
                 ignore_cv_result: None,
             }),
-            commerce_indicator: CybersourceCommerceIndicator::Internet.to_string(),
+            commerce_indicator: Some(CybersourceCommerceIndicator::Internet.to_string()),
             capture: None,
             capture_options: None,
             payment_solution: None,
@@ -4946,20 +4972,21 @@ pub fn get_error_response(
 ) -> ErrorResponse {
     let avs_message = risk_information
         .clone()
-        .map(|client_risk_information| {
-            client_risk_information.rules.map(|rules| {
-                rules
+        .and_then(|client_risk_information| {
+            client_risk_information.rules.and_then(|rules| {
+                let message = rules
                     .iter()
-                    .map(|risk_info| {
-                        risk_info.name.clone().map_or("".to_string(), |name| {
-                            format!(" , {}", name.clone().expose())
-                        })
+                    .filter_map(|risk_info| {
+                        risk_info
+                            .name
+                            .as_ref()
+                            .map(|name| format!(" , {}", name.clone().expose()))
                     })
                     .collect::<Vec<String>>()
-                    .join("")
+                    .join("");
+                (!message.is_empty()).then_some(message)
             })
-        })
-        .unwrap_or(Some("".to_string()));
+        });
 
     let detailed_error_info = error_data.as_ref().and_then(|error_data| {
         error_data.details.as_ref().map(|details| {
@@ -5755,10 +5782,84 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or(commerce_indicator),
+            commerce_indicator: Some(
+                commerce_indicator_for_external_authentication.unwrap_or(commerce_indicator),
+            ),
             bank_transfer_options: None,
         })
+    }
+}
+
+/// Normalise a card network to the lowercase names the commerce-indicator mapping
+/// matches on. Callers pass either a Cybersource numeric card type (`"001"`) or a
+/// network name (`"Visa"`), depending on the flow, so both forms are accepted.
+fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'static str> {
+    card_network.and_then(|network| match network.to_lowercase().as_str() {
+        "001" | "visa" => Some("visa"),
+        "002" | "mastercard" => Some("mastercard"),
+        "024" | "042" | "maestro" => Some("maestro"),
+        "003" | "amex" | "americanexpress" => Some("amex"),
+        "004" | "discover" => Some("discover"),
+        "005" | "diners" | "dinersclub" => Some("diners"),
+        "007" | "jcb" => Some("jcb"),
+        "036" | "cartesbancaires" => Some("cartesbancaires"),
+        "rupay" => Some("rupay"),
+        "062" | "unionpay" | "upi" => Some("unionpay"),
+        _ => None,
+    })
+}
+
+fn get_commerce_indicator_for_wallet_payment<T: PaymentMethodDataTypes>(
+    payment_solution: Option<&PaymentSolution>,
+    payment_method_data: &PaymentMethodData<T>,
+    authentication_type: common_enums::AuthenticationType,
+    card_network: Option<&str>,
+) -> Option<String> {
+    match payment_solution {
+        Some(PaymentSolution::GooglePay) => {
+            let is_pan_only = matches!(
+                payment_method_data,
+                PaymentMethodData::Wallet(WalletData::GooglePay(data))
+                    if data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .is_some_and(|details| !details.card_holder_authenticated)
+            );
+
+            if is_pan_only {
+                Some(
+                    if authentication_type == common_enums::AuthenticationType::ThreeDs {
+                        match normalize_cybersource_card_network(card_network) {
+                            Some("diners") => "pb",
+                            Some("mastercard") | Some("maestro") => "spa",
+                            Some("visa") => "vbv",
+                            Some("amex") => "aesk",
+                            Some("discover") => "dipb",
+                            Some("jcb") => "js",
+                            _ => "internet",
+                        }
+                    } else {
+                        "internet"
+                    }
+                    .to_string(),
+                )
+            } else {
+                // CRYPTOGRAM_3DS tokens already carry their cryptogram and ECI,
+                // so direct Hyperswitch omits commerceIndicator.
+                None
+            }
+        }
+        Some(PaymentSolution::ApplePay) | Some(PaymentSolution::SamsungPay) => Some(
+            card_network
+                .map(|network| match network.to_lowercase().as_str() {
+                    "mastercard" => "spa",
+                    _ => "internet",
+                })
+                .unwrap_or("internet")
+                .to_string(),
+        ),
+        None => Some(String::from("internet")),
     }
 }
 
@@ -5766,48 +5867,50 @@ fn get_commerce_indicator_for_external_authentication(
     card_network: Option<String>,
     eci: String,
 ) -> String {
-    let card_network_lower_case = card_network
-        .as_ref()
-        .map(|card_network| card_network.to_lowercase());
+    let card_network = normalize_cybersource_card_network(card_network.as_deref());
     match eci.as_str() {
-        "00" | "01" | "02" => {
-            if matches!(
-                card_network_lower_case.as_deref(),
-                Some("mastercard") | Some("maestro")
-            ) {
-                "spa"
-            } else {
-                "internet"
-            }
-        }
-        "05" => match card_network_lower_case.as_deref() {
+        // Mastercard/Maestro only: 00 = not authenticated, 01 = attempted,
+        // 02 = authenticated. Cybersource expects `spa` for all three.
+        "00" | "01" | "02" => match card_network {
+            Some("mastercard") | Some("maestro") => "spa",
+            _ => "internet",
+        },
+        // 05 = successful 3DS authentication.
+        "05" => match card_network {
             Some("amex") => "aesk",
             Some("discover") => "dipb",
-            Some("mastercard") => "spa",
-            Some("visa") => "vbv",
             Some("diners") => "pb",
-            Some("upi") => "up3ds",
+            Some("unionpay") => "up3ds",
+            Some("visa") => "vbv",
+            Some("jcb") => "js",
+            Some("rupay") => "oci",
             _ => "internet",
         },
-        "06" => match card_network_lower_case.as_deref() {
+        // 06 = attempted authentication. Cybersource documents ECI 06 for
+        // Mastercard/Maestro as an exemption or a network token without 3DS,
+        // which maps to `spa`.
+        "06" => match card_network {
             Some("amex") => "aesk_attempted",
             Some("discover") => "dipb_attempted",
-            Some("mastercard") => "spa",
-            Some("visa") => "vbv_attempted",
             Some("diners") => "pb_attempted",
-            Some("upi") => "up3ds_attempted",
+            Some("unionpay") => "up3ds_attempted",
+            Some("visa") => "vbv_attempted",
+            Some("jcb") => "js_attempted",
+            Some("rupay") => "oci_attempted",
+            Some("mastercard") | Some("maestro") => "spa",
             _ => "internet",
         },
-        "07" => match card_network_lower_case.as_deref() {
-            Some("amex") => "internet",
-            Some("discover") => "internet",
-            Some("mastercard") => "spa",
+        // 07 = failed / not authenticated for most networks. Cybersource maps
+        // ECI 07 for Mastercard/Maestro to an authenticated MIT (`spa`).
+        "07" => match card_network {
+            Some("unionpay") => "up3ds_failure",
             Some("visa") => "vbv_failure",
-            Some("diners") => "internet",
-            Some("upi") => "up3ds_failure",
+            Some("jcb") => "js_failure",
+            Some("rupay") => "oci_failure",
+            Some("mastercard") | Some("maestro") => "spa",
             _ => "internet",
         },
-        _ => "vbv_failure",
+        _ => "internet",
     }
     .to_string()
 }
@@ -6062,5 +6165,65 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod commerce_indicator_tests {
+    use super::get_commerce_indicator_for_external_authentication;
+
+    /// Callers pass the Cybersource numeric card type on the Authorize and
+    /// RepeatPayment paths, and the card-network name on SetupMandate. Both must
+    /// resolve, otherwise an authenticated payment is sent as "internet" and the
+    /// issuer declines it with responseCode 82.
+    #[test]
+    fn resolves_numeric_card_types() {
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(
+                Some("001".to_string()),
+                "05".to_string()
+            ),
+            "vbv"
+        );
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(
+                Some("002".to_string()),
+                "02".to_string()
+            ),
+            "spa"
+        );
+    }
+
+    #[test]
+    fn resolves_card_network_names() {
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(
+                Some("Visa".to_string()),
+                "05".to_string()
+            ),
+            "vbv"
+        );
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(
+                Some("Mastercard".to_string()),
+                "02".to_string()
+            ),
+            "spa"
+        );
+    }
+
+    #[test]
+    fn unknown_network_or_eci_falls_back_to_internet() {
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(None, "05".to_string()),
+            "internet"
+        );
+        assert_eq!(
+            get_commerce_indicator_for_external_authentication(
+                Some("visa".to_string()),
+                "99".to_string()
+            ),
+            "internet"
+        );
     }
 }

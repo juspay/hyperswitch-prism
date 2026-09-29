@@ -611,6 +611,7 @@ message CompositePaymentMethodGetRequest {
   optional FutureUsage setup_future_usage = 17;       // Indicates future usage intention (e.g. off_session for mandates)
   optional CustomerAcceptance customer_acceptance = 18; // Details of customer consent for mandate setup
   optional SetupMandateDetails setup_mandate_details = 19; // Mandate data for recurring payment setup
+  optional BrowserInformation browser_info = 20; // Forwarded to the tokenize step for connector fraud signals
 }
 
 // Response message for composite payment method get flow.
