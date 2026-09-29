@@ -3122,6 +3122,32 @@ pub struct DisputeWebhookDetailsResponse {
     pub response_headers: Option<http::HeaderMap>,
     /// connector_reason
     pub connector_reason_code: Option<String>,
+    /// Card-network specific details of the dispute
+    pub additional_details: Option<DisputeAdditionalDetails>,
+}
+
+/// Additional details of a dispute, such as card network specific details.
+#[derive(Debug, Clone)]
+pub struct DisputeAdditionalDetails {
+    /// Card network specific details of the dispute.
+    pub network_details: Option<DisputeNetworkDetails>,
+}
+
+/// Card network specific details of a dispute.
+#[derive(Debug, Clone)]
+pub enum DisputeNetworkDetails {
+    /// Visa specific dispute details.
+    Visa {
+        /// Rapid Dispute Resolution details.
+        rapid_dispute_resolution: Option<RapidDisputeResolution>,
+    },
+}
+
+/// Visa Rapid Dispute Resolution details.
+#[derive(Debug, Clone)]
+pub struct RapidDisputeResolution {
+    /// Whether Rapid Dispute Resolution has been applied.
+    pub applied: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6102,6 +6128,17 @@ pub struct AdditionalConnectorDetails {
     pub checkout: Option<CheckoutAdditionalInformation>,
     /// Worldpayxml-specific additional information.
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
+    /// Stripe-specific additional information.
+    pub stripe: Option<StripeAdditionalInformation>,
+}
+
+/// Stripe-specific additional information.
+#[derive(Debug, Clone)]
+pub struct StripeAdditionalInformation {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    pub error_on_requires_action: Option<bool>,
 }
 
 /// Worldpayxml-specific additional information.

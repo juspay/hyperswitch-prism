@@ -17,13 +17,14 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
-        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, L2L3Data,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData, SplitPaymentsDetails,
+        DisputeAdditionalDetails, DisputeNetworkDetails, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventType, L2L3Data, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RapidDisputeResolution, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData, SplitPaymentsDetails,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
         WebhookDetailsResponse, WebhookResourceReference,
     },
@@ -288,6 +289,11 @@ pub struct PaymentIntentRequest<
     /// The Stripe account ID that these funds are intended for
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
+    /// Only meaningful for MIT (merchant-initiated) payments: no customer is present to
+    /// complete additional authentication, so fail outright instead of coming back as
+    /// `requires_action`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_on_requires_action: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2616,6 +2622,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             moto: is_moto,
             on_behalf_of,
+            // CIT by construction: UCS Authorize carries no mandate reference, so this is
+            // the non-MIT half of hyperswitch's `is_mit_payment` gate.
+            error_on_requires_action: None,
         })
     }
 }
@@ -4185,6 +4194,37 @@ pub struct WebhookEventObjectData {
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
+    pub network_details: Option<StripeDisputeNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeDisputeNetworkDetails {
+    Visa {
+        visa: Option<StripeVisaDisputeNetworkDetails>,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeVisaDisputeNetworkDetails {
+    pub rapid_dispute_resolution: Option<bool>,
+}
+
+impl From<StripeDisputeNetworkDetails> for Option<DisputeAdditionalDetails> {
+    fn from(network_details: StripeDisputeNetworkDetails) -> Self {
+        match network_details {
+            StripeDisputeNetworkDetails::Visa { visa } => visa
+                .and_then(|visa| visa.rapid_dispute_resolution)
+                .map(|applied| DisputeAdditionalDetails {
+                    network_details: Some(DisputeNetworkDetails::Visa {
+                        rapid_dispute_resolution: Some(RapidDisputeResolution { applied }),
+                    }),
+                }),
+            StripeDisputeNetworkDetails::Unknown => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
@@ -4669,6 +4709,7 @@ pub(crate) fn build_webhook_dispute_response(
         status_code: 200,
         response_headers: None,
         connector_reason_code: None,
+        additional_details: event_object.network_details.clone().and_then(Into::into),
     })
 }
 
@@ -6221,6 +6262,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             moto: is_moto,
             on_behalf_of,
+            error_on_requires_action: item
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.stripe.as_ref())
+                .and_then(|stripe| stripe.error_on_requires_action),
         })
     }
 }
@@ -6511,5 +6558,62 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod dispute_network_details_tests {
+    use super::{
+        DisputeAdditionalDetails, DisputeNetworkDetails, StripeDisputeNetworkDetails,
+        WebhookEventObjectData,
+    };
+
+    /// `network_details` sits on the Stripe Dispute object (`data.object`) and is
+    /// internally tagged by `type`. Parse it off a realistic payload rather than
+    /// constructing the enum, so a rename of either key is caught here.
+    fn network_details_from(json: &str) -> Option<StripeDisputeNetworkDetails> {
+        let body = format!(
+            r#"{{"id":"dp_1","object":"dispute","amount":100,"currency":"usd",
+                 "created":1758000000,"reason":"fraudulent"{json}}}"#
+        );
+        serde_json::from_str::<WebhookEventObjectData>(&body)
+            .expect("dispute object should deserialize")
+            .network_details
+    }
+
+    fn rdr_applied(details: Option<DisputeAdditionalDetails>) -> Option<bool> {
+        match details?.network_details? {
+            DisputeNetworkDetails::Visa {
+                rapid_dispute_resolution,
+            } => Some(rapid_dispute_resolution?.applied),
+        }
+    }
+
+    #[test]
+    fn visa_rapid_dispute_resolution_is_carried_through() {
+        let details = network_details_from(
+            r#","network_details":{"type":"visa","visa":{"rapid_dispute_resolution":true}}"#,
+        )
+        .expect("visa network_details should parse");
+        assert_eq!(rdr_applied(details.into()), Some(true));
+    }
+
+    /// Visa without the RDR flag, a network we do not model, and no
+    /// `network_details` at all must all leave `additional_details` empty rather
+    /// than inventing an `applied: false`.
+    #[test]
+    fn absent_or_unknown_network_details_yield_nothing() {
+        let visa_without_rdr =
+            network_details_from(r#","network_details":{"type":"visa","visa":{}}"#)
+                .expect("visa network_details should parse");
+        assert_eq!(rdr_applied(visa_without_rdr.into()), None);
+
+        let mastercard = network_details_from(
+            r#","network_details":{"type":"mastercard","mastercard":{"some_field":true}}"#,
+        )
+        .expect("unknown network should parse as Unknown");
+        assert_eq!(rdr_applied(mastercard.into()), None);
+
+        assert!(network_details_from("").is_none());
     }
 }

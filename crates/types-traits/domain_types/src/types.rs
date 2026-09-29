@@ -10934,6 +10934,29 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             response_headers,
             raw_connector_request: None,
             typed_connector_request: None,
+            additional_details: value.additional_details.map(|details| {
+                grpc_api_types::payments::DisputeAdditionalDetails {
+                    network_details: details.network_details.map(|network| match network {
+                        connector_types::DisputeNetworkDetails::Visa {
+                            rapid_dispute_resolution,
+                        } => grpc_api_types::payments::DisputeNetworkDetails {
+                            network: Some(
+                                grpc_api_types::payments::dispute_network_details::Network::Visa(
+                                    grpc_api_types::payments::VisaDisputeDetails {
+                                        rapid_dispute_resolution: rapid_dispute_resolution.map(
+                                            |rdr| {
+                                                grpc_api_types::payments::RapidDisputeResolution {
+                                                    applied: rdr.applied,
+                                                }
+                                            },
+                                        ),
+                                    },
+                                ),
+                            ),
+                        },
+                    }),
+                }
+            }),
         })
     }
 }
@@ -14611,6 +14634,11 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                     payment_purpose: w.payment_purpose,
                 }
             }),
+            stripe: value
+                .stripe
+                .map(|s| connector_types::StripeAdditionalInformation {
+                    error_on_requires_action: s.error_on_requires_action,
+                }),
         }
     }
 }
