@@ -542,9 +542,11 @@ impl Payments {
                 .to_grpc_error()?;
 
         // Create connector request data
-        let payment_authorize_data =
+        let mut payment_authorize_data =
             PaymentsAuthorizeData::foreign_try_from((payload.clone(), payment_method_data.clone()))
                 .to_grpc_error()?;
+        payment_authorize_data.accept_amount_mismatch =
+            domain_types::utils::extract_accept_amount_mismatch_from_metadata(metadata);
 
         // Construct router data
         let router_data = RouterDataV2::<
@@ -814,7 +816,11 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_capture_response,
         connector_data_types: [ConnectorData<DefaultPCIHolder>],
-        all_keys_required: None
+        all_keys_required: None,
+        apply_metadata_header: |request: &mut PaymentsCaptureData, metadata: &MaskedMetadata| {
+            request.accept_amount_mismatch =
+                domain_types::utils::extract_accept_amount_mismatch_from_metadata(metadata);
+        }
     );
 
     implement_connector_operation!(
@@ -1069,8 +1075,12 @@ impl PaymentService for Payments {
                     > = connector_data.connector.get_connector_integration_v2();
 
                     // Create connector request data
-                    let payments_sync_data =
+                    let mut payments_sync_data =
                         PaymentsSyncData::foreign_try_from(payload.clone()).to_grpc_error()?;
+                    payments_sync_data.accept_amount_mismatch =
+                        domain_types::utils::extract_accept_amount_mismatch_from_metadata(
+                            &request_data.masked_metadata,
+                        );
 
                     let connectors = utils::apply_url_overrides(
                         &config,

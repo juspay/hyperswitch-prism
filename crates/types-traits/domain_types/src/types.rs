@@ -13,7 +13,7 @@ use crate::{
         RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
-    router_request_types::AuthoriseIntegrityObject,
+    router_request_types::{AuthoriseIntegrityObject, RepeatPaymentIntegrityObject},
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
@@ -4828,6 +4828,7 @@ impl<
         };
 
         Ok(Self {
+            accept_amount_mismatch: false,
             split_settlement: value
                 .split_settlement
                 .clone()
@@ -7142,6 +7143,29 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+impl TryFrom<&RepeatPaymentIntegrityObject> for grpc_api_types::payments::Money {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(integrity_obj: &RepeatPaymentIntegrityObject) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: integrity_obj.amount,
+            currency: grpc_api_types::payments::Currency::foreign_try_from(integrity_obj.currency)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "Failed to convert currency to gRPC Currency type".to_string(),
+                        ),
+                    },
+                })
+                .attach_printable(format!(
+                    "source currency for integrity object: {:?}",
+                    integrity_obj.currency
+                ))? as i32,
+        })
+    }
+}
+
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -7249,6 +7273,30 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     .map(grpc_api_types::payments::Money::try_from)
                     .transpose()?;
 
+                // On a tolerated amount mismatch, prefer the amount the integrity object says
+                // the connector actually authorized over `minor_amount_capturable`, which the
+                // connector's own transformer may have computed assuming the requested amount
+                // was authorized in full.
+                let capturable_amount = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .filter(|res| {
+                        res.currency == router_data_v2.request.currency
+                            && res.amount != router_data_v2.request.minor_amount
+                            && router_data_v2
+                                .request
+                                .amount_mismatch_tolerance()
+                                .permits(router_data_v2.request.minor_amount, res.amount)
+                    })
+                    .map(|res| res.amount.get_amount_as_i64())
+                    .or_else(|| {
+                        router_data_v2
+                            .resource_common_data
+                            .minor_amount_capturable
+                            .map(|amount_capturable| amount_capturable.get_amount_as_i64())
+                    });
+
                 PaymentServiceAuthorizeResponse {
                     split_settlement: None,
                     raw_connector_status: router_data_v2
@@ -7280,10 +7328,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     response_headers,
                     state,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
-                    capturable_amount: router_data_v2
-                        .resource_common_data
-                        .minor_amount_capturable
-                        .map(|amount_capturable| amount_capturable.get_amount_as_i64()),
+                    capturable_amount,
                     authorized_amount: router_data_v2
                         .resource_common_data
                         .minor_amount_authorized
@@ -7975,6 +8020,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             .transpose()?;
 
         Ok(Self {
+            accept_amount_mismatch: false,
             connector_transaction_id,
             encoded_data: value.encoded_data,
             capture_method,
@@ -11963,6 +12009,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
         }?;
 
         Ok(Self {
+            accept_amount_mismatch: false,
             split_settlement: value
                 .split_settlement
                 .clone()
@@ -12342,6 +12389,25 @@ pub fn generate_payment_capture_response(
                     grpc_payment_types::MandateReference::foreign_from(*mandate_reference)
                 });
 
+                // On a tolerated amount mismatch, prefer the amount the integrity object says
+                // the connector actually captured over `amount_captured`, which the connector's
+                // own transformer may have computed assuming the requested amount was captured
+                // in full.
+                let captured_amount = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .filter(|res| {
+                        res.currency == router_data_v2.request.currency
+                            && res.amount_to_capture != router_data_v2.request.minor_amount_to_capture
+                            && router_data_v2.request.amount_mismatch_tolerance().permits(
+                                router_data_v2.request.minor_amount_to_capture,
+                                res.amount_to_capture,
+                            )
+                    })
+                    .map(|res| res.amount_to_capture.get_amount_as_i64())
+                    .or(router_data_v2.resource_common_data.amount_captured);
+
                 Ok(PaymentServiceCaptureResponse {
                     split_settlement: None,
                     raw_connector_status: router_data_v2
@@ -12369,7 +12435,7 @@ pub fn generate_payment_capture_response(
                     incremental_authorization_allowed,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
-                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    captured_amount,
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -16243,6 +16309,33 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     grpc_payment_types::MandateReference::foreign_from(*mandate_reference)
                 });
 
+                let authorized_money = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .map(grpc_api_types::payments::Money::try_from)
+                    .transpose()?;
+
+                // On a tolerated amount mismatch, prefer the amount the integrity object says
+                // the connector actually authorized/charged over `amount_captured`, which the
+                // connector's own transformer may have computed assuming the requested amount
+                // went through in full.
+                let capturable_amount = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .filter(|res| {
+                        let reported = common_utils::types::MinorUnit::new(res.amount);
+                        res.currency == router_data_v2.request.currency
+                            && reported != router_data_v2.request.minor_amount
+                            && router_data_v2
+                                .request
+                                .amount_mismatch_tolerance()
+                                .permits(router_data_v2.request.minor_amount, reported)
+                    })
+                    .map(|res| res.amount)
+                    .or(router_data_v2.resource_common_data.amount_captured);
+
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                         split_settlement: None,
@@ -16282,6 +16375,8 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         typed_connector_request,
                         connector_response,
                         captured_amount: router_data_v2.resource_common_data.amount_captured,
+                        capturable_amount,
+                        authorized_money,
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
@@ -16350,6 +16445,8 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     typed_connector_response: None,
                     connector_response,
                     captured_amount: None,
+                    capturable_amount: None,
+                    authorized_money: None,
                     incremental_authorization_allowed: None,
                     splits: None,
                     payment_account_reference: None,

@@ -1333,7 +1333,15 @@ where
             // already has tolerance logic (partial authorization, overcapture) that this
             // server-side check doesn't have. Log for observability only, and always return the
             // real connector response so hyperswitch's own check can evaluate the mismatch.
-            if let Err(err) = data.request.check_integrity(&data.request.clone(), None) {
+            //
+            // `amount_mismatch_tolerance()` is read here (the one place with both `data.request`
+            // and the intent to run the check) and handed to `check_integrity` explicitly —
+            // `check_integrity` itself never derives it.
+            let tolerance = data.request.amount_mismatch_tolerance();
+            if let Err(err) = data
+                .request
+                .check_integrity(&data.request.clone(), None, tolerance)
+            {
                 tracing::warn!(
                     connector = %event_params.connector_name,
                     flow = %event_params.flow_name,

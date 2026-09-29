@@ -4124,6 +4124,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         additional_connector_details: None,
         customer: None,
         business_country: None,
+        accept_amount_mismatch: false,
     }
 }
 

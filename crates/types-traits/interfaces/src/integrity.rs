@@ -8,15 +8,16 @@ use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
-    AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-    CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData, MandateRevokeRequestData,
-    PaymentCreateOrderData, PaymentMethodEligibilityData, PaymentMethodTokenizationData,
-    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
-    RechargeRequestData, RefreshPaymentMethodData, RefundSyncData, RefundVoidPostRefundData,
-    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
+    AcceptDisputeData, AmountMismatchTolerance, ClientAuthenticationTokenRequestData,
+    ConnectorCustomerData, CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData,
+    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodEligibilityData,
+    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, RechargeRequestData, RefreshPaymentMethodData,
+    RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
+    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
+    SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
@@ -83,6 +84,28 @@ pub trait FlowIntegrity {
         res_integrity_object: Self::IntegrityObject,
         connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError>;
+
+    /// Same as [`Self::compare`], but given the caller's [`AmountMismatchTolerance`] (see
+    /// `x-accept-amount-mismatch`), lets an amount-only mismatch be relaxed instead of failing.
+    /// Currency is never relaxed by any tolerance.
+    ///
+    /// Defaults to ignoring `tolerance` and delegating to [`Self::compare`], so every integrity
+    /// object gets this for free. Only override it for objects that carry an amount
+    /// (`AuthoriseIntegrityObject`, `CaptureIntegrityObject`, `PaymentSynIntegrityObject`,
+    /// `RepeatPaymentIntegrityObject`) — everything else keeps the strict behaviour
+    /// automatically.
+    fn compare_with_amount_tolerance(
+        req_integrity_object: Self::IntegrityObject,
+        res_integrity_object: Self::IntegrityObject,
+        connector_transaction_id: Option<String>,
+        _tolerance: AmountMismatchTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        Self::compare(
+            req_integrity_object,
+            res_integrity_object,
+            connector_transaction_id,
+        )
+    }
 }
 
 /// Trait for data types that can provide integrity objects
@@ -92,6 +115,18 @@ pub trait GetIntegrityObject<T: FlowIntegrity> {
 
     /// Generate integrity object from request data
     fn get_request_integrity_object(&self) -> T::IntegrityObject;
+
+    /// This request's [`AmountMismatchTolerance`] (`x-accept-amount-mismatch`, plus any
+    /// flow-specific flags like `enable_overcapture`/`enable_partial_authorization`).
+    ///
+    /// Defaults to no tolerance in either direction — the current strict behaviour — so it's
+    /// free for every request type except the handful that actually carry these flags.
+    fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        AmountMismatchTolerance {
+            allow_lower: domain_types::connector_types::AllowLowerAmount(false),
+            allow_higher: domain_types::connector_types::AllowHigherAmount(false),
+        }
+    }
 }
 
 /// Trait for data types that can perform integrity checks
@@ -101,6 +136,9 @@ pub trait CheckIntegrity<Request, T> {
     /// # Arguments
     /// * `request` - The request object containing integrity data
     /// * `connector_transaction_id` - Optional transaction ID for error context
+    /// * `tolerance` - The caller-supplied [`AmountMismatchTolerance`] to apply. Computed and
+    ///   handed in by the caller (see `external-services::execute_connector_processing_step`),
+    ///   not derived internally here.
     ///
     /// # Returns
     /// * `Ok(())` if integrity check passes or no response integrity object exists
@@ -109,6 +147,7 @@ pub trait CheckIntegrity<Request, T> {
         &self,
         request: &Request,
         connector_transaction_id: Option<String>,
+        tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError>;
 }
 
@@ -133,14 +172,16 @@ macro_rules! impl_check_integrity {
                 &self,
                 request: &Request,
                 connector_transaction_id: Option<String>,
+                tolerance: AmountMismatchTolerance,
             ) -> Result<(), IntegrityCheckError> {
                 match request.get_response_integrity_object() {
                     Some(res_integrity_object) => {
                         let req_integrity_object = request.get_request_integrity_object();
-                        T::compare(
+                        T::compare_with_amount_tolerance(
                             req_integrity_object,
                             res_integrity_object,
                             connector_transaction_id,
+                            tolerance,
                         )
                     }
                     None => Ok(()),
@@ -158,14 +199,16 @@ macro_rules! impl_check_integrity {
                 &self,
                 request: &Request,
                 connector_transaction_id: Option<String>,
+                tolerance: AmountMismatchTolerance,
             ) -> Result<(), IntegrityCheckError> {
                 match request.get_response_integrity_object() {
                     Some(res_integrity_object) => {
                         let req_integrity_object = request.get_request_integrity_object();
-                        T::compare(
+                        T::compare_with_amount_tolerance(
                             req_integrity_object,
                             res_integrity_object,
                             connector_transaction_id,
+                            tolerance,
                         )
                     }
                     None => Ok(()),
@@ -241,6 +284,10 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<AuthoriseIntegrityObject>
             currency: self.currency,
         }
     }
+
+    fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        PaymentsAuthorizeData::amount_mismatch_tolerance(self)
+    }
 }
 
 impl GetIntegrityObject<CreateOrderIntegrityObject> for PaymentCreateOrderData {
@@ -281,6 +328,10 @@ impl GetIntegrityObject<PaymentSynIntegrityObject> for PaymentsSyncData {
             amount: self.amount,
             currency: self.currency,
         }
+    }
+
+    fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        PaymentsSyncData::amount_mismatch_tolerance(self)
     }
 }
 
@@ -331,6 +382,10 @@ impl GetIntegrityObject<CaptureIntegrityObject> for PaymentsCaptureData {
             amount_to_capture: self.minor_amount_to_capture,
             currency: self.currency,
         }
+    }
+
+    fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        PaymentsCaptureData::amount_mismatch_tolerance(self)
     }
 }
 
@@ -423,6 +478,10 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
                 }
             },
         }
+    }
+
+    fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        RepeatPaymentData::amount_mismatch_tolerance(self)
     }
 }
 
@@ -645,6 +704,35 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
 
         check_integrity_result(mismatched_fields, connector_transaction_id)
     }
+
+    fn compare_with_amount_tolerance(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+        tolerance: AmountMismatchTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount
+            && !tolerance.permits(req_integrity_object.amount, res_integrity_object.amount)
+        {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
 }
 
 impl FlowIntegrity for CreateOrderIntegrityObject {
@@ -725,6 +813,35 @@ impl FlowIntegrity for PaymentSynIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+
+    fn compare_with_amount_tolerance(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+        tolerance: AmountMismatchTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount
+            && !tolerance.permits(req_integrity_object.amount, res_integrity_object.amount)
+        {
             mismatched_fields.push(format_mismatch(
                 "amount",
                 &req_integrity_object.amount.to_string(),
@@ -833,6 +950,38 @@ impl FlowIntegrity for CaptureIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.amount_to_capture != res_integrity_object.amount_to_capture {
+            mismatched_fields.push(format_mismatch(
+                "amount_to_capture",
+                &req_integrity_object.amount_to_capture.to_string(),
+                &res_integrity_object.amount_to_capture.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+
+    fn compare_with_amount_tolerance(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+        tolerance: AmountMismatchTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount_to_capture != res_integrity_object.amount_to_capture
+            && !tolerance.permits(
+                req_integrity_object.amount_to_capture,
+                res_integrity_object.amount_to_capture,
+            )
+        {
             mismatched_fields.push(format_mismatch(
                 "amount_to_capture",
                 &req_integrity_object.amount_to_capture.to_string(),
@@ -969,6 +1118,46 @@ impl FlowIntegrity for RepeatPaymentIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        if req_integrity_object.mandate_reference != res_integrity_object.mandate_reference {
+            mismatched_fields.push(format_mismatch(
+                "mandate_reference",
+                &req_integrity_object.mandate_reference,
+                &res_integrity_object.mandate_reference,
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+
+    fn compare_with_amount_tolerance(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+        tolerance: AmountMismatchTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount
+            && !tolerance.permits(
+                common_utils::types::MinorUnit::new(req_integrity_object.amount),
+                common_utils::types::MinorUnit::new(res_integrity_object.amount),
+            )
+        {
             mismatched_fields.push(format_mismatch(
                 "amount",
                 &req_integrity_object.amount.to_string(),
@@ -2028,5 +2217,141 @@ impl FlowIntegrity for FrmChargebackReceivedIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         // FRM chargeback received has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
+    }
+}
+
+#[cfg(test)]
+mod amount_tolerance_tests {
+    use common_enums::Currency;
+    use common_utils::types::MinorUnit;
+    use domain_types::connector_types::{AllowHigherAmount, AllowLowerAmount};
+
+    use super::{AmountMismatchTolerance, AuthoriseIntegrityObject, CaptureIntegrityObject, FlowIntegrity};
+
+    const NO_TOLERANCE: AmountMismatchTolerance = AmountMismatchTolerance {
+        allow_lower: AllowLowerAmount(false),
+        allow_higher: AllowHigherAmount(false),
+    };
+    const FULL_TOLERANCE: AmountMismatchTolerance = AmountMismatchTolerance {
+        allow_lower: AllowLowerAmount(true),
+        allow_higher: AllowHigherAmount(true),
+    };
+    const LOWER_ONLY: AmountMismatchTolerance = AmountMismatchTolerance {
+        allow_lower: AllowLowerAmount(true),
+        allow_higher: AllowHigherAmount(false),
+    };
+
+    fn authorise(amount: i64, currency: Currency) -> AuthoriseIntegrityObject {
+        AuthoriseIntegrityObject {
+            amount: MinorUnit::new(amount),
+            currency,
+        }
+    }
+
+    #[test]
+    fn strict_mode_still_fails_on_lower_amount() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(900, Currency::USD);
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, NO_TOLERANCE);
+        assert!(result.is_err(), "no tolerance must still reject a mismatch");
+    }
+
+    #[test]
+    fn tolerant_mode_accepts_lower_amount() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(900, Currency::USD);
+        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
+            req,
+            res,
+            None,
+            FULL_TOLERANCE,
+        );
+        assert!(result.is_ok(), "full tolerance must accept a lower amount");
+    }
+
+    #[test]
+    fn tolerant_mode_accepts_higher_amount() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(1100, Currency::USD);
+        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
+            req,
+            res,
+            None,
+            FULL_TOLERANCE,
+        );
+        assert!(result.is_ok(), "full tolerance must accept a higher amount");
+    }
+
+    #[test]
+    fn lower_only_tolerance_rejects_higher_amount() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(1100, Currency::USD);
+        let result =
+            AuthoriseIntegrityObject::compare_with_amount_tolerance(req, res, None, LOWER_ONLY);
+        assert!(
+            result.is_err(),
+            "lower-only tolerance (e.g. enable_partial_authorization alone) must not accept a higher amount"
+        );
+    }
+
+    #[test]
+    fn tolerant_mode_still_fails_on_currency_mismatch() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(1000, Currency::EUR);
+        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
+            req,
+            res,
+            None,
+            FULL_TOLERANCE,
+        );
+        assert!(
+            result.is_err(),
+            "tolerance must never relax a currency mismatch"
+        );
+    }
+
+    #[test]
+    fn tolerant_mode_still_passes_matching_amount() {
+        let req = authorise(1000, Currency::USD);
+        let res = authorise(1000, Currency::USD);
+        let result = AuthoriseIntegrityObject::compare_with_amount_tolerance(
+            req,
+            res,
+            None,
+            FULL_TOLERANCE,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn capture_tolerant_mode_accepts_amount_mismatch_but_not_currency() {
+        let req = CaptureIntegrityObject {
+            amount_to_capture: MinorUnit::new(1000),
+            currency: Currency::USD,
+        };
+        let lower = CaptureIntegrityObject {
+            amount_to_capture: MinorUnit::new(500),
+            currency: Currency::USD,
+        };
+        assert!(CaptureIntegrityObject::compare_with_amount_tolerance(
+            req.clone(),
+            lower,
+            None,
+            FULL_TOLERANCE,
+        )
+        .is_ok());
+
+        let wrong_currency = CaptureIntegrityObject {
+            amount_to_capture: MinorUnit::new(1000),
+            currency: Currency::GBP,
+        };
+        assert!(CaptureIntegrityObject::compare_with_amount_tolerance(
+            req,
+            wrong_currency,
+            None,
+            FULL_TOLERANCE,
+        )
+        .is_err());
     }
 }
