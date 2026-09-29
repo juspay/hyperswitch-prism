@@ -646,23 +646,21 @@ verdict. New blocking bugs, `rca_rounds` under cap and no stop-early → 4, and 
 `FULL_RUN` like every other one — there is no "retests only" shortcut, because a narrow `ROUND` is never evidence
 that a bug is fixed. Otherwise → 7.
 
-**7. Hand off** — nothing left to route, every `S5:e2e:*` row terminal, **and both floors below clear** → S6.
+**7. Hand off** — nothing left to route, every `S5:e2e:*` row terminal, **and the run gate clear** → S6.
 
-- **E2E floor.** Every `e2e/expected.json` row holds a terminal record, `skip_reason: NO_CHECKOUT`, or a
-  deferral whose causes are still open. Any row that does not → spawn the missing group now, do not hand off.
-  A `skipped` row counts as terminal only when its `skip_reason` is `NO_CHECKOUT`.
-- **RCA floor.** No blocking, in-scope, non-terminal bug may reach S6 having never been attempted while
-  `rca_rounds` is still under cap:
+Run the `## Run gate` block with `R={RUN_DIR}`. Empty output → S6. Any `RUNGATE:` line → **do not hand
+off**; return to the loop at the step the failing id names:
 
-  ```bash
-  jq '[.bugs[] | select(.blocking and .in_scope and .duplicate_of == null and (.attempts // 0) == 0
-       and (.status | IN("fixed","invalid","wont_fix","flaky") | not))] | length' {RUN_DIR}test/bugs.json
-  ```
+| Failing id | Go to |
+|---|---|
+| `E2E-01`, `E2E-02`, `E2E-03`, `EVID-01` | step 5 — spawn or re-queue the groups it names, then a `FULL_RUN` |
+| `RCA-01`, `RCA-02` | step 4 — the bugs it names enter RCA |
+| `PLAN-01`, `SUITE-01` | step 4, with the scenario ids in the brief |
+| `REM-01`, `WD-01`, `BUG-01`, `BUG-02` | fix the artefact the check names, then re-run the gate |
 
-  Non-zero with `counters.rca_rounds < caps.rca_rounds` → **go to 4**, not to S6. The caps are a ceiling on
-  effort, never a floor under it: a run may exhaust six RCA rounds and still fail, but it may not hand a
-  blocking bug to the PR having spent none. `attempts: 0` on a blocking bug is not a verdict about the bug —
-  it is a statement that the run never looked.
+The caps are a ceiling on effort, never a floor under it: a run may exhaust ten RCA rounds and still
+fail, but it may not hand a blocking bug to the PR having spent none. `attempts: 0` on a blocking bug
+is not a verdict about the bug — it is a statement that the run never looked.
 
 ### E2E stage — `2.5_e2e.md` (`S5:e2e:<N>`, background, one spawn per flow group)
 
@@ -915,6 +913,178 @@ figures alongside, the way these were.
 
 `baseline_join_min` must exceed the `2.6a_test_env.md` BASELINE harness `timeout 3600` (60) plus a 90-minute boot margin.
 At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV_FAILED` → PR `INCOMPLETE`.
+
+## Run gate
+
+Single source of truth; stage files cite this section rather than restating its rules.
+
+The floors this workflow sets — every unit gets an e2e run, a deferral is repaid, a blocking bug is
+attempted, a declared suite has evidence behind it, a remediation round changes something — are
+prose, and prose is evaluated by the agent it constrains. That is not a hypothetical weakness:
+`2.5_e2e.md` already says "`E2E_SKIPPED` — no Hyperswitch checkout exists. **That is the only
+meaning.** 'We did not run it' is `FAILED`", and a run wrote `ev SKIP … reason=folded into e2e:01`
+straight past it. A categorical sentence did not bind.
+
+So the floors are checked by command and the result is written down. **Empty output is the pass
+condition**, the same shape as Phase 6e's `HS_PR_CONTRADICTION` gate in `2.8_pr_run.md`. Each check
+emits `RUNGATE:<ID> <detail>` on failure and appends a row to `gate/run_gate.tsv`
+(`check_id<TAB>PASS|FAIL<TAB>detail`), alongside the existing `gate/` artefacts.
+
+| ID | Asserts |
+|---|---|
+| `E2E-01` | every `e2e/expected.json` row has a record, `skip_reason: NO_CHECKOUT`, or a live deferral |
+| `E2E-02` | no deferral whose `cause_bug_ids` are all `fixed`/`invalid` is still `requeued: false` |
+| `E2E-03` | a `FULL_RUN` sweep exists that is newer than the newest `e2e/<N>.json` — the record was consumed |
+| `EVID-01` | every log or transcript an e2e record cites exists on disk |
+| `RCA-01` | no blocking, in-scope, non-terminal bug sits at `attempts: 0` while `rca_rounds` is under cap |
+| `RCA-02` | no bug carries `unresolved` having never been attempted |
+| `SUITE-01` | every `specs.json .supported_suites` entry has an executed PASS or a classed waiver |
+| `PLAN-01` | no recorded outcome contradicts the plan's own `expect:` for that scenario |
+| `REM-01` | a consumed `review_rounds` has a tree delta since `review_ref` |
+| `WD-01` | every `withdraw_kind: api_gap` carries cited evidence |
+| `BUG-01` | every `invalid` bug has its `rca/verify/r<N>/<bug_id>/` transcripts |
+| `BUG-02` | no `fixed` bug with `verified_by: self_attested` has left `pr/blocking_bugs.json` |
+| `PR-01` | `READY` implies every non-`no_op`, non-`api_gap` unit is `DELIVERED_VERIFIED` with no unproven suites |
+| `PR-02` | every non-`no_op` unit has a `FLOW=` line in `pr/body.md` |
+
+`PLAN-01` is the one that catches a class nothing else does: a verdict the run has itself
+superseded. When review deletes the assertions a row passed on, the plan is amended to
+`expect: FAIL` — but re-grading needs an execution round, so `test/final.json` keeps the old `PASS`
+and the PR ships it. The run's own two halves disagree, and this is where that becomes visible.
+
+The gate-absent-vs-blocked contradiction is **not** duplicated here: it is `2.8_pr_run.md` Phase 6f
+check 2, and stays there so there is one regex to keep correct.
+
+```bash
+# GRACE run gate. Emits RUNGATE:<ID> <detail> per failure; empty output = pass.
+# Inputs: R=<run dir>. Writes gate/run_gate.tsv.
+set -u
+R="${R%/}"; RG="$R/gate/run_gate.tsv"
+[ -f "$R/run.json" ] || { echo "RUNGATE:RUN-00 $R has no run.json — not a run directory"; exit 1; }
+mkdir -p "$R/gate"; : > "$RG"
+CL=$(jq -r '.connector_lc // empty' "$R/run.json" 2>/dev/null)
+SPECS="crates/internal/integration-tests/src/connector_specs/$CL/specs.json"
+BJ="$R/test/bugs.json"; FJ="$R/test/final.json"; PJ="$R/plan/plan.json"
+BUGS='(.bugs | if type=="object" then [.[]] else . end)'
+out() { printf '%s\n' "$1"; printf '%s\tFAIL\t%s\n' "${1%% *}" "${1#* }" | sed 's/^RUNGATE://' >> "$RG"; }
+ok()  { printf '%s\tPASS\t\n' "$1" >> "$RG"; }
+emit(){ local id="$1" res; res=$(cat); if [ -n "$res" ]; then while IFS= read -r l; do [ -n "$l" ] && out "$l"; done <<< "$res"; else ok "$id"; fi; }
+
+# E2E-01 every expected group resolved
+{ if [ ! -f "$R/e2e/expected.json" ]; then
+    [ -d "$R/e2e" ] && echo "RUNGATE:E2E-01 no e2e/expected.json — the spawn set was never recorded"
+  else jq -r '[.[] | select((.record==null) and (.skip_reason!="NO_CHECKOUT") and (.deferred==null)) | .group] | select(length>0) | "RUNGATE:E2E-01 unresolved groups: " + join(",")' "$R/e2e/expected.json"
+  fi; } | emit E2E-01
+
+# E2E-02 no satisfied deferral left un-requeued
+{ if [ -f "$R/e2e/deferred.json" ] && [ -f "$BJ" ]; then
+    B=$(jq -c "[$BUGS[] | {id:.bug_id, s:.status}]" "$BJ")
+    jq -r --argjson b "$B" '[.[] | select(.requeued != true) | select(((.cause_bug_ids//[])|length)>0)
+      | select([(.cause_bug_ids[]) as $i | ($b[]|select(.id==$i)|.s)] | length>0 and all(.=="fixed" or .=="invalid"))
+      | .group] | select(length>0) | "RUNGATE:E2E-02 deferrals whose causes are resolved but not re-queued: " + join(",")' "$R/e2e/deferred.json"
+  fi; } | emit E2E-02
+
+# E2E-03 a FULL_RUN sweep consumed the newest e2e record
+{ N=$(ls -t "$R"/e2e/[0-9]*.json 2>/dev/null | head -1)
+  if [ -n "${N:-}" ]; then L=$(ls -t "$R"/test/results/r*.json 2>/dev/null | head -1)
+    if [ -z "${L:-}" ]; then echo "RUNGATE:E2E-03 $(basename "$N") exists but no r<N>.json sweep at all"
+    elif [ "$N" -nt "$L" ]; then echo "RUNGATE:E2E-03 $(basename "$N") is newer than the last sweep $(basename "$L") — never consumed"
+    fi; fi; } | emit E2E-03
+
+# EVID-01 cited evidence exists on disk
+{ for f in "$R"/e2e/[0-9]*.json; do [ -f "$f" ] || continue
+    jq -r '[.records[]?.evidence? // {} | to_entries[] | select(.key|test("_ref$")) | .value | tostring
+           | scan("[A-Za-z0-9_./-]+\\.(?:log|json|jsonl)")] | unique | .[]?' "$f" 2>/dev/null \
+    | while read -r p; do [ -e "$R/$p" ] || [ -e "$p" ] || echo "RUNGATE:EVID-01 $(basename "$f") cites missing evidence: $p"; done
+  done; } | emit EVID-01
+
+# RCA-01 blocking bug never attempted while rounds remain
+{ if [ -f "$BJ" ]; then
+    CAP=$(jq -r '.caps.rca_rounds // 0' "$R/run.json"); USED=$(jq -r '.counters.rca_rounds // 0' "$R/run.json")
+    CAP=${CAP:-0}; USED=${USED:-0}
+    Z=$(jq -r "[$BUGS[] | select(.blocking and .in_scope and (.duplicate_of==null) and ((.attempts//0)==0) and ((.status|IN(\"fixed\",\"invalid\",\"wont_fix\",\"flaky\"))|not)) | .bug_id] | join(\",\")" "$BJ")
+    [ -n "$Z" ] && [ "$USED" -lt "$CAP" ] && echo "RUNGATE:RCA-01 blocking bugs never attempted, rca_rounds $USED/$CAP: $Z"
+  fi; } | emit RCA-01
+
+# RCA-02 unresolved with no attempt
+{ [ -f "$BJ" ] && jq -r "[$BUGS[] | select((.status==\"unresolved\") and ((.attempts//0)==0)) | .bug_id] | select(length>0) | \"RUNGATE:RCA-02 marked unresolved having never been attempted: \" + join(\",\")" "$BJ"; } | emit RCA-02
+
+# SUITE-01 declared suite with no executed PASS and no classed waiver
+{ [ -f "$SPECS" ] && [ -f "$FJ" ] && jq -r --slurpfile sp "$SPECS" '
+    [$sp[0].supported_suites[]?] as $d
+    | ([.checks | to_entries[] | select(.value.outcome=="PASS") | (.key|split("/")[0:2]|join("/"))] | unique) as $p
+    | ([$sp[0].unsupported_scenarios // {} | keys[]?]) as $w
+    | [$d[] | select((IN($p[])|not) and (IN($w[])|not))] | select(length>0)
+    | "RUNGATE:SUITE-01 declared with no executed PASS: " + join(",")' "$FJ"; } | emit SUITE-01
+
+# PLAN-01 recorded outcome contradicts the plan's own expectation
+{ [ -f "$PJ" ] && [ -f "$FJ" ] && jq -r --slurpfile f "$FJ" '
+    [.. | objects | select(has("expect") and has("suite") and has("scenario"))
+      | select(.expect=="PASS" or .expect=="FAIL") | {k:(.suite+"/"+.scenario), e:.expect, p:(.priority//"-")}] as $plan
+    | ($f[0].checks) as $c
+    | [$plan[] | . as $r | ($c[$r.k].outcome // "NO_CHECK") as $o
+        | select(($r.e=="PASS" and $o!="PASS" and $o!="NO_CHECK") or ($r.e=="FAIL" and $o=="PASS"))
+        | "\($r.k) plan=\($r.e) actual=\($o) [\($r.p)]"]
+    | select(length>0) | "RUNGATE:PLAN-01 outcome contradicts the plan expectation: " + join("; ")' "$PJ"; } | emit PLAN-01
+
+# REM-01 a consumed remediation round changed no tracked file
+{ RR=$(jq -r '.counters.review_rounds // 0' "$R/run.json"); RR=${RR:-0}; REF=$(jq -r '.review_ref // empty' "$R/run.json")
+  if [ "$RR" -gt 0 ] && [ -n "${REF:-}" ]; then
+    if git rev-parse --verify --quiet "$REF" >/dev/null 2>&1; then
+      [ -z "$(git diff --name-only "$REF" HEAD 2>/dev/null)" ] && echo "RUNGATE:REM-01 review_rounds=$RR consumed but no tree delta since $REF"
+    else echo "RUNGATE:REM-01 review_ref $REF not resolvable — cannot prove the remediation round changed anything"; fi
+  fi; } | emit REM-01
+
+# WD-01 withdrawal kind and its evidence
+{ [ -f "$PJ" ] && jq -r '[.order[]? | select(.status=="withdrawn") | select((.withdraw_kind//"exhausted")=="api_gap") | select(((.evidence//[])|length)==0) | .unit] | select(length>0) | "RUNGATE:WD-01 api_gap withdrawals with no cited evidence: " + join(",")' "$PJ"; } | emit WD-01
+
+# BUG-01 invalid needs its three verify transcripts
+{ [ -f "$BJ" ] && jq -r "[$BUGS[] | select(.status==\"invalid\") | .bug_id] | .[]?" "$BJ" \
+  | while read -r b; do [ -n "$(ls -d "$R"/rca/verify/r*/"$b"/ 2>/dev/null)" ] || echo "RUNGATE:BUG-01 $b is invalid with no rca/verify transcripts"; done; } | emit BUG-01
+
+# BUG-02 self-attested fix must remain in the blocking set
+{ if [ -f "$BJ" ] && [ -f "$R/pr/blocking_bugs.json" ]; then
+    BL=$(jq -c '[.[].bug_id]' "$R/pr/blocking_bugs.json" 2>/dev/null || echo '[]')
+    jq -r --argjson bl "$BL" "[$BUGS[] | select(.status==\"fixed\" and .verified_by==\"self_attested\") | select((.bug_id|IN(\$bl[]))|not) | .bug_id] | select(length>0) | \"RUNGATE:BUG-02 self-attested fixes missing from blocking set: \" + join(\",\")" "$BJ"
+  fi; } | emit BUG-02
+
+# PR-01 READY implies everything proven
+{ S="$R/pr/status.json"; [ -f "$S" ] && jq -r '
+    if (.pr_status//"") != "READY" then empty
+    else [ (.units[]? | select((.flow_status//"")!="no_op") | select((.withdraw_kind//"")!="api_gap")
+             | select((.flow_status//"")!="DELIVERED_VERIFIED" or (((.suites_unproven//[])|length)>0)) | .unit) ]
+      | select(length>0) | "RUNGATE:PR-01 READY with units not fully proven: " + join(",") end' "$S"; } | emit PR-01
+
+# PR-02 body machine block agrees with status.json
+{ S="$R/pr/status.json"; B="$R/pr/body.md"
+  if [ -f "$S" ] && [ -f "$B" ]; then
+    jq -r '.units[]? | select((.flow_status//"")!="no_op") | .unit' "$S" | while read -r u; do
+      grep -q "^FLOW=$u\b" "$B" 2>/dev/null || echo "RUNGATE:PR-02 no FLOW= line in body for unit $u"
+    done
+  fi; } | emit PR-02
+```
+
+### Call sites and the anti-skip rule
+
+- **Step 7 (hand-off).** Non-empty output → the run may not go to S6. Return to the loop at the step
+  the failing id names: `E2E-*` → step 5, `RCA-*` → step 4, `PLAN-01`/`SUITE-01` → step 4 with the
+  scenario ids in the brief.
+- **`2.8_pr_run.md` Phase 1.** Non-empty output → each line becomes a `reasons[]` entry and the PR
+  can be nothing but a draft.
+
+**`gate/run_gate.tsv` must exist and carry a row for every id at both call sites.** A missing file,
+or a missing row, is itself an `INCOMPLETE` reason (`reasons[] += "run_gate_not_run:<id>"`) — the
+same construction the draft CI-parity table uses. This is what makes skipping the gate cost
+something: it leaves a hole the next stage reads, rather than nothing at all.
+
+A directory with no `run.json` exits 1 with `RUNGATE:RUN-00` and writes no rows; that is not a run.
+
+### Auditing past runs
+
+The block takes `R` and reads only files the stages already wrote, so pointing it at any
+`grace/runs/<id>/` grades that run retroactively — including merged ones. `SUITE-01` compares
+against the **working tree's** `specs.json`, which is what a live run needs at hand-off; auditing an
+older run therefore wants that run's branch checked out, or its numbers read with that caveat.
 
 ## Resume
 
