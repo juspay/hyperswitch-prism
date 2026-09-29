@@ -10203,7 +10203,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
             amount: None,
-            // `WebhookDetailsResponse` has no integrity_object 
+            // `WebhookDetailsResponse` has no integrity_object
             connector_reported_money: None,
             captured_amount: value
                 .minor_amount_captured
