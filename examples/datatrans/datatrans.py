@@ -9,10 +9,11 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -83,6 +84,16 @@ def _build_get_request(connector_transaction_id: str):
         ),
     )
 
+def _build_parse_event_request():
+    return events_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}".encode(),  # Body of the HTTP request.
+        ),
+    )
+
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -122,10 +133,7 @@ def _build_proxy_setup_recurring_request():
             card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
-                email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
-            ),
+            billing_address=payment_pb2.Address(),
         ),
         customer_acceptance=payment_pb2.CustomerAcceptance(
             acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
@@ -177,10 +185,7 @@ def _build_setup_recurring_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
-                email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
-            ),
+            billing_address=payment_pb2.Address(),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
         enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
@@ -222,6 +227,7 @@ def _build_token_setup_recurring_request():
                 email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
             ),
         ),
+        return_url="https://example.com/return",
         customer_acceptance=payment_pb2.CustomerAcceptance(
             acceptance_type=payment_pb2.AcceptanceType.Value("ONLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
@@ -397,6 +403,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

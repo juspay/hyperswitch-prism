@@ -600,14 +600,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: accept_dispute flow for datatrans"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by datatrans connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: defend_dispute flow for datatrans"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by datatrans connector"
       }
     },
     "dispute_get": {
@@ -617,8 +617,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: submit_evidence flow for datatrans"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by datatrans connector"
       }
     },
     "eligibility": {
@@ -651,7 +651,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -662,7 +677,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -736,10 +765,7 @@
             "card_network": "VISA"
           },
           "address": {
-            "billing_address": {
-              "first_name": "John",
-              "email": "test@example.com"
-            }
+            "billing_address": {}
           },
           "customer_acceptance": {
             "acceptance_type": "OFFLINE",
@@ -749,14 +775,14 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://api.sandbox.datatrans.com/v1/transactions",
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/validate",
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":{\"createAlias\":true}}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"{{$card_cvc}}\"}}"
         }
       }
     },
@@ -859,10 +885,7 @@
             }
           },
           "address": {
-            "billing_address": {
-              "first_name": "John",
-              "email": "test@example.com"
-            }
+            "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
           "enrolled_for_3ds": false,
@@ -875,14 +898,14 @@
           }
         },
         "sample": {
-          "url": "https://api.sandbox.datatrans.com/v1/transactions",
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/validate",
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":\"https://example.com/mandate-return\",\"cancelUrl\":\"https://example.com/mandate-return\",\"errorUrl\":\"https://example.com/mandate-return\"},\"option\":{\"createAlias\":true}}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_mandate_001\",\"card\":{\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"737\"}}"
         }
       }
     },
@@ -930,6 +953,7 @@
               "email": "test@example.com"
             }
           },
+          "return_url": "https://example.com/return",
           "customer_acceptance": {
             "acceptance_type": "ONLINE",
             "accepted_at": 0,
@@ -960,7 +984,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_mandate_001\",\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_mandate_001\",\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"errorUrl\":\"https://example.com/return\"},\"option\":null}"
         }
       }
     },

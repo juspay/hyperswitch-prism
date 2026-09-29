@@ -19,6 +19,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "capture",
     "create_client_authentication_token",
     "get",
+    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
     "refund",
@@ -128,6 +129,33 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"transactionId\":\"260928150333612088\",\"type\":\"payment\",\"status\":\"settled\",\"refno\":\"Test-1234\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
@@ -177,8 +205,6 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
         }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
                 ..Default::default()
             }),
             ..Default::default()
@@ -247,8 +273,6 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
                 ..Default::default()
             }),
             ..Default::default()
@@ -304,6 +328,7 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
             }),
             ..Default::default()
         }),
+        return_url: Some("https://example.com/return".to_string()),
         customer_acceptance: Some(CustomerAcceptance {
             acceptance_type: AcceptanceType::Online.into(), // Type of acceptance (e.g., online, offline).
             accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
@@ -602,6 +627,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -734,6 +769,7 @@ async fn main() {
             process_create_client_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
@@ -743,7 +779,7 @@ async fn main() {
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_reverse, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_reverse, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };
