@@ -68,7 +68,7 @@ are in **before** opening a pattern file.
 | **1** | **Standalone 3DS trio** — cardholder authentication run as its own leg(s) before Authorize | `PreAuthenticate` / `Authenticate` / `PostAuthenticate` | **`PaymentFlowData`** | `PaymentMethodAuthenticationService` (rpcs `PreAuthenticate` / `Authenticate` / `PostAuthenticate`) | [`pattern_preauthenticate.md`](./pattern_preauthenticate.md), [`pattern_authenticate.md`](./pattern_authenticate.md), [`pattern_postauthenticate.md`](./pattern_postauthenticate.md) **+ [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md) (mandatory)** |
 | **2** | **In-payment 3DS** — 3DS folded into the Authorize call itself | *(none — no separate marker exists)* | `PaymentFlowData` | `PaymentService.Authorize` | [`pattern_authorize.md`](./pattern_authorize.md) |
 | **3** | **Merchant / credential auth** — OAuth tokens, wallet sessions, client-SDK tokens. Authenticates **the merchant to the connector**, never the cardholder | `ServerAuthenticationToken` / `ServerSessionAuthenticationToken` / `ClientAuthenticationToken` | **`MerchantAuthenticationFlowData`** | `MerchantAuthenticationService` (rpcs `CreateServerAuthenticationToken` / `CreateServerSessionAuthenticationToken` / `CreateClientAuthenticationToken`) | [`pattern_server_authentication_token.md`](./pattern_server_authentication_token.md) (canonical), [`pattern_server_session_authentication_token.md`](./pattern_server_session_authentication_token.md), [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) |
-| **4** | **Authenticator connectors — NOT 3DS.** Bank-account linking / account verification. Lives in `src/authenticator_connectors/`, a **sibling** of `connectors/`, not a subdirectory of it. Sole member: `plaid` | Reuses `ClientAuthenticationToken`, plus `PaymentMethodToken` and `GetPaymentMethod` | `MerchantAuthenticationFlowData` for `ClientAuthenticationToken`; `PaymentFlowData` for the other two | `MerchantAuthenticationService` for the token leg | *No dedicated pattern.* Read `authenticator_connectors/plaid.rs` |
+| **4** | **Authenticator connectors — NOT 3DS.** Bank-account linking / account verification. Lives in `src/authenticator_connectors/`, a **sibling** of `connectors/`, not a subdirectory of it. Sole member: `plaid` | Reuses `ClientAuthenticationToken`, plus `PaymentMethodToken` and `GetPaymentMethod` | `MerchantAuthenticationFlowData` for `ClientAuthenticationToken`; `PaymentFlowData` for the other two | `MerchantAuthenticationService` for the token leg | [`pattern_authenticator_connector.md`](./pattern_authenticator_connector.md) |
 | **5** | **FRM connectors.** Fraud/risk scoring providers. Lives in `src/frm_connectors/`, not `src/connectors/`. Current members: `kount`, `nsure` | `PreRiskCheck`, `PostRiskCheck`, `FrmPaymentOutcome`, `FrmRefundProcessed`, `FrmChargebackReceived`; also requires `ServerAuthenticationToken` and `PreAuthenticate` support/stubs | `FrmFlowData` for FRM flows; `MerchantAuthenticationFlowData` for token flow; `PaymentFlowData` for `PreAuthenticate` | `FraudAndRiskManagementService` plus `EventService/NotifyConnector` for lifecycle notifications | [`pattern_frm_connector.md`](./pattern_frm_connector.md) |
 
 > **The `resource_common_data` split is the trap.** Mechanism 1 uses
@@ -224,6 +224,13 @@ Two carve-outs, both real:
 > credential authentication. They use `MerchantAuthenticationFlowData`, **not**
 > `PaymentFlowData`, and they authenticate the merchant to the connector, never
 > the cardholder. Do not confuse them with the 3DS trio in the next section.
+
+### Cross-Cutting Rules
+
+| Topic | Pattern File | Status | Description |
+|------|--------------|--------|-------------|
+| **Integrity checks** | [`pattern_integrity_checks.md`](./pattern_integrity_checks.md) | ✅ Complete | Populate response-side `integrity_object` values in transformers; Transit is the exemplar |
+| **Authenticator connectors** | [`pattern_authenticator_connector.md`](./pattern_authenticator_connector.md) | ✅ Complete | Bank-account linking / account verification; Plaid is the exemplar |
 
 ### Authentication Flows (3DS / EMV3DS) — Mechanism 1 only
 
@@ -461,6 +468,8 @@ All pattern files maintain:
 - [`PATTERN_AUTHORING_SPEC.md`](./PATTERN_AUTHORING_SPEC.md) - How to write / update a pattern file
 - [`authorize/README.md`](./authorize/README.md) - Payment-method pattern index for Authorize
 - [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md) - `next_authentication_step` dispatch; required alongside the 3DS trio
+- [`pattern_authenticator_connector.md`](./pattern_authenticator_connector.md) - Authenticator connector category; Plaid-based bank-account linking rules
+- [`pattern_integrity_checks.md`](./pattern_integrity_checks.md) - Response-side integrity object rules; Transit examples
 - [`flow_macro_guide.md`](./flow_macro_guide.md) - Macro usage reference
 - [`macro_patterns_reference.md`](./macro_patterns_reference.md) - Complete macro documentation
 

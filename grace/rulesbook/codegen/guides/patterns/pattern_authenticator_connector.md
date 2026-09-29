@@ -189,6 +189,25 @@ crates/integrations/connector-integration/src/
         └── transformers.rs
 ```
 
+### Scaffold command
+
+For a new authenticator connector, start with the category-aware scaffold:
+
+```bash
+.skills/new-connector/scripts/add_connector.sh foo https://sandbox.example.test --kind authenticator --force -y
+```
+
+This is the same script as
+`grace/rulesbook/codegen/add_connector.sh`. The `--kind authenticator` profile
+writes `src/authenticator_connectors/foo.rs`, updates
+`authenticator_connectors.rs`, `AuthenticatorConnectorEnum`,
+`AuthenticatorConnectorData`, `ConnectorVariant::Authenticator`, and
+`patch_authenticator_connector_urls`.
+
+Do not run the payment default and move files afterwards. The payment default
+adds `ConnectorEnum`, `ConnectorData`, field-probe, default implementations and
+`connector_specs/` side effects that are wrong for authenticator connectors.
+
 ## Connectors with Full Implementation
 
 | Connector | Struct | Generic over `T`? | Macros | Flows (all real) | URLs |
@@ -423,15 +442,16 @@ AuthenticatorConnectorEnum::Plaid => Box::new(authenticator_connectors::Plaid::<
 ## Integration Guidelines
 
 1. Confirm you are in this category and not one of the three auth mechanisms in [`README.md`](./README.md). Account linking → here. Cardholder 3DS → `pattern_preauthenticate.md`. Merchant OAuth → `pattern_server_authentication_token.md`.
-2. Read `authenticator_connectors/plaid.rs` end to end (about 400 lines) plus `plaid/transformers.rs`.
-3. Create `authenticator_connectors/foo.rs`, `foo/transformers.rs`, and `foo/test.rs` (declare it as `#[cfg(test)] mod test;` on line 1, as `plaid.rs` does).
-4. In `transformers.rs`: `FooAuthType` + `impl TryFrom<&ConnectorSpecificConfig>`, the three request/response pairs, and `FooErrorResponse`.
-5. In `foo.rs`, follow the eight steps under "Common Implementation Patterns".
-6. Put `impl AuthenticatorServiceTrait<T> for Foo<T> {}` last so the compiler enumerates the missing supertraits.
-7. Walk the 13 registration sites.
-8. Add `foo.base_url` to all three `config/*.toml` files.
-9. `cargo check -p connector-integration` then `cargo check --workspace`.
-10. Exercise `MerchantAuthenticationService/CreateClientAuthenticationToken`, then `PaymentMethodService/Tokenize`, then `PaymentMethodService/Get`, all with `x-auth-connector: foo`.
+2. Scaffold with `add_connector.sh --kind authenticator`; do not scaffold as a payment connector.
+3. Read `authenticator_connectors/plaid.rs` end to end (about 400 lines) plus `plaid/transformers.rs`.
+4. Create or complete `authenticator_connectors/foo.rs`, `foo/transformers.rs`, and `foo/test.rs` (declare it as `#[cfg(test)] mod test;` on line 1, as `plaid.rs` does).
+5. In `transformers.rs`: `FooAuthType` + `impl TryFrom<&ConnectorSpecificConfig>`, the three request/response pairs, and `FooErrorResponse`.
+6. In `foo.rs`, follow the eight steps under "Common Implementation Patterns".
+7. Put `impl AuthenticatorServiceTrait<T> for Foo<T> {}` last so the compiler enumerates the missing supertraits.
+8. Walk the 13 registration sites.
+9. Add `foo.base_url` to all three `config/*.toml` files.
+10. `cargo check -p connector-integration` then `cargo check --workspace`.
+11. Exercise `MerchantAuthenticationService/CreateClientAuthenticationToken`, then `PaymentMethodService/Tokenize`, then `PaymentMethodService/Get`, all with `x-auth-connector: foo`.
 
 ## Best Practices
 

@@ -24,8 +24,13 @@ Extract and report:
 3a. Connector category:
    - FRM when the product is a fraud/risk scoring provider with risk checks
      and lifecycle notifications rather than a payment processor.
+   - Authenticator when the product links or verifies customer bank accounts
+     (Plaid-like account linking / account verification), not cardholder 3DS.
    - Payment otherwise.
    If FRM, read grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md
+   before Step 2.
+   If Authenticator, read
+   grace/rulesbook/codegen/guides/patterns/pattern_authenticator_connector.md
    before Step 2.
 4. Amount format -- read the vendor spec's wire format and match it. There is no safe
    default. The five types in crates/common/common_utils/src/types.rs:
@@ -48,6 +53,10 @@ Extract and report:
    - CreateOrder: order/intent creation before payment → YES/NO
    - CreateConnectorCustomer: customer object required before payment → YES/NO
    - PaymentMethodToken: tokenization before authorize → YES/NO
+8. Integrity check evidence — for every implemented response, record whether the connector
+   echoes amount, currency, connector transaction id, connector refund id, mandate reference,
+   or other fields that correspond to the flow's integrity object. Use this in transformer
+   work; do not leave integrity_object unset when comparable response fields exist.
 
 If the tech spec is missing → IMMEDIATELY return FAILED. Do NOT continue.
 Reason: "Tech spec not found. Run generate-tech-spec skill first, or provide the
@@ -58,11 +67,12 @@ Output format:
   CONNECTOR: {ConnectorName}
   BASE_URL: ...
   AUTH: HeaderKey | SignatureKey | BodyKey
-  CATEGORY: Payment | FRM
+  CATEGORY: Payment | FRM | Authenticator
   AMOUNT: MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit
   CONTENT_TYPE: Json | FormUrlEncoded | Xml
   CORE_FLOWS: [Authorize, PSync, Capture, Refund, RSync, Void]
   PRE_AUTH_FLOWS: [none] or [ServerAuthenticationToken, ...]
+  INTEGRITY_FIELDS: {flow}: [amount, currency, connector_transaction_id, ...] | [none returned]
   STATUS: SUCCESS | FAILED
 ```
 
@@ -71,7 +81,7 @@ Output format:
 ## Subagent 2: Foundation Setup
 
 **Inputs**: connector_name, base_url, production_base_url
-**Outputs**: scaffold created, superposition URLs registered + URL patching wired, connector_specs/<name>/specs.json written, build passes, convention check results
+**Outputs**: scaffold created, category URL wiring verified, connector_specs/<name>/specs.json written or intentionally skipped, build passes, convention check results
 
 ```
 Set up the foundation for the {ConnectorName} connector.
@@ -93,6 +103,18 @@ Set up the foundation for the {ConnectorName} connector.
    field-probe, or connector_specs/<name>/specs.json. Read
    grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md.
 
+   If Subagent 1 reported CATEGORY: Authenticator, use:
+   .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --kind authenticator --force -y
+
+   Authenticator connectors live under
+   crates/integrations/connector-integration/src/authenticator_connectors/. They
+   register through authenticator_connectors.rs, AuthenticatorConnectorEnum,
+   AuthenticatorConnectorData, ConnectorVariant::Authenticator, and
+   patch_authenticator_connector_urls. Do NOT add them to src/connectors/,
+   ConnectorEnum, ConnectorData, field-probe, or connector_specs/<name>/specs.json.
+   Read grace/rulesbook/codegen/guides/patterns/pattern_authenticator_connector.md;
+   Plaid is the exemplar.
+
    If the production base URL differs from the sandbox {base_url}, pass it too so the
    superposition production override is correct:
    .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --production-url {production_base_url} --force -y
@@ -113,6 +135,9 @@ Set up the foundation for the {ConnectorName} connector.
    Exception: --kind frm intentionally writes no connector_specs manifest because
    check_connector_specs scans only src/connectors/ and rejects specs without a
    matching integration file there.
+   Exception: --kind authenticator also intentionally writes no connector_specs
+   manifest because check_connector_specs scans only src/connectors/ and rejects
+   specs without a matching integration file there.
 
 2. Verify the build:
    cargo build --package connector-integration
@@ -125,6 +150,10 @@ Set up the foundation for the {ConnectorName} connector.
    - Connector file: crates/integrations/connector-integration/src/frm_connectors/{connector_name}.rs
    - Transformers: crates/integrations/connector-integration/src/frm_connectors/{connector_name}/transformers.rs
    - Registry: crates/integrations/connector-integration/src/frm_connectors.rs
+   For CATEGORY: Authenticator, use these paths instead:
+   - Connector file: crates/integrations/connector-integration/src/authenticator_connectors/{connector_name}.rs
+   - Transformers: crates/integrations/connector-integration/src/authenticator_connectors/{connector_name}/transformers.rs
+   - Registry: crates/integrations/connector-integration/src/authenticator_connectors.rs
 
 4. Convention checks (fix any violations):
    - Struct is {ConnectorName}<T> (generic), not {ConnectorName}
@@ -174,12 +203,13 @@ Set up the foundation for the {ConnectorName} connector.
    Also confirm macro_connector_flow_status_impls! and macro_connector_payout_implementation!
    were emitted at the end of the connector file.
 
-8. VERIFY superposition URL registration + dynamic URL patching (the scaffold script in step 1
-   now does BOTH of these automatically — confirm they landed; do them by hand only if missing).
+8. VERIFY category-specific URL registration + dynamic URL patching (the scaffold script in step 1
+   writes the category default automatically — confirm it landed; do it by hand only if missing).
    Naming: superposition enum value / _context_ / patched.<field> use snake_case
-   ({connector_name}); ConnectorEnum::<Variant> uses PascalCase ({ConnectorName}).
+   ({connector_name}); enum variants use PascalCase ({ConnectorName}).
 
-   a. config/superposition.toml
+   a. config/superposition.toml (payment and authenticator when scaffolded; FRM only when dynamic
+      URL overrides are required)
       - "{connector_name}" is in the `connector` dimension enum under [dimensions].
       - Override blocks exist at the END of the file (sandbox default + production):
 
@@ -196,10 +226,14 @@ Set up the foundation for the {ConnectorName} connector.
       - If you did NOT pass --production-url, the production override reuses {base_url}; fix it if
         the connector has a distinct live URL.
 
-   b. crates/types-traits/domain_types/src/types.rs  ->  Connectors::patch_connector_urls()
+   b. crates/types-traits/domain_types/src/types.rs -> the category patch function:
+      - Payment: `Connectors::patch_connector_urls()` with `ConnectorEnum::{ConnectorName}`
+      - FRM: `Connectors::patch_frm_connector_urls()` with `FrmConnectorEnum::{ConnectorName}`
+      - Authenticator: `Connectors::patch_authenticator_connector_urls()` with
+        `AuthenticatorConnectorEnum::{ConnectorName}`
       - A match arm exists BEFORE the `_ =>` fallback:
 
-        ConnectorEnum::{ConnectorName} => {
+        {CategoryEnum}::{ConnectorName} => {
             patched.{connector_name}.apply(params_patch);
         }
 
@@ -210,6 +244,8 @@ Set up the foundation for the {ConnectorName} connector.
    supported_suites list is non-empty. Without it, CI's check_connector_specs job fails.
    For CATEGORY: FRM, verify the opposite: no connector_specs/{connector_name}/
    directory was created.
+   For CATEGORY: Authenticator, verify the opposite as well: no
+   connector_specs/{connector_name}/ directory was created.
 
 10. Verify: cargo build --package connector-integration
 
@@ -217,9 +253,9 @@ Output:
   STATUS: SUCCESS | FAILED
   FILES_CREATED: [list of files]
   FILES_MODIFIED: [config/superposition.toml, crates/types-traits/domain_types/src/types.rs, ...]
-  SUPERPOSITION_URLS_REGISTERED: YES | NO
+  SUPERPOSITION_URLS_REGISTERED: YES | NO | N/A_FOR_CATEGORY
   URL_PATCHING_WIRED: YES | NO
-  CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM
+  CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM | N/A_FOR_AUTHENTICATOR
   BUILD: PASS | FAIL
   CONVENTION_VIOLATIONS: [none] or [list]
 ```
@@ -237,16 +273,31 @@ See `flow-implementation-guide.md` for the complete procedure and prompt templat
 Implement the {FlowName} flow for {ConnectorName}.
 
 Tech spec: grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
-Pattern: .skills/new-connector/references/flow-patterns/{flow}.md
+Payment flow pattern: .skills/new-connector/references/flow-patterns/{flow}.md
+  (payment connectors only; authenticator and FRM flows use their category pattern below)
 Macro ref: .skills/new-connector/references/macro-reference.md
 Implementation guide: .skills/new-connector/references/flow-implementation-guide.md
+Integrity pattern: grace/rulesbook/codegen/guides/patterns/pattern_integrity_checks.md
 Connector file: crates/integrations/connector-integration/src/connectors/{connector_name}.rs
 Transformers: crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
 
+If CATEGORY: Authenticator, first read
+grace/rulesbook/codegen/guides/patterns/pattern_authenticator_connector.md and use:
+Connector file: crates/integrations/connector-integration/src/authenticator_connectors/{connector_name}.rs
+Transformers: crates/integrations/connector-integration/src/authenticator_connectors/{connector_name}/transformers.rs
+Allowed flow order: ClientAuthenticationToken → PaymentMethodToken → GetPaymentMethod.
+
+If CATEGORY: FRM, first read
+grace/rulesbook/codegen/guides/patterns/pattern_frm_connector.md and use:
+Connector file: crates/integrations/connector-integration/src/frm_connectors/{connector_name}.rs
+Transformers: crates/integrations/connector-integration/src/frm_connectors/{connector_name}/transformers.rs
+
 Instructions:
 1. Read the tech spec for {FlowName} endpoint details
-2. Read the flow pattern file for {FlowName}-specific patterns
-3. Read the implementation guide for the 3-part procedure
+2. For payment connectors, read the flow pattern file for {FlowName}-specific patterns.
+   For authenticator or FRM connectors, use the category pattern named above instead; do not
+   expect a file under `.skills/new-connector/references/flow-patterns/` for those category flows.
+3. Read the implementation guide for the 3-part procedure and read the integrity pattern
 4. FIRST: remove {FlowName}'s marker name from the not_implemented: [...] list in the
    macro_connector_flow_status_impls! invocation at the bottom of the connector file.
    That macro (macros.rs ~:1827) emits BOTH the marker-trait impl and a stub
@@ -254,7 +305,12 @@ Instructions:
    adding your own is a double E0119.
 5. Add flow to create_all_prerequisites! macro
 6. Add macro_connector_implementation! block
-7. Create request/response types and TryFrom impls in transformers.rs
+7. Create request/response types and TryFrom impls in transformers.rs. In response TryFrom impls,
+   if the request type has `integrity_object: Option<...>`, set it on the cloned request using
+   connector-echoed comparable fields (amount, currency, connector transaction id, connector
+   refund id, mandate reference, etc.). Copy the Transit (`tsys_transit`) pattern:
+   parse connector-returned values when present, and fall back to request values only when the
+   connector truly does not return comparable fields, with a comment explaining why.
 8. Add the flow's trait marker impl, now freed by step 4 (marker names are not uniform;
    check the flow-implementation-guide.md type table)
 9. Run: cargo build --package connector-integration
@@ -353,6 +409,9 @@ Checks:
      it belongs to IntegrationError, which is where request-side failures go. InvalidData and
      InvalidCard are variants of NEITHER enum; substitute a real IntegrationError variant
      (InvalidDataFormat, InvalidWallet, MismatchedPaymentData, ...) and keep its context field.
+   - Integrity objects are populated in response transformers for every flow whose request type
+     carries `integrity_object`; any fallback to request values is justified with a comment and
+     no comparable connector response field is ignored.
 
 4. Macro completeness:
    - Every implemented flow in create_all_prerequisites! also has
