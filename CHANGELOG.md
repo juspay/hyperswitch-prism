@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.29.2
+
+### Features
+
+- **connector:** Add support for santander ted banktransfer payouts ([#2337](https://github.com/juspay/connector-service/pull/2337)) ([`a9f7681`](https://github.com/juspay/connector-service/commit/a9f76818d705f21aff639383a461ae5f272cb1b0))
+
+### Bug Fixes
+
+- **connector:** [Trustly] map each bank to its own BankNames variant ([#2389](https://github.com/juspay/connector-service/pull/2389)) ([`636462a`](https://github.com/juspay/connector-service/commit/636462ae8a17841cef63b86ae048863f3b351b95))
+- **connectors:** [Adyen] card SetupMandate shopperName, [Stripe] wallet-token address gate ([#2385](https://github.com/juspay/connector-service/pull/2385)) ([`52fa84d`](https://github.com/juspay/connector-service/commit/52fa84d4e97825da99382d20f92321b3fccdefd9))
+- **grpc:** Return connector HTTP errors in flow responses ([#1480](https://github.com/juspay/connector-service/pull/1480)) ([`19d02b8`](https://github.com/juspay/connector-service/commit/19d02b8dad4937e95d1401ff1de801c7bb733254))
+
+**Full Changelog:** [`2026.09.29.1...2026.09.29.2`](https://github.com/juspay/connector-service/compare/2026.09.29.1...2026.09.29.2)
+
+- - -
+
 ## 2026.09.29.1
 
 ### Features
