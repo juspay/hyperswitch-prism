@@ -10,142 +10,111 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "not_supported",
+        "error": "HiPay has no payment product for card network <none supplied> is not supported by hipay. HiPay requires payment_product on POST /v1/order and answers an unlisted value with 1020003 Unsupported Payment Product."
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Crypto": {
         "status": "not_implemented",
@@ -153,11 +122,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -165,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Givex": {
         "status": "not_implemented",
@@ -201,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -289,43 +258,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -333,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -373,115 +342,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "error": "This feature is not implemented: HiPay supports card payments only; this payment method is not offered on POST /v1/order. HiPay's payment_product enum lists card and card-adjacent products only."
       }
     },
     "capture": {
@@ -598,7 +567,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><operation><state>completed</state><status>118</status><message>Captured</message><transaction_reference>800000000001</transaction_reference><currency>EUR</currency><captured_amount>1.00</captured_amount><order><id>probe_order_001</id></order></operation>"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><operation><state>completed</state><status>118</status><message>Captured</message><transaction_reference>800000000001</transaction_reference><currency>EUR</currency><captured_amount>1.00</captured_amount><order><id>probe_order_001</id></order></operation>"
+        }
       }
     },
     "incremental_authorization": {
@@ -609,7 +593,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><operation><state>completed</state><status>118</status><message>Captured</message><transaction_reference>800000000001</transaction_reference><currency>EUR</currency><captured_amount>1.00</captured_amount><order><id>probe_order_001</id></order></operation>"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><operation><state>completed</state><status>118</status><message>Captured</message><transaction_reference>800000000001</transaction_reference><currency>EUR</currency><captured_amount>1.00</captured_amount><order><id>probe_order_001</id></order></operation>"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -631,50 +629,20 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "error",
+        "error": "Stuck on field: cardtoken. HiPay rejects raw PANs on POST /v1/order and answers 'CardToken is required'. — Missing required field: cardtoken. HiPay rejects raw PANs on POST /v1/order and answers 'CardToken is required'."
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for hipay"
+        "status": "not_supported",
+        "error": "HiPay has no zero-amount verification: the operation enum is Sale|Authorization and amount is required with a minimum of 1 is not supported by hipay. POST /v1/order takes no `verify` operation and no amount=0; the agreement is opened by the initial charge itself."
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for hipay"
+        "status": "not_supported",
+        "error": "HiPay has no payment product for card network <none supplied> is not supported by hipay. HiPay requires payment_product on POST /v1/order and answers an unlisted value with 1020003 Unsupported Payment Product."
       }
     },
     "recurring_revoke": {
@@ -741,42 +709,20 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for hipay"
+        "status": "not_supported",
+        "error": "HiPay has no zero-amount verification: the operation enum is Sale|Authorization and amount is required with a minimum of 1 is not supported by hipay. POST /v1/order takes no `verify` operation and no amount=0; the agreement is opened by the initial charge itself."
       }
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "not_supported",
+        "error": "HiPay has no payment product for card network <none supplied> is not supported by hipay. HiPay requires payment_product on POST /v1/order and answers an unlisted value with 1020003 Unsupported Payment Product."
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for hipay"
+        "status": "not_supported",
+        "error": "HiPay has no zero-amount verification: the operation enum is Sale|Authorization and amount is required with a minimum of 1 is not supported by hipay. POST /v1/order takes no `verify` operation and no amount=0; the agreement is opened by the initial charge itself."
       }
     },
     "verify_redirect": {
