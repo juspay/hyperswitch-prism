@@ -490,7 +490,6 @@ mod deja_boundary {
                 Ok(map) => (json!({ "Ok": map }), false),
                 Err(error) => (json!({ "Err": error }), true),
             },
-            // Record-only: the recorder measures no round trip for this seam.
             deja::__private::RoundTrip::<
                 fn(&Resolved, &Resolved) -> deja::__private::Comparison,
             >::RecordOnly,

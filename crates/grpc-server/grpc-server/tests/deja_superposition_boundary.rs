@@ -29,8 +29,6 @@ fn install_empty_replay_hook() {
     let table = deja::LookupTable {
         recording_id: "superposition-boundary-test".to_string(),
         policy_version: deja::POLICY_VERSION,
-        // The build's own event schema: the loader refuses a table from any
-        // other, as it refuses another matching policy.
         event_schema_version: Some(deja::CURRENT_EVENT_SCHEMA_VERSION),
         entries: vec![],
         identity_entries: vec![],

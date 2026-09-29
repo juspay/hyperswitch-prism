@@ -1,29 +1,6 @@
-//! Deterministic stand-ins for a generator's output when a déjà replay finds no
-//! recorded value at an id or time seam.
-//!
-//! Without an `on_miss` arm, a `Substitute` seam that misses fail-stops: the
-//! request ends at that line and nothing after it is compared. A candidate that
-//! adds one id or clock read — which is what a change often is — then loses the
-//! whole correlation to a call that says nothing about behaviour. These arms keep
-//! the request alive. The miss is still scored: the lookup records the call as
-//! novel before the arm runs, and the scorer makes a correlation that continued
-//! on a synthesized value inconclusive, never passed.
-//!
-//! [`deja::synth::id`] is the generic answer, and wrong here: its marker contains
-//! `-` and its length is fixed, while `consts::ALPHABETS` forbids `-` and the
-//! callers promise a length. A value a connector would reject is worse than a
-//! stop, because the rejection is attributed to the candidate. So these derive
-//! over the CALLER's alphabet and length.
-//!
-//! Every value is a function of the miss alone — boundary, method, args,
-//! occurrence and correlation — so one replay gets the same answer every run, and
-//! two candidates replayed on one tape stay comparable past the edge of the tape.
+//! Deterministic values for id and time seams that miss on replay.
 
 /// `length` characters drawn from `alphabet`, derived from `miss`.
-///
-/// Returns an empty string for an empty alphabet rather than panicking: this
-/// runs on the miss path, where a panic would end the correlation the arm exists
-/// to keep alive.
 pub fn over(miss: &deja::SubstituteMiss, alphabet: &[char], length: usize) -> String {
     let span = match u64::try_from(alphabet.len()) {
         Ok(span) if span > 0 => span,
@@ -39,8 +16,7 @@ pub fn over(miss: &deja::SubstituteMiss, alphabet: &[char], length: usize) -> St
         .collect()
 }
 
-/// `length` deterministic bytes. Not [`deja::synth::bytes`], whose length is a
-/// const generic: these callers choose a length at runtime.
+/// `length` deterministic bytes derived from `miss`.
 pub fn byte_vec(miss: &deja::SubstituteMiss, length: usize) -> Vec<u8> {
     let seed = deja::synth::u64(miss);
     (0..length)
@@ -51,36 +27,22 @@ pub fn byte_vec(miss: &deja::SubstituteMiss, length: usize) -> Vec<u8> {
         .collect()
 }
 
-/// A deterministic UUID in the **version 8** space, hyphenated.
-///
-/// Version 8 is RFC 9562's custom space, so a synthesized uuid is structurally
-/// disjoint from the v4 and v7 values real code produces: a synthesized id can
-/// never satisfy a lookup keyed on a recorded one.
+/// A deterministic version 8 UUID, which no live generator emits.
 pub fn uuid(miss: &deja::SubstituteMiss) -> String {
     deja::synth::uuid_v8(miss)
 }
 
-/// How far a synthesized clock advances between two misses at one call site:
-/// one millisecond, in nanoseconds.
+/// Step between two synthesized instants at one call site: one millisecond.
 pub const CLOCK_STEP_NS: i64 = 1_000_000;
 
-/// A deterministic UTC instant for this miss, advancing with the occurrence at
-/// its call site.
-///
-/// The base is the Unix epoch, not a correlation's time origin: no such origin
-/// is available at a miss, and inventing one would reintroduce the ambient
-/// dependency these arms exist to remove. It also reads as obviously synthetic.
-/// Total: falls back to the epoch rather than panicking.
+/// A deterministic instant near the Unix epoch, advancing with the occurrence.
 pub fn instant(miss: &deja::SubstituteMiss) -> time::OffsetDateTime {
     let nanos = deja::synth::monotonic(miss, 0, CLOCK_STEP_NS);
     time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos))
         .unwrap_or(time::OffsetDateTime::UNIX_EPOCH)
 }
 
-/// One digest per position, so two positions never correlate and extending the
-/// length never rewrites the characters already produced. splitmix64's
-/// finalizer; nothing here is secret — everything is derivable from the query,
-/// which is the point.
+/// splitmix64 finalizer over the seed and a position.
 fn mix(seed: u64, index: u64) -> u64 {
     let mut state = seed ^ index.wrapping_mul(0x9E37_79B9_7F4A_7C15);
     state = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -101,7 +63,6 @@ mod tests {
         deja::SubstituteMiss::new("id", "test", "generate", args)
     }
 
-    /// The property replay depends on: one query, one answer, every run.
     #[test]
     fn the_same_miss_gives_the_same_value() {
         let first = over(&miss(serde_json::json!({"n": 12})), &HEX, 12);
@@ -118,8 +79,6 @@ mod tests {
         );
     }
 
-    /// Two different queries must not collide, or a downstream lookup keyed on
-    /// one synthesized id would resolve another's.
     #[test]
     fn a_different_miss_gives_a_different_value() {
         let a = over(&miss(serde_json::json!({"n": 12})), &HEX, 12);
@@ -127,8 +86,6 @@ mod tests {
         assert_ne!(a, b);
     }
 
-    /// The reason this exists rather than `deja::synth::id`: the value honours
-    /// the alphabet and length its caller promised.
     #[test]
     fn the_value_honours_the_alphabet_and_the_length() {
         for length in [1_usize, 8, 20, 64] {
@@ -142,8 +99,6 @@ mod tests {
         }
     }
 
-    /// Positions must differ, not merely be in the alphabet: an index-blind `mix`
-    /// passes every other test here with a value carrying four bits.
     #[test]
     fn positions_do_not_all_collapse_to_one_character() {
         let value = over(&miss(serde_json::json!({})), &HEX, 32);
@@ -151,8 +106,6 @@ mod tests {
         assert!(distinct.len() > 4, "{value}");
     }
 
-    /// A synthesized uuid must never be a v4 or v7, so it cannot resolve a
-    /// lookup keyed on a recorded one.
     #[test]
     fn a_synthesized_uuid_is_version_8() {
         let parsed = ::uuid::Uuid::parse_str(&uuid(&miss(serde_json::json!({})))).unwrap();
