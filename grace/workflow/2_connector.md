@@ -735,8 +735,8 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
 | RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 × m / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
-| Gate iterations per codegen spawn / finalize | 5 + 2×(m−1) / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| Gate iterations per codegen spawn / finalize | 5 / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 2 | `env_repairs_per_round` |
 | Review remediation rounds / crash re-spawn per stage | 1 / 1 | `review_remediation_rounds` / `crash_respawn_per_stage` |
@@ -745,19 +745,6 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
 | Detached job wait per launch (minutes) | 120 | `detached_wait_min` |
-
-**`m` = the unit's marker count**, `jq '[.units[] | select(.unit == "<unit>") | .markers | length] | first // 1'
-`plan/plan.json`, floored at 1. A codegen spawn covers a whole **flow group** — `Refunds` is `Refund` + `RSync`,
-`ThreeDS` is up to three authentication legs — so two caps have to be read against the group, not the spawn:
-
-- `amend_codegen_per_unit` is counted in `counters.amend_codegen{<unit>}`, one counter for the group, so a flat 8
-  would give a 3-marker group a single marker's budget. The **cap** scales, the counter does not: the effective
-  cap is `caps.amend_codegen_per_unit × m` (8 for one marker, 16 for two, 24 for three). Every `SKIP
-  cap:amend_codegen_per_unit` compares against that product, and the `run.json .caps` value stays 8.
-- `gate_iterations_codegen` is per *spawn*, and a multi-marker spawn faces each marker's own transformers and its
-  own class of gate failures, so the per-spawn budget is `caps.gate_iterations_codegen + 2 × (m − 1)` (5 / 7 / 9).
-  It is sub-linear on purpose: the gate re-runs over the spawn's whole tree, so one iteration already covers every
-  marker in the group.
 
 `baseline_join_min` must exceed the `2.6a_test_env.md` BASELINE harness `timeout 3600` (60) plus a 90-minute boot margin.
 At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV_FAILED` → PR `INCOMPLETE`.
