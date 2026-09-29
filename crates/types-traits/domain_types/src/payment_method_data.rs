@@ -1359,10 +1359,7 @@ pub struct ApplePayAdditionalData {
     pub network: String,
     /// The payment method type from Apple Pay (credit/debit/prepaid/store)
     pub pm_type: String,
-    /// Bin of the DPAN obtained from decrypting Apple Pay payment data
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_pan_bin: Option<String>,
-    /// Common card metadata (expiry, BIN, type, issuer, auth_code, etc.)
+    /// Common card metadata (expiry, BIN, DPAN BIN, type, issuer, auth_code, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_info: Option<AdditionalCardInfo>,
 }
@@ -2150,11 +2147,9 @@ pub struct WalletDetails {
 pub struct WalletAdditionalDataForCard {
     /// Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
     pub payment_method_data_type: Option<String>,
-    /// Email address associated with the wallet account
+    /// Email address associated with the wallet account (e.g. Google Pay account email)
     pub email: Option<Email>,
-    /// Bin of the DPAN obtained from decrypting wallet payment data
-    pub device_pan_bin: Option<String>,
-    /// Common card metadata (expiry, BIN, last4, type, network, issuer, auth_code, etc.)
+    /// Common card metadata (expiry, BIN, DPAN BIN, last4, type, network, issuer, auth_code, etc.)
     pub card_info: Option<AdditionalCardInfo>,
 }
 
@@ -2191,6 +2186,9 @@ pub struct AdditionalCardInfo {
     pub issuer_country: Option<CountryAlpha2>,
     /// Card network (e.g. Visa, Mastercard)
     pub card_network: Option<String>,
+    /// Bin of the DPAN (device PAN) from wallet payment data (Apple Pay / Google Pay / Samsung Pay).
+    /// Absent for plain-card payments where no DPAN exists.
+    pub device_pan_bin: Option<String>,
 }
 
 /// Discriminated wallet variant carried by [`AdditionalPaymentData::Wallet`].

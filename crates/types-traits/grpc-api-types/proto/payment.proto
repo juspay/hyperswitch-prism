@@ -2039,6 +2039,11 @@ message AdditionalCardInfo {
 
   // Card network (e.g. Visa, Mastercard)
   optional string card_network = 15;
+
+  // Bin of the DPAN (device PAN) from wallet payment data (Apple Pay / Google Pay / Samsung Pay).
+  // Absent for plain-card payments where no DPAN exists.
+  // Distinct from card_bin, which is the underlying physical card BIN resolved by the connector.
+  optional string device_pan_bin = 16;
 }
 
 // Apple Pay additional data for recurring payments.
@@ -2050,10 +2055,8 @@ message AdditionalApplePayInfo {
   string network = 2;
   // Payment method type from Apple Pay (from PKPaymentMethod.type: credit/debit/prepaid/store)
   string pm_type = 3;
-  // Bin of the DPAN obtained from decrypting Apple Pay payment data
-  optional string device_pan_bin = 4;
-  // Common card metadata (expiry, BIN, type, issuer, auth_code, etc.)
-  optional AdditionalCardInfo card_info = 5;
+  // Common card metadata (expiry, BIN, DPAN BIN, type, issuer, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 4;
 }
 
 // Wallet card additional data for recurring payments (Google Pay, Samsung Pay).
@@ -2061,12 +2064,10 @@ message AdditionalApplePayInfo {
 message AdditionalWalletCardInfo {
   // Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
   optional string payment_method_data_type = 1;
-  // Email address associated with the wallet account (sensitive)
+  // Email address associated with the wallet account (e.g. Google Pay account email)
   optional SecretString email = 2;
-  // Bin of the DPAN obtained from decrypting wallet payment data
-  optional string device_pan_bin = 3;
-  // Common card metadata (expiry, BIN, last4, type, network, issuer, auth_code, etc.)
-  optional AdditionalCardInfo card_info = 4;
+  // Common card metadata (expiry, BIN, DPAN BIN, last4, type, network, issuer, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 3;
 }
 
 // Wallet additional payment data wrapping Apple Pay and Google Pay data.
