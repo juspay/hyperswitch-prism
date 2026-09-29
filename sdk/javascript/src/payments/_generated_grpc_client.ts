@@ -392,7 +392,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutServiceVoidRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateLinkRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateRecipientRequest: ["accessToken"],
-  VendorDetails: ["businessUrl", "businessName", "statementDescriptor"],
+  VendorDetails: ["vendorUrl", "vendorName", "statementDescriptor"],
   IndividualDetails: ["firstName", "lastName", "phone", "ssnLast_4", "idNumber", "dateOfBirth", "tosAcceptanceIp"],
   PayoutServiceCreateRecipientResponse: ["connectorMetadata"],
   PayoutServiceEnrollDisburseAccountRequest: ["accessToken"],
