@@ -1346,8 +1346,8 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
-            gateway: item.gateway.clone(),
-            gateway_metadata: item.gateway_metadata.clone(),
+            payment_connector: item.payment_connector.clone(),
+            payment_connector_metadata: item.payment_connector_metadata.clone(),
         }
     }
 }

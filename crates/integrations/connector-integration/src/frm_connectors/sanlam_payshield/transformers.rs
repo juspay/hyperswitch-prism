@@ -173,17 +173,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } = item
             .router_data
             .request
-            .gateway_metadata
+            .payment_connector_metadata
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "gateway_metadata",
+                field_name: "payment_connector_metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
+                        "SanlamPayshield pre-risk check requires payment_connector_metadata to identify the profile, gateway connector, and transaction creation time."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide gateway_metadata containing profile_id, connector_id, and created_at.".to_string(),
+                        "Provide payment_connector_metadata containing profile_id, connector_id, and created_at.".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -192,11 +192,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-risk check could not deserialize gateway_metadata as SanlamPayshieldFrmMetadata."
+                        "SanlamPayshield pre-risk check could not deserialize payment_connector_metadata as SanlamPayshieldFrmMetadata."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide gateway_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
+                        "Provide payment_connector_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
                             .to_string(),
                     ),
                     doc_url: None,
@@ -208,11 +208,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             field_name: "connector_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "SanlamPayshield pre-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
+                    "SanlamPayshield pre-risk check requires a connector_id in payment_connector_metadata to identify the gateway being evaluated."
                         .to_string(),
                 ),
                 suggested_action: Some(
-                    "Provide the gateway connector identifier as gateway_metadata.connector_id.".to_string(),
+                    "Provide the gateway connector identifier as payment_connector_metadata.connector_id.".to_string(),
                 ),
                 doc_url: None,
             },
@@ -287,11 +287,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-risk check could not format gateway_metadata.created_at as transaction.createdAt with the +02:00 offset."
+                        "SanlamPayshield pre-risk check could not format payment_connector_metadata.created_at as transaction.createdAt with the +02:00 offset."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide a valid UTC creation time in gateway_metadata.created_at that can be formatted with the +02:00 offset."
+                        "Provide a valid UTC creation time in payment_connector_metadata.created_at that can be formatted with the +02:00 offset."
                             .to_string(),
                     ),
                     doc_url: None,
@@ -353,17 +353,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } = item
             .router_data
             .request
-            .gateway_metadata
+            .payout_connector_metadata
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "gateway_metadata",
+                field_name: "payout_connector_metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-payout-risk check requires gateway_metadata to identify the profile, gateway connector, and transaction creation time."
+                        "SanlamPayshield pre-payout-risk check requires payout_connector_metadata to identify the profile, gateway connector, and transaction creation time."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide gateway_metadata containing profile_id, connector_id, and created_at.".to_string(),
+                        "Provide payout_connector_metadata containing profile_id, connector_id, and created_at.".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -372,11 +372,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-payout-risk check could not deserialize gateway_metadata as SanlamPayshieldFrmMetadata."
+                        "SanlamPayshield pre-payout-risk check could not deserialize payout_connector_metadata as SanlamPayshieldFrmMetadata."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide gateway_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
+                        "Provide payout_connector_metadata with string profile_id and connector_id fields and a created_at value that can be deserialized as a PrimitiveDateTime."
                             .to_string(),
                     ),
                     doc_url: None,
@@ -388,11 +388,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             field_name: "connector_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "SanlamPayshield pre-payout-risk check requires a connector_id in gateway_metadata to identify the gateway being evaluated."
+                    "SanlamPayshield pre-payout-risk check requires a connector_id in payout_connector_metadata to identify the gateway being evaluated."
                         .to_string(),
                 ),
                 suggested_action: Some(
-                    "Provide the gateway connector identifier as gateway_metadata.connector_id.".to_string(),
+                    "Provide the gateway connector identifier as payout_connector_metadata.connector_id.".to_string(),
                 ),
                 doc_url: None,
             },
@@ -464,11 +464,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "SanlamPayshield pre-payout-risk check could not format gateway_metadata.created_at as transaction.createdAt with the +02:00 offset."
+                        "SanlamPayshield pre-payout-risk check could not format payout_connector_metadata.created_at as transaction.createdAt with the +02:00 offset."
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide a valid UTC creation time in gateway_metadata.created_at that can be formatted with the +02:00 offset."
+                        "Provide a valid UTC creation time in payout_connector_metadata.created_at that can be formatted with the +02:00 offset."
                             .to_string(),
                     ),
                     doc_url: None,

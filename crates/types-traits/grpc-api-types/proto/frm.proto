@@ -66,11 +66,11 @@ message FrmServicePreRiskCheckRequest {
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
 
-  // Payment gateway associated with the transaction.
-  optional string gateway = 14;
+  // Payment connector associated with the transaction.
+  optional string payment_connector = 14;
 
-  // Gateway-specific metadata for the transaction.
-  optional SecretString gateway_metadata = 15;
+  // Payment-connector-specific metadata for the transaction.
+  optional SecretString payment_connector_metadata = 15;
 
   // Merchant identifier for the fraud risk check.
   optional string merchant_frm_id = 16;
@@ -116,11 +116,11 @@ message FrmServicePrePayoutRiskCheckRequest {
   // Payout method details
   optional PayoutMethod payout_method = 2;
 
-  // Payment gateway associated with the payout.
-  optional string gateway = 3;
+  // Payout connector associated with the payout.
+  optional string payout_connector = 3;
 
-  // Gateway-specific metadata for the payout.
-  optional SecretString gateway_metadata = 4;
+  // Payout-connector-specific metadata for the payout.
+  optional SecretString payout_connector_metadata = 4;
 
   // Merchant identifier for the fraud risk check.
   optional string merchant_frm_id = 5;

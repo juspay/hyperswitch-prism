@@ -99,9 +99,9 @@ pub struct PreRiskCheckRequest {
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
     pub payment_method_type: Option<PaymentMethodType>,
     /// Payment gateway associated with the transaction.
-    pub gateway: Option<String>,
+    pub payment_connector: Option<String>,
     /// Gateway-specific metadata, validated as JSON at the proto boundary.
-    pub gateway_metadata: Option<SecretSerdeValue>,
+    pub payment_connector_metadata: Option<SecretSerdeValue>,
 }
 
 /// Response data for pre-risk check
@@ -147,10 +147,10 @@ pub struct PrePayoutRiskCheckRequest {
     pub amount: Money,
     pub payout_method: Option<crate::payouts::payout_method_data::PayoutMethodData>,
     pub merchant_payout_id: Option<String>,
-    /// Payment gateway associated with the payout.
-    pub gateway: Option<String>,
+    /// Payout gateway associated with the payout.
+    pub payout_connector: Option<String>,
     /// Gateway-specific metadata, validated as JSON at the proto boundary.
-    pub gateway_metadata: Option<SecretSerdeValue>,
+    pub payout_connector_metadata: Option<SecretSerdeValue>,
 }
 
 /// Response data for pre-payout risk check

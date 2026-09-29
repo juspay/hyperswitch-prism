@@ -356,9 +356,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             .map(MandateAmountData::foreign_try_from)
             .transpose()?;
 
-        let gateway_metadata = value
-            .gateway_metadata
-            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "gateway_metadata")))
+        let payment_connector_metadata = value
+            .payment_connector_metadata
+            .map(|metadata| {
+                SecretSerdeValue::foreign_try_from((metadata, "payment_connector_metadata"))
+            })
             .transpose()?;
 
         Ok(Self {
@@ -378,8 +380,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
-            gateway: value.gateway,
-            gateway_metadata,
+            payment_connector: value.payment_connector,
+            payment_connector_metadata,
         })
     }
 }
@@ -561,9 +563,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest>
             .map(PayoutMethodData::foreign_try_from)
             .transpose()?;
 
-        let gateway_metadata = value
-            .gateway_metadata
-            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "gateway_metadata")))
+        let payout_connector_metadata = value
+            .payout_connector_metadata
+            .map(|metadata| {
+                SecretSerdeValue::foreign_try_from((metadata, "payout_connector_metadata"))
+            })
             .transpose()?;
 
         Ok(Self {
@@ -573,8 +577,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest>
             },
             payout_method,
             merchant_payout_id: value.merchant_payout_id,
-            gateway: value.gateway,
-            gateway_metadata,
+            payout_connector: value.payout_connector,
+            payout_connector_metadata,
         })
     }
 }
