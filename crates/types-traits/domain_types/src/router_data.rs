@@ -391,6 +391,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
         base_url: Option<String>,
+        /// HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+        webhook_secret: Option<Secret<String>>,
     },
     Easebuzz {
         api_key: Secret<String>,
@@ -2702,6 +2704,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: ppro.api_key.ok_or_else(err)?,
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
+                webhook_secret: ppro.webhook_secret,
             }),
             AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
                 client_id: pinelabs_online.client_id.ok_or_else(err)?,
@@ -4042,6 +4045,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                             api_key: api_key.clone(),
                             merchant_id: key1.clone(),
                             base_url: None,
+                            webhook_secret: None,
                         })
                     }
                     _ => Err(err().into()),

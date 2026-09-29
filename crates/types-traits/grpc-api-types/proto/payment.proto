@@ -5630,6 +5630,8 @@ message PproConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
+  // HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+  optional SecretString webhook_secret = 51;
 }
 
 message PaypalConfig {
