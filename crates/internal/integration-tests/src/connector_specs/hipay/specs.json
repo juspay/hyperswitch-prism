@@ -2,11 +2,53 @@
   "connector": "hipay",
   "supported_suites": [
     "PaymentService/Authorize",
+    "PaymentService/TokenAuthorize",
     "PaymentService/Capture",
     "PaymentService/Void",
     "PaymentService/Refund",
     "PaymentService/Get",
     "PaymentMethodService/Tokenize",
-    "RefundService/Get"
-  ]
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/TokenSetupRecurring",
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_ach_bank_transfer": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_afterpay_clearpay": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_eps": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_giropay": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_google_pay_encrypted": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_ideal": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_klarna": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_sepa_bank_transfer": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: spec:### payment_product code table — HiPay's card Authorize path accepts only card and card-adjacent products, and data/field_probe/hipay.json marks every non-card PaymentMethodData variant not_implemented.",
+      "no3ds_manual_capture_incremental_auth": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory row 2 — the only maintenance operations HiPay publishes on POST /v1/maintenance/transaction/{transaction_reference} are capture, refund, cancel, challenge accept/deny and finalize; none raises the amount of an existing authorization and no order or maintenance parameter is documented for doing so, so request_incremental_authorization has nothing HiPay can be asked to perform.",
+      "threeds_external_mpi": "CONNECTOR_API_LACKS: spec:## 11. External 3DS passthrough ### Verdict — POST /v1/order carries no cavv, xid, ds_transaction_id, acs_transaction_id, three_d_secure_version or authentication_status field in any casing, so a merchant-performed authentication cannot be passed through."
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: spec:### payment_product code table — UPI is not a HiPay payment product, so there is no UPI payment to sync.",
+      "sync_upi_intent": "PM_NOT_OFFERED: spec:### payment_product code table — UPI is not a HiPay payment product, so there is no UPI payment to sync.",
+      "sync_upi_qr": "PM_NOT_OFFERED: spec:### payment_product code table — UPI is not a HiPay payment product, so there is no UPI payment to sync."
+    },
+    "RefundService/Get": {
+      "RefundService/Get": "CONNECTOR_API_LACKS: spec:### Refunds > DOCUMENTATION GAP — no refund-level identifier — the suite's is_default placeholder scenario asserts a distinct refund id, which HiPay never issues; the refund is addressed by the original transaction reference instead, covered by refund_sync."
+    },
+    "PaymentService/SetupRecurring": {
+      "PaymentService/SetupRecurring": "CONNECTOR_API_LACKS: spec:### Mandates > DOCUMENTATION GAP — no zero-amount authorization — the suite's is_default placeholder scenario models a zero/low-amount card-on-file verification, which HiPay's operation enum (Sale|Authorization only) cannot express; setup_recurring covers the real CIT instead.",
+      "setup_recurring_with_webhook": "SANDBOX_NOT_PROVISIONED: run:plan/plan.json#§8[Mandates].global_scenarios — rev 2: hipay.webhook_secret now exists in creds.json, but PaymentService/SetupRecurring chains no PaymentMethodService/Tokenize and sends a raw PAN, so no scenario of this suite reaches HiPay for a vault-first connector; a webhook-confirmed mandate setup cannot be asserted end to end until the suite gains a token-bearing dependency (global_scenario_proposal). The webhook half is covered by EventService/HandleEvent."
+    },
+    "RecurringPaymentService/Charge": {
+      "RecurringPaymentService/Charge": "CONNECTOR_API_LACKS: spec:### Mandates > DOCUMENTATION GAP — POST /v3/debit-agreement/{payment_product} has no published schema — the suite's is_default placeholder scenario assumes an externally supplied scheme reference; HiPay's only documented inbound MIT handle is its own debit agreement, covered by recurring_charge."
+    }
+  }
 }

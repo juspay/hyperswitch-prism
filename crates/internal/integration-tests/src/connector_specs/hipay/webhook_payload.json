@@ -1,0 +1,64 @@
+{
+  "_webhook_config": {
+    "signature_header": "x-allopass-signature",
+    "signature_location": "header",
+    "signature_algorithm": "hipay_sha256_body_concat_passphrase",
+    "signature_encoding": "hex",
+    "webhook_secret_key": "webhook_secret",
+    "requires_external_verification": false,
+    "note": "HiPay's x-allopass-signature is HASH(raw POST body || back-office passphrase) with NO separator and NO HMAC key schedule. SHA-256 is the documented default; SHA-1 and SHA-512 are selectable in the back office and the connector picks the algorithm from the received hex digest length (40/64/128). The harness computes the SHA-256 form from creds.json hipay.webhook_secret, so no digest is committed here. Bodies are the documented XML notification shape (spec:### Webhook Payload Structure) base64-encoded for the proto bytes field; the root element name is undocumented and quick-xml ignores it. NOT the redirect-page `hash` parameter, which is a different, sorted-parameter scheme."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/hipay",
+        "headers": {
+          "content-type": "text/xml"
+        },
+        "body": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48b3BlcmF0aW9uPjxzdGF0ZT5jb21wbGV0ZWQ8L3N0YXRlPjxzdGF0dXM+MTE4PC9zdGF0dXM+PG1lc3NhZ2U+Q2FwdHVyZWQ8L21lc3NhZ2U+PHRyYW5zYWN0aW9uX3JlZmVyZW5jZT44MDAwMDAwMDAxMTg8L3RyYW5zYWN0aW9uX3JlZmVyZW5jZT48Y3VycmVuY3k+RVVSPC9jdXJyZW5jeT48YXV0aG9yaXplZF9hbW91bnQ+MS4wMDwvYXV0aG9yaXplZF9hbW91bnQ+PGNhcHR1cmVkX2Ftb3VudD4xLjAwPC9jYXB0dXJlZF9hbW91bnQ+PHBheW1lbnRfbWV0aG9kPjx0b2tlbj51Y3MtdGVzdC1tdWx0aS11c2UtdG9rZW48L3Rva2VuPjxicmFuZD5WSVNBPC9icmFuZD48cGFuPjQxMTExMXh4eHh4eDExMTE8L3Bhbj48Y2FyZF9ob2xkZXI+Sm9obiBEb2U8L2NhcmRfaG9sZGVyPjxjYXJkX2V4cGlyeV9tb250aD4xMjwvY2FyZF9leHBpcnlfbW9udGg+PGNhcmRfZXhwaXJ5X3llYXI+MjAzMDwvY2FyZF9leHBpcnlfeWVhcj48aXNzdWVyPlRFU1QgQkFOSzwvaXNzdWVyPjxjb3VudHJ5PkZSPC9jb3VudHJ5PjwvcGF5bWVudF9tZXRob2Q+PG9yZGVyPjxpZD5oaXBheV93aF9vcmRlcl9zdWNjZXNzPC9pZD48L29yZGVyPjwvb3BlcmF0aW9uPg=="
+      },
+      "merchant_event_id": "hipay_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/hipay",
+        "headers": {
+          "content-type": "text/xml"
+        },
+        "body": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48b3BlcmF0aW9uPjxzdGF0ZT5kZWNsaW5lZDwvc3RhdGU+PHN0YXR1cz4xMTM8L3N0YXR1cz48bWVzc2FnZT5SZWZ1c2VkPC9tZXNzYWdlPjx0cmFuc2FjdGlvbl9yZWZlcmVuY2U+ODAwMDAwMDAwMTEzPC90cmFuc2FjdGlvbl9yZWZlcmVuY2U+PGN1cnJlbmN5PkVVUjwvY3VycmVuY3k+PGF1dGhvcml6ZWRfYW1vdW50PjEuMDA8L2F1dGhvcml6ZWRfYW1vdW50PjxyZWFzb24+PGNvZGU+NDAxMDEwMzwvY29kZT48bWVzc2FnZT5JbnN1ZmZpY2llbnQgZnVuZHM8L21lc3NhZ2U+PC9yZWFzb24+PHBheW1lbnRfbWV0aG9kPjx0b2tlbj51Y3MtdGVzdC1tdWx0aS11c2UtdG9rZW48L3Rva2VuPjxicmFuZD5WSVNBPC9icmFuZD48cGFuPjQxMTExMXh4eHh4eDExMTE8L3Bhbj48Y2FyZF9ob2xkZXI+Sm9obiBEb2U8L2NhcmRfaG9sZGVyPjxjYXJkX2V4cGlyeV9tb250aD4xMjwvY2FyZF9leHBpcnlfbW9udGg+PGNhcmRfZXhwaXJ5X3llYXI+MjAzMDwvY2FyZF9leHBpcnlfeWVhcj48aXNzdWVyPlRFU1QgQkFOSzwvaXNzdWVyPjxjb3VudHJ5PkZSPC9jb3VudHJ5PjwvcGF5bWVudF9tZXRob2Q+PG9yZGVyPjxpZD5oaXBheV93aF9vcmRlcl9mYWlsZWQ8L2lkPjwvb3JkZXI+PC9vcGVyYXRpb24+"
+      },
+      "merchant_event_id": "hipay_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/hipay",
+        "headers": {
+          "content-type": "text/xml"
+        },
+        "body": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48b3BlcmF0aW9uPjxzdGF0ZT5jb21wbGV0ZWQ8L3N0YXRlPjxzdGF0dXM+MTI1PC9zdGF0dXM+PG1lc3NhZ2U+UmVmdW5kZWQ8L21lc3NhZ2U+PHRyYW5zYWN0aW9uX3JlZmVyZW5jZT44MDAwMDAwMDAxMTg8L3RyYW5zYWN0aW9uX3JlZmVyZW5jZT48Y3VycmVuY3k+RVVSPC9jdXJyZW5jeT48Y2FwdHVyZWRfYW1vdW50PjEuMDA8L2NhcHR1cmVkX2Ftb3VudD48cmVmdW5kZWRfYW1vdW50PjEuMDA8L3JlZnVuZGVkX2Ftb3VudD48b3BlcmF0aW9uPjx0eXBlPnJlZnVuZDwvdHlwZT48aWQ+aGlwYXlfd2hfcmVmdW5kX29wXzAwMTwvaWQ+PC9vcGVyYXRpb24+PG9yZGVyPjxpZD5oaXBheV93aF9vcmRlcl9zdWNjZXNzPC9pZD48L29yZGVyPjwvb3BlcmF0aW9uPg=="
+      },
+      "merchant_event_id": "hipay_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/hipay",
+        "headers": {
+          "content-type": "text/xml",
+          "x-allopass-signature": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "body": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48b3BlcmF0aW9uPjxzdGF0ZT5jb21wbGV0ZWQ8L3N0YXRlPjxzdGF0dXM+MTE4PC9zdGF0dXM+PG1lc3NhZ2U+Q2FwdHVyZWQ8L21lc3NhZ2U+PHRyYW5zYWN0aW9uX3JlZmVyZW5jZT44MDAwMDAwMDAxMTg8L3RyYW5zYWN0aW9uX3JlZmVyZW5jZT48Y3VycmVuY3k+RVVSPC9jdXJyZW5jeT48YXV0aG9yaXplZF9hbW91bnQ+MS4wMDwvYXV0aG9yaXplZF9hbW91bnQ+PGNhcHR1cmVkX2Ftb3VudD4xLjAwPC9jYXB0dXJlZF9hbW91bnQ+PG9yZGVyPjxpZD5oaXBheV93aF9vcmRlcl9zdWNjZXNzPC9pZD48L29yZGVyPjwvb3BlcmF0aW9uPg=="
+      },
+      "merchant_event_id": "hipay_webhook_invalid_sig"
+    }
+  }
+}

@@ -41,8 +41,35 @@ pub fn generate_signature(
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "hipay" => generate_hipay_signature(payload, secret),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Generate HiPay's `x-allopass-signature`.
+///
+/// HiPay is **not** HMAC: the signature is a plain digest of the raw POST body concatenated with
+/// the back-office notification passphrase, with no separator and no key schedule —
+/// `HASH(raw_body ‖ passphrase)`, lowercase hex. SHA-256 is the documented default; SHA-1 and
+/// SHA-512 are selectable in the back office, and the connector picks the algorithm from the
+/// received digest length, so signing with SHA-256 here exercises the 64-character branch.
+///
+/// Computing it rather than committing a digest is deliberate: the digest is a function of a live
+/// secret, so a committed one would either leak information about the passphrase or pin the
+/// fixture to one operator's back office.
+fn generate_hipay_signature(payload: &[u8], passphrase: &str) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(payload);
+    hasher.update(passphrase.as_bytes());
+    let digest = hasher.finalize();
+
+    let mut hex_digest = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut hex_digest, "{byte:02x}").map_err(|e| format!("Failed to write hex: {e}"))?;
+    }
+    Ok(hex_digest)
 }
 
 /// Generate PhonePe webhook X-VERIFY signature.

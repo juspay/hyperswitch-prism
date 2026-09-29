@@ -1,20 +1,79 @@
 {
   "PaymentService/Authorize": {
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_holder_name": {
+              "value": "John Doe"
+            },
+            "card_network": "VISA"
+          }
+        },
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "browser_info": {
+          "language": "en-GB",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "time_zone_offset_minutes": -120,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "ip_address": "127.0.0.1",
+          "accept_header": "text/html",
+          "user_agent": "Mozilla/5.0 (integration-tests)"
+        },
+        "authentication_data": {
+          "cavv": "AAABBJg0VhI0VniQEjRWAAAAAAA=",
+          "eci": "05",
+          "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437"
+        }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "NOT_SUPPORTED",
+            "CONNECTOR_ERROR_NOT_SUPPORTED"
+          ]
+        }
+      }
+    },
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
         "payment_method": {
           "card": {
             "card_network": "VISA"
           }
+        },
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
         }
-      }
-    },
-    "no3ds_auto_capture_debit_card": {
-      "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_network": "VISA"
-          }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "MISSING_REQUIRED_FIELD"
+          ]
+        },
+        "error.error_message": {
+          "contains": "cardtoken"
         }
       }
     },
@@ -25,32 +84,211 @@
             "card_network": "VISA"
           }
         }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "MISSING_REQUIRED_FIELD"
+          ]
+        },
+        "error.error_message": {
+          "contains": "cardtoken"
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_network": "VISA"
+          }
+        }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "MISSING_REQUIRED_FIELD"
+          ]
+        },
+        "error.error_message": {
+          "contains": "cardtoken"
+        }
       }
     },
     "no3ds_manual_capture_debit_card": {
       "grpc_req": {
         "payment_method": {
           "card": {
-            "card_network": "VISA"
+            "card_network": "RUPAY"
           }
         }
-      }
-    },
-    "threeds_manual_capture_credit_card": {
-      "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_network": "VISA"
-          }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "NOT_SUPPORTED",
+            "CONNECTOR_ERROR_NOT_SUPPORTED"
+          ]
         }
       }
     },
     "no3ds_fail_payment": {
       "grpc_req": {
+        "capture_method": "MANUAL_MULTIPLE",
         "payment_method": {
           "card": {
             "card_network": "VISA"
           }
+        }
+      },
+      "assert": {
+        "error.connector_details.message": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "one_of": [
+            "CAPTURE_METHOD_NOT_SUPPORTED"
+          ]
+        },
+        "error.error_message": {
+          "contains": "ManualMultiple"
+        }
+      }
+    }
+  },
+  "PaymentMethodService/Tokenize": {
+    "tokenize_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_holder_name": {
+              "value": "John Doe"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/TokenAuthorize": {
+    "token_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "description": "UCS integration test — HiPay token authorize",
+        "connector_feature_data": {
+          "value": "{\"payment_product\":\"visa\"}"
+        }
+      }
+    },
+    "token_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "description": "UCS integration test — HiPay token authorize (manual capture, L2)",
+        "connector_feature_data": {
+          "value": "{\"payment_product\":\"visa\"}"
+        },
+        "l2_l3_data": {
+          "order_info": {
+            "order_details": [
+              {
+                "product_name": "Widget",
+                "quantity": 1,
+                "amount": 100,
+                "tax_rate": 0,
+                "product_id": "widget-1",
+                "sku": "WID-1"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_holder_name": {
+              "value": "John Doe"
+            }
+          }
+        },
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "metadata": {
+          "value": "{\"description\":\"UCS integration test — HiPay mandate setup\",\"payment_product\":\"visa\"}"
+        }
+      }
+    }
+  },
+  "PaymentService/TokenSetupRecurring": {
+    "token_setup_mandate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "metadata": {
+          "value": "{\"description\":\"UCS integration test — HiPay mandate setup\",\"payment_product\":\"visa\"}"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "mandate_id": null,
+        "connector_recurring_payment_id": {
+          "must_exist": true
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "capture_partial_amount": {
+      "assert": {
+        "connector_metadata.captured_amount": {
+          "must_exist": true
         }
       }
     }

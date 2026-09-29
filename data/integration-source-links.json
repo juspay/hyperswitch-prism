@@ -359,6 +359,7 @@
     "https://developer.globalpayments.com/api/3d-secure-two",
     "https://developer.globalpayments.com/resources/messages",
     "https://developer.globalpayments.com/resources/test-cards"
+  ],
   "D24": [
     "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
     "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",
@@ -375,5 +376,34 @@
     "https://docs.d24.com/getting-started/start-testing",
     "https://docs.d24.com/api-reference/references/test-merchant-and-mock-psp",
     "https://docs.d24.com/former/api-documentation/deposits-api/endpoints/deposit-creation-endpoint"
+  ],
+  "Hipay": [
+    "https://developer.hipay.com/api-explorer/api-gateway",
+    "https://developer.hipay.com/api-explorer/api-online-payments",
+    "https://developer.hipay.com/api-explorer/api-tokenization",
+    "https://developer.hipay.com/online-payments/features/3ds",
+    "https://developer.hipay.com/online-payments/features/psd2-sca",
+    "https://developer.hipay.com/online-payments/features/recurring-payments-card-on-file-and-network-tokens",
+    "https://developer.hipay.com/online-payments/maintenance/capture",
+    "https://developer.hipay.com/online-payments/maintenance/refund",
+    "https://developer.hipay.com/online-payments/payment/api-only",
+    "https://developer.hipay.com/payment-fundamentals/essentials/address-verification-service",
+    "https://developer.hipay.com/payment-fundamentals/essentials/card-verification-code",
+    "https://developer.hipay.com/payment-fundamentals/essentials/eci",
+    "https://developer.hipay.com/payment-fundamentals/essentials/error-messages",
+    "https://developer.hipay.com/payment-fundamentals/essentials/transaction-lifecycle",
+    "https://developer.hipay.com/payment-fundamentals/essentials/transaction-status",
+    "https://developer.hipay.com/payment-fundamentals/requirements/device-fingerprint-integration",
+    "https://developer.hipay.com/payment-fundamentals/requirements/notifications",
+    "https://developer.hipay.com/payment-fundamentals/requirements/notifications/notifications",
+    "https://developer.hipay.com/payment-fundamentals/requirements/redirect-pages",
+    "https://developer.hipay.com/payment-fundamentals/requirements/security",
+    "https://developer.hipay.com/payment-fundamentals/requirements/signature-verification",
+    "https://github.com/hipay/openapi-hipay/blob/master/enterprise/gateway.yaml",
+    "https://raw.githubusercontent.com/hipay/openapi-hipay/master/enterprise/api-gateway.yml",
+    "https://raw.githubusercontent.com/hipay/openapi-hipay/master/enterprise/gateway.yaml",
+    "https://raw.githubusercontent.com/hipay/openapi-hipay/master/enterprise/tokenization.yaml",
+    "https://support.hipay.com/hc/en/hc/en/articles/213882649",
+    "https://support.hipay.com/hc/en/hc/en/articles/360001913780"
   ]
 }
