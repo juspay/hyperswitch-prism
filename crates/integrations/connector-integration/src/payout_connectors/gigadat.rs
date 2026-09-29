@@ -397,7 +397,7 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+        fn sanitize_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
             std::borrow::Cow::Owned(mask_webflow_token(url))
         }
     }
@@ -443,7 +443,7 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+        fn sanitize_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
             std::borrow::Cow::Owned(mask_webflow_token(url))
         }
     }

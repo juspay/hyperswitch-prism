@@ -646,7 +646,7 @@ where
         Err(err) => {
             tracing::Span::current().record(
                 "url",
-                tracing::field::display(connector.get_url_for_logs(&url)),
+                tracing::field::display(connector.sanitize_url_for_logs(&url)),
             );
             Err(err)
         }
@@ -882,7 +882,7 @@ where
 
                     tracing::info!(
                         "Test mode enabled: redirected {} to {}",
-                        connector.get_url_for_logs(&original_url),
+                        connector.sanitize_url_for_logs(&original_url),
                         test_ctx.mock_server_url
                     );
                 });
@@ -914,7 +914,7 @@ where
                     let external_service_start_latency = tokio::time::Instant::now();
                     tracing::Span::current().record(
                         "request.url",
-                        tracing::field::display(connector.get_url_for_logs(&url)),
+                        tracing::field::display(connector.sanitize_url_for_logs(&url)),
                     );
                     tracing::Span::current()
                         .record("request.method", tracing::field::display(method));
@@ -1050,7 +1050,7 @@ where
                                 "NETWORK_ERROR",
                                 &json!(format!(
                                     "Failed getting response from connector (url: {}). Error: {:?}",
-                                    connector.get_url_for_logs(&url),
+                                    connector.sanitize_url_for_logs(&url),
                                     err
                                 )),
                             );
@@ -1096,7 +1096,7 @@ where
                     // Create single event (response_data will be set by connector)
                     let mut event = create_event(
                         &event_params,
-                        Some(connector.get_url_for_logs(&url).into_owned()),
+                        Some(connector.sanitize_url_for_logs(&url).into_owned()),
                         Some(method.to_string()),
                         Some(latency),
                         &masked_headers,
