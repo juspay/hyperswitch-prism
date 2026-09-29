@@ -1983,7 +1983,7 @@ dependencies = [
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=29ceba3d84a66687c16188e477dd215e70533ca6#29ceba3d84a66687c16188e477dd215e70533ca6"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -1996,7 +1996,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=29ceba3d84a66687c16188e477dd215e70533ca6#29ceba3d84a66687c16188e477dd215e70533ca6"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2004,7 +2004,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=29ceba3d84a66687c16188e477dd215e70533ca6#29ceba3d84a66687c16188e477dd215e70533ca6"
 dependencies = [
  "serde",
  "serde_json",
@@ -2014,7 +2014,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=29ceba3d84a66687c16188e477dd215e70533ca6#29ceba3d84a66687c16188e477dd215e70533ca6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2024,7 +2024,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=29ceba3d84a66687c16188e477dd215e70533ca6#29ceba3d84a66687c16188e477dd215e70533ca6"
 dependencies = [
  "async-trait",
  "deja-context",
