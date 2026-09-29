@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.1-hotfix2
+
+### Bug Fixes
+
+- **connectors:** [Adyen] card SetupMandate shopperName, [Stripe] wallet-token address gate ([#2390](https://github.com/juspay/connector-service/pull/2390)) ([`cee6461`](https://github.com/juspay/connector-service/commit/cee64616894b2cf8469b7f4b2c5391f3662b4e21))
+
+**Full Changelog:** [`2026.09.28.1-hotfix1...2026.09.28.1-hotfix2`](https://github.com/juspay/connector-service/compare/2026.09.28.1-hotfix1...2026.09.28.1-hotfix2)
+
+- - -
+
 ## 2026.09.28.1-hotfix1
 
 ### Bug Fixes
