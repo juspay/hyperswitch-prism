@@ -485,7 +485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // CIT ("purchase + save card"): a customer-initiated Authorize that also registers a
         // reusable Datatrans alias for later MIT/RepeatPayment. Mirrors the HS Direct Authorize
         // path, which sets `createAlias` and redirect URLs for `is_mandate_payment()`.
-        let is_mandate_payment = is_mandate_intent(&router_data.request);
+        let is_mandate_payment = router_data.request.is_mandate_payment();
 
         // Extract card data or token
         let (card, redirect, pay, apl) = match &router_data.request.payment_method_data {
@@ -690,24 +690,6 @@ fn should_create_alias<T: PaymentMethodDataTypes>(
     is_mandate_payment: bool,
 ) -> bool {
     is_mandate_payment && matches!(payment_method_data, PaymentMethodData::Card(_))
-}
-
-/// Stored-credential (mandate) intent for a Datatrans Authorize.
-///
-/// Deliberately broader than `PaymentsAuthorizeData::is_mandate_payment()`, which also
-/// requires `customer_acceptance` / `setup_mandate_details` to ride along on the Confirm
-/// call. Merchants declare the intent once at Init (`setup_future_usage = off_session`)
-/// and the router persists it on the payment intent, so a Confirm carrying only
-/// `setup_future_usage` / `off_session` is still a stored-credential CIT and must register
-/// the credential with Datatrans (`option.createAlias` for a raw card,
-/// `card.cardOnFile.enroll` for a Google Pay alias). Without this, such a payment reached
-/// Datatrans as a plain one-off charge and the issuer declined it.
-///
-/// Shared with `datatrans.rs` so endpoint selection and request building agree on intent.
-pub fn is_mandate_intent<T: PaymentMethodDataTypes>(request: &PaymentsAuthorizeData<T>) -> bool {
-    request.is_mandate_payment()
-        || request.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
-        || request.off_session == Some(true)
 }
 
 /// The `card.cardOnFile` object that asks Datatrans to enroll the charged credential as a

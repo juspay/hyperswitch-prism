@@ -445,7 +445,7 @@ macros::macro_connector_implementation!(
                 PaymentMethodData::PaymentMethodToken(_)
             );
             if (req.request.is_card()
-                && (native_three_ds || datatrans::is_mandate_intent(&req.request)))
+                && (native_three_ds || req.request.is_mandate_payment()))
                 || (is_alias_charge && native_three_ds)
             {
                 Ok(format!("{base_url}/v1/transactions"))
