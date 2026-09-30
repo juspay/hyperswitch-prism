@@ -63,13 +63,9 @@ impl NonceSequence {
             codec = ResultOkCodec,
             on_miss = Ok(Self(u128::from_be_bytes({
                 let mut sequence = [0_u8; 128 / 8];
-                let synthetic = crate::synth_shape::byte_vec(
-                    &__deja_miss,
-                    sequence.len() - Self::SEQUENCE_NUMBER_START_INDEX,
-                );
                 for (slot, byte) in sequence[Self::SEQUENCE_NUMBER_START_INDEX..]
                     .iter_mut()
-                    .zip(synthetic)
+                    .zip(deja::synth::bytes::<12>(&__deja_miss))
                 {
                     *slot = byte;
                 }

@@ -136,7 +136,7 @@ pub mod date_time {
             component = "common_utils",
             operation = "date_time::now_unix_timestamp",
             codec = SerdeCodec,
-            on_miss = crate::synth_shape::instant(&__deja_miss).unix_timestamp(),
+            on_miss = deja::synth::monotonic(&__deja_miss, 0, 1),
         )
     )]
     pub fn now_unix_timestamp() -> i64 {
