@@ -19,9 +19,12 @@ use error_stack::{report, Report};
 /// Hyperswitch has run this same blind retry in production at scale without
 /// double-charge incidents.
 ///
-/// The retry is sent through `retry_client` when provided, falling back to the
-/// original `client` otherwise. Callers SHOULD pass a dedicated client whose
-/// pool never retains idle connections (`pool_max_idle_per_host(0)` — see
+/// The retry is sent through the client returned by `retry_client_factory`,
+/// falling back to the original `client` if the factory yields `None`. The
+/// factory is evaluated lazily — only when the first attempt actually hits a
+/// connection-closed error — so the hot path carries zero retry-client cost.
+/// Callers SHOULD pass a factory that produces a dedicated client whose pool
+/// never retains idle connections (`pool_max_idle_per_host(0)` — see
 /// `create_retry_client` in `service.rs`): retrying on the same client that
 /// just lost the race hands the retry to the very same pool, which during a
 /// bursty traffic pattern is likely to hold other equally stale connections —
@@ -40,7 +43,7 @@ use error_stack::{report, Report};
 pub async fn send_request_with_retry(
     client: &reqwest::Client,
     request: reqwest::Request,
-    retry_client: Option<&reqwest::Client>,
+    retry_client_factory: impl FnOnce() -> Option<reqwest::Client>,
 ) -> (Result<reqwest::Response, Report<ApiClientError>>, bool) {
     let request_url = request.url().clone();
     // Clone the request before sending so we have a backup for retry.
@@ -56,7 +59,8 @@ pub async fn send_request_with_retry(
             log_tcp_socket_snapshot(&request_url);
             match cloned_request {
                 Some(cloned) => {
-                    let retry_client = retry_client.unwrap_or(client);
+                    let retry_client = retry_client_factory();
+                    let retry_client = retry_client.as_ref().unwrap_or(client);
                     tracing::info!(
                         url = %request_url,
                         "Retrying request due to connection closed before message completed on a fresh connection"
@@ -281,7 +285,7 @@ mod tests {
         let (url, seen) = spawn_server(1).await;
         let client = reqwest::Client::new();
         let request = client.get(&url).build().unwrap();
-        let (response, retried) = send_request_with_retry(&client, request, None).await;
+        let (response, retried) = send_request_with_retry(&client, request, || None).await;
         assert!(retried, "the request should have been retried");
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(seen.load(Ordering::SeqCst), 2);
@@ -300,10 +304,31 @@ mod tests {
             .unwrap();
         let request = client.get(&url).build().unwrap();
         let (response, retried) =
-            send_request_with_retry(&client, request, Some(&retry_client)).await;
+            send_request_with_retry(&client, request, || Some(retry_client)).await;
         assert!(retried, "the request should have been retried");
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn retry_client_factory_is_not_called_when_first_attempt_succeeds() {
+        let (url, _) = spawn_server(0).await;
+        let client = reqwest::Client::new();
+        let request = client.get(&url).build().unwrap();
+        let factory_called = Arc::new(AtomicUsize::new(0));
+        let counter = factory_called.clone();
+        let (response, retried) = send_request_with_retry(&client, request, || {
+            counter.fetch_add(1, Ordering::SeqCst);
+            None
+        })
+        .await;
+        assert!(!retried);
+        assert_eq!(response.unwrap().status(), 200);
+        assert_eq!(
+            factory_called.load(Ordering::SeqCst),
+            0,
+            "the factory must only run when a retry is actually needed"
+        );
     }
 
     #[tokio::test]
@@ -316,7 +341,7 @@ mod tests {
             .unwrap();
         let request = client.get(&url).build().unwrap();
         let (response, retried) =
-            send_request_with_retry(&client, request, Some(&retry_client)).await;
+            send_request_with_retry(&client, request, || Some(retry_client)).await;
         assert!(retried);
         assert_eq!(
             response.unwrap_err().current_context(),

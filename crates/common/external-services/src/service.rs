@@ -1512,19 +1512,17 @@ pub async fn call_connector_api(
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 
-    // Dedicated retry client: its pool never retains idle connections, so the
-    // single auto-retry after "connection closed before message completed" is
-    // guaranteed to dial a brand-new TCP connection instead of checking out
-    // another potentially stale connection from the shared pool.
-    let retry_client = create_retry_client(
-        proxy,
-        should_bypass_proxy,
-        proxy_name,
+    // Inputs for the lazily-constructed dedicated retry client (its pool
+    // never retains idle connections, so the single auto-retry after
+    // "connection closed before message completed" is guaranteed to dial a
+    // brand-new TCP connection instead of checking out another potentially
+    // stale connection from the shared pool). Cloned here because
+    // `create_client` moves the certificate fields out of the request.
+    let retry_client_certificates = (
         request.certificate.clone(),
         request.certificate_key.clone(),
         request.ca_certificate.clone(),
-        test_mode,
-    )?;
+    );
 
     let client = create_client(
         proxy,
@@ -1673,8 +1671,28 @@ pub async fn call_connector_api(
         .change_context(ApiClientError::RequestNotSent(
             "failed to build connector request".to_string(),
         ))?;
-    let (response, retried) =
-        crate::http_client::send_request_with_retry(&client, request, Some(&retry_client)).await;
+    let (response, retried) = crate::http_client::send_request_with_retry(&client, request, || {
+        // Runs at most once, only when the first attempt actually hit a
+        // connection-closed error — zero retry-client cost on the hot path.
+        let (cert, cert_key, ca_cert) = retry_client_certificates;
+        create_retry_client(
+            proxy,
+            should_bypass_proxy,
+            proxy_name,
+            cert,
+            cert_key,
+            ca_cert,
+            test_mode,
+        )
+        .inspect_err(|error| {
+            tracing::warn!(
+                ?error,
+                "Failed to construct dedicated retry client; retry falls back to the shared pooled client"
+            );
+        })
+        .ok()
+    })
+    .await;
 
     if retried {
         #[cfg(feature = "otel")]
