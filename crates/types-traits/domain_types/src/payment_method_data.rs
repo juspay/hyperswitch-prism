@@ -1360,11 +1360,7 @@ pub struct ApplepayPaymentMethod {
 pub struct ApplePayAdditionalData {
     /// The name to be displayed on Apple Pay button (from PKPaymentMethod.displayName)
     pub display_name: String,
-    /// The card network string from Apple Pay (from PKPaymentMethod.paymentNetwork)
-    pub network: String,
-    /// The payment method type from Apple Pay (credit/debit/prepaid/store)
-    pub pm_type: String,
-    /// Common card metadata (expiry, BIN, DPAN BIN, type, issuer, auth_code, etc.)
+    /// Common card metadata (expiry, BIN, DPAN BIN, type, issuer, network, auth_code, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_info: Option<AdditionalCardInfo>,
 }
@@ -2147,9 +2143,9 @@ pub struct WalletDetails {
     pub items: Vec<WalletItem>,
 }
 
-/// Wallet card additional data for recurring payments (Google Pay, Samsung Pay)
+/// Google Pay additional data for recurring payments
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct WalletAdditionalDataForCard {
+pub struct GooglePayAdditionalData {
     /// Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
     pub payment_method_data_type: Option<String>,
     /// Email address associated with the wallet account (e.g. Google Pay account email)
@@ -2202,7 +2198,7 @@ pub struct AdditionalCardInfo {
 #[serde(tag = "type")]
 pub enum WalletAdditionalData {
     ApplePay(Box<ApplePayAdditionalData>),
-    GooglePay(Box<WalletAdditionalDataForCard>),
+    GooglePay(Box<GooglePayAdditionalData>),
 }
 
 /// Additional payment data for recurring payments, carrying the original payment method details

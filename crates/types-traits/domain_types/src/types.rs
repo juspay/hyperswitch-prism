@@ -2,7 +2,7 @@ use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 pub use crate::payment_method_data::{
-    AdditionalCardInfo, AdditionalPaymentData, WalletAdditionalDataForCard,
+    AdditionalCardInfo, AdditionalPaymentData, GooglePayAdditionalData,
 };
 
 use crate::{
@@ -14203,8 +14203,6 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
                     payment_method_data::WalletAdditionalData::ApplePay(Box::new(
                         payment_method_data::ApplePayAdditionalData {
                             display_name: apple_pay_data.display_name,
-                            network: apple_pay_data.network,
-                            pm_type: apple_pay_data.pm_type,
                             card_info: apple_pay_data.card_info.map(grpc_card_info_to_domain),
                         },
                     )),
@@ -14213,7 +14211,7 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
                     google_pay_data,
                 )) => Some(AdditionalPaymentData::Wallet(
                     payment_method_data::WalletAdditionalData::GooglePay(Box::new(
-                        WalletAdditionalDataForCard {
+                        GooglePayAdditionalData {
                             payment_method_data_type: google_pay_data.payment_method_data_type,
                             card_info: google_pay_data.card_info.map(grpc_card_info_to_domain),
                             email: google_pay_data.email.and_then(|e| {

@@ -2052,17 +2052,13 @@ message AdditionalCardInfo {
 message AdditionalApplePayInfo {
   // Display name shown on the Apple Pay button (from PKPaymentMethod.displayName)
   string display_name = 1;
-  // Card network string from Apple Pay (from PKPaymentMethod.paymentNetwork)
-  string network = 2;
-  // Payment method type from Apple Pay (from PKPaymentMethod.type: credit/debit/prepaid/store)
-  string pm_type = 3;
-  // Common card metadata (expiry, BIN, DPAN BIN, type, issuer, auth_code, etc.)
-  optional AdditionalCardInfo card_info = 4;
+  // Common card metadata (expiry, BIN, DPAN BIN, type, issuer, network, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 2;
 }
 
-// Wallet card additional data for recurring payments (Google Pay, Samsung Pay).
+// Google Pay additional data for recurring payments.
 // Wallet-specific fields are kept here; all card metadata is in card_info.
-message AdditionalWalletCardInfo {
+message AdditionalGooglePayInfo {
   // Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
   optional string payment_method_data_type = 1;
   // Email address associated with the wallet account (e.g. Google Pay account email)
@@ -2076,7 +2072,7 @@ message AdditionalWalletCardInfo {
 message AdditionalWalletInfo {
   oneof wallet_data {
     AdditionalApplePayInfo apple_pay = 1;
-    AdditionalWalletCardInfo google_pay = 2;
+    AdditionalGooglePayInfo google_pay = 2;
   }
 }
 
