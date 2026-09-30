@@ -94,6 +94,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Adyen<T>
 {
 }
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: CreateOrder,
+    statuses: [Pending, Failure],
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: AdyenOrderCreateResponse,
+        status: |_request, response| {
+            if response.result_code == "Success" {
+                AttemptStatus::Pending
+            } else {
+                AttemptStatus::Failure
+            }
+        },
+    },
+}
+
 // Mirrors `get_adyen_payment_status`: the HTTP response legs carry `AdyenStatus`
 // and disambiguate manual-capture (Authorized) vs auto-capture (Charged) via ctx.
 domain_types::impl_flow_status_mapping_ctx! {

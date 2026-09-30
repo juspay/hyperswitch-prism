@@ -272,11 +272,14 @@ impl FlowStatusRules for connector_flow::CreateOrder {
         &[AttemptStatus::Failure, AttemptStatus::AuthenticationFailed];
     const ALLOWED: &'static [AttemptStatus] = &[
         AttemptStatus::Started,
+        AttemptStatus::PaymentMethodAwaited,
+        AttemptStatus::DeviceDataCollectionPending,
         AttemptStatus::AuthenticationPending,
         AttemptStatus::AuthenticationSuccessful,
         AttemptStatus::AuthenticationFailed,
         AttemptStatus::Authorized,
         AttemptStatus::Charged,
+        AttemptStatus::Voided,
         AttemptStatus::Pending,
         AttemptStatus::Failure,
     ];

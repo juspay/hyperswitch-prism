@@ -78,6 +78,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authenticate,
+    status: Pending,
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: FlywireCheckoutSessionResponse,
+    },
+}
+
 // ── PSync ────────────────────────────────────────────────────────────────────
 // Mirrors `FlywirePaymentStatus::to_attempt_status`.  `Guaranteed`/`Delivered`
 // are the settled terminals; `Reversed` (a post-hoc clawback) surfaces as
