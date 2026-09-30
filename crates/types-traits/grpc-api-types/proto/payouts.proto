@@ -301,8 +301,8 @@ message PayoutMethod {
     PayshapProxyBankTransferPayout payshap_proxy = 17;
 
     // DIGITAL WALLETS
-    Mifinity mifinity = 18;
-    TedBankTransferPayout ted = 19;
+    TedBankTransferPayout ted = 18;
+    Mifinity mifinity = 19;
   }
 }
 
@@ -699,4 +699,3 @@ message PayoutMethodEligibilityResponse {
   // refusals — so the check remains traceable for reconciliation.
   optional string connector_eligibility_reference_id = 8;
 }
-
