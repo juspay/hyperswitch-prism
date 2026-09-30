@@ -145,10 +145,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Datatrans<T>
 {
-    /// Google Pay payments are tokenized into a Datatrans alias
+    /// Google Pay and Apple Pay payments are tokenized into a Datatrans alias
     /// (`POST /v1/aliases/tokenize`) before Authorize / SetupMandate. Charging or
     /// registering the alias as an `ALIAS` card is the Datatrans path that supports a
-    /// native 3DS challenge for Google Pay (the raw `PAY` payload cannot be
+    /// native 3DS challenge for wallets (the raw `PAY` / `APL` payload cannot be
     /// 3DS-authenticated).
     fn should_do_payment_method_token(
         &self,
@@ -158,7 +158,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> bool {
         matches!(
             (payment_method, payment_method_type),
-            (PaymentMethod::Wallet, Some(PaymentMethodType::GooglePay))
+            (
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay | PaymentMethodType::ApplePay)
+            )
         )
     }
 }
@@ -439,13 +442,20 @@ macros::macro_connector_implementation!(
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
             // A Google Pay alias charge (produced by the PaymentMethodToken flow) is
             // card-like: native 3DS on the alias needs the redirect-capable
-            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge.
-            let is_alias_charge = matches!(
+            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge. An Apple Pay
+            // alias never carries a `3D` object (it is authenticated on-device — see
+            // `is_apple_pay_alias`), so it authorizes server-to-server with no redirect
+            // even when the attempt asks for 3DS.
+            let is_three_ds_alias_charge = matches!(
                 req.request.payment_method_data,
                 PaymentMethodData::PaymentMethodToken(_)
-            );
+            ) && native_three_ds
+                && !datatrans::is_apple_pay_alias(
+                    &req.request.payment_method_data,
+                    req.resource_common_data.payment_method_type,
+                );
             if (req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()))
-                || (is_alias_charge && native_three_ds)
+                || is_three_ds_alias_charge
             {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
@@ -685,9 +695,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
             // Zero-auth CIT alias creation uses the redirect-capable `/v1/transactions`
             // endpoint (createAlias + native 3DS), never the split authorize endpoint.
-            Ok(format!("{}/v1/transactions", self.connector_base_url_payments(req)))
+            // An Apple Pay alias registration is the exception: the alias is already
+            // authenticated on-device, so no `3D` object and no redirect URLs are sent
+            // (see `is_apple_pay_alias`) and the registration runs server-to-server on
+            // `/v1/transactions/authorize` — mirroring the Authorize alias charge.
+            Ok(format!("{base_url}/v1/transactions"))
         }
     }
 );
@@ -722,7 +737,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// PaymentMethodToken (Google Pay alias tokenization) Flow — converts the Google Pay
+// PaymentMethodToken (Google Pay / Apple Pay alias tokenization) Flow — converts the
 // wallet payload into a Datatrans alias via POST /v1/aliases/tokenize, so the
 // subsequent Authorize can charge it as an `ALIAS` card with native 3DS support.
 macros::macro_connector_implementation!(
