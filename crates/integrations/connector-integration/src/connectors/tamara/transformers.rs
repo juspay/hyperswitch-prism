@@ -66,8 +66,9 @@ pub struct TamaraErrorDetail {
     pub error_code: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TamaraPaymentStatus {
     New,
     Approved,
@@ -94,8 +95,9 @@ impl From<TamaraPaymentStatus> for AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TamaraRefundStatus {
     New,
     Declined,
@@ -128,42 +130,8 @@ impl From<TamaraRefundStatus> for RefundStatus {
         }
     }
 }
-impl TamaraPaymentStatus {
-    fn as_connector_status(&self) -> &'static str {
-        match self {
-            Self::New => "new",
-            Self::Approved => "approved",
-            Self::Declined => "declined",
-            Self::Authorised => "authorised",
-            Self::FullyCaptured => "fully_captured",
-            Self::PartiallyCaptured => "partially_captured",
-            Self::Canceled => "canceled",
-            Self::Updated => "updated",
-            Self::Expired => "expired",
-        }
-    }
-}
-
-impl TamaraRefundStatus {
-    fn as_connector_status(&self) -> &'static str {
-        match self {
-            Self::New => "new",
-            Self::Declined => "declined",
-            Self::Expired => "expired",
-            Self::Approved => "approved",
-            Self::Authorised => "authorised",
-            Self::PartiallyCaptured => "partially_captured",
-            Self::FullyCaptured => "fully_captured",
-            Self::PartiallyRefunded => "partially_refunded",
-            Self::FullyRefunded => "fully_refunded",
-            Self::Canceled => "canceled",
-            Self::Updated => "updated",
-        }
-    }
-}
-
 fn tamara_payment_raw_connector_status(status: &TamaraPaymentStatus) -> RawConnectorStatus {
-    let connector_status = status.as_connector_status().to_string();
+    let connector_status = status.to_string();
     RawConnectorStatus {
         code: Some(connector_status),
         message: None,
@@ -172,7 +140,7 @@ fn tamara_payment_raw_connector_status(status: &TamaraPaymentStatus) -> RawConne
 }
 
 fn tamara_refund_raw_connector_status(status: &TamaraRefundStatus) -> RawConnectorStatus {
-    let connector_status = status.as_connector_status().to_string();
+    let connector_status = status.to_string();
     RawConnectorStatus {
         code: Some(connector_status),
         message: None,
