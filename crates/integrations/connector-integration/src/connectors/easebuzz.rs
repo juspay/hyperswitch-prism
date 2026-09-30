@@ -144,7 +144,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     flow:            Authorize,
     source:          easebuzz::EasebuzzAuthorizeStatus,
     context:         (),
-    params:          [status, ctx],
+    params:          [status, _ctx],
     success_status:  Success,
     success_targets: [Charged],
     failure_status:  Failure,
@@ -169,7 +169,6 @@ domain_types::impl_flow_status_mapping_ctx! {
         context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         match status {
             easebuzz::EasebuzzAuthorizeStatus::Success => common_enums::AttemptStatus::Charged,
             easebuzz::EasebuzzAuthorizeStatus::Failure => common_enums::AttemptStatus::Failure,

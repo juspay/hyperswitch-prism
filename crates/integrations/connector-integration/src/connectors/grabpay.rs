@@ -1261,7 +1261,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     flow:           Refund,
     source:         grabpay::GrabpayRefundStatus,
     context:        (),
-    params:         [status, ctx],
+    params:         [status, _ctx],
     success_status: Success,
     failure_status: Failed,
     extractors: {
@@ -1273,7 +1273,6 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     {
         use common_enums::RefundStatus;
         use grabpay::GrabpayRefundStatus;
-        let _ = ctx;
         match status {
             GrabpayRefundStatus::Success => RefundStatus::Success,
             GrabpayRefundStatus::Failed
@@ -1297,7 +1296,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     flow:           RSync,
     source:         grabpay::GrabpayRefundStatus,
     context:        (),
-    params:         [status, ctx],
+    params:         [status, _ctx],
     success_status: Success,
     failure_status: Failed,
     extractors: {
@@ -1309,7 +1308,6 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     {
         use common_enums::RefundStatus;
         use grabpay::GrabpayRefundStatus;
-        let _ = ctx;
         match status {
             GrabpayRefundStatus::Success => RefundStatus::Success,
             GrabpayRefundStatus::Failed

@@ -103,7 +103,7 @@ pub enum CitigateTransTypeId {
 
 impl CitigateTransTypeId {
     /// Parse the raw `TransTypeID` string into the typed variant.
-    pub fn from_str(raw: Option<&str>) -> Self {
+    pub fn from_optional_str(raw: Option<&str>) -> Self {
         match raw {
             Some(RESP_TRANS_TYPE_SALE) => Self::Sale,
             Some(RESP_TRANS_TYPE_AUTHORISE) => Self::Authorise,
@@ -120,7 +120,7 @@ impl CitigateFlowCtx {
     /// Build the flow context from the raw `TransTypeID` echo.
     pub fn from_trans_type_id(raw: Option<&str>) -> Self {
         Self {
-            trans_type_id: CitigateTransTypeId::from_str(raw),
+            trans_type_id: CitigateTransTypeId::from_optional_str(raw),
         }
     }
 }
