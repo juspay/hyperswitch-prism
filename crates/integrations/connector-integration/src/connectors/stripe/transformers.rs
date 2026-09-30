@@ -1695,7 +1695,7 @@ fn create_stripe_payment_method<
                     }),
                 )),
                 None,
-                payment_request_details.billing_address,
+                StripeBillingAddress::default(),
             )),
             payment_method_data::BankTransferData::MultibancoBankTransfer {} => Ok((
                 StripePaymentMethodData::BankTransfer(
@@ -2221,7 +2221,6 @@ fn is_setup_future_usage_supported(
     !matches!(
         payment_method_type,
         Some(common_enums::PaymentMethodType::Affirm)
-            | Some(common_enums::PaymentMethodType::AfterpayClearpay)
             | Some(common_enums::PaymentMethodType::Klarna)
     )
 }
@@ -2549,6 +2548,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &item.request.payment_channel,
         );
 
+        let setup_future_usage = if item.request.split_payments.is_some()
+            && item.request.customer_acceptance.is_some()
+        {
+            item.request.setup_future_usage
+        } else {
+            setup_future_usage
+        };
         let setup_future_usage = get_setup_future_usage_for_moto(setup_future_usage, is_moto);
 
         // on_behalf_of is only supported for destination charges, not direct charges
