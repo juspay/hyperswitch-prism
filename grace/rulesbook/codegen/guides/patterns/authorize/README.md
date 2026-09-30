@@ -12,8 +12,8 @@ authorize/
 │   └── pattern_authorize_card_ntid.md      # Card MIT / NTID (CardDetailsForNetworkTransactionId)
 ├── card_redirect/
 │   └── pattern_authorize_card_redirect.md  # Card redirect flows (CardRedirect variant)
-├── card_token/
-│   └── pattern_authorize_card_token.md     # Pre-tokenized card references (CardToken variant)
+├── payment_method_token/
+│   └── pattern_authorize_payment_method_token.md # Pre-tokenized PM references (PaymentMethodToken variant)
 ├── wallet/
 │   ├── pattern_authorize_wallet.md         # Digital wallets (Wallet variant)
 │   └── pattern_authorize_wallet_ntid.md    # Wallet NTID / decrypted-token MIT
@@ -43,13 +43,12 @@ authorize/
 │   └── pattern_authorize_open_banking.md   # Open Banking PIS (OpenBanking variant)
 ├── network_token/
 │   └── pattern_authorize_network_token.md  # Network-tokenized card (NetworkToken variant)
-├── mandate_payment/
-│   └── pattern_authorize_mandate_payment.md # Mandate-based MIT (MandatePayment variant)
-├── format_specific/
-│   └── (reserved for format-specific patterns: XML, Form-encoded, etc.)
-└── generic/
-    └── pattern_authorize.md           # Legacy generic authorize pattern (reference)
+└── mandate_payment/
+    └── pattern_authorize_mandate_payment.md # Mandate-based MIT (MandatePayment variant)
 ```
+
+The legacy generic authorize pattern is not inside this directory — it lives one
+level up at [`../pattern_authorize.md`](../pattern_authorize.md).
 
 ## 📋 Pattern Reference
 
@@ -58,7 +57,7 @@ authorize/
 | `card/` | `pattern_authorize_card.md` | `Card` | Credit Card, Debit Card | Stripe, Adyen, Cybersource, Checkout, etc. |
 | `card/` | `pattern_authorize_card_ntid.md` | `CardDetailsForNetworkTransactionId` | Card MIT (NTID-based recurring) | Stripe, Cybersource, Worldpay |
 | `card_redirect/` | `pattern_authorize_card_redirect.md` | `CardRedirect` | CarteBancaire, Knet, Benefit (card-redirect) | Adyen, Checkout |
-| `card_token/` | `pattern_authorize_card_token.md` | `CardToken` | Pre-tokenized card reference | Stripe (pm_...), Adyen (stored payment method) |
+| `payment_method_token/` | `pattern_authorize_payment_method_token.md` | `PaymentMethodToken` | Pre-tokenized payment method reference | Shift4, Globalpay, HiPay, JPMorgan |
 | `wallet/` | `pattern_authorize_wallet.md` | `Wallet` | PayPal, Apple Pay, Google Pay, WeChat Pay, Alipay | PayPal, Stripe, Adyen, etc. |
 | `wallet/` | `pattern_authorize_wallet_ntid.md` | `DecryptedWalletTokenDetailsForNetworkTransactionId` | Wallet MIT using decrypted network token | Stripe, Adyen |
 | `upi/` | `pattern_authorize_upi.md` | `Upi` | UPI Collect, UPI Intent, UPI QR | PhonePe, Razorpay, etc. |
@@ -75,7 +74,7 @@ authorize/
 | `open_banking/` | `pattern_authorize_open_banking.md` | `OpenBanking` | OpenBanking PIS (TrueLayer, Plaid OBIE) | TrueLayer, Trustly |
 | `network_token/` | `pattern_authorize_network_token.md` | `NetworkToken` | Network-tokenized card (VTS, MDES) | Stripe, Adyen |
 | `mandate_payment/` | `pattern_authorize_mandate_payment.md` | `MandatePayment` | Mandate / CIT-based recurring | Stripe, Adyen, GoCardless |
-| `generic/` | `pattern_authorize.md` | _all_ | Legacy reference pattern | N/A |
+| `../` (parent dir) | `pattern_authorize.md` | _all_ | Legacy reference pattern | N/A |
 
 ## 🎯 Usage Guide
 
@@ -131,8 +130,8 @@ implement authorize flow for [ConnectorName] using authorize/real_time_payment/p
 # Card redirect
 implement authorize flow for [ConnectorName] using authorize/card_redirect/pattern_authorize_card_redirect.md
 
-# Card token (pre-tokenized card reference)
-implement authorize flow for [ConnectorName] using authorize/card_token/pattern_authorize_card_token.md
+# Payment method token (pre-tokenized payment method reference)
+implement authorize flow for [ConnectorName] using authorize/payment_method_token/pattern_authorize_payment_method_token.md
 
 # Open Banking (PIS)
 implement authorize flow for [ConnectorName] using authorize/open_banking/pattern_authorize_open_banking.md
@@ -154,10 +153,41 @@ implement authorize flow for [ConnectorName] using authorize/wallet/pattern_auth
 
 Some patterns may share common elements:
 
-- **Authentication**: API keys, OAuth, signatures (refer to connector-specific auth)
+- **Authentication**: API keys, OAuth, signatures. Auth is read from
+  `req.connector_config: ConnectorSpecificConfig` (a per-connector enum variant in
+  `crates/types-traits/domain_types/src/router_data.rs`). `RouterDataV2::connector_auth_type`
+  no longer exists, and `ConnectorCommon::get_auth_header` takes
+  `&ConnectorSpecificConfig` (`crates/types-traits/interfaces/src/api.rs:25`).
 - **Idempotency**: Common pattern across all payment methods
-- **Error Handling**: Standard error mapping to UCS error types
-- **Currency Handling**: MinorUnit vs MajorUnit vs StringMinorUnit
+- **Error Handling**: Two distinct enums in `crates/types-traits/domain_types/src/errors.rs`.
+  `IntegrationError` covers the **request** side (every variant carries a
+  `context: IntegrationErrorContext`); `ConnectorError` covers the **response** side and has
+  exactly five variants — `ResponseDeserializationFailed`, `ResponseHandlingFailed`,
+  `UnexpectedResponseError`, `IntegrityCheckFailed` (all struct variants requiring `context`)
+  and `ConnectorErrorResponse(Box<ErrorResponse>)`. There is no `ConnectorError::InvalidData`,
+  `::NotImplemented` or `::InvalidCard`.
+- **Currency Handling**: there are **five** amount types in
+  `crates/common/common_utils/src/types.rs` — `MinorUnit` (`:170`), `StringMinorUnit`
+  (`:305`), `FloatMajorUnit` (`:336`), `StringMajorUnit` (`:374`) and `StringTwoDecimalUnit`
+  (`:443`). There is no safe default. Two independent counts over
+  `crates/integrations/connector-integration/src/connectors/` at HEAD agree that
+  `StringMinorUnit` is the *least* common of the major formats:
+
+  | Measure | StringMajorUnit | FloatMajorUnit | MinorUnit | StringMinorUnit | StringTwoDecimalUnit |
+  |---|---|---|---|---|---|
+  | `create_amount_converter_wrapper!` declarations (33) | 10 | 4 | 10 | 9 | 0 |
+  | connectors mentioning the type at all | 33 | 32 | 68 | 14 | 1 |
+
+  So "default to `StringMinorUnit` if unclear" is wrong the large majority of the time.
+  **Read the vendor spec and match its wire format** — do not guess.
+- **Status mapping**: model the connector's status as a typed enum with `#[serde(other)]
+  Unknown` at the *deserialization* layer, then match it exhaustively with **no catch-all
+  `_ =>` arm** at the *mapping* layer. Reviewers require both halves.
+  Exemplar: `crates/integrations/connector-integration/src/connectors/flywire/transformers.rs:468`.
+- **In-band 2xx failures**: when a 200 response carries a declined payment, return
+  `Err(ErrorResponse { .. })` from the response transformer, branching on
+  `utils::is_payment_failure` (`crates/types-traits/domain_types/src/utils.rs:231`).
+  `ErrorResponse::attempt_status` is `Option<FlowStatus>`, not `Option<AttemptStatus>`.
 
 ## 📊 Payment Method Coverage
 
@@ -165,7 +195,7 @@ Based on `payment_methods.proto` categorization:
 
 | Category | Proto IDs | Pattern Location |
 |----------|-----------|------------------|
-| Card Methods | 1-9 | `card/` (also `card_redirect/`, `card_token/`, `network_token/`) |
+| Card Methods | 1-9 | `card/` (also `card_redirect/`, `payment_method_token/`, `network_token/`) |
 | Digital Wallets | 10-29 | `wallet/` |
 | UPI | 30-39 | `upi/` |
 | Online Banking | 40-59 | `bank_redirect/`, `open_banking/` |
@@ -209,8 +239,19 @@ All authorize implementations should:
 - Include proper error handling
 - Handle currency units correctly
 - Map all relevant fields from connector response to UCS types
+- Use `NO_ERROR_CODE` / `NO_ERROR_MESSAGE`
+  (`crates/common/common_utils/src/consts.rs:154`) as the fallback for a missing connector
+  error code/message — never `.unwrap_or_default()`, which yields an empty string
+- List every field of `PaymentsResponseData::TransactionResponse`
+  (11 fields, `crates/types-traits/domain_types/src/connector_types.rs:2009`) — it is an
+  *enum* struct-variant, so there is no `..Default::default()` shortcut and an omitted field
+  is an E0063. `RefundsResponseData` (`:2759`) is a plain struct with 4 fields but derives
+  only `Debug, Clone`, so it has no `Default` to fall back on either
+- Write exactly **one** non-generic `SourceVerification` impl and one `BodyDecoding` impl per
+  connector — these traits take no type parameters
+  (`crates/types-traits/interfaces/src/verification.rs:20`); one impl per flow is an E0107
 - Pass the Quality Guardian review
 
 ---
 
-**Note**: The `generic/pattern_authorize.md` file is kept for backward compatibility and reference. New implementations should use the specific payment method patterns in their respective directories.
+**Note**: The `../pattern_authorize.md` file (one level up, in `patterns/`) is kept for backward compatibility and reference. New implementations should use the specific payment method patterns in their respective directories.

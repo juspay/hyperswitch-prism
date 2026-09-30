@@ -9,7 +9,7 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "get", "proxy_authorize", "refund", "refund_get", "void"]
 
@@ -19,6 +19,9 @@ _default_config = sdk_config_pb2.ConnectorConfig(
         juspay=payment_pb2.JuspayConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            juspay_encryption_public_key=payment_methods_pb2.SecretString(value="YOUR_JUSPAY_ENCRYPTION_PUBLIC_KEY"),
+            response_decryption_private_key=payment_methods_pb2.SecretString(value="YOUR_RESPONSE_DECRYPTION_PRIVATE_KEY"),
+            card_sync_key_id=payment_methods_pb2.SecretString(value="YOUR_CARD_SYNC_KEY_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),

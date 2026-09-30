@@ -131,7 +131,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if refund_id.is_empty() {
             return Err(errors::IntegrationError::MissingRequiredField {
                 field_name: "connector_refund_id",
-            , context: Default::default() });
+                context: Default::default(),
+            });
         }
 
         Ok(format!("{}/refunds/{}", self.connector_base_url_refunds(req), refund_id))
@@ -155,7 +156,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: types::Response,
     ) -> CustomResult<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, ConnectorError> {
         let response: transformers::{ConnectorName}RefundSyncResponse = res
@@ -163,35 +164,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("{ConnectorName} RSync Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        // `set_response_body` is a method on the OLD `interfaces::events::connector_api_logs::ConnectorEvent`,
+        // NOT on `common_utils::events::Event` (setters: events.rs:326-346). Use the crate macro
+        // `with_response_body!` (crates/integrations/connector-integration/src/utils.rs:70):
+        // `use crate::with_response_body;`
+        with_response_body!(event_builder, response);
         router_env::logger::info!(connector_response=?response);
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed { context: Default::default() })
     }
 
-    // Error response handling
-    fn get_error_response(
+    // Error response handling. The trait method is `get_error_response_v2` and it
+    // takes the connector config as a third parameter
+    // (interfaces/src/connector_integration_v2.rs:187).
+    fn get_error_response_v2(
         &self,
         res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, connector_config)
     }
 }
 
-// Source verification for security (optional but recommended)
+// SourceVerification is NON-GENERIC: exactly ONE impl per connector, never one per flow.
+// (`interfaces::verification::SourceVerification` takes no type parameters — a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.)
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::verification::SourceVerification<
-        RSync,
-        RefundFlowData,
-        RefundSyncData,
-        RefundsResponseData,
-    > for {ConnectorName}<T>
+    interfaces::verification::SourceVerification for {ConnectorName}<T>
 {
 }
 
@@ -219,13 +225,18 @@ macro_connector_implementation!(
 ```rust
 // File: crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
 
-use serde::{Deserialize, Serialize};
-use crate::{
-    core::errors,
-    domain_types::{RefundSyncData, RefundsResponseData},
-    router_data::{ErrorResponse, ResponseRouterData, RouterDataV2},
-    types::{RefundFlowData, RSync},
+use common_enums::RefundStatus;
+use domain_types::{
+    connector_flow::RSync,
+    connector_types::{RefundFlowData, RefundSyncData, RefundsResponseData},
+    errors,
+    router_data::ErrorResponse,
+    router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
+use serde::{Deserialize, Serialize};
+
+use crate::types::ResponseRouterData;
 
 // Request structure (for POST requests)
 #[derive(Debug, Serialize)]
@@ -281,18 +292,22 @@ impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
 }
 
 // Response transformation
-impl TryFrom<ResponseRouterData<RSync, {ConnectorName}RefundSyncResponse, RefundSyncData, RefundsResponseData>>
+impl TryFrom<ResponseRouterData<{ConnectorName}RefundSyncResponse, RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
-        item: ResponseRouterData<RSync, {ConnectorName}RefundSyncResponse, RefundSyncData, RefundsResponseData>,
+        item: ResponseRouterData<{ConnectorName}RefundSyncResponse, RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            // `RefundsResponseData` has 4 fields (connector_types.rs:2759); it is a struct, but
+            // spell them out so an added field is a compile error rather than a silent default.
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: common_enums::RefundStatus::from(item.response.status),
+                status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.data
         })
@@ -372,7 +387,7 @@ fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
 
 ```rust
 fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
-    let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
+    let auth = {ConnectorName}AuthType::try_from(&req.connector_config)?;
     let encoded_auth = base64::encode(format!("{}:{}", auth.api_key, auth.secret));
     
     Ok(RequestBuilder::new()
@@ -388,7 +403,7 @@ fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
 
 ```rust
 fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
-    let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
+    let auth = {ConnectorName}AuthType::try_from(&req.connector_config)?;
     
     Ok(RequestBuilder::new()
         .method(Method::Get)
@@ -403,7 +418,7 @@ fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
 
 ```rust
 fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
-    let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
+    let auth = {ConnectorName}AuthType::try_from(&req.connector_config)?;
     
     Ok(RequestBuilder::new()
         .method(Method::Get)
@@ -419,7 +434,7 @@ fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
 
 ```rust
 fn build_request(&self, req: &RouterDataV2<RSync, ...>) -> CustomResult<...> {
-    let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
+    let auth = {ConnectorName}AuthType::try_from(&req.connector_config)?;
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs().to_string();
     let request_id = Uuid::new_v4().to_string();
     
@@ -469,21 +484,19 @@ Ok(format!("{}/api/gateway", base_url))
 
 ## Status Mapping Patterns
 
-### String-Based Status Mapping
-```rust
-impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
-    fn from(status: {ConnectorName}RefundStatus) -> Self {
-        match status.as_str() {
-            "completed" | "processed" | "settled" => Self::Success,
-            "pending" | "processing" | "submitted" => Self::Pending,
-            "failed" | "declined" | "cancelled" => Self::Failure,
-            _ => Self::Pending, // Default to pending for unknown statuses
-        }
-    }
-}
-```
+> **Two halves, both required.** Reviewers check for both:
+> 1. **Deserialization layer** — the connector status enum ends with `#[serde(other)] Unknown`,
+>    so an unrecognised wire value parses instead of failing the whole response. Real example:
+>    `TravelhubResult` at `connectors/travelhub/transformers.rs:494-509`.
+> 2. **Status-mapping layer** — the `match` is EXHAUSTIVE over that enum, with an explicit
+>    `Unknown` arm and NO catch-all `_ =>`. A wildcard here silently absorbs any variant added
+>    later. Real example: `map_travelhub_status` at `connectors/travelhub/transformers.rs:556-568`.
+>
+> A wildcard is only acceptable when the wire value is an untyped `&str`/code the vendor has not
+> enumerated — and then it must be non-terminal (`Pending`) and logged, never `Failure` or
+> `Success`.
 
-### Enum-Based Status Mapping
+### Enum-Based Status Mapping (PREFERRED)
 ```rust
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -492,15 +505,38 @@ pub enum {ConnectorName}RefundStatus {
     Failed,
     Pending,
     Cancelled,
+    // Half 1: unrecognised wire values land here instead of failing the parse.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
     fn from(status: {ConnectorName}RefundStatus) -> Self {
+        // Half 2: exhaustive, no `_ =>`. Adding a variant above breaks this match on purpose.
         match status {
             {ConnectorName}RefundStatus::Succeeded => Self::Success,
-            {ConnectorName}RefundStatus::Failed | 
-            {ConnectorName}RefundStatus::Cancelled => Self::Failure,
-            {ConnectorName}RefundStatus::Pending => Self::Pending,
+            {ConnectorName}RefundStatus::Failed
+            | {ConnectorName}RefundStatus::Cancelled => Self::Failure,
+            // `Unknown` is non-terminal so RSync can resolve it on a later poll.
+            {ConnectorName}RefundStatus::Pending
+            | {ConnectorName}RefundStatus::Unknown => Self::Pending,
+        }
+    }
+}
+```
+
+### String-Based Status Mapping (only for untyped, undocumented values)
+```rust
+fn map_{connector_name}_refund_status(status: &str) -> common_enums::RefundStatus {
+    match status.to_lowercase().as_str() {
+        "completed" | "processed" | "settled" => common_enums::RefundStatus::Success,
+        "pending" | "processing" | "submitted" => common_enums::RefundStatus::Pending,
+        "failed" | "declined" | "cancelled" => common_enums::RefundStatus::Failure,
+        other => {
+            // Non-terminal and logged. Mapping an unknown refund status to Failure would
+            // strand a refund that actually succeeded; mapping it to Success is worse.
+            router_env::logger::warn!(connector_status = %other, "unmapped refund status");
+            common_enums::RefundStatus::Pending
         }
     }
 }
@@ -508,17 +544,20 @@ impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
 
 ### Code-Based Status Mapping
 ```rust
-impl From<i32> for common_enums::RefundStatus {
-    fn from(code: i32) -> Self {
-        match code {
-            200 | 201 => Self::Success,
-            400..=499 => Self::Failure,
-            500..=599 => Self::Pending, // Retry later
-            _ => Self::Pending,
+fn map_{connector_name}_refund_status_code(code: i32) -> common_enums::RefundStatus {
+    match code {
+        200 | 201 => common_enums::RefundStatus::Success,
+        400..=499 => common_enums::RefundStatus::Failure,
+        500..=599 => common_enums::RefundStatus::Pending, // Retry later
+        other => {
+            router_env::logger::warn!(connector_status_code = %other, "unmapped refund status code");
+            common_enums::RefundStatus::Pending
         }
     }
 }
 ```
+Do NOT write `impl From<i32> for common_enums::RefundStatus` — `RefundStatus` is a foreign type
+and `i32` is a foreign type, so the impl violates the orphan rule (E0117). Use a free function.
 
 ## Error Handling Patterns
 
@@ -535,22 +574,42 @@ impl {ConnectorName}<T> {
     fn build_error_response(
         &self,
         res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res
             .response
             .parse_struct("{ConnectorName} Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
+        // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+        // (definition: crates/integrations/connector-integration/src/utils.rs:61). It expands to
+        // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+        // `set_error_response_body` method on `events::Event`.
+        with_error_response_body!(event_builder, response);
 
+        // `ErrorResponse` has 13 fields (router_data.rs:4228) with an `impl Default` right
+        // below it — set what you know, then `..Default::default()`. `attempt_status` is
+        // `Option<FlowStatus>`; on an RSync error path a terminal value would be
+        // `Some(FlowStatus::Refund(RefundStatus::Failure))` and ONLY when the connector says
+        // the refund is dead (exemplar: connectors/flywire.rs:355). Leave it `None` otherwise —
+        // but do not blanket-`None` a hard decline, or the refund stays Pending and keeps retrying.
+        // `FlowStatus` is `domain_types::router_data::FlowStatus` (router_data.rs:4186):
+        //     use domain_types::router_data::FlowStatus;
+        // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+        // Payout(PayoutStatus). Pick the one matching THIS flow.
         Ok(ErrorResponse {
             status_code: res.status_code,
+            // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+            // (crates/common/common_utils/src/consts.rs:154-156). Import them:
+            //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+            // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+            // an empty string in a log is indistinguishable from "the connector sent nothing".
             code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.details.map(|d| d.to_string()),
             attempt_status: None,
-            connector_transaction_id: None,
+            ..Default::default()
         })
     }
 }
@@ -590,7 +649,7 @@ impl {ConnectorName}<T> {
             message: error_message,
             reason: None,
             attempt_status: None,
-            connector_transaction_id: None,
+            ..Default::default()
         })
     }
 }
@@ -603,7 +662,7 @@ impl {ConnectorName}<T> {
 #[cfg(test)]
 mod rsync_tests {
     use super::*;
-    use crate::connector_auth::ConnectorAuthType;
+    use domain_types::router_data::ConnectorSpecificConfig;
 
     #[test]
     fn test_rsync_request_transformation() {
@@ -612,8 +671,11 @@ mod rsync_tests {
             request: RefundSyncData {
                 connector_refund_id: connector_refund_id.clone(),
             },
-            connector_auth_type: ConnectorAuthType::HeaderKey {
-                api_key: "test_key".to_string(),
+            // `RouterDataV2` has no `connector_auth_type` field (removed 2026-03-14, a7a696c3a).
+            // Auth travels in `connector_config`, typed per connector.
+            connector_config: ConnectorSpecificConfig::{ConnectorName} {
+                api_key: Secret::new("test_key".to_string()),
+                base_url: None,
             },
             ..Default::default()
         };
@@ -634,7 +696,7 @@ mod rsync_tests {
         let router_data = RouterDataV2::default();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -703,8 +765,9 @@ mod integration_tests {
     #[tokio::test]
     async fn test_rsync_flow_integration() {
         let connector = {ConnectorName}::new();
-        let auth = ConnectorAuthType::HeaderKey {
-            api_key: "test_key".to_string(),
+        let auth = ConnectorSpecificConfig::{ConnectorName} {
+            api_key: Secret::new("test_key".to_string()),
+            base_url: None,
         };
         
         // Mock successful response
@@ -723,7 +786,7 @@ mod integration_tests {
             request: RefundSyncData {
                 connector_refund_id: "ref_12345".to_string(),
             },
-            connector_auth_type: auth,
+            connector_config: auth,
             ..Default::default()
         };
 
@@ -788,7 +851,7 @@ mod integration_tests {
 | `{HttpMethod}` | HTTP method for RSync | `Method::Get`, `Method::Post` | **Always required** - Request method |
 | `{AuthType}` | Authentication mechanism | `Basic`, `Bearer`, `ApiKey` | **Always required** - Auth pattern |
 | `{StatusEnum}` | Connector status enumeration | `StripeRefundStatus` | **Usually required** - Status mapping |
-| `{AmountType}` | Amount representation type | `FloatMajorUnit`, `StringMinorUnit` | **Sometimes required** - Currency handling |
+| `{AmountType}` | Amount representation type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` (`common_utils/src/types.rs`) | **Sometimes required** — read the vendor spec and match its wire format; there is no safe default |
 
 ### Real-World Examples
 
@@ -846,7 +909,8 @@ fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     if refund_id.is_empty() {
         return Err(errors::IntegrationError::MissingRequiredField {
             field_name: "connector_refund_id",
-        , context: Default::default() });
+            context: Default::default(),
+        });
     }
     Ok(format!("{}/refunds/{}", base_url, refund_id))
 }
@@ -858,7 +922,11 @@ fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
 **Solution**: Add comprehensive status mapping with safe defaults
 
 ```rust
-// Before (incorrect - panics on unknown status)
+// Before (WRONG on three counts):
+//  1. `impl From<String> for common_enums::RefundStatus` breaks the orphan rule — both `String`
+//     and `RefundStatus` are foreign types (E0117).
+//  2. Non-exhaustive match on `&str` does not compile.
+//  3. No `#[serde(other)]` variant, so an unrecognised wire value fails the response parse.
 impl From<String> for common_enums::RefundStatus {
     fn from(status: String) -> Self {
         match status.as_str() {
@@ -869,17 +937,33 @@ impl From<String> for common_enums::RefundStatus {
     }
 }
 
-// After (correct - handles unknown statuses)
-impl From<String> for common_enums::RefundStatus {
-    fn from(status: String) -> Self {
-        match status.as_str() {
-            "success" | "completed" | "settled" => Self::Success,
-            "failed" | "declined" | "cancelled" => Self::Failure,
-            "pending" | "processing" | "submitted" => Self::Pending,
-            _ => {
-                router_env::logger::warn!("Unknown refund status: {}", status);
-                Self::Pending // Safe default
-            }
+// After (correct) — half 1, deserialization layer:
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum {ConnectorName}RefundStatus {
+    Success,
+    Completed,
+    Settled,
+    Failed,
+    Declined,
+    Cancelled,
+    Pending,
+    Processing,
+    Submitted,
+    #[serde(other)]
+    Unknown,
+}
+
+// half 2, status-mapping layer: exhaustive, no wildcard. A local type is involved, so this
+// `From` impl is legal.
+impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
+    fn from(status: {ConnectorName}RefundStatus) -> Self {
+        use {ConnectorName}RefundStatus as S;
+        match status {
+            S::Success | S::Completed | S::Settled => Self::Success,
+            S::Failed | S::Declined | S::Cancelled => Self::Failure,
+            // Unknown stays non-terminal so a later RSync can resolve it.
+            S::Pending | S::Processing | S::Submitted | S::Unknown => Self::Pending,
         }
     }
 }
@@ -925,7 +1009,7 @@ fn build_request(&self, req) -> CustomResult<RequestBuilder, IntegrationError> {
 
 // After (correct - connector-specific auth)
 fn build_request(&self, req) -> CustomResult<RequestBuilder, IntegrationError> {
-    let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
+    let auth = {ConnectorName}AuthType::try_from(&req.connector_config)?;
     let auth_header = match auth.auth_type {
         AuthType::Basic => format!("Basic {}", base64::encode(format!("{}:{}", auth.key, auth.secret))),
         AuthType::Bearer => format!("Bearer {}", auth.token),
@@ -952,10 +1036,17 @@ fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
 fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     let refund_id = req.request.connector_refund_id.clone();
     
-    // Extract order_id from connector metadata if required
-    let order_id = req.connector_meta_data
+    // `RouterDataV2` has no `connector_meta_data` field (domain_types/src/router_data_v2.rs:6).
+    // Refund-scoped connector metadata lives on the request:
+    // `RefundsData::refund_connector_metadata` / `RefundSyncData` (connector_types.rs:3471).
+    // The metadata error variant is `NoConnectorMetaData`, not `MissingConnectorMetaData`
+    // (errors.rs:145).
+    let order_id = req.request.refund_connector_metadata
+        .clone()
         .get_required_value("order_id")
-        .change_context(errors::IntegrationError::MissingConnectorMetaData)?;
+        .change_context(errors::IntegrationError::NoConnectorMetaData {
+            context: Default::default(),
+        })?;
     
     Ok(format!("{}/orders/{}/transactions/{}", base_url, order_id, refund_id))
 }

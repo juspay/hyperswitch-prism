@@ -7,7 +7,7 @@
 
 import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -46,7 +46,7 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "uri": "https://example.com/webhook",  // URI of the request.
@@ -92,6 +92,17 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
 
 function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
     return {
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
     };
 }
 
@@ -160,10 +171,19 @@ async function verifyRedirect(merchantTransactionId: string, config: types.IConn
     return verifyResponse;
 }
 
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, handleEvent, parseEvent, refund, refundGet, verifyRedirect, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest
+    capture, get, handleEvent, parseEvent, refund, refundGet, verifyRedirect, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest, _buildVoidRequest
 };
 
 // CLI runner

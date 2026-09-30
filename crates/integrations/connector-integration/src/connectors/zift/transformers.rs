@@ -638,6 +638,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -677,6 +681,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -805,6 +810,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -828,6 +837,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -888,6 +898,10 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -901,6 +915,7 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1006,6 +1021,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),
@@ -1025,6 +1041,10 @@ impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1153,6 +1173,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -1172,6 +1193,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1231,6 +1256,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1243,6 +1269,10 @@ impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         };
 
@@ -1320,6 +1350,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
                     })?,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1335,6 +1366,10 @@ impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         };
         Ok(Self {

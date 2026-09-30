@@ -149,8 +149,8 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -161,8 +161,8 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -197,8 +197,8 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -285,8 +285,8 @@
         "error": "This feature is not implemented: Voucher payment method support is not yet implemented"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -329,8 +329,8 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -365,12 +365,12 @@
         "error": "This feature is not implemented: Wallet payment method support is not yet implemented"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -475,6 +475,10 @@
       "WeChatPayQr": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet payment method support is not yet implemented"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Wero": {
         "status": "not_implemented",
@@ -643,7 +647,7 @@
             "via": "HyperSwitch",
             "x-merchantid": "probe_merchant"
           },
-          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"{{$card_number}}\",\"card_security_code\":\"{{$card_cvc}}\",\"card_exp_month\":\"{{$card_exp_month}}\",\"card_exp_year\":\"{{$card_exp_year}}\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_proxy_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
+          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"{{$card_number}}\",\"card_security_code\":\"{{$card_cvc}}\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_proxy_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
         }
       }
     },
@@ -663,6 +667,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for hyperpg"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -734,12 +743,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for hyperpg"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for hyperpg"
       }
     },
     "verify_redirect": {

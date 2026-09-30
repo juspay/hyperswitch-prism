@@ -37,9 +37,11 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_surcharge_id,
             ),
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }
@@ -208,9 +210,11 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.event_id,
             )),
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }

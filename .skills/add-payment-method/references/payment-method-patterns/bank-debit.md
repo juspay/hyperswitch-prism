@@ -168,7 +168,8 @@ fn get_account_holder_name(bank_debit_data: &BankDebitData, router_data: &...) -
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                , context: Default::default() })
+                    context: Default::default(),
+                })
         }
     }
 }
@@ -193,20 +194,34 @@ impl From<ConnectorBankDebitStatus> for AttemptStatus {
 
 Bank debit responses include mandate references for recurring payments:
 ```rust
-let mandate_reference = response.mandate_id.as_ref().map(|id| MandateReference {
-    connector_mandate_id: Some(id.clone()),
-    payment_method_id: None,
+// MandateReference has four fields (connector_types.rs) and the response field is
+// Option<Box<MandateReference>>.
+let mandate_reference = response.mandate_id.as_ref().map(|id| {
+    Box::new(MandateReference {
+        connector_mandate_id: Some(id.clone()),
+        payment_method_id: None,
+        connector_mandate_request_reference_id: None,
+        mandate_metadata: None,
+    })
 });
 
+// Enum struct-variant: no `..Default::default()`, so list all 11 fields.
 PaymentsResponseData::TransactionResponse {
     resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
-    redirection_data: response.redirect_url.as_ref().map(|url| RedirectForm::Uri { uri: url.clone() }),
-    mandate_reference,
+    // redirection_data is Option<Box<RedirectForm>> -- the Box is not optional.
+    redirection_data: response
+        .redirect_url
+        .as_ref()
+        .map(|url| Box::new(RedirectForm::Uri { uri: url.clone() })),
     connector_metadata: None,
+    mandate_reference,
     network_txn_id: None,
+    network_txn_link_id: None,
     connector_response_reference_id: Some(response.reference.clone()),
     incremental_authorization_allowed: None,
+    splits: None,
     status_code: item.http_code,
+    payment_account_reference: None,
 }
 ```
 

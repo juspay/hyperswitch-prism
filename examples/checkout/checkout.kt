@@ -8,8 +8,10 @@
 package examples.checkout
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
@@ -18,6 +20,7 @@ import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
+import payments.HttpMethod
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -26,7 +29,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.CheckoutConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -240,6 +243,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -393,6 +427,67 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.TokenSetupRecurring
+fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_tokenized_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.ONLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            onlineMandateDetailsBuilder.apply {  // Details if the acceptance was an online mandate.
+                ipAddress = "127.0.0.1"  // IP address from which the mandate was accepted.
+                userAgent = "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        }
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 0L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
+                    amountMoneyBuilder.apply {  // Amount in Money type.
+                        minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+                        currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
+                }
+            }
+        }
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.token_setup_recurring(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -416,13 +511,17 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
+        "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

@@ -412,6 +412,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -445,6 +446,7 @@ impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -474,6 +476,7 @@ impl TryFrom<ResponseRouterData<HyperpgRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -508,6 +511,7 @@ impl TryFrom<ResponseRouterData<HyperpgRefundSyncResponse, Self>>
                 connector_refund_id: response.order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

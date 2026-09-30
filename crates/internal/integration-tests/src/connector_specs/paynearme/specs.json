@@ -1,0 +1,13 @@
+{
+  "connector": "paynearme",
+  "supported_suites": [
+    "PaymentService/CreateOrder",
+    "PaymentService/Authorize",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Get",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}

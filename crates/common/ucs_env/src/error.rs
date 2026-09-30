@@ -1,7 +1,8 @@
 use common_enums::KafkaClientError;
 use common_utils::errors::ErrorSwitch;
 use domain_types::errors::{
-    ApiClientError, ConnectorError, ConnectorFlowError, IntegrationError, WebhookError,
+    doc_url_for_error_code, ApiClientError, ConnectorError, ConnectorFlowError, IntegrationError,
+    WebhookError,
 };
 use error_stack::Report;
 use tonic::Status;
@@ -31,7 +32,7 @@ where
 }
 
 /// Failures in the gRPC plumbing itself, raised before request transformation.
-#[derive(Debug, Clone, PartialEq, thiserror::Error, strum::AsRefStr)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error, strum::AsRefStr, serde::Serialize)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum InternalError {
     #[error("Extensions missing from gRPC request")]
@@ -82,6 +83,30 @@ impl GrpcError {
             Self::Connector(e) => e.http_status_code(),
             _ => None,
         }
+    }
+
+    /// The wrapped leaf error as JSON, for the single converged error log in
+    /// [`IntoGrpcStatus::into_grpc_status`]. Reflects whatever the real error types declare —
+    /// no hand-picked field list — so new fields show up with no change here.
+    ///
+    /// Uses `hyperswitch_masking::masked_serialize`, not `serde_json::to_value`: `Secret`
+    /// fields (e.g. `ErrorResponse::raw_connector_response`) serialize exposed by default, and
+    /// this is the crate's own masked path, same as every other nested `Secret` in the codebase.
+    fn error_detail(&self) -> serde_json::Value {
+        let serialized = match self {
+            Self::Integration(e) => hyperswitch_masking::masked_serialize(e),
+            Self::Connector(e) => hyperswitch_masking::masked_serialize(e),
+            Self::ApiClient(e) => hyperswitch_masking::masked_serialize(e),
+            // `common_enums::KafkaClientError` only derives `Serialize` under its `deja`
+            // feature, which this crate does not enable; fall back to `Display`.
+            Self::KafkaClient(e) => Ok(serde_json::Value::String(e.to_string())),
+            Self::Webhook(e) => hyperswitch_masking::masked_serialize(e),
+            Self::Internal(e) => hyperswitch_masking::masked_serialize(e),
+        };
+
+        serialized.unwrap_or_else(
+            |err| serde_json::json!({ "error_serialization_failed": err.to_string() }),
+        )
     }
 }
 
@@ -222,15 +247,20 @@ impl ToGrpcStatus for ConnectorError {
 
         match self {
             Self::ConnectorErrorResponse(error_response) => match error_response.status_code {
-                400 => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
+                400 | 402 | 405 | 406 | 407 | 410..=428 | 431..=499 => {
+                    Status::with_details(tonic::Code::InvalidArgument, msg, buf.into())
+                }
                 401 => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
                 403 => Status::with_details(tonic::Code::PermissionDenied, msg, buf.into()),
                 404 => Status::with_details(tonic::Code::NotFound, msg, buf.into()),
+                408 | 504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
+                409 => Status::with_details(tonic::Code::Aborted, msg, buf.into()),
                 429 => Status::with_details(tonic::Code::ResourceExhausted, msg, buf.into()),
-                500 => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+                500 | 502 | 505..=599 => {
+                    Status::with_details(tonic::Code::Internal, msg, buf.into())
+                }
                 501 => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
                 503 => Status::with_details(tonic::Code::Unavailable, msg, buf.into()),
-                504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
                 _ => Status::with_details(tonic::Code::Unknown, msg, buf.into()),
             },
             Self::ResponseDeserializationFailed { .. }
@@ -317,6 +347,9 @@ impl IntoGrpcStatus for Report<GrpcError> {
             error_code = %context.error_code(),
             http_status_code = ?context.http_status_code(),
             grpc_code_name = ?status.code(),
+            client_error_message = %status.message(),
+            doc_url = ?doc_url_for_error_code(context.error_code()),
+            error_detail = %context.error_detail(),
         );
         status
     }

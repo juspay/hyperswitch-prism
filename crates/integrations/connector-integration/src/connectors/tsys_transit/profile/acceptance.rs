@@ -139,8 +139,8 @@ impl AcceptanceProfile {
             // ── E-COMMERCE INTERNET ────────────────────────────────────
             Self::EcomInternet => TerminalDataBlock {
                 card_data_source: Source::Internet,
-                terminal_operating_environment: Env::NoTerminal,
-                terminal_output_capability: Out::None,
+                terminal_operating_environment: Env::OffMerchantPremisesUnattended,
+                terminal_output_capability: Out::DisplayOnly,
                 terminal_capability: Cap::KeyedEntryOnly,
                 terminal_authentication_capability: AuthCap::NoCapability,
                 max_pin_length: Pin::NotSupported,
@@ -148,7 +148,7 @@ impl AcceptanceProfile {
                 cardholder_authentication_method: AuthMethod::NotAuthenticated,
                 cardholder_authentication_entity: AuthEnt::NotAuthenticated,
                 card_data_output_capability: DataOut::None,
-                default_card_data_input_mode: DataIn::PanEntryElectronicCommerceIncludingRemoteChip,
+                default_card_data_input_mode: DataIn::ElectronicCommerceNoSecurityChannelEncryptedSetWithoutCardholderCertificate,
                 default_cardholder_present_detail: Present::CardholderNotPresentElectronicCommerce,
             },
             // ── RECURRING MIT ──────────────────────────────────────────

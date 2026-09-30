@@ -649,7 +649,7 @@ type = "string"
 value = "https://example.com/3ds-continue"
 
 ["post_authenticate.connector_order_reference_id"]
-aliases = ["reference_id (order_id)", "reference_id"]
+aliases = ["connector_order_reference_id", "reference_id (order_id)", "reference_id"]
 type = "string"
 value = "probe_order_ref_001"
 

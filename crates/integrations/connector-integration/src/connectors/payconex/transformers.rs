@@ -614,6 +614,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayconexPaymentsRespo
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
@@ -628,6 +632,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayconexPaymentsRespo
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
         };
         Ok(Self {
@@ -691,6 +696,7 @@ impl TryFrom<ResponseRouterData<PayconexCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -713,6 +719,10 @@ impl TryFrom<ResponseRouterData<PayconexCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -768,6 +778,7 @@ impl TryFrom<ResponseRouterData<PayconexVoidResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -790,6 +801,10 @@ impl TryFrom<ResponseRouterData<PayconexVoidResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -841,6 +856,10 @@ impl TryFrom<ResponseRouterData<PayconexSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item
@@ -858,6 +877,7 @@ impl TryFrom<ResponseRouterData<PayconexSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
         };
 
@@ -910,6 +930,10 @@ impl TryFrom<ResponseRouterData<PayconexRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone().ok_or_else(|| {
@@ -920,6 +944,7 @@ impl TryFrom<ResponseRouterData<PayconexRefundResponse, Self>>
                 })?,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
         };
         Ok(Self {
@@ -971,6 +996,10 @@ impl TryFrom<ResponseRouterData<PayconexRefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: item
@@ -980,6 +1009,7 @@ impl TryFrom<ResponseRouterData<PayconexRefundSyncResponse, Self>>
                     .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone()),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
         };
         Ok(Self {

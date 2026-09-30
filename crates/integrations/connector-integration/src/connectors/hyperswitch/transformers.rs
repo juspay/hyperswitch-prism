@@ -264,6 +264,10 @@ fn build_payments_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -277,6 +281,7 @@ fn build_payments_response(
             incremental_authorization_allowed: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -456,11 +461,13 @@ pub fn build_webhook_payment_response(
     // for status mapping (succeeded -> Charged, requires_capture -> Authorized).
     let status = map_intent_status(&payment.status, true);
     Ok(WebhookDetailsResponse {
+        connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(
             payment.payment_id.clone(),
         )),
         status,
-        connector_response_reference_id: Some(payment.payment_id),
+        connector_response_reference_id: Some(payment.payment_id.clone()),
+        connector_request_reference_id: Some(payment.payment_id),
         mandate_reference: None,
         error_code: payment.error_code,
         error_message: payment.error_message.clone(),

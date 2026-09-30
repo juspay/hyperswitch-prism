@@ -29,7 +29,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use time::{Duration as TimeDuration, OffsetDateTime};
+use time::Duration as TimeDuration;
 
 const TRANSACTION_TYPE_FULL: &str = "FULL";
 const DEFAULT_INSTALLMENTS: i32 = 1;
@@ -547,7 +547,7 @@ fn format_boleto_date(date: time::Date) -> String {
 /// Return a `DD/MM/YYYY` boleto due date for `now() + days_from_now`. Used as the
 /// fallback when the caller didn't supply an explicit due date.
 fn boleto_expiration_date(days_from_now: i64) -> String {
-    let target = OffsetDateTime::now_utc() + TimeDuration::days(days_from_now);
+    let target = common_utils::date_time::now().assume_utc() + TimeDuration::days(days_from_now);
     format_boleto_date(target.date())
 }
 
@@ -696,7 +696,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // layer with `NotSupported`.
         match &item.request.payment_method_data {
             PaymentMethodData::Voucher(VoucherData::Boleto(boleto_data)) => {
-                let payment_id = uuid::Uuid::new_v4().to_string();
+                let payment_id = common_utils::fp_utils::generate_uuid_v4();
                 let customer = build_boleto_customer(item, boleto_data)?;
                 let data = GetnetBoletoData {
                     amount: item.request.minor_amount,
@@ -722,7 +722,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                     },
                 };
                 return Ok(Self::Boleto(Box::new(GetnetBoletoAuthorize {
-                    request_id: uuid::Uuid::new_v4().to_string(),
+                    request_id: common_utils::fp_utils::generate_uuid_v4(),
                     idempotency_key: item.resource_common_data.get_merchant_request_id()?,
                     data,
                 })));
@@ -901,7 +901,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // `request_id` is a fresh per-attempt UUID. `idempotency_key` reuses the caller's
         // `merchant_request_id` so a retried request de-duplicates; it is required.
         Ok(Self::Standard(Box::new(GetnetStandardAuthorize {
-            request_id: uuid::Uuid::new_v4().to_string(),
+            request_id: common_utils::fp_utils::generate_uuid_v4(),
             idempotency_key: item.resource_common_data.get_merchant_request_id()?,
             order_id: request_ref_id,
             data,
@@ -1106,6 +1106,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1200,6 +1201,7 @@ impl TryFrom<ResponseRouterData<GetnetCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1270,6 +1272,7 @@ impl TryFrom<ResponseRouterData<GetnetSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1348,6 +1351,7 @@ impl TryFrom<ResponseRouterData<GetnetRefundResponse, Self>>
                 connector_refund_id: item.response.payment_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1372,6 +1376,7 @@ impl TryFrom<ResponseRouterData<GetnetRefundSyncResponse, Self>>
                 connector_refund_id: item.response.payment_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1519,6 +1524,7 @@ impl TryFrom<ResponseRouterData<GetnetVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2227,6 +2233,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.number_token.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

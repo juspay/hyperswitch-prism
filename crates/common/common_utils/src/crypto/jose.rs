@@ -233,6 +233,26 @@ fn validate_public_pem(pem: &str, context: &'static str) -> Result<(), JoseError
 /// Sign a serialisable claim set with PS256, then seal the resulting JWS
 /// inside an RSA-OAEP / A128CBC-HS256 JWE bound to `cfg.kid`. Returns the
 /// compact JWE — five dot-separated base64url segments.
+///
+/// Seamed at the OUTCOME for déjà replay: the compact JWE is nondeterministic
+/// on four axes drawn inside the crypto libraries and individually
+/// unseamable — the PS256 signature's random salt (RSA-PSS is not
+/// deterministic, unlike PKCS#1 v1.5), the JWE content-encryption key, the
+/// JWE IV, and the RSA-OAEP seed wrapping the CEK. Replay substitutes the
+/// recorded JWE, the same posture as the AEAD nonce seam. `cfg` is skipped
+/// from capture — it carries private-key PEMs that must never reach the
+/// tape; the claims stay captured so a candidate that builds different
+/// claims is still caught by the ledger's argument compare.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils::crypto",
+        operation = "jose_sign_then_encrypt",
+        codec = ResultOkCodec,
+        skip(cfg),
+    )
+)]
 pub fn sign_then_encrypt<T: Serialize>(claims: &T, cfg: &JoseConfig) -> Result<String, JoseError> {
     let payload = serde_json::to_vec(claims).map_err(|_| JoseError::SerdeSerializeFailed)?;
     let jws = sign_jws_ps256(&payload, cfg.self_signing_private_key.peek())?;
@@ -278,7 +298,11 @@ fn enforce_claim_validation(
     payload: &serde_json::Value,
     v: &JoseClaimValidation,
 ) -> Result<(), JoseError> {
-    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+    // Through the shared clock helper, like every other wall-clock read: claim
+    // validation is time-dependent behavior, and time-dependent behavior must have
+    // exactly one clock source so it can be reasoned about (and, under a
+    // record/replay harness, substituted) in one place.
+    let now = crate::date_time::now_unix_timestamp();
     let obj = payload
         .as_object()
         .ok_or(JoseError::ClaimValidationFailed {

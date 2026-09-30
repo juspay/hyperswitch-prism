@@ -83,6 +83,24 @@ pub fn setup(
         subscriber_layers.push(console_layer);
     }
 
+    // Déjà correlation layer: mirrors the per-request span's `request_id` field into the
+    // deja context so boundaries fired in spawned tasks inherit the correlation. Installed
+    // only when the process records or replays (a boot-time peek — never per-request), so
+    // there is zero overhead in normal operation.
+    #[cfg(feature = "deja")]
+    if deja::process_runtime_mode().consumes_args() {
+        subscriber_layers.push(deja::DejaCorrelationLayer::new().boxed());
+    }
+
+    // Déjà execution-graph layer: emits one node per tracing span (name, parent, timing)
+    // through the installed hook, giving tapes the full span tree alongside boundary
+    // events. Coupled to the hook variant — a recording IS a graph recording, no separate
+    // knob — and absent in normal operation (zero per-span overhead).
+    #[cfg(feature = "deja")]
+    if let Some(graph_layer) = deja_graph_layer() {
+        subscriber_layers.push(graph_layer.boxed());
+    }
+
     #[allow(unused_mut)]
     let mut kafka_logging_enabled = false;
     // Add Kafka layer if configured
@@ -166,6 +184,36 @@ pub fn setup(
     Ok(TelemetryGuard {
         _log_guards: logging_components.guards,
     })
+}
+
+/// Forwards execution-graph nodes to whichever Record/Replay hook is installed.
+#[cfg(feature = "deja")]
+struct RuntimeHookGraphSink(std::sync::Arc<deja::RuntimeHook>);
+
+#[cfg(feature = "deja")]
+impl deja::GraphNodeSink for RuntimeHookGraphSink {
+    fn graph_node(&self, node: deja_core::ExecutionGraphNode) {
+        match self.0.as_ref() {
+            deja::RuntimeHook::Recording(hook) => {
+                deja::GraphNodeSink::graph_node(hook.as_ref(), node)
+            }
+            deja::RuntimeHook::LookupReplay(hook) => deja::GraphNodeSink::graph_node(hook, node),
+            _ => {}
+        }
+    }
+}
+
+/// The execution-graph tracing layer, present exactly when a Record/Replay hook is
+/// installed (boot happens before logger setup, so the peek sees the final hook).
+#[cfg(feature = "deja")]
+fn deja_graph_layer() -> Option<deja::ExecutionGraphLayer> {
+    let hook = deja::installed_runtime_hook()?;
+    match hook.as_ref() {
+        deja::RuntimeHook::Recording(_) | deja::RuntimeHook::LookupReplay(_) => Some(
+            deja::ExecutionGraphLayer::new(std::sync::Arc::new(RuntimeHookGraphSink(hook))),
+        ),
+        _ => None,
+    }
 }
 
 fn get_envfilter_directive(

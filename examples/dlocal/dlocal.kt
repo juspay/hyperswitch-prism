@@ -8,6 +8,7 @@
 package examples.dlocal
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
@@ -103,12 +104,12 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.handle_event(request)
@@ -123,7 +124,7 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.parse_event(request)

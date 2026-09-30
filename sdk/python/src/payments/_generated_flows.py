@@ -68,6 +68,8 @@ SERVICE_FLOWS = {
     "PaymentMethodClient": {
         # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
         "eligibility": "PaymentMethodServiceEligibilityResponse",
+        # refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+        "refresh": "PaymentMethodServiceRefreshResponse",
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
         "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
@@ -78,6 +80,8 @@ SERVICE_FLOWS = {
         "payout_create_link": "PayoutServiceCreateLinkResponse",
         # payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
         "payout_create_recipient": "PayoutServiceCreateRecipientResponse",
+        # payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+        "payout_eligibility": "PayoutMethodEligibilityResponse",
         # payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
         "payout_enroll_disburse_account": "PayoutServiceEnrollDisburseAccountResponse",
         # payout_get: PayoutService.Get — Retrieve payout details.

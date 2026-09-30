@@ -58,6 +58,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Box<Co
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -84,6 +85,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Box<Co
                 error_code: "INVALID_STATUS_CODE".to_string(),
                 http_status_code: None,
                 error_info: None,
+                ..Default::default()
             })
         })?,
     })
@@ -119,6 +121,7 @@ pub fn parse_ffi_options_for_res(
             error_code: "EMPTY_OPTIONS".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         }));
     }
     FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| {
@@ -127,6 +130,7 @@ pub fn parse_ffi_options_for_res(
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })
 }

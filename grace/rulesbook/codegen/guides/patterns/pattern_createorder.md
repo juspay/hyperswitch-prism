@@ -151,7 +151,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<Authorize, PaymentFlowData
         let order_id = item.resource_common_data.reference_id.clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "reference_id (order_id from CreateOrder)",
-            , context: Default::default() })?;
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             order_id,
@@ -263,7 +264,15 @@ let amount = item.connector.amount_converter
         item.router_data.request.amount,  // MinorUnit
         item.router_data.request.currency,
     )
-    .map_err(|e| IntegrationError::RequestEncodingFailedWithReason(format!("Amount conversion failed: {e}")))?;
+    // `RequestEncodingFailedWithReason` does not exist. `IntegrationError` variants
+    // are struct-shaped and carry an `IntegrationErrorContext`; the free-text goes
+    // in `context.additional_context` (crates/types-traits/domain_types/src/errors.rs).
+    .map_err(|e| IntegrationError::AmountConversionFailed {
+        context: IntegrationErrorContext {
+            additional_context: Some(format!("Amount conversion failed: {e}")),
+            ..Default::default()
+        },
+    })?;
 
 // Or manual conversion
 let amount_i64 = item.request.amount.get_amount_as_i64();
@@ -352,7 +361,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<Authorize, PaymentFlowData
         let payment_session_id = item.resource_common_data.reference_id.clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payment_session_id",
-            , context: Default::default() })?;
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             payment_session_id,
@@ -524,7 +534,8 @@ let order_id = item.resource_common_data.reference_id
     .clone()
     .ok_or(IntegrationError::MissingRequiredField {
         field_name: "reference_id (order_id from CreateOrder)",
-    , context: Default::default() })?;
+        context: Default::default(),
+    })?;
 ```
 
 ## Troubleshooting

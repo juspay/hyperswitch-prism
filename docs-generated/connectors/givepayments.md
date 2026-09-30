@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -107,18 +107,183 @@ let config = ConnectorConfig {
 </tr>
 </table>
 
+## Integration Scenarios
+
+Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
+
+### One-step Payment (Authorize + Capture)
+
+Simple payment that authorizes and captures in one call. Use for immediate charges.
+
+**Response status handling:**
+
+| Status | Recommended action |
+|--------|-------------------|
+| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
+| `PENDING` | Payment processing — await webhook for final status before fulfilling |
+| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
+
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L166) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L105) · [Rust](../../examples/givepayments/givepayments.rs#L221)
+
+### Refund
+
+Return funds to the customer for a completed payment.
+
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L185) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L121) · [Rust](../../examples/givepayments/givepayments.rs#L237)
+
+### Get Payment Status
+
+Retrieve current payment status from the connector.
+
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L210) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L143) · [Rust](../../examples/givepayments/givepayments.rs#L260)
+
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
+
+#### PaymentService.Authorize
+
+Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ✓ |
+| Bancontact | ⚠ |
+| Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | ⚠ |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ⚠ |
+| UPI Intent | ⚠ |
+| UPI QR | ⚠ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | ⚠ |
+| Generic | ⚠ |
+| WebPay | ⚠ |
+| Local | ⚠ |
+| iDEAL | ⚠ |
+| Sofort | ⚠ |
+| Trustly | ⚠ |
+| Giropay | ⚠ |
+| EPS | ⚠ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | ⚠ |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| BECS | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | ⚠ |
+| Reward | ⚠ |
+| Givex | ⚠ |
+| PaySafeCard | ⚠ |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
+
+**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+
+##### Card (Raw PAN)
+
+```python
+"payment_method": {
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
+}
+```
+
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L251) · [Kotlin](../../examples/givepayments/givepayments.kt#L161) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.Get
 
@@ -129,7 +294,18 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L119) · [Kotlin](../../examples/givepayments/givepayments.kt#L67) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L260) · [Kotlin](../../examples/givepayments/givepayments.kt#L173) · [Rust](../../examples/givepayments/givepayments.rs)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L287) · [Kotlin](../../examples/givepayments/givepayments.kt#L212) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.Refund
 
@@ -140,7 +316,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L155) · [Kotlin](../../examples/givepayments/givepayments.kt#L151) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L305) · [Kotlin](../../examples/givepayments/givepayments.kt#L293) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Refunds
 
@@ -153,7 +329,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L164) · [Kotlin](../../examples/givepayments/givepayments.kt#L161) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L314) · [Kotlin](../../examples/givepayments/givepayments.kt#L303) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Mandates
 
@@ -166,4 +342,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L146) · [Kotlin](../../examples/givepayments/givepayments.kt#L106) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L296) · [Kotlin](../../examples/givepayments/givepayments.kt#L248) · [Rust](../../examples/givepayments/givepayments.rs)

@@ -11,6 +11,8 @@ use grpc_api_types::payments::{
     recurring_payment_service_server::RecurringPaymentService, CustomerServiceCreateRequest,
     CustomerServiceCreateResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     EventServiceParseRequest, EventServiceParseResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -180,6 +182,13 @@ http_handler!(
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     create_server_authentication_token,
+    merchant_authentication_service
+);
+http_handler!(
+    client_authentication_token,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    create_client_authentication_token,
     merchant_authentication_service
 );
 http_handler!(

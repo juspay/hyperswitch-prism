@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use grpc_api_types::payments::{
     self as proto, payment_method::PaymentMethod as PmVariant, BrowserInformation, CardDetails,
-    Money, PaymentMethod,
+    CardDetailsWithNoCvc, Money, PaymentMethod,
 };
 use hyperswitch_masking::Secret;
 
@@ -47,6 +47,21 @@ pub(crate) fn card_payment_method() -> PaymentMethod {
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("737".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())),
+            ..Default::default()
+        })),
+    }
+}
+
+pub(crate) fn card_with_no_cvc_payment_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CardWithNoCvc(CardDetailsWithNoCvc {
+            card_number: Some(
+                cards::CardNumber::from_str("4111111111111111").expect("static test card"),
+            ),
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())),
+            card_network: Some(proto::CardNetwork::Visa as i32),
             ..Default::default()
         })),
     }
@@ -159,9 +174,13 @@ pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
         payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::EncryptedData(
-                    // Valid base64 encoding of a minimal Apple Pay token JSON stub.
-                    // Decodes to: {"version":"EC_v1","data":"probe","signature":"probe"}
-                    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                    // Valid base64 encoding of a structurally complete Apple Pay token stub.
+                    // `header` is mandatory in Apple's token format, so connectors that parse the
+                    // envelope (e.g. worldpayxml) reject a stub without it.
+                    // Decodes to: {"version":"EC_v1","data":"probe","signature":"probe",
+                    //              "header":{"ephemeralPublicKey":"probe","publicKeyHash":"probe",
+                    //                        "transactionId":"probe_txn_id"}}
+                    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
                         .to_string(),
                 )),
             }),
@@ -171,6 +190,21 @@ pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
                 r#type: "debit".to_string(),
             }),
             transaction_identifier: "probe_txn_id".to_string(),
+        })),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Card redirect
+// ---------------------------------------------------------------------------
+// Card-redirect methods carry no card data: the customer authenticates on the
+// issuer's or scheme's own hosted page, so the proto message is just the brand
+// discriminator.
+
+pub(crate) fn webpay_card_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CardRedirect(proto::CardRedirect {
+            r#type: proto::card_redirect::CardRedirectType::Webpay as i32,
         })),
     }
 }
@@ -953,6 +987,8 @@ pub(crate) fn apple_pay_method() -> PaymentMethod {
                         online_payment_cryptogram: Some(Secret::new("AAAAAA==".to_string())),
                         eci_indicator: Some("05".to_string()),
                     }),
+                    device_manufacturer_identifier: Some(Secret::new("040010030273".to_string())),
+                    merchant_token_identifier: Some("probe_merchant_token_id".to_string()),
                 })),
             }),
             payment_method: Some(proto::apple_wallet::PaymentMethod {

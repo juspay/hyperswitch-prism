@@ -228,7 +228,8 @@ impl ConnectorCommon for {{ConnectorName}} {
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Parse connector error response
         // Map to UCS error types

@@ -7,6 +7,7 @@ use crate::harness::{scenario_loader::connector_specs_root, scenario_types::Scen
 
 /// Override patch payload for one specific `(suite, scenario)` pair.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ScenarioOverridePatch {
     #[serde(default)]
     pub grpc_req: Option<Value>,
@@ -26,6 +27,7 @@ pub struct ScenarioOverridePatch {
 /// dependency responses (e.g. pulling cf_payment_id out of the authorize
 /// response at dep_res index 1).
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PreRequestHttpHook {
     /// When `Some`, fire an HTTP request to the URL before the scenario runs.
     /// When `None`, the hook degenerates to a pure sleep of `timeout_secs`
@@ -262,6 +264,41 @@ mod tests {
         }
         drop(env_lock);
         let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn an_invented_field_is_rejected_rather_than_ignored() {
+        // Before `deny_unknown_fields`, an unknown key parsed cleanly and every
+        // field came back None: the diff read as a declaration while the run
+        // ignored it. The silence is worse than an error because nothing points
+        // at it.
+        let err = serde_json::from_value::<ScenarioOverridePatch>(json!({
+            "unsuported": true,
+            "reason": "typo in the field name"
+        }))
+        .expect_err("an unknown field must not parse into silence");
+        assert!(
+            err.to_string().contains("unsuported"),
+            "the error should name the offending field, got: {err}"
+        );
+    }
+
+    #[test]
+    fn every_field_the_overrides_actually_use_still_parses() {
+        let patch: ScenarioOverridePatch = serde_json::from_value(json!({
+            "grpc_req": { "amount": { "minor_amount": 100 } },
+            "assert": { "status": { "one_of": ["CHARGED"] } },
+            "pre_request_http": {
+                "url": "https://example.test/simulate",
+                "method": "POST",
+                "body": "{}",
+                "timeout_secs": 5
+            }
+        }))
+        .expect("the three documented fields must keep parsing");
+        assert!(patch.grpc_req.is_some());
+        assert!(patch.assert_rules.is_some());
+        assert!(patch.pre_request_http.is_some());
     }
 
     #[test]

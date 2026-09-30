@@ -5,9 +5,9 @@
 // Checkout — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx checkout.ts checkout_autocapture
 
-import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -68,6 +68,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -195,6 +220,59 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
             "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
             "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         }
+    };
+}
+
+function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_tokenized_txn_001",
+        "amount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "captureMethod": CaptureMethod.AUTOMATIC,
+        "returnUrl": "https://example.com/return"
+    };
+}
+
+function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_tokenized_mandate_001",
+        "amount": {
+            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "customerAcceptance": {
+            "acceptanceType": AcceptanceType.ONLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            "onlineMandateDetails": {  // Details if the acceptance was an online mandate.
+                "ipAddress": "127.0.0.1",  // IP address from which the mandate was accepted.
+                "userAgent": "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        },
+        "setupMandateDetails": {
+            "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
+                "multiUse": {  // Multi use mandate with amount details (for recurring payments).
+                    "amount": 0,  // Use amount_money instead (will be removed in a future release).
+                    "currency": Currency.USD,  // Use amount_money.currency instead (will be removed in a future release).
+                    "amountMoney": {  // Amount in Money type.
+                        "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+                        "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
+                }
+            }
+        },
+        "setupFutureUsage": FutureUsage.OFF_SESSION
     };
 }
 
@@ -349,6 +427,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.ProxyAuthorize
 async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -403,6 +499,24 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
     return setupResponse;
 }
 
+// Flow: PaymentService.TokenAuthorize
+async function tokenAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+
+    return tokenResponse;
+}
+
+// Flow: PaymentService.TokenSetupRecurring
+async function tokenSetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenSetupRecurring(_buildTokenSetupRecurringRequest());
+
+    return tokenResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -415,7 +529,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

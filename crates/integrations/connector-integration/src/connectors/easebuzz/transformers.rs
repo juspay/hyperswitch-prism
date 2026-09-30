@@ -1,5 +1,8 @@
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::{
+    pii::EmailStrategy,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund},
     connector_types::{
@@ -131,7 +134,7 @@ pub struct EasebuzzInitiateLinkRequest {
     pub productinfo: String,
     pub firstname: String,
     pub phone: String,
-    pub email: String,
+    pub email: Secret<String, EmailStrategy>,
     pub surl: String,
     pub furl: String,
     pub hash: String,
@@ -250,7 +253,7 @@ impl
             productinfo,
             firstname,
             phone,
-            email,
+            email: Secret::new(email),
             surl: return_url.clone(),
             furl: return_url,
             hash,
@@ -289,6 +292,10 @@ impl ForeignTryFrom<(EasebuzzInitiateLinkResponse, Self, u16, bool)>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..data
             });
@@ -309,6 +316,23 @@ impl ForeignTryFrom<(EasebuzzInitiateLinkResponse, Self, u16, bool)>
             },
             ..data
         })
+    }
+}
+
+impl TryFrom<ResponseRouterData<EasebuzzInitiateLinkResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ResponseRouterData<EasebuzzInitiateLinkResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((item.response, item.router_data, item.http_code, false))
     }
 }
 
@@ -493,6 +517,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Pending,
@@ -538,6 +563,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 });
@@ -578,6 +607,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -775,6 +805,10 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                                 network_decline_code: None,
                                 network_advice_code: None,
                                 network_error_message: None,
+                                typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             }),
                             ..router_data
                         });
@@ -815,6 +849,7 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..router_data
                 })
@@ -846,6 +881,10 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })
@@ -1016,6 +1055,10 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             });
@@ -1042,6 +1085,7 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundResponse, Self>>
                 connector_refund_id,
                 refund_status: RefundStatus::Pending,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -1061,7 +1105,7 @@ pub struct EasebuzzSyncRequest {
     /// Transaction amount in major units (rupees as float string, e.g. "100.00")
     pub amount: String,
     /// Customer email (defaults to "mail@gmail.com" if empty)
-    pub email: String,
+    pub email: Secret<String, EmailStrategy>,
     /// Customer phone (defaults to "9999999999" if empty)
     pub phone: String,
     /// Merchant API key
@@ -1208,7 +1252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             txnid,
             amount: amount_str,
-            email,
+            email: Secret::new(email),
             phone,
             key: auth.api_key,
             hash,
@@ -1264,6 +1308,7 @@ impl TryFrom<ResponseRouterData<EasebuzzSyncResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..router_data
                 })
@@ -1285,6 +1330,10 @@ impl TryFrom<ResponseRouterData<EasebuzzSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })
@@ -1460,6 +1509,7 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1481,6 +1531,10 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })

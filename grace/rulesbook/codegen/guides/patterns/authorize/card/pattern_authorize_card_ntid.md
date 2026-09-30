@@ -393,7 +393,7 @@ match &router_data.request.mandate_reference {
                 //   3DS absent
                 //   MIT indicator set
             }
-            _ => Err(IntegrationError::not_implemented(...).into()),
+            _ => Err(IntegrationError::not_implemented(..., Default::default()).into()),
         }
     }
     _ => { /* handle other MandateReferenceId variants or fall through */ }
@@ -624,7 +624,7 @@ PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_data) => {
    **Solution**: Route the response through the same status mapper used for the parent Card pattern. Any hardcoded status violates `PATTERN_AUTHORING_SPEC.md` §11 item 1.
 
 6. **Problem**: Forgetting Discover's `original_authorized_amount` requirement (Cybersource only).
-   **Solution**: Branch on card-network code `"004"` and read `recurring_mandate_payment_data.get_original_payment_amount()` / `.get_original_payment_currency()` — see `cybersource/transformers.rs:4748-4762`. Other networks treat the field as optional.
+   **Solution**: Branch on card-network code `"004"` and read `recurring_mandate_payment_data.get_original_payment_amount()` / `.get_original_payment_currency()` — see `crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:5580-5590` (and `:5652-5662`). Other networks treat the field as optional.
 
 7. **Problem**: Using `card.get_expiry_year_4_digit().peek().clone()` twice and concatenating manually.
    **Solution**: Use `get_expiry_date_as_yymm()`, `get_expiry_date_as_mmyyyy(delim)`, or `get_expiry_date_as_yyyymm(delim)` from the impl block at `payment_method_data.rs:1483-1517`.

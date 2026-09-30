@@ -341,6 +341,73 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     pub fn get_optional_cardholder_name(&self) -> Option<Secret<String>> {
         self.card_holder_name.clone()
     }
+
+    /// Expiry month as an integer, validated to the 1..=12 range.
+    ///
+    /// Unlike [`Self::get_expiry_month_as_i8`] this rejects an out-of-range month
+    /// rather than only a non-numeric one, for connectors whose API types the field
+    /// as a bounded integer.
+    pub fn get_expiry_month_as_u8(&self) -> Result<u8, Error> {
+        self.card_exp_month
+            .peek()
+            .trim()
+            .parse::<u8>()
+            .ok()
+            .filter(|month| (1..=12).contains(month))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_data.card.card_exp_month",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected an integer between 1 and 12".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })
+    }
+
+    /// Expiry year expanded to four digits and parsed, validated to 2000..=2099.
+    ///
+    /// Combines [`Self::get_expiry_year_4_digit`] with the parse and range check that
+    /// connectors typing the field as a four-digit integer would otherwise repeat.
+    pub fn get_expiry_year_4_digit_as_u16(&self) -> Result<u16, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .trim()
+            .parse::<u16>()
+            .ok()
+            .filter(|year| (2000..=2099).contains(year))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_data.card.card_exp_year",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected a four-digit year between 2000 and 2099".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })
+    }
+
+    /// The card security code, rejecting an absent or blank value.
+    ///
+    /// `card_cvc` is not optional in the type, so a caller that omits it arrives here
+    /// as an empty string. Connectors whose API declares the field required should use
+    /// this rather than forwarding a blank CVC and taking a processor-side decline.
+    pub fn get_card_cvc_required(&self) -> Result<Secret<String>, Error> {
+        if self.card_cvc.peek().trim().is_empty() {
+            Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_data.card.card_cvc",
+                    context: IntegrationErrorContext::default(),
+                }
+            ))
+        } else {
+            Ok(self.card_cvc.clone())
+        }
+    }
 }
 
 impl Card<DefaultPCIHolder> {
@@ -493,6 +560,15 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct PaymentMethodToken {
     pub token: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_payment_method_type: Option<TokenPaymentMethod>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPaymentMethod {
+    ApplePay,
+    GooglePay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -771,6 +847,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -782,7 +863,14 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        bank_name: Option<common_enums::BankNames>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        iban: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
     Netbanking {
         issuer: common_enums::BankNames,
     },
@@ -816,6 +904,7 @@ pub enum WalletData {
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
+    GrabpayRedirect {},
     GooglePay(GooglePayWalletData),
     GooglePayRedirect(Box<GooglePayRedirectData>),
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
@@ -843,14 +932,15 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    PaymayaRedirect(PaymayaRedirection),
+    PayhereRedirect {},
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
     Skrill(SkrillData),
+    /// Neteller redirect wallet — consumer email is sourced from billing details.
+    Neteller(NetellerData),
 }
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SkrillData {}
 
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
@@ -900,6 +990,12 @@ impl WalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetellerData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -928,6 +1024,9 @@ pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct EaseBuzzRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymayaRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -1264,6 +1363,11 @@ pub struct ApplePayDecryptedData {
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+    /// Apple Pay merchant token identifier — present for merchant-provisioned
+    /// tokens (MPAN) only; stable per card x device x merchant
+    pub merchant_token_identifier: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1368,6 +1472,17 @@ impl ApplePayDecryptedData {
         let year = self.get_four_digit_expiry_year();
         let month = self.application_expiration_month.clone().expose();
         Secret::new(format!("{month}{separator}{}", year.peek()))
+    }
+
+    /// Get the device manufacturer identifier, erroring out when it is absent.
+    pub fn get_device_manufacturer_identifier(
+        &self,
+    ) -> error_stack::Result<Secret<String>, ValidationError> {
+        self.device_manufacturer_identifier.clone().ok_or_else(|| {
+            error_stack::report!(ValidationError::MissingRequiredField {
+                field_name: "device_manufacturer_identifier".to_string(),
+            })
+        })
     }
 }
 
@@ -1525,6 +1640,7 @@ pub enum CardRedirectData {
     Benefit {},
     MomoAtm {},
     CardRedirect {},
+    Webpay {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1535,6 +1651,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -1926,7 +2043,56 @@ pub struct CustomerInfoDetails {
 pub enum PaymentMethodDetails {
     /// Wallet-specific details (stored value, container, or hybrid wallets)
     Wallet(WalletDetails),
-    // Future expansions: For gift cards, prepaid cards, loyalty rewards, etc.
+    /// Bank account details returned by authenticator connectors (e.g. Plaid /auth/get)
+    BankAccount(BankAccountDetails),
+}
+
+/// ACH routing details (USA)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountAchDetails {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+}
+
+/// BACS routing details (UK)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountBacsDetails {
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
+}
+
+/// SEPA routing details (EU)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountSepaDetails {
+    pub iban: Secret<String>,
+    pub bic: Option<Secret<String>>,
+}
+
+/// Routing details for a bank account — mirrors proto `oneof account_details`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BankAccountRoutingDetails {
+    Ach(BankAccountAchDetails),
+    Bacs(BankAccountBacsDetails),
+    Sepa(BankAccountSepaDetails),
+}
+
+/// A single bank account with identity and routing details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccount {
+    pub account_name: Secret<String>,
+    pub account_id: Secret<String>,
+    pub bank_type: Option<common_enums::BankType>,
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
+    pub balance: Option<common_utils::types::Money>,
+    pub available_balance: Option<common_utils::types::Money>,
+    pub account_details: Option<BankAccountRoutingDetails>,
+    pub bank_name: Option<String>,
+}
+
+/// A collection of bank accounts returned by a bank-linking flow (matches proto `BankAccountDetails`)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountDetails {
+    pub accounts: Vec<BankAccount>,
 }
 
 /// Represents an item (payment method) stored within a wallet (for container/hybrid wallets)

@@ -115,7 +115,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
         }
@@ -459,7 +459,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
         }

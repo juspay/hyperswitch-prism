@@ -8,6 +8,7 @@
 package examples.juspay
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.RefundClient
@@ -31,6 +32,9 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
             .setJuspay(JuspayConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setJuspayEncryptionPublicKey(SecretString.newBuilder().setValue("YOUR_JUSPAY_ENCRYPTION_PUBLIC_KEY").build())
+                .setResponseDecryptionPrivateKey(SecretString.newBuilder().setValue("YOUR_RESPONSE_DECRYPTION_PRIVATE_KEY").build())
+                .setCardSyncKeyId(SecretString.newBuilder().setValue("YOUR_CARD_SYNC_KEY_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()

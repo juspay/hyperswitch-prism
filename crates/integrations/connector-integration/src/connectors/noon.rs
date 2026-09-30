@@ -296,13 +296,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let connector_order_id = webhook_object.order_id.to_string();
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     connector_order_id.clone(),
                 ),
             ),
             status,
-            connector_response_reference_id: Some(connector_order_id),
+            connector_response_reference_id: Some(connector_order_id.clone()),
+            connector_request_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -500,6 +502,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             None
         };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_code.to_string(),
@@ -510,6 +514,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

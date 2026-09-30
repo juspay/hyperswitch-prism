@@ -1,0 +1,10 @@
+{
+  "connector": "worldpayraft",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

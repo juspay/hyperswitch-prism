@@ -8,6 +8,7 @@
 package examples.tamara
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
@@ -21,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.TamaraConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "parse_event", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "parse_event", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -72,6 +73,17 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
+private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
+    return PaymentServiceVoidRequest.newBuilder().apply {
+        merchantVoidId = "probe_void_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    }.build()
+}
+
 // Flow: PaymentService.Capture
 fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -94,7 +106,7 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
@@ -153,6 +165,16 @@ fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Source verified: ${response.sourceVerified}")
 }
 
+// Flow: PaymentService.Void
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildVoidRequest("probe_connector_txn_001")
+    val response = client.void(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -165,6 +187,7 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "verifyRedirect" -> verifyRedirect(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, handleEvent, parseEvent, refund, refundGet, verifyRedirect")
+        "void" -> void(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, handleEvent, parseEvent, refund, refundGet, verifyRedirect, void")
     }
 }

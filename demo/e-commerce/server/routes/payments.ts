@@ -5,7 +5,7 @@ import { createClientAuthToken } from '../utils/auth.js';
 import { getPaymentStatusText } from '../utils/payment-status.js';
 
 const router = Router();
-const { Currency, CaptureMethod } = types;
+const { Currency, CaptureMethod, CountryAlpha2 } = types;
 
 interface AuthorizeRequestBody {
   token: string;
@@ -52,6 +52,7 @@ function buildAuthorizeRequest(
   serverToken?: string
 ): types.PaymentServiceTokenAuthorizeRequest {
   const currencyEnum = params.currency === 'EUR' ? Currency.EUR : Currency.USD;
+  const billingCountry = params.currency === 'EUR' ? CountryAlpha2.NL : CountryAlpha2.US;
 
   const request: types.PaymentServiceTokenAuthorizeRequest = {
     merchantTransactionId: params.merchantTransactionId,
@@ -62,7 +63,11 @@ function buildAuthorizeRequest(
     connectorToken: { value: params.token },
     captureMethod: CaptureMethod.AUTOMATIC,
     returnUrl: `${config.baseUrl}/checkout/return`,
-    address: {}
+    address: {
+      billingAddress: {
+        countryAlpha2Code: billingCountry
+      }
+    }
   };
 
   // For GlobalPay, add server access token in state

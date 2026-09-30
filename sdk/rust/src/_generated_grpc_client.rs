@@ -60,6 +60,8 @@ use grpc_api_types::payments::{
     PaymentMethodServiceGetResponse,
     PaymentMethodServiceRechargeRequest,
     PaymentMethodServiceRechargeResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -321,6 +323,12 @@ impl_grpc_client!(
         get,
         PaymentMethodServiceGetRequest,
         PaymentMethodServiceGetResponse
+    ),
+    (
+        refresh,
+        refresh,
+        PaymentMethodServiceRefreshRequest,
+        PaymentMethodServiceRefreshResponse
     ),
     (
         recharge,

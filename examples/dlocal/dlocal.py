@@ -10,7 +10,7 @@ import sys
 from payments import PaymentClient
 from payments import EventClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get", "void"]
 
@@ -50,12 +50,12 @@ def _build_get_request(connector_transaction_id: str):
     )
 
 def _build_parse_event_request():
-    return payment_pb2.EventServiceParseRequest(
+    return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".encode(),  # Body of the HTTP request.
+            body="{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".encode(),  # Body of the HTTP request.
         ),
     )
 

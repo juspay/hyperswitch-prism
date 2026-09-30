@@ -666,6 +666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 incremental_authorization_allowed: None,
                 status_code: 200,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -730,6 +731,7 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: 200,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -857,6 +859,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -885,6 +888,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -959,6 +963,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 mandate_reference: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1020,6 +1025,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
         let status = map_webhook_event_to_attempt_status(webhook_body.event)?;
 
         Ok(Self {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 webhook_body.order_id.clone(),
             )),
@@ -1028,7 +1034,8 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             error_message: None,
             error_reason: None,
             status_code: 200,
-            connector_response_reference_id: webhook_body.merchant_order_ext_ref,
+            connector_response_reference_id: webhook_body.merchant_order_ext_ref.clone(),
+            connector_request_reference_id: webhook_body.merchant_order_ext_ref,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,

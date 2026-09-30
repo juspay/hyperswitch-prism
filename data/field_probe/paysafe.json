@@ -145,8 +145,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "error",
@@ -157,8 +157,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "error",
@@ -193,8 +193,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "error",
@@ -281,8 +281,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "error",
@@ -325,8 +325,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "error",
@@ -389,12 +389,12 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "error",
@@ -497,6 +497,10 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
       "WeChatPayQr": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
+      },
+      "Webpay": {
         "status": "error",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
@@ -718,6 +722,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for paysafe"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -809,12 +818,6 @@
         "error": "This feature is not implemented: setup_mandate flow for paysafe"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url. Paysafe payment handles need a return_url to build the returnLinks the shopper is sent back to. — Missing required field: return_url. Paysafe payment handles need a return_url to build the returnLinks the shopper is sent back to."
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
@@ -822,8 +825,25 @@
     },
     "void": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: amount. Paysafe refunds require an explicit amount; partial/full refund amount cannot be defaulted. — Missing required field: amount. Paysafe refunds require an explicit amount; partial/full refund amount cannot be defaulted."
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/payments/probe_connector_txn_001/voidauths",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"probe_void_001\",\"amount\":1000}"
+        }
       }
     }
   }

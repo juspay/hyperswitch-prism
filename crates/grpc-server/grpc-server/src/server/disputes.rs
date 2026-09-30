@@ -57,7 +57,7 @@ impl DisputeOperationsInternal for Disputes {
         request_data_constructor: DisputeDefendData::foreign_try_from,
         common_flow_data_constructor: DisputeFlowData::foreign_try_from,
         generate_response_fn: generate_defend_dispute_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -116,7 +116,9 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        org_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -143,10 +145,13 @@ impl DisputeService for Disputes {
                     let dispute_data = SubmitEvidenceData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
@@ -171,6 +176,7 @@ impl DisputeService for Disputes {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::SubmitEvidence,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &reference_id,
@@ -179,8 +185,13 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
+                        org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_typed_connector_data: config.common.return_typed_connector_data,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -351,7 +362,9 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        org_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -378,10 +391,13 @@ impl DisputeService for Disputes {
                     let dispute_data = AcceptDisputeData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
@@ -407,6 +423,7 @@ impl DisputeService for Disputes {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::AcceptDispute,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &reference_id,
@@ -415,8 +432,13 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
+                        org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_typed_connector_data: config.common.return_typed_connector_data,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(

@@ -230,6 +230,9 @@ fn build_gpay_decrypted_tokenization_data(
             .get_card_no(),
     );
 
+    // Paysafe models the decrypted token as two distinct schemas: `tokenWith3DS`
+    // (CRYPTOGRAM_3DS + cryptogram + eciIndicator) and `panOnlyToken` (PAN_ONLY, no
+    // cryptogram field at all). Selecting on cryptogram presence maps onto them exactly.
     let auth_method = if decrypted_data.cryptogram.is_some() {
         PaysafeGooglePayAuthMethod::Cryptogram3Ds
     } else {
@@ -242,6 +245,11 @@ fn build_gpay_decrypted_tokenization_data(
         expiration_month,
         expiration_year,
         cryptogram: decrypted_data.cryptogram.clone(),
+        // Only carried by `tokenWith3DS`; a PAN_ONLY token has no ECI to send.
+        eci_indicator: decrypted_data
+            .cryptogram
+            .as_ref()
+            .and_then(|_| decrypted_data.eci_indicator.clone()),
     };
 
     // TODO(https://github.com/juspay/hyperswitch/issues/11684): HS parses
@@ -251,7 +259,7 @@ fn build_gpay_decrypted_tokenization_data(
     // message_id (losing Paysafe's replay-detection guarantee) and a far-future
     // placeholder for message_expiration.
     let decrypted_token = PaysafeGooglePayDecryptedToken {
-        message_id: uuid::Uuid::new_v4().to_string(),
+        message_id: common_utils::fp_utils::generate_uuid_v4(),
         message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS.to_string(),
         payment_method_details,
     };
@@ -268,6 +276,57 @@ pub struct PaysafeMeta {
 }
 
 // Helper Functions
+
+/// Resolve `skip3ds` for a payment handle minted on the token (no-3DS) leg.
+///
+/// A Paysafe account provisioned `THREE_D_S_TWO` rejects any CARD payment handle that
+/// carries neither a `threeDs` block nor wallet-supplied authentication, with
+/// `5068 "threeDs may not be null or empty"`. This leg never sends `threeDs` — a card
+/// electing 3DS mints its handle in the PreAuthenticate flow instead — so the mandate has
+/// to be satisfied with `skip3ds`.
+///
+/// Wallets can never carry `threeDs`: Paysafe then applies card validation and demands
+/// `card.holderName`, but a `card` object may not coexist with `googlePay`/`applePay`
+/// ("exactly one payment method is required"). A wallet payment that carries no cryptogram
+/// therefore has no way to authenticate, so requesting `three_ds` on one cannot be honoured
+/// — that is rejected here rather than silently downgraded to `skip3ds`, which would skip
+/// SCA the merchant explicitly asked for.
+///
+/// Returns `None` (field omitted) wherever the current wire shape already succeeds:
+/// Apple Pay and Google Pay tokens that carry a cryptogram are authenticated by the wallet,
+/// and the redirect APMs are not subject to the card 3DS mandate.
+fn resolve_paysafe_skip_3ds<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    is_three_ds: bool,
+) -> Result<Option<bool>, error_stack::Report<IntegrationError>> {
+    match payment_method_data {
+        // This leg is the no-3DS card path by construction: a card electing 3DS mints its
+        // handle in PreAuthenticate, which sends a `threeDs` block instead.
+        PaymentMethodData::Card(_) => Ok(Some(true)),
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+            match &google_pay_data.tokenization_data {
+                // Decrypted upstream: we can see whether the wallet authenticated.
+                GpayTokenizationData::Decrypted(decrypted) => {
+                    if decrypted.cryptogram.is_some() {
+                        // The wallet cryptogram is the authentication; Paysafe accepts it
+                        // in place of 3DS even on a THREE_D_S_TWO account.
+                        Ok(None)
+                    } else if is_three_ds {
+                        Ok(None)
+                    } else {
+                        Ok(Some(true))
+                    }
+                }
+                // Paysafe decrypts gateway-side, so the auth method is not visible here.
+                // Asserting `skip3ds` would claim 3DS was skipped for a token that may in
+                // fact carry a cryptogram, so the body is left as-is and Paysafe's own
+                // error surfaces on a 3DS-mandatory account.
+                GpayTokenizationData::Encrypted(_) => Ok(None),
+            }
+        }
+        _ => Ok(None),
+    }
+}
 
 fn create_paysafe_billing_details(
     resource_common_data: &PaymentFlowData,
@@ -297,6 +356,53 @@ fn create_paysafe_billing_details(
     }
 }
 
+/// Google Pay `paymentMethodData.info.billingAddress`.
+///
+/// With a `threeDs` block present Paysafe applies card validation, and this is the only
+/// place a wallet payment can carry the holder name (error 5068 otherwise) — a top-level
+/// `card` object may not coexist with `googlePay`. Every field is optional on the wire,
+/// so the only failure is "the merchant sent no billing address at all"; callers use
+/// `.ok()` to omit the block rather than serialise an empty object.
+impl TryFrom<&PaymentFlowData> for PaysafeGooglePayBillingAddress {
+    type Error = IntegrationError;
+
+    fn try_from(resource_common_data: &PaymentFlowData) -> Result<Self, Self::Error> {
+        // Paysafe rejects optional strings that are present but empty (error 5068), so
+        // blank values must be omitted rather than sent as "".
+        let non_empty =
+            |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
+
+        let name = non_empty(resource_common_data.get_optional_billing_full_name());
+        let address1 = non_empty(resource_common_data.get_optional_billing_line1());
+        let locality = non_empty(resource_common_data.get_optional_billing_city());
+        let administrative_area = non_empty(resource_common_data.get_optional_billing_state());
+        let postal_code = non_empty(resource_common_data.get_optional_billing_zip());
+        let country_code = resource_common_data.get_optional_billing_country();
+
+        if name.is_none()
+            && address1.is_none()
+            && locality.is_none()
+            && administrative_area.is_none()
+            && postal_code.is_none()
+            && country_code.is_none()
+        {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "billing_address",
+                context: Default::default(),
+            });
+        }
+
+        Ok(Self {
+            name,
+            address1,
+            locality,
+            administrative_area,
+            postal_code,
+            country_code,
+        })
+    }
+}
+
 /// Whether this payment method is a Paysafe redirect APM that must create a payment
 /// handle (and surface a customer redirect) in the Authorize flow rather than
 /// settling a pre-created handle token. Shared by the Authorize URL selector and the
@@ -305,7 +411,7 @@ pub(crate) fn is_paysafe_redirect_apm<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
 ) -> bool {
     match payment_method_data {
-        PaymentMethodData::Wallet(WalletData::Skrill(_))
+        PaymentMethodData::Wallet(WalletData::Skrill(_) | WalletData::Neteller(_))
         | PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => true,
         PaymentMethodData::GiftCard(gift_card_data) => {
             matches!(gift_card_data.as_ref(), GiftCardData::PaySafeCard {})
@@ -409,7 +515,7 @@ where
             config: "account_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Paysafe redirect APMs need the account_id map in the connector config (skrill/interac slots) to resolve the processing account."
+                    "Paysafe redirect APMs need the account_id map in the connector config (skrill/neteller/interac slots) to resolve the processing account."
                         .to_string(),
                 ),
                 ..Default::default()
@@ -448,7 +554,7 @@ where
         // Cards never create a payment handle in the Authorize leg, so no card
         // account-kind (3DS vs no-3DS) is ever chosen here. This builder's sole
         // caller is gated by `is_paysafe_handle_creation_leg`, whose
-        // `is_paysafe_redirect_apm` check admits only Skrill / Interac / paysafecard.
+        // `is_paysafe_redirect_apm` check admits only Skrill / Neteller / Interac / paysafecard.
         // A card + 3DS mints its `threeDs` handle in the PreAuthenticate flow; a
         // no-3DS card mints via the PaymentMethodToken flow and settles through
         // `PaysafePaymentsRequest`, which resolves the account by `is_three_ds()`.
@@ -491,6 +597,33 @@ where
                 },
                 PaysafePaymentType::Skrill,
                 Some(skrill_account_id),
+                None,
+                None,
+                None,
+            )
+        }
+        PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+            let consumer_id = router_data
+                .resource_common_data
+                .get_optional_billing_email()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Neteller payment handles require the billing email as the Neteller consumerId."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+            let neteller_account_id =
+                account_id.get_account_id(PaysafeAccountKind::Neteller, currency)?;
+            (
+                PaysafePaymentMethod::Neteller {
+                    neteller: PaysafeNeteller { consumer_id },
+                },
+                PaysafePaymentType::Neteller,
+                Some(neteller_account_id),
                 None,
                 None,
                 None,
@@ -584,7 +717,7 @@ where
         }
         _ => {
             return Err(IntegrationError::NotImplemented(
-                "Only card + 3DS, Skrill, Interac e-Transfer, and paysafecard create a payment handle in the Paysafe Authorize flow".to_string(),
+                "Only card + 3DS, Skrill, Neteller, Interac e-Transfer, and paysafecard create a payment handle in the Paysafe Authorize flow".to_string(),
                 Default::default(),
             )
             .into())
@@ -640,6 +773,9 @@ where
             three_ds,
             profile,
             billing_details,
+            // Redirect APMs (Skrill / Interac / paysafecard) are not subject to the card
+            // 3DS mandate; keep their verified wire shape untouched.
+            skip_3ds: None,
         })
     }
 }
@@ -714,34 +850,72 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let req_card = match &router_data.request.payment_method_data {
-            Some(PaymentMethodData::Card(req_card)) => req_card,
+        // Card and Google Pay both authenticate through this leg. A Google Pay token with no
+        // cryptogram is non-SCA on its own, and Paysafe's guidance is to run it through a 3DS
+        // challenge (`allowedAuthMethods: ["PAN_ONLY"]`), which is what this builds.
+        let payment_method = match &router_data.request.payment_method_data {
+            Some(PaymentMethodData::Card(req_card)) => {
+                let card = PaysafeCard {
+                    card_num: req_card.card_number.clone(),
+                    card_expiry: PaysafeCardExpiry {
+                        month: req_card.card_exp_month.clone(),
+                        year: req_card.get_expiry_year_4_digit(),
+                    },
+                    // Paysafe rejects an empty-string cvv; omit it instead.
+                    cvv: if req_card.card_cvc.peek().is_empty() {
+                        None
+                    } else {
+                        Some(req_card.card_cvc.clone())
+                    },
+                    holder_name: req_card.card_holder_name.clone().or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    }),
+                };
+                PaysafePaymentMethod::Card { card }
+            }
+            Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
+                let tokenization_data = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted) => {
+                        PaysafeGooglePayTokenizationData::Encrypted {
+                            token_type: encrypted.token_type.clone(),
+                            token: Secret::new(encrypted.token.clone()),
+                        }
+                    }
+                    GpayTokenizationData::Decrypted(decrypted_data) => {
+                        build_gpay_decrypted_tokenization_data(decrypted_data)?
+                    }
+                };
+                PaysafePaymentMethod::GooglePay {
+                    google_pay: Box::new(PaysafeGooglePay {
+                        google_pay_payment_token: PaysafeGooglePayPaymentToken {
+                            api_version: 2,
+                            api_version_minor: 0,
+                            payment_method_data: PaysafeGooglePayPaymentMethodData {
+                                pm_type: GOOGLE_PAY_PM_TYPE.to_string(),
+                                description: google_pay_data.description.clone(),
+                                info: PaysafeGooglePayCardInfo {
+                                    card_network: google_pay_data.info.card_network.clone(),
+                                    card_details: google_pay_data.info.card_details.clone(),
+                                    billing_address: PaysafeGooglePayBillingAddress::try_from(
+                                        &router_data.resource_common_data,
+                                    )
+                                    .ok(),
+                                },
+                                tokenization_data,
+                            },
+                        },
+                    }),
+                }
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Paysafe PreAuthenticate only supports card + 3DS".to_string(),
+                    "Paysafe PreAuthenticate supports card + 3DS and Google Pay + 3DS".to_string(),
                     Default::default(),
                 )
                 .into())
             }
-        };
-
-        let card = PaysafeCard {
-            card_num: req_card.card_number.clone(),
-            card_expiry: PaysafeCardExpiry {
-                month: req_card.card_exp_month.clone(),
-                year: req_card.get_expiry_year_4_digit(),
-            },
-            // Paysafe rejects an empty-string cvv; omit it instead.
-            cvv: if req_card.card_cvc.peek().is_empty() {
-                None
-            } else {
-                Some(req_card.card_cvc.clone())
-            },
-            holder_name: req_card.card_holder_name.clone().or_else(|| {
-                router_data
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-            }),
         };
         // Paysafe rejects a `threeDs` body on a non-3DS account (error 5040); use 3DS account.
         let account_id =
@@ -792,7 +966,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             amount,
             settle_with_auth,
-            payment_method: PaysafePaymentMethod::Card { card },
+            payment_method,
             currency_code: currency,
             payment_type: PaysafePaymentType::Card,
             transaction_type: TransactionType::Payment,
@@ -801,6 +975,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: Some(three_ds),
             profile: None,
             billing_details,
+            // This leg exists to run 3DS, so the mandate is satisfied by `threeDs` itself.
+            skip_3ds: None,
         })
     }
 }
@@ -1178,6 +1354,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             info: PaysafeGooglePayCardInfo {
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
+                                billing_address: PaysafeGooglePayBillingAddress::try_from(
+                                    &router_data.resource_common_data,
+                                )
+                                .ok(),
                             },
                             tokenization_data,
                         },
@@ -1186,9 +1366,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let account_id = account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)?;
                     (
                         PaysafePaymentMethod::GooglePay {
-                            google_pay: PaysafeGooglePay {
+                            google_pay: Box::new(PaysafeGooglePay {
                                 google_pay_payment_token,
-                            },
+                            }),
                         },
                         PaysafePaymentType::Card,
                         Some(account_id),
@@ -1403,6 +1583,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(skrill_account_id),
                     )
                 }
+                PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+                    let consumer_id = router_data
+                        .resource_common_data
+                        .get_optional_billing_email()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "email",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Neteller payment handles require the billing email as the Neteller consumerId."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+                    let neteller_account_id =
+                        account_id.get_account_id(PaysafeAccountKind::Neteller, currency)?;
+                    (
+                        PaysafePaymentMethod::Neteller {
+                            neteller: PaysafeNeteller { consumer_id },
+                        },
+                        PaysafePaymentType::Neteller,
+                        Some(neteller_account_id),
+                    )
+                }
                 PaymentMethodData::BankRedirect(BankRedirectData::Interac { email, .. }) => {
                     // Interac e-Transfer consumer id: prefer the variant email, else billing
                     // email. Mandatory.
@@ -1458,7 +1662,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 },
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, Neteller, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }
@@ -1474,6 +1678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             PaysafePaymentType::Skrill => None,
+            PaysafePaymentType::Neteller => None,
             PaysafePaymentType::InteracEtransfer => None,
             PaysafePaymentType::Paysafecard => None,
         };
@@ -1533,6 +1738,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: None, // No 3DS for PaymentMethodToken
             profile: None,
             billing_details,
+            // No `threeDs` on this leg, so a THREE_D_S_TWO account needs `skip3ds` for
+            // anything the wallet has not already authenticated. See
+            // `resolve_paysafe_skip_3ds`.
+            skip_3ds: resolve_paysafe_skip_3ds(
+                &router_data.request.payment_method_data,
+                router_data.resource_common_data.is_three_ds(),
+            )?,
         })))
     }
 }
@@ -1561,6 +1773,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafePaymentMethodT
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.payment_handle_token.peek().to_string(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..router_data
         })
@@ -1881,6 +2095,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }
             }
             // Redirect APM (v1/paymenthandles): Skrill, Interac e-Transfer, paysafecard.
@@ -1925,6 +2140,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }
             }
         };
@@ -2385,6 +2601,7 @@ impl<
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2461,6 +2678,7 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2523,6 +2741,7 @@ impl TryFrom<ResponseRouterData<PaysafeCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2597,6 +2816,7 @@ impl TryFrom<ResponseRouterData<PaysafeVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2643,6 +2863,7 @@ impl TryFrom<ResponseRouterData<PaysafeRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2662,6 +2883,7 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

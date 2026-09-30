@@ -152,8 +152,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -164,8 +164,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -200,8 +200,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -288,8 +288,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -332,8 +332,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -368,12 +368,12 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -476,6 +476,10 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
+      "Webpay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
@@ -664,7 +668,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
         }
       }
     },
@@ -684,6 +688,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for xendit"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -753,12 +762,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for xendit"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for xendit"
       }
     },
     "verify_redirect": {

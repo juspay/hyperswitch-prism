@@ -69,6 +69,12 @@
             "card_exp_year": "2030",
             "card_cvc": "123"
           }
+        },
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763-mit\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY MIT DESC"
         }
       }
     },
@@ -107,6 +113,14 @@
     "no3ds_auto_capture_credit_card": {
       "pre_request_http": {
         "timeout_secs": 31
+      },
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY DESCRIPTOR CHECK 1234567"
+        }
       }
     },
     "no3ds_auto_capture_debit_card": {

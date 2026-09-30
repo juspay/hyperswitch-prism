@@ -177,6 +177,7 @@ mod uniffi_bindings_inner {
                         error_code: "DECODE_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec();
@@ -204,6 +205,7 @@ mod uniffi_bindings_inner {
                         error_code: e.error_code,
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -430,6 +432,7 @@ mod uniffi_bindings_inner {
                             error_code: "DECODE_FAILED".to_string(),
                             http_status_code: None,
                             error_info: None,
+                            ..Default::default()
                         })),
                     }
                     .encode_to_vec();
@@ -457,6 +460,7 @@ mod uniffi_bindings_inner {
                         error_code: e.error_code,
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -473,6 +477,7 @@ mod uniffi_bindings_inner {
                         error_code: "UNSUPPORTED_CONNECTOR_VARIANT".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -489,6 +494,7 @@ mod uniffi_bindings_inner {
                         error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -506,6 +512,7 @@ mod uniffi_bindings_inner {
                         error_code: "CONFIG_LOAD_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()

@@ -142,6 +142,8 @@ pub use self::trustpayments::Trustpayments;
 
 pub mod globalpay;
 pub use self::globalpay::Globalpay;
+pub mod globalpayments_realex;
+pub use self::globalpayments_realex::GlobalpaymentsRealex;
 
 pub mod billwerk;
 pub use self::billwerk::Billwerk;
@@ -260,6 +262,9 @@ pub mod juspay_upi_stack;
 pub mod axisbank;
 pub use self::axisbank::Axisbank;
 
+pub mod maya;
+pub use self::maya::Maya;
+
 pub mod tsys_transit;
 pub use self::tsys_transit::TsysTransit;
 pub mod twoc_twop_paco;
@@ -286,8 +291,52 @@ pub use self::flywire::Flywire;
 pub mod affirm;
 pub use self::affirm::Affirm;
 
-pub mod kount;
-pub use self::kount::Kount;
+pub mod moneris;
+pub use self::moneris::Moneris;
+
+pub mod etisalat;
+pub use self::etisalat::Etisalat;
 
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
+
+pub mod grabpay;
+pub use self::grabpay::Grabpay;
+pub mod tesouro;
+pub use self::tesouro::Tesouro;
+
+pub mod boost;
+pub use self::boost::Boost;
+
+pub mod citigate;
+pub use self::citigate::Citigate;
+pub mod ilixium;
+pub use self::ilixium::Ilixium;
+
+pub mod worldpayraft;
+pub use self::worldpayraft::Worldpayraft;
+
+pub mod jpmorganorbital;
+pub use self::jpmorganorbital::JpmorganOrbital;
+pub mod saferpay;
+pub use self::saferpay::Saferpay;
+pub mod travelhub;
+pub use self::travelhub::Travelhub;
+pub mod paynearme;
+pub use self::paynearme::Paynearme;
+
+pub mod d24;
+pub use self::d24::D24;
+pub mod paydotcom;
+pub use self::paydotcom::Paydotcom;
+pub mod elavon_pg;
+pub use self::elavon_pg::ElavonPg;
+
+pub mod payhere;
+pub use self::payhere::Payhere;
+
+pub mod globalpayments_heartland;
+pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
+
+pub mod merchante;
+pub use self::merchante::Merchante;

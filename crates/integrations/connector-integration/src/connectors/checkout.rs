@@ -2,13 +2,23 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    consts, crypto, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    types::StringMinorUnitForConnector,
+};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, DisputeWebhookReference,
+        EventContext, EventType, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -16,6 +26,7 @@ use domain_types::{
     router_request_types::SyncRequestType,
     router_response_types::Response,
     types::Connectors,
+    utils::convert_amount_for_webhook,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
@@ -25,8 +36,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    CheckoutErrorResponse, PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest,
-    PaymentVoidResponse, PaymentsRequest, PaymentsRequest as SetupMandateRequest,
+    is_chargeback_event, is_refund_event, CheckoutDisputeWebhookBody, CheckoutErrorResponse,
+    CheckoutTokenRequest, CheckoutTokenResponse, CheckoutWebhookBody, CheckoutWebhookEventTypeBody,
+    PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse,
+    PaymentsRequest, PaymentsRequest as SetupMandateRequest,
     PaymentsRequest as RepeatPaymentRequest, PaymentsResponse, PaymentsResponse as PSyncResponse,
     PaymentsResponse as SetupMandateResponse, PaymentsResponse as RepeatPaymentResponse,
     RSyncResponse, RefundRequest, RefundResponse,
@@ -95,6 +108,270 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Checkout<T>
 {
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"evt_dj6tpkmbhew3bnl4n7sxzrfmsi","type":"payment_captured","version":"1.0.6","created_on":"2020-08-17T14:12:59Z","data":{"id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_id":"act_y3oqhf46pyzuxjbcn2giaqnb44","amount":999,"currency":"USD","approved":true,"status":"Captured","auth_code":"956084","response_code":"10000","response_summary":"Approved","reference":"ORD-5023-4E89","payment_id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_type":"Capture","processed_on":"2020-08-17T14:12:59Z","processing":{"acquirer_transaction_id":"866461431360025","acquirer_reference_number":"00260971375618446482438"}},"_links":{"self":{"href":"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi"}}}"#
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secrets: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<domain_types::errors::WebhookError>> {
+        let signature = request
+            .headers
+            .get("cko-signature")
+            .ok_or_else(|| {
+                error_stack::report!(domain_types::errors::WebhookError::WebhookSignatureNotFound)
+            })
+            .attach_printable("Missing cko-signature header in Checkout webhook")?;
+
+        hex::decode(signature)
+            .change_context(domain_types::errors::WebhookError::WebhookSignatureNotFound)
+            .attach_printable("Failed to hex-decode cko-signature header")
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secrets: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<domain_types::errors::WebhookError>> {
+        Ok(request.body.clone())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<domain_types::errors::WebhookError>> {
+        let connector_webhook_secrets = connector_webhook_secret.ok_or_else(|| {
+            error_stack::report!(
+                domain_types::errors::WebhookError::WebhookVerificationSecretNotFound
+            )
+        })?;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        use common_utils::crypto::VerifySignature;
+        crypto::HmacSha256
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<domain_types::errors::WebhookError>> {
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
+
+        let body: CheckoutWebhookEventTypeBody = request
+            .body
+            .parse_struct("CheckoutWebhookEventTypeBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(EventType::from(body.transaction_type))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Option<WebhookResourceReference>,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
+        if request.body.is_empty() {
+            return Ok(None);
+        }
+
+        // Peek at only the event type first to branch on the body shape.
+        let type_body: CheckoutWebhookEventTypeBody = request
+            .body
+            .parse_struct("CheckoutWebhookEventTypeBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        if is_chargeback_event(&type_body.transaction_type) {
+            let body: CheckoutDisputeWebhookBody = request
+                .body
+                .parse_struct("CheckoutDisputeWebhookBody")
+                .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+            return Ok(Some(WebhookResourceReference::Dispute(
+                DisputeWebhookReference {
+                    connector_dispute_id: Some(body.data.id),
+                    connector_transaction_id: body.data.payment_id,
+                },
+            )));
+        }
+
+        let body: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        if is_refund_event(&type_body.transaction_type) {
+            return Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    // Checkout uses action_id as the refund identifier
+                    connector_refund_id: body.data.action_id,
+                    // The `reference` field echoes the merchant-assigned refund ID
+                    merchant_refund_id: body.data.reference,
+                    connector_transaction_id: body.data.payment_id,
+                    merchant_transaction_id: None,
+                },
+            )));
+        }
+
+        // Payment event — the canonical payment ID is `payment_id`; `id` may be an action ID
+        let connector_transaction_id = body.data.payment_id.or(Some(body.data.id));
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                connector_transaction_id,
+                merchant_transaction_id: body.data.reference,
+            },
+        )))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>>
+    {
+        let body: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let status = common_enums::AttemptStatus::try_from(body.transaction_type)
+            .change_context(domain_types::errors::WebhookError::WebhookEventTypeNotFound)
+            .attach_printable(
+                "Checkout payment webhook: unrecognized event type for payment status mapping",
+            )?;
+
+        let resource_id = Some(ResponseId::ConnectorTransactionId(
+            body.data.payment_id.unwrap_or(body.data.id),
+        ));
+
+        let (error_code, error_message, error_reason) = if status
+            == common_enums::AttemptStatus::Failure
+            || status == common_enums::AttemptStatus::AuthenticationFailed
+        {
+            (
+                body.data.response_code,
+                body.data.response_summary.clone(),
+                body.data.response_summary,
+            )
+        } else {
+            (None, None, None)
+        };
+
+        Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
+            resource_id,
+            status,
+            connector_response_reference_id: body.data.reference,
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code,
+            error_message,
+            error_reason,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>>
+    {
+        let body: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let status = common_enums::RefundStatus::try_from(body.transaction_type)
+            .change_context(domain_types::errors::WebhookError::WebhookEventTypeNotFound)
+            .attach_printable(
+                "Checkout refund webhook: unrecognized event type for refund status mapping",
+            )?;
+
+        Ok(RefundWebhookDetailsResponse {
+            // action_id is the refund's PSP identifier
+            connector_refund_id: body.data.action_id,
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: body.data.reference,
+            error_code: body.data.response_code,
+            error_message: body.data.response_summary,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<
+        DisputeWebhookDetailsResponse,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
+        let body: CheckoutDisputeWebhookBody = request
+            .body
+            .parse_struct("CheckoutDisputeWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let (status, stage) =
+            <(common_enums::DisputeStatus, common_enums::DisputeStage)>::try_from(
+                body.transaction_type,
+            )?;
+
+        let currency = body.data.currency.ok_or_else(|| {
+            error_stack::report!(
+                domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                    field: "data.currency",
+                }
+            )
+        })?;
+
+        let amount = convert_amount_for_webhook(
+            &StringMinorUnitForConnector,
+            body.data.amount.unwrap_or_default(),
+            currency,
+        )?;
+
+        Ok(DisputeWebhookDetailsResponse {
+            amount,
+            currency,
+            dispute_id: body.data.id,
+            status,
+            stage,
+            connector_response_reference_id: body.data.payment_id,
+            dispute_message: None,
+            connector_reason_code: body.data.reason_code,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Checkout<T>
@@ -110,6 +387,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Checkout<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentTokenV2<T> for Checkout<T>
 {
 }
 macros::create_all_prerequisites!(
@@ -161,6 +442,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: PaymentMethodToken,
+            request_body: CheckoutTokenRequest,
+            response_body: CheckoutTokenResponse,
+            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         )
     ],
     amount_converters: [],
@@ -171,11 +458,36 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
+                self.common_get_content_type().to_string().into(),
             )];
             let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
+        }
+
+        /// Headers for Checkout's `POST /tokens`.
+        ///
+        /// Tokenization is the one Checkout endpoint that is authenticated with the account's
+        /// **public** key, which — counter-intuitively — lives in `api_key`, while the secret
+        /// key every other endpoint uses lives in `api_secret`. See the note on
+        /// [`transformers::CheckoutAuthType`]. Verified against the sandbox: `Bearer sk_...`
+        /// on `/tokens` returns 403, and `Bearer pk_...` on `/payments` returns 401. This is
+        /// why the flow cannot reuse [`Self::build_headers`].
+        pub fn build_tokenization_headers<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = transformers::CheckoutAuthType::try_from(&req.connector_config)?;
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", auth.api_key.peek()).into_masked(),
+                ),
+            ])
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -214,6 +526,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 context: Default::default(),
             },
         )?;
+        // `api_secret` holds the **secret** key (`sk_...`) — used by every endpoint except
+        // `POST /tokens`, which takes the public key from `api_key`. See the note on
+        // [`transformers::CheckoutAuthType`]; the naming is inherited, not descriptive.
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_secret.peek()).into_masked(),
@@ -230,7 +545,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: CheckoutErrorResponse = if res.response.is_empty() {
+        if res.response.is_empty() {
             let (error_codes, error_type) = if res.status_code == 401 {
                 (
                     Some(vec!["Invalid api key".to_string()]),
@@ -239,48 +554,79 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             } else {
                 (None, None)
             };
-            CheckoutErrorResponse {
+            let response = CheckoutErrorResponse {
                 request_id: None,
-                error_codes,
-                error_type,
+                error_codes: error_codes.clone(),
+                error_type: error_type.clone(),
+            };
+            with_error_response_body!(event_builder, response);
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: error_codes.map(|errors| errors.join(" & ")).or(error_type),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
+
+        let response: Result<
+            CheckoutErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                with_error_response_body!(event_builder, response);
+
+                let errors_list = response.error_codes.clone().unwrap_or_default();
+                let option_error_code_message = get_error_code_error_message_based_on_priority(
+                    self.clone(),
+                    errors_list
+                        .into_iter()
+                        .map(|errors| errors.into())
+                        .collect(),
+                );
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: option_error_code_message
+                        .clone()
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: option_error_code_message
+                        .map(|error_code_message| error_code_message.error_message)
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response
+                        .error_codes
+                        .map(|errors| errors.join(" & "))
+                        .or(response.error_type),
+                    attempt_status: None,
+                    connector_transaction_id: response.request_id,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
             }
-        } else {
-            res.response.parse_struct("ErrorResponse").change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "checkout: response body did not match the expected format; confirm API version and connector documentation."),
-            )?
-        };
-
-        with_error_response_body!(event_builder, response);
-
-        let errors_list = response.error_codes.clone().unwrap_or_default();
-        let option_error_code_message = get_error_code_error_message_based_on_priority(
-            self.clone(),
-            errors_list
-                .into_iter()
-                .map(|errors| errors.into())
-                .collect(),
-        );
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response
-                .error_codes
-                .map(|errors| errors.join(" & "))
-                .or(response.error_type),
-            attempt_status: None,
-            connector_transaction_id: response.request_id,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-        })
+            Err(error_msg) => {
+                tracing::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "checkout")
+            }
+        }
     }
 }
 
@@ -343,7 +689,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Checkout,
-    curl_response: CheckoutPSyncResponse,
+    curl_response: PSyncResponse,
     flow_name: PSync,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsSyncData,
@@ -530,6 +876,37 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Connector-decryption head: hand Checkout the raw Apple Pay / Google Pay payload and get a
+// single-use `tok_...` back. The Authorize / SetupMandate tail then spends that token as
+// `source.type = "token"` (see the `WalletSource` `From` impl in transformers.rs).
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Checkout,
+    curl_request: Json(CheckoutTokenRequest),
+    curl_response: CheckoutTokenResponse,
+    flow_name: PaymentMethodToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodTokenizationData<T>,
+    flow_response: PaymentMethodTokenResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_tokenization_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}tokens", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorErrorTypeMapping for Checkout<T>
 {
@@ -671,7 +1048,6 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         DefendDispute,
         CreateOrder,
-        PaymentMethodToken,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

@@ -4,14 +4,7 @@
 //! actually distinguish:
 //!   • `NoCof`           — single-shot transaction
 //!   • `CitSetup`        — first-time CIT that stores the card
-//!   • `CitUsingStored`  — CIT re-using a stored card (consumer is present
-//!                          but the card was already on file)
 //!   • `Mit(MitKind)`    — merchant-initiated transaction
-//!
-//! The `CitUsingStored` vs `Mit` distinction is critical for the cert:
-//! the MOTO step-5 "25.50 Visa COF" row is a CIT-using-stored, and TSYS
-//! rejects it if we send `cardOnFile` / `cardOnFileTransactionIdentifier`
-//! (those are MIT-only).
 
 use common_enums::{FutureUsage, MitCategory};
 use domain_types::connector_types::{MandateIds, MandateReferenceId};
@@ -40,8 +33,6 @@ pub enum CofPhase {
     NoCof,
     /// CIT that stores the card on file for future MIT use.
     CitSetup { intended_kind: MitIntent },
-    /// CIT that re-uses a card already on file.
-    CitUsingStored,
     /// Merchant-initiated transaction.
     Mit(MitKind),
 }
@@ -69,20 +60,6 @@ impl CofPhase {
             });
 
         if has_mandate {
-            // A stored credential is being replayed. It is merchant-initiated
-            // ONLY when an explicit `mit_category` is set; otherwise the
-            // consumer is present and re-using the stored card
-            // (CitUsingStored — cert MOTO step-5 25.50 Visa / 29.75 MC COF).
-            //
-            // NOTE: `off_session` alone does NOT imply MIT here. Hyperswitch
-            // sets `off_session=true` for ANY stored-credential replay,
-            // including the consumer-present CIT-using-stored rows, so keying
-            // MIT off `off_session` misclassifies those CITs as MITs
-            // (M101/cardOnFileTransactionIdentifier instead of C101).
-            let is_mit = mit_category.is_some();
-            if !is_mit {
-                return Self::CitUsingStored;
-            }
             let kind = match mit_category {
                 Some(MitCategory::Recurring) => MitKind::Recurring,
                 Some(MitCategory::Installment) => MitKind::Installment,
@@ -114,16 +91,11 @@ impl CofPhase {
         matches!(self, Self::CitSetup { .. })
     }
 
-    pub fn is_cit_using_stored(self) -> bool {
-        matches!(self, Self::CitUsingStored)
-    }
-
     pub fn is_mit(self) -> bool {
         matches!(self, Self::Mit(_))
     }
 
     /// True for any flow that has stored credentials in play (CitSetup,
-    /// CitUsingStored or any MIT). Useful for cardDataInputMode gating.
     pub fn involves_stored_credential(self) -> bool {
         !self.is_no_cof()
     }

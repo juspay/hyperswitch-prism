@@ -38,7 +38,7 @@ impl TryFrom<&ConnectorSpecificConfig> for AbsaSanlamAuthType {
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a AbsaSanlam-specific config containing a valid api_key.".to_string(),
+                        "Ensure the connector is configured with a AbsaSanlam-specific config containing a valid api_key and merchant_id.".to_string(),
                     ),
                     additional_context: Some(
                         "ConnectorSpecificConfig did not match the AbsaSanlam variant; received an unexpected config variant.".to_string(),
@@ -230,8 +230,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         })?;
 
-                    let bank_type = bank_type.map(AbsaSanlamBankType::from).ok_or(
-                        IntegrationError::MissingRequiredField {
+                    let raw_bank_type =
+                        bank_type.ok_or(error_stack::report!(IntegrationError::MissingRequiredField {
                             field_name: "bank_type",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
@@ -242,8 +242,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                                 doc_url: None,
                             },
-                        },
-                    )?;
+                        }))?;
+                    let bank_type = AbsaSanlamBankType::try_from(raw_bank_type)?;
 
                     Ok(AbsaSanlamPaymentMethod::EftDebitOrder(EftDebitOrder {
                         homing_account: account_number.clone(),
@@ -362,15 +362,32 @@ impl TryFrom<BankNames> for AbsaSanlamBankNames {
     }
 }
 
-impl From<BankType> for AbsaSanlamBankType {
-    fn from(value: BankType) -> Self {
+impl TryFrom<BankType> for AbsaSanlamBankType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(value: BankType) -> Result<Self, Self::Error> {
         match value {
-            BankType::Checking => Self::Cheque,
-            BankType::Savings => Self::Savings,
-            BankType::Current => Self::Current,
-            BankType::Bond => Self::Bond,
-            BankType::Transmission => Self::Transmission,
-            BankType::SubscriptionShare => Self::SubscriptionShare,
+            BankType::Checking => Ok(Self::Cheque),
+            BankType::Savings => Ok(Self::Savings),
+            BankType::Current => Ok(Self::Current),
+            BankType::Bond => Ok(Self::Bond),
+            BankType::Transmission => Ok(Self::Transmission),
+            BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
+            BankType::Salary | BankType::Payment => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: format!("Bank type {value:?} is not supported by AbsaSanlam"),
+                    connector: "AbsaSanlam",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "BankType::{value:?} is a Pix-specific account type not supported for EFT debit orders"
+                        )),
+                        suggested_action: Some(
+                            "Use Checking, Savings, Current, Bond, Transmission, or SubscriptionShare".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                }))
+            }
         }
     }
 }
@@ -419,6 +436,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -432,6 +453,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -509,6 +531,7 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                 let status = AttemptStatus::try_from(&payment_event.payment.status)?;
                 if is_payment_failure(status) {
                     Ok(Self {
+                        connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(
                             payment_event.payment.user_reference.clone(),
@@ -516,7 +539,10 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         error_code: payment_event.error.as_ref().and_then(|e| e.code.clone()),
                         error_message: payment_event.error.as_ref().and_then(|e| e.message.clone()),
                         error_reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         mandate_reference: None,
                         network_txn_id: None,
                         raw_connector_response: None,
@@ -529,13 +555,17 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                     })
                 } else {
                     Ok(Self {
+                        connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(
                             payment_event.payment.user_reference.clone(),
                         )),
                         mandate_reference: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         raw_connector_response: None,
                         response_headers: None,
                         amount_captured: None,

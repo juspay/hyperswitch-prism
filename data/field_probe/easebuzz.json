@@ -117,8 +117,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -129,16 +129,41 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "easebuzz_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/initiate_seamless_payment/",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "access_key=connector_order_id&payment_mode=MW&request_mode=S2S"
+        }
       },
       "Efecty": {
         "status": "not_implemented",
@@ -165,8 +190,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -253,8 +278,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -265,8 +290,35 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/initiate_seamless_payment/",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "access_key=connector_order_id&payment_mode=NB&bank_code=hdfc_bank&request_mode=S2S"
+        }
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -297,8 +349,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -333,12 +385,12 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -425,22 +477,103 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/initiate_seamless_payment/",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "access_key=connector_order_id&payment_mode=UPI&upi_va=test%40upi&request_mode=S2S"
+        }
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/initiate_seamless_payment/",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "access_key=connector_order_id&payment_mode=UPI&request_mode=S2S"
+        }
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/initiate_seamless_payment/",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "access_key=connector_order_id&payment_mode=UPI&upi_qr=1&request_mode=S2S"
+        }
       },
       "Vipps": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Webpay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
@@ -630,6 +763,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for easebuzz"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -695,12 +833,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for easebuzz"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for easebuzz"
       }
     },
     "verify_redirect": {

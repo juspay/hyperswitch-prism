@@ -240,9 +240,11 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
-            connector_response_reference_id: Some(self.data.id),
+            connector_response_reference_id: Some(self.data.id.clone()),
+            connector_request_reference_id: Some(self.data.id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -397,6 +399,10 @@ impl TryFrom<ResponseRouterData<GlomopayGetCustomerResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
         Ok(Self {
@@ -653,6 +659,10 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Pending,
@@ -678,6 +688,10 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Failure,
@@ -895,6 +909,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -994,6 +1009,10 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1007,6 +1026,7 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1099,6 +1119,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1118,6 +1139,7 @@ pub struct GlomopayRefundSyncItem {
     pub id: String,
     pub status: GlomopayRefundStatus,
     pub amount: Option<MinorUnit>,
+    pub utr: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1142,9 +1164,13 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
         // If RSync returns no matching refund, default to Pending so the
         // next sync retries rather than prematurely marking Success/Failure
         // — Glomopay's list endpoint may lag due to eventual consistency.
-        let (refund_status, resolved_refund_id) = match refund_entry {
-            Some(entry) => (RefundStatus::from(entry.status), entry.id.clone()),
-            None => (RefundStatus::Pending, connector_refund_id),
+        let (refund_status, resolved_refund_id, acquirer_reference_number) = match refund_entry {
+            Some(entry) => (
+                RefundStatus::from(entry.status),
+                entry.id.clone(),
+                entry.utr.clone(),
+            ),
+            None => (RefundStatus::Pending, connector_refund_id, None),
         };
 
         Ok(Self {
@@ -1152,6 +1178,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

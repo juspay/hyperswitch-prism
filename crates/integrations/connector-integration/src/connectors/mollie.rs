@@ -205,6 +205,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         // Enable auto-tokenization for Card payments
         // Mollie requires cards to be tokenized via /card-tokens before payment
@@ -578,6 +579,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title,
@@ -588,6 +591,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

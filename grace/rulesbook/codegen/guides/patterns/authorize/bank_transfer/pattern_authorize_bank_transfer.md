@@ -284,7 +284,7 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                     email: payment_request_details.billing_address.email.ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "billing_address.email",
-                        , context: Default::default() },
+                            context: Default::default() },
                     )?,
                 },
             )),
@@ -302,7 +302,7 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                 country: payment_request_details.billing_address.country.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "billing_address.country",
-                    , context: Default::default() },
+                        context: Default::default() },
                 )?,
             }),
         )),
@@ -516,15 +516,23 @@ Some bank transfers require a redirect to complete the payment flow.
 
 ```rust
 // Response handling for redirect-based bank transfers
+// `TransactionResponse` is an enum struct-variant, so there is NO functional-update
+// (`..Default::default()`) syntax -- every one of its 11 fields must be listed or the
+// build fails with E0063. Current field list:
+// `crates/types-traits/domain_types/src/connector_types.rs:2009`.
+// There is no `charges` field.
 PaymentsResponseData::TransactionResponse {
     resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-    redirection_data: Some(RedirectForm::Form { ... }),
-    mandate_reference: None,
+    redirection_data: Some(Box::new(RedirectForm::Form { ... })),
     connector_metadata: None,
+    mandate_reference: None,
     network_txn_id: None,
+    network_txn_link_id: None,
     connector_response_reference_id: Some(reference),
     incremental_authorization_allowed: None,
-    charges: None,
+    splits: None,
+    status_code: item.http_code,
+    payment_account_reference: None,
 }
 ```
 
@@ -537,64 +545,80 @@ PaymentsResponseData::TransactionResponse {
 For connectors using standard JSON API patterns:
 
 ```rust
-use crate::connectors::macros::impl_api_integration;
+// There is no `impl_api_integration!` macro. The real pair is
+// `macros::create_all_prerequisites!` (declares the flows, request/response bodies and
+// the shared member functions) followed by one `macros::macro_connector_implementation!`
+// per flow. Both live in
+// `crates/integrations/connector-integration/src/connectors/macros.rs`.
+// Copy a working invocation from
+// `crates/integrations/connector-integration/src/connectors/travelhub.rs:274`.
 
-impl_api_integration! {
-    definition: ConnectorDefinition {
-        name: MyConnector,
-        base_url: "https://api.myconnector.com",
-        auth_type: ConnectorAuthType::Body,
-    },
-    flows: [Authorize, Capture, Void, Refund, Psync],
-    request_format: Json,
-    response_format: Json,
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: MyConnector,
+    curl_request: Json(MyConnectorPaymentsRequest<T>),
+    curl_response: MyConnectorPaymentsResponse,
+    flow_name: Authorize,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthorizeData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
 
-impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
-    for MyConnector
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, IntegrationError> {
-        Ok(format!("{}/v1/payments", self.base_url()))
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
     }
+);
+```
 
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, IntegrationError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
+The macro generates `get_request_body` / `handle_response_v2` for you. When you do need to
+hand-roll `handle_response_v2`, note the current signature
+(`crates/types-traits/interfaces/src/connector_integration_v2.rs:155`) -- the event builder
+is `Option<&mut events::Event>`, **not** `ConnectorEvent`, and the body-recording helper is
+the `with_response_body!` / `with_error_response_body!` macro from
+`crates/integrations/connector-integration/src/utils.rs:61`, not a
+`set_response_body` method:
 
-        let connector_router_data = MyConnectorRouterData::from((amount, req));
-        let connector_req = MyConnectorPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
+```rust
+// Imports used below:
+//   use common_utils::events;
+//   use domain_types::errors::{ConnectorError, ResponseTransformationErrorContext};
+//   use crate::{types::ResponseRouterData, with_response_body};
 
-    fn handle_response(
-        &self,
-        data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
-        let response: MyConnectorPaymentsResponse = res
-            .response
-            .parse_struct("MyConnectorPaymentsResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
+fn handle_response_v2(
+    &self,
+    data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    event_builder: Option<&mut events::Event>,
+    res: Response,
+) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, ConnectorError> {
+    let response: MyConnectorPaymentsResponse = res
+        .response
+        .parse_struct("MyConnectorPaymentsResponse")
+        .change_context(ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(res.status_code),
+                additional_context: Some("Failed to parse MyConnector payments response".to_string()),
+            },
+        })?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+    with_response_body!(event_builder, response);
+    RouterDataV2::try_from(ResponseRouterData {
+        response,
+        router_data: data.clone(),
+        http_code: res.status_code,
+    })
 }
 ```
 
@@ -616,7 +640,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         ];
 
         // Add authentication headers
-        let auth = MyConnectorAuthType::try_from(&req.connector_auth_type)?;
+        let auth = MyConnectorAuthType::try_from(&req.connector_config)?;
         headers.push((
             "Authorization".to_string(),
             format!("Bearer {}", auth.api_key.peek()).into(),
@@ -654,7 +678,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         let amount = self
             .amount_converter
             .convert(req.request.minor_amount, req.request.currency)
-            .change_context(IntegrationError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed { context: Default::default() })?;
 
         let connector_router_data = MyConnectorRouterData::from((amount, req));
 
@@ -685,10 +709,10 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         ))
     }
 
-    fn handle_response(
+    fn handle_response_v2(
         &self,
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
         let response: MyConnectorPaymentsResponse = res
@@ -696,37 +720,45 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
             .parse_struct("MyConnectorPaymentsResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        with_response_body!(event_builder, response);
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            router_data: data.clone(),
             http_code: res.status_code,
         })
     }
 
-    fn get_error_response(
+    fn get_error_response_v2(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: MyConnectorErrorResponse = res
             .response
             .parse_struct("MyConnectorErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
             message: response.message,
             reason: response.reason,
+            // `attempt_status` is `Option<FlowStatus>`, NOT `Option<AttemptStatus>`. Keep it
+            // non-terminal unless the vendor documents this error code as terminal: hard-coding
+            // `Some(FlowStatus::Payment(AttemptStatus::Failure))` reports charged payments as
+            // FAILURE, and a blanket `None` leaves a hard-declined refund Pending and retrying.
+            // Exemplars: `connectors/noon.rs:499-512` (minimal),
+            // `connectors/flywire.rs:362-370` (flow-aware, sets `FlowStatus::Refund(..)`).
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -882,7 +914,7 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
         Ok(format!("{}/v1/payments/{}", self.base_url(), connector_payment_id))
     }
@@ -902,10 +934,10 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
         ))
     }
 
-    fn handle_response(
+    fn handle_response_v2(
         &self,
         data: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, ConnectorError> {
         let response: MyConnectorSyncResponse = res
@@ -913,11 +945,11 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
             .parse_struct("MyConnectorSyncResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        with_response_body!(event_builder, response);
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            router_data: data.clone(),
             http_code: res.status_code,
         })
     }
@@ -955,14 +987,14 @@ impl From<MyConnectorPaymentStatus> for enums::AttemptStatus {
 let email = payment_request_details.billing_address.email.ok_or(
     IntegrationError::MissingRequiredField {
         field_name: "billing_address.email",
-    , context: Default::default() },
+        context: Default::default() },
 )?;
 
 // Stripe requires country for SEPA
 let country = payment_request_details.billing_address.country.ok_or(
     IntegrationError::MissingRequiredField {
         field_name: "billing_address.country",
-    , context: Default::default() },
+        context: Default::default() },
 )?;
 ```
 

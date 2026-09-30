@@ -6,7 +6,7 @@ use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
         EventType, PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        PaymentsResponseData, PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, ResponseId,
         WebhookDetailsResponse,
     },
@@ -426,6 +426,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status: AttemptStatus::Pending,
                 connector_order_id: Some(session_id),
                 raw_connector_response: raw_response,
+                raw_connector_status: None,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -502,6 +503,11 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
         let response = item.response;
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
+        let raw_connector_status = Some(RawConnectorStatus {
+            code: flywire_status_to_wire_string(&response.status),
+            message: response.status_detail.clone(),
+            reason: None,
+        });
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -515,10 +521,12 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: raw_response,
+                raw_connector_status,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -625,6 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 // HTTP 200 from /confirm only means Flywire accepted the form.
@@ -633,6 +642,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // report success on a payment that could still fail.
                 status: AttemptStatus::Pending,
                 raw_connector_response: raw_response,
+                raw_connector_status: None,
                 ..item.router_data.resource_common_data
             },
             request: PaymentsAuthorizeData {
@@ -700,6 +710,15 @@ impl FlywireRefundStatus {
     }
 }
 
+/// Serializes a Flywire status enum to its lower-cased wire string.
+/// Returns `None` if serialization fails or the value is not a string
+/// (e.g. the `serde(other)` catch-all variant, which serde cannot round-trip).
+fn flywire_status_to_wire_string<T: Serialize>(status: &T) -> Option<String> {
+    serde_json::to_value(status)
+        .ok()
+        .and_then(|value| value.as_str().map(String::from))
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         FlywireRouterData<
@@ -745,9 +764,15 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: None,
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -771,9 +796,15 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: None,
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -797,9 +828,15 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 connector_refund_id: response.payment_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: response.status_detail.clone(),
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -997,13 +1034,15 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
     fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
         let data = body.parse_payment_data()?;
         Ok(Self {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(data.payment_id)),
             status: data.status.to_attempt_status(),
             error_code: None,
             error_message: None,
             error_reason: None,
             status_code: 200,
-            connector_response_reference_id: data.external_reference,
+            connector_response_reference_id: data.external_reference.clone(),
+            connector_request_reference_id: data.external_reference,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,

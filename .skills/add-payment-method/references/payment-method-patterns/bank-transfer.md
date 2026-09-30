@@ -117,7 +117,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {} => {
                 Err(errors::IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen", Default::default()),
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                    Default::default(),
                 ).into())
             }
         }
@@ -164,7 +165,8 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                 country: payment_request_details.billing_address.country
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_address.country",
-                    , context: Default::default() })?,
+                        context: Default::default(),
+                    })?,
             }),
         )),
         Some(StripePaymentMethodType::CustomerBalance),
@@ -207,8 +209,8 @@ impl From<WebhookStatus> for enums::AttemptStatus {
             WebhookStatus::Received => Self::Authorized,
             WebhookStatus::Completed => Self::Charged,
             WebhookStatus::Failed => Self::Failure,
-            WebhookStatus::Refunded => Self::CaptureMethodNotSupported,
-            WebhookStatus::Disputed => Self::CaptureMethodNotSupported,
+            WebhookStatus::Refunded => Self::AutoRefunded,
+            WebhookStatus::Disputed => Self::Unresolved,
         }
     }
 }
@@ -221,14 +223,16 @@ impl From<WebhookStatus> for enums::AttemptStatus {
 let email = payment_request_details.billing_address.email.ok_or(
     IntegrationError::MissingRequiredField {
         field_name: "billing_address.email",
-    , context: Default::default() },
+        context: Default::default(),
+    },
 )?;
 
 // SEPA requires country
 let country = payment_request_details.billing_address.country.ok_or(
     IntegrationError::MissingRequiredField {
         field_name: "billing_address.country",
-    , context: Default::default() },
+        context: Default::default(),
+    },
 )?;
 ```
 
@@ -239,4 +243,7 @@ let country = payment_request_details.billing_address.country.ok_or(
 3. **Box large variants**: Use `Box::new(...)` when wrapping transfer data structs to avoid large enum sizes.
 4. **Dynamic URL routing**: Some connectors need different endpoints per bank transfer sub-type -- use a nested match on `BankTransferData` inside `get_url`.
 5. **Timeout**: Bank transfers can take up to 72 hours. Configure extended timeouts accordingly.
-6. **Amount precision**: Always use minor units. Include currency in customer-facing instructions.
+6. **Amount precision**: there is no safe default unit -- read the vendor spec and match its
+   wire format. The five choices in `crates/common/common_utils/src/types.rs` are
+   `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit` and
+   `StringTwoDecimalUnit`. Include the currency in customer-facing instructions.

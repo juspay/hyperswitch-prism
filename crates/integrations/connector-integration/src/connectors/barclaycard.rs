@@ -317,7 +317,7 @@ macros::create_all_prerequisites!(
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
             FCD: HasConnectors,
         {
-            let date = OffsetDateTime::now_utc();
+            let date = common_utils::date_time::now().assume_utc();
             let barclaycard_req = self.get_request_body(req)?;
             let http_method = self.get_http_method();
             let auth = barclaycard::BarclaycardAuthType::try_from(&req.connector_config)?;
@@ -335,7 +335,7 @@ macros::create_all_prerequisites!(
                 .collect();
             let sha256 = self.generate_digest(
                 barclaycard_req
-                    .map(|req| req.get_inner_value().expose())
+                    .map(|req| req.content.get_inner_value().expose())
                     .unwrap_or_default()
                     .as_bytes()
             );
@@ -789,10 +789,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     });
                 }
             };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         match response {
             responses::BarclaycardErrorResponse::Standard(error_response) => {
                 with_error_response_body!(event_builder, error_response);
@@ -843,6 +849,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             responses::BarclaycardErrorResponse::Server(server_error) => {
@@ -876,6 +886,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             responses::BarclaycardErrorResponse::Authentication(auth_error) => {
@@ -891,6 +905,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }

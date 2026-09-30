@@ -14,7 +14,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -75,26 +75,58 @@ Key methods implemented via `macro_connector_implementation!`:
 | Accept         | DisputeFlowData    | AcceptDisputeData             | DisputeResponseData   |
 | SubmitEvidence | DisputeFlowData    | SubmitEvidenceData            | DisputeResponseData   |
 | DefendDispute  | DisputeFlowData    | DisputeDefendData             | DisputeResponseData   |
+| ServerAuthenticationToken | MerchantAuthenticationFlowData | ServerAuthenticationTokenRequestData | ServerAuthenticationTokenResponseData |
+| ServerSessionAuthenticationToken | MerchantAuthenticationFlowData | ServerSessionAuthenticationTokenRequestData | ServerSessionAuthenticationTokenResponseData |
+| ClientAuthenticationToken | MerchantAuthenticationFlowData | ClientAuthenticationTokenRequestData | PaymentsResponseData |
 
-Note: Authorize and SetupMandate are generic over `T` (payment method data). All other flows use concrete types.
+Note: of the flows in this table only Authorize and SetupMandate are generic over `T` (payment
+method data); the rest use concrete types. The complete set of `T`-generic flows in the codebase is
+Authorize, SetupMandate, RepeatPayment, PaymentMethodToken, PreAuthenticate, Authenticate,
+PostAuthenticate and RefreshPaymentMethod -- i.e. exactly the traits declared as
+`pub trait ...<T: PaymentMethodDataTypes>` in
+`crates/types-traits/interfaces/src/connector_types.rs`.
+
+The three token flows are the drift zone: they use `MerchantAuthenticationFlowData`, not
+`PaymentFlowData`, and their marker names are `ServerAuthenticationToken` /
+`ServerSessionAuthenticationToken` / `ClientAuthenticationToken`. `CreateAccessToken`,
+`CreateSessionToken`, `AccessTokenRequestData` and `SessionTokenRequestData` do not exist
+anywhere in `crates/`. The full marker list is
+`crates/types-traits/domain_types/src/connector_flow.rs`; each marker's four
+`ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>` parameters are spelled out on the
+corresponding trait in `crates/types-traits/interfaces/src/connector_types.rs`.
 
 ## Amount Types
 
-| Type            | Rust Type              | Example    | When to Use                                      |
-|-----------------|------------------------|------------|--------------------------------------------------|
-| StringMinorUnit | `StringMinorUnit`      | `"1000"`   | Connector expects string cents (most common)     |
-| MinorUnit       | `MinorUnit` (i64)      | `1000`     | Connector expects integer cents                  |
-| StringMajorUnit | `StringMajorUnit`      | `"10.00"`  | Connector expects string dollars                 |
-| FloatMajorUnit  | `FloatMajorUnit` (f64) | `10.00`    | Connector expects float dollars                  |
+There are **five** amount types in `crates/common/common_utils/src/types.rs`, each paired with a
+`...ForConnector` convertor:
 
-Selection rule: Match what the connector API expects. Default to `StringMinorUnit` if unclear.
+| Type                 | Rust Type                    | Wire form | Convertor                          | Connectors at HEAD |
+|----------------------|------------------------------|-----------|------------------------------------|--------------------|
+| StringMajorUnit      | `StringMajorUnit(String)`    | `"10.00"` | `StringMajorUnitForConnector`      | 25 |
+| FloatMajorUnit       | `FloatMajorUnit(f64)`        | `10.00`   | `FloatMajorUnitForConnector`       | 22 |
+| MinorUnit            | `MinorUnit(i64)`             | `1000`    | `MinorUnitForConnector`            | 11 |
+| StringMinorUnit      | `StringMinorUnit(String)`    | `"1000"`  | `StringMinorUnitForConnector`      | 10 |
+| StringTwoDecimalUnit | `StringTwoDecimalUnit(String)` | `"10.00"`, always 2 dp | `StringTwoDecimalUnitForConnector` | 0 |
+
+**Selection rule: read the vendor's API spec and match its wire format.** There is no safe default.
+"Default to `StringMinorUnit` if unclear" is wrong for roughly 85% of connectors -- of the 67 that
+declare a converter, only 10 use `StringMinorUnit`, and the plurality use `StringMajorUnit`.
+
+How to read the spec: a decimal point in a sample payload means a **major** unit; surrounding
+quotes mean a **String** variant. `StringTwoDecimalUnit` is the narrow case where the vendor
+insists on two decimal places even for zero-decimal currencies (JPY, KWD), which the major-unit
+convertors would otherwise format without them.
 
 Declared in `create_all_prerequisites!`:
 ```rust
 amount_converters: [
-    amount_converter: StringMinorUnit  // converter name: type
+    amount_converter: StringMajorUnit  // converter name: type -- chosen from the vendor spec
 ]
 ```
+
+`amount_converters: []` is legal and common: use it when the transformers call
+`convert_amount(&StringMajorUnitForConnector, ..)` directly instead of using a macro-generated
+wrapper (see `connectors/flywire.rs`, `connectors/travelhub.rs`).
 
 ## Authentication Types (ConnectorSpecificConfig)
 
@@ -120,14 +152,77 @@ impl TryFrom<&ConnectorSpecificConfig> for {Connector}AuthType {
 }
 ```
 
-Legacy `ConnectorAuthType` variants (still referenced in some guides but `ConnectorSpecificConfig` is current):
+### `connector_auth_type` is gone -- do not reach for it
 
-| Variant      | Fields                           | Use Case                  |
-|--------------|----------------------------------|---------------------------|
-| HeaderKey    | `api_key`                        | Single API key            |
-| BodyKey      | `api_key`, `key1`                | API key + merchant ID     |
-| SignatureKey  | `api_key`, `key1`, `api_secret` | API key + key + secret    |
-| MultiAuthKey | `api_key`, `key1`, `api_secret`, `key2` | Four credentials  |
+`RouterDataV2` no longer has a `connector_auth_type` field; it was deleted on 2026-03-14
+(`a7a696c3a`). Auth is read from `req.connector_config: ConnectorSpecificConfig` via the
+connector's own enum variant, as shown above. Any snippet that writes `req.connector_auth_type`
+is `E0609: no field ...`.
+
+The trait method's real signature is `crates/types-traits/interfaces/src/api.rs:25`:
+
+```rust
+fn get_auth_header(
+    &self,
+    _auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, IntegrationError> {
+    Ok(Vec::new())
+}
+```
+
+Declaring `fn get_auth_header(&self, auth: &ConnectorAuthType)` does not match the trait and is
+`E0407: method is not a member of trait ConnectorCommon`. Copy the auth idiom from a recent real
+connector, e.g. `crates/integrations/connector-integration/src/connectors/travelhub.rs`.
+
+The old `ConnectorAuthType` variant names (`HeaderKey`, `BodyKey`, `SignatureKey`, `MultiAuthKey`)
+survive only as the `x-auth` **header values** the gRPC test harness accepts
+(`crates/types-traits/ucs_interface_common/src/auth.rs`, kebab-cased). They are not a Rust type you
+match on inside a connector.
+
+## ConnectorCommon
+
+`crates/types-traits/interfaces/src/api.rs`. The two methods connectors override:
+
+```rust
+fn get_auth_header(
+    &self,
+    _auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>;
+
+fn build_error_response(
+    &self,
+    res: domain_types::router_response_types::Response,
+    _event_builder: Option<&mut events::Event>,
+    _connector_config: &ConnectorSpecificConfig,   // THIRD parameter -- added, not optional
+) -> CustomResult<ErrorResponse, ConnectorError>;
+```
+
+Three points that guides get wrong:
+
+- `build_error_response` takes **three** parameters besides `&self`. So do
+  `get_error_response_v2` and `get_5xx_error_response`
+  (`crates/types-traits/interfaces/src/connector_integration_v2.rs`). A two-parameter definition is
+  `E0050`. The third parameter exists so connectors with encrypted error bodies can decrypt them
+  from request-scoped credentials.
+- The event-builder type is **`events::Event`**, not `ConnectorEvent`. `ConnectorEvent` does not
+  exist in the connector crate.
+- `set_error_response_body` is **not** a method on `events::Event`. Delete any call to it. To log
+  a response body use the `with_response_body!` / `with_error_response_body!` macros
+  (`connector_integration::utils`), which call `set_connector_response`.
+
+### Error code / message fallbacks
+
+Never write `error_code.unwrap_or_default()` -- an empty-string error code is indistinguishable
+from a real one downstream. Use the named constants from
+`crates/common/common_utils/src/consts.rs` (`NO_ERROR_CODE` alone appears 247 times in real
+connectors):
+
+```rust
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
+code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+```
 
 ## Status Mapping Types
 
@@ -153,32 +248,234 @@ Common variants used in connector mappings:
 ## Error Types
 
 ### IntegrationError (for connector logic errors)
+Request-phase errors are `IntegrationError` (`domain_types/src/errors.rs:115`); response-phase
+errors are a separate enum, `ConnectorError` (`domain_types/src/errors.rs:371`). Every variant of
+both carries a `context` field, so none of them can be written bare.
+
 ```rust
-use domain_types::errors::IntegrationError;
-// Common variants:
-IntegrationError::FailedToObtainIntegrationUrl
-IntegrationError::RequestEncodingFailed
-ConnectorError::ResponseDeserializationFailed { context: Default::default() }
-ConnectorError::ResponseHandlingFailed
+use domain_types::errors::{ConnectorError, IntegrationError};
+
+// IntegrationError -- request phase. `context: IntegrationErrorContext` (derives Default).
+IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() }
+IntegrationError::RequestEncodingFailed { context: Default::default() }
 IntegrationError::FailedToObtainAuthType { context: Default::default() }
-IntegrationError::MissingRequiredField { field_name: &'static str , context: Default::default() }
-IntegrationError::NotImplemented("description".to_string(, Default::default()))
+IntegrationError::MissingRequiredField { field_name: "card.number", context: Default::default() }
+IntegrationError::NotImplemented("description".to_string(), Default::default())  // tuple variant
+
+// ConnectorError -- response phase. `context: ResponseTransformationErrorContext` (derives Default).
+ConnectorError::ResponseDeserializationFailed { context: Default::default() }
+ConnectorError::ResponseHandlingFailed { context: Default::default() }
+ConnectorError::UnexpectedResponseError { context: Default::default() }
+ConnectorError::IntegrityCheckFailed {
+    context: Default::default(),
+    field_names: "amount, currency".to_string(),
+    connector_transaction_id: None,
+}
+ConnectorError::ConnectorErrorResponse(Box::new(error_response))  // tuple variant
 ```
 
+**`ConnectorError` has exactly these five variants and no others.**
+`ConnectorError::InvalidData`, `ConnectorError::NotImplemented(..)` and
+`ConnectorError::InvalidCard` do **not** exist -- using them is
+`E0599: no variant or associated item named ...`. Those names belong to the *request*-phase enum,
+`IntegrationError`, and even there the spelling differs (`InvalidDataFormat { field_name, .. }`,
+`NotImplemented(String, IntegrationErrorContext)`; there is no `InvalidCard` at all). Before
+substituting a variant, read the live list:
+
+```bash
+rg -n 'pub enum (IntegrationError|ConnectorError)' -A 200 \
+   crates/types-traits/domain_types/src/errors.rs
+```
+
+Pick the closest **real** variant and keep its `context` field.
+
 ### ErrorResponse (for connector API error responses)
+
+`domain_types::router_data::ErrorResponse` (`domain_types/src/router_data.rs:4228`) has
+**13 fields**. A struct literal must supply all 13, or fall back to `..Default::default()`.
+
 ```rust
-ErrorResponse {
-    status_code: u16,
-    code: String,                                    // error code from connector
-    message: String,                                 // human-readable message
-    reason: Option<String>,                          // detailed reason
-    attempt_status: Option<AttemptStatus>,            // override payment status on error
-    connector_transaction_id: Option<String>,         // connector's txn ID if available
-    network_decline_code: Option<String>,
-    network_advice_code: Option<String>,
-    network_error_message: Option<String>,
+pub struct ErrorResponse {
+    pub code: String,                              // error code from connector
+    pub message: String,                           // human-readable message
+    pub reason: Option<String>,                    // detailed reason
+    pub status_code: u16,
+    pub attempt_status: Option<FlowStatus>,        // NOT Option<AttemptStatus>
+    pub connector_transaction_id: Option<String>,  // connector's txn ID if available
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
+    pub typed_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
 }
 ```
+
+**`attempt_status` is `Option<FlowStatus>`, not `Option<AttemptStatus>`.** `FlowStatus`
+(`domain_types/src/router_data.rs:4186`) wraps the per-domain status enum:
+
+```rust
+pub enum FlowStatus {
+    Payment(AttemptStatus),
+    Refund(RefundStatus),
+    Dispute(DisputeStatus),
+    Payout(PayoutStatus),
+}
+```
+
+So a payment error sets `attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure))` and a
+refund error sets `attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure))`. Readers pull
+the inner value back out with `FlowStatus::as_attempt_status()` / `as_refund_status()` /
+`as_dispute_status()` / `as_payout_status()`.
+
+`ErrorResponse` derives only `Clone, Debug, serde::Serialize` -- `Default` is **hand-written**
+(`router_data.rs:4244`), not derived, but it exists, so `..Default::default()` is valid and is the
+usual short form for the trailing `network_*` and `typed_/raw_connector_*` fields:
+
+```rust
+ErrorResponse {
+    code: error.code,
+    message: error.message.clone(),
+    reason: Some(error.message),
+    status_code: res.status_code,
+    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+    connector_transaction_id: None,
+    ..Default::default()
+}
+```
+
+## Response Data Types
+
+Both of these are read straight from
+`crates/types-traits/domain_types/src/connector_types.rs` -- re-read them before writing a literal,
+because fields get added.
+
+### `PaymentsResponseData::TransactionResponse` (11 fields)
+
+This is an **enum struct-variant**, so `..Default::default()` is *not* valid inside it. Every
+omitted field is `E0063: missing field`. All eleven must be named:
+
+```rust
+PaymentsResponseData::TransactionResponse {
+    resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+    redirection_data: None,                     // Option<Box<RedirectForm>>
+    connector_metadata: None,                   // Option<serde_json::Value>
+    mandate_reference: None,                    // Option<Box<MandateReference>>
+    network_txn_id: None,                       // Option<String>
+    network_txn_link_id: None,                  // Option<String>
+    connector_response_reference_id: None,      // Option<String>
+    incremental_authorization_allowed: None,    // Option<bool>
+    splits: None,                               // Option<ConnectorSplitResponseData>
+    status_code: item.http_code,                // u16 -- NOT Option
+    payment_account_reference: None,            // Option<String>
+}
+```
+
+### `RefundsResponseData` (4 fields)
+
+A plain struct, but it does not derive `Default` -- name all four:
+
+```rust
+RefundsResponseData {
+    connector_refund_id: item.response.refund_id,        // String -- NOT Option
+    refund_status: RefundStatus::from(item.response.status),
+    status_code: item.http_code,                         // u16
+    acquirer_reference_number: None,                     // Option<String>
+}
+```
+
+## PaymentsCaptureData
+
+`connector_types.rs`. The fields that exist:
+
+```rust
+pub struct PaymentsCaptureData {
+    pub amount_to_capture: i64,                  // NOT an Option
+    pub minor_amount_to_capture: MinorUnit,
+    pub currency: Currency,
+    pub connector_transaction_id: ResponseId,
+    pub multiple_capture_data: Option<MultipleCaptureRequestData>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub metadata: Option<SecretSerdeValue>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsDetails>,
+    pub split_settlement: Option<Box<SplitSettlement>>,
+}
+```
+
+There is **no `payment_amount` field** -- `request.payment_amount` is `E0609`. (`payment_amount`
+is a field on the *gRPC* `RefundRequest` proto message; it has no counterpart here.) And
+`amount_to_capture` is a bare `i64`, so `request.amount_to_capture.is_none()` is
+`E0599: no method named is_none`.
+
+Detecting a partial capture therefore means comparing `request.amount_to_capture` against **the
+authorized amount the connector itself reported** -- from its authorize response, its sync
+response, or `connector_metadata`. There is no framework field carrying it, so this is
+connector-specific; do not invent one.
+
+## Non-Generic Traits: SourceVerification and BodyDecoding
+
+`SourceVerification` (`crates/types-traits/interfaces/src/verification.rs:20`) and `BodyDecoding`
+(`crates/types-traits/interfaces/src/decode.rs`) take **no** generic parameters. Write exactly one
+impl of each per connector:
+
+```rust
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for Travelhub<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for Travelhub<T>
+{
+}
+```
+
+A per-flow `impl<T> SourceVerification<Flow, Data, Req, Resp> for X<T> {}` is
+**E0107: trait takes 0 generic arguments but 4 were supplied**. Exemplar:
+`crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.
+
+Every method on both traits has a working default, so an empty body is the correct starting point.
+Override `get_secrets` / `get_algorithm` / `get_signature` / `get_message` only when the connector
+actually signs its webhooks.
+
+## Webhook Trait Signatures
+
+`crates/types-traits/interfaces/src/connector_types.rs`. The error type is **`WebhookError`**, not
+`IntegrationError`:
+
+```rust
+fn get_event_type(
+    &self,
+    _request: RequestDetails,                                   // ONE argument besides &self
+) -> Result<EventType, error_stack::Report<WebhookError>>;
+
+fn get_webhook_event_reference(
+    &self,
+    _request: RequestDetails,
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>>;
+
+fn process_payment_webhook(
+    &self,
+    _request: RequestDetails,                                   // FOUR arguments besides &self
+    _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+    _connector_account_details: Option<ConnectorSpecificConfig>,
+    _event_context: Option<domain_types::connector_types::EventContext>,
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>>;
+
+fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck>;
+```
+
+Calling `get_event_type` with three arguments, or `process_payment_webhook` with three, is `E0061`.
+
+`transformation_status` and `WebhookTransformationStatus` **do not exist anywhere in `crates/`** --
+any struct literal setting `transformation_status` is `E0560: struct has no field named ...`.
+Delete every use.
 
 ## Naming Conventions
 
@@ -221,5 +518,10 @@ Used in:
 | JSON             | `Json(RequestType)`           | Most APIs                   |
 | Form URL-encoded | `FormUrlEncoded(RequestType)` | Legacy/payment form APIs    |
 | Form data        | `FormData(RequestType)`       | Multipart uploads           |
-| Raw data         | `RawData(RequestType)`        | XML or custom formats       |
+| XML              | `Xml(RequestType)`            | XML request bodies          |
+| SOAP             | `SoapXml(RequestType)`        | SOAP envelopes              |
+| Runtime-selected | `Dynamic(RequestType)`        | Content type chosen per request |
 | No body (GET)    | Omit `curl_request` entirely  | Sync/status check endpoints |
+
+There is no `RawData(...)` form -- `rg -w RawData crates/` returns zero hits. The six wrappers
+above are the complete set actually used in `crates/integrations/connector-integration/src/connectors/`.

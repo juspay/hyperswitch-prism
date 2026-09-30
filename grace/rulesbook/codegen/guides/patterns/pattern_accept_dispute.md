@@ -201,7 +201,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let auth = {ConnectorName}AuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&item.router_data.connector_config)?;
 
         Ok(Self {
             dispute_id: item.router_data.resource_common_data.connector_dispute_id.clone(),
@@ -238,7 +238,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let auth = {ConnectorName}AuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&item.router_data.connector_config)?;
 
         Ok(Self {
             dispute_psp_reference: item
@@ -343,11 +343,15 @@ impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DisputeAcceptResponse, Se
             let error = response.dispute_service_result.as_ref().and_then(|r| {
                 r.error_message.clone().map(|msg| ErrorResponse {
                     status_code: http_code,
-                    code: r.error_code.clone().unwrap_or_default(),
+                    code: r.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                     message: msg,
                     reason: None,
+                    // `ErrorResponse` has 13 fields and an `impl Default`
+                    // (domain_types/src/router_data.rs) — list only what you set.
+                    // `attempt_status` is `Option<FlowStatus>`, NOT `Option<AttemptStatus>`.
                     attempt_status: None,
                     connector_transaction_id: None,
+                    ..Default::default()
                 })
             });
 
@@ -357,8 +361,12 @@ impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DisputeAcceptResponse, Se
                     code: "UNKNOWN_ERROR".to_string(),
                     message: "Unknown error in dispute accept".to_string(),
                     reason: None,
+                    // `ErrorResponse` has 13 fields and an `impl Default`
+                    // (domain_types/src/router_data.rs) — list only what you set.
+                    // `attempt_status` is `Option<FlowStatus>`, NOT `Option<AttemptStatus>`.
                     attempt_status: None,
                     connector_transaction_id: None,
+                    ..Default::default()
                 })),
                 ..router_data
             })
@@ -426,7 +434,9 @@ fn get_url(
     req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
 ) -> CustomResult<String, errors::IntegrationError> {
     let dispute_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
     Ok(format!("{dispute_url}/disputes/{}/accept",
         req.resource_common_data.connector_dispute_id))
 }
@@ -456,7 +466,9 @@ fn get_url(
     req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
 ) -> CustomResult<String, errors::IntegrationError> {
     let dispute_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
     Ok(format!("{dispute_url}/services/DisputeService/v30/acceptDispute"))
 }
 ```
@@ -520,8 +532,12 @@ impl From<{ConnectorName}DisputeErrorResponse> for ErrorResponse {
             code: error.error_code,
             message: error.error_message,
             reason: error.dispute_status,
+            // `ErrorResponse` has 13 fields and an `impl Default`
+            // (domain_types/src/router_data.rs) — list only what you set.
+            // `attempt_status` is `Option<FlowStatus>`, NOT `Option<AttemptStatus>`.
             attempt_status: None,
             connector_transaction_id: None,
+            ..Default::default()
         }
     }
 }
@@ -699,7 +715,7 @@ mod tests {
 |-------------|--------------|---------|
 | `{ConnectorName}` | PascalCase connector name | `Stripe`, `Adyen`, `Checkout` |
 | `{connector_name}` | snake_case connector name | `stripe`, `adyen`, `checkout` |
-| `{AmountType}` | Amount converter (if applicable) | `StringMinorUnit`, `MinorUnit` |
+| `{AmountType}` | Amount converter (if applicable) | one of `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` — read the vendor spec, there is no safe default (`common_utils/src/types.rs`) |
 | `{content_type}` | Content-Type header value | `application/json` |
 | `{endpoint}` | API endpoint path | `disputes`, `chargebacks` |
 | `{version}` | API version | `v1`, `v30` |
@@ -773,7 +789,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let auth = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = AdyenAuthType::try_from(&item.router_data.connector_config)?;
 
         Ok(Self {
             dispute_psp_reference: item
@@ -873,7 +889,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
             Ok(format!("{dispute_url}/ca/services/DisputeService/v30/acceptDispute"))
         }
     }

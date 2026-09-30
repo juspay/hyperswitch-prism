@@ -61,7 +61,11 @@ interface FfiFunctions {
 function loadLib(libPath?: string): FfiFunctions {
   if (!libPath) {
     const ext = process.platform === "darwin" ? "dylib" : "so";
-    libPath = path.join(_dirname, "generated", `libconnector_service_ffi.${ext}`);
+    // Native libs are bundled per platform under generated/<platform>-<arch>/
+    // (e.g. linux-x64, linux-arm64, darwin-arm64) so one package serves every
+    // architecture; select the one matching this runtime.
+    const target = `${process.platform}-${process.arch}`;
+    libPath = path.join(_dirname, "generated", target, `libconnector_service_ffi.${ext}`);
   }
 
   const lib = koffi.load(libPath);

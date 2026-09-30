@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
-use common_utils::{CustomResult, SecretSerdeValue};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_utils::CustomResult;
 pub use domain_types::connector_types::WebhookIntegrityCheck;
+pub use domain_types::flow_status::ConnectorTerminalMapping;
 use domain_types::{
     connector_flow,
     connector_types::{
@@ -17,10 +18,12 @@ use domain_types::{
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
-        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
-        RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PayoutWebhookDetailsResponse, RechargeRequestData, RechargeResponseData,
+        RedirectDetailsResponse, RefreshPaymentMethodData, RefreshPaymentMethodFlowData,
+        RefreshPaymentMethodResponseData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
         VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
@@ -37,9 +40,10 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::ConnectorSpecificConfig,
     router_request_types::VerifyWebhookSourceRequestData,
@@ -88,6 +92,18 @@ pub enum RedirectState {
     RedirectWithoutParams,
 }
 
+/// Describes which merchant-side identifier a connector uses as its order reference.
+/// Some connectors do not distinguish between order and transaction and expect
+/// merchant_transaction_id wherever an order identifier is required.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MerchantOrderIdSource {
+    /// Connector uses merchant_order_id (default)
+    OrderId,
+    /// Connector treats order and transaction as the same entity;
+    /// merchant_transaction_id is used wherever an order identifier is needed
+    TransactionId,
+}
+
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
     + ValidationTrait
@@ -102,6 +118,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + RechargeV2
     + CreatePaymentMethodV2
     + GetPaymentMethodV2
+    + RefreshPaymentMethodV2<T>
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
@@ -144,6 +161,7 @@ pub trait FrmServiceTrait:
     + FrmPaymentOutcomeV2
     + FrmRefundProcessedV2
     + FrmChargebackReceivedV2
+    + PaymentPreAuthenticateV2<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 
@@ -158,6 +176,7 @@ pub trait PayoutServiceTrait:
     + PayoutCreateLinkV2
     + PayoutCreateRecipientV2
     + PayoutEnrollDisburseAccountV2
+    + PayoutEligibilityV2
 {
 }
 
@@ -186,6 +205,11 @@ pub trait PaymentMethodEligibilityV2:
 {
 }
 
+pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
+    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
+{
+}
+
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
@@ -194,12 +218,20 @@ pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
+pub type BoxedAuthenticatorConnector = Box<
+    &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
+                  + Sync),
+>;
+
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
         false
     }
 
-    fn should_do_session_token(&self) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         false
     }
 
@@ -219,8 +251,33 @@ pub trait ValidationTrait: ConnectorCommon {
         &self,
         _payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
+    }
+
+    /// Pre-flight check run by the server before a PSync is dispatched to the connector.
+    ///
+    /// Mirrors hyperswitch's direct-integration path, which skips the connector call when
+    /// this fails instead of sending a request the connector cannot serve. The default
+    /// requires a connector transaction id; connectors that sync on other data (for example
+    /// Adyen, which needs `encoded_data`) override it. Takes the full `PaymentFlowData`
+    /// (rather than picking fields out at the call site) so a connector can read whatever
+    /// it needs — `auth_type`, `status`, or anything added later — without another
+    /// signature change.
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
+        data.connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(
+                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                },
+            )
+            .map(|_| ())
     }
 
     /// Returns true if this connector is in the config set of connectors that require
@@ -255,6 +312,13 @@ pub trait ValidationTrait: ConnectorCommon {
     /// after VerifyRedirectResponse in the composite flow.
     fn requires_authorize_post_redirect(&self) -> bool {
         false
+    }
+
+    /// Returns which merchant identifier this connector uses as its order reference.
+    /// Connectors that treat order and transaction as the same entity should return
+    /// `MerchantOrderIdSource::TransactionId`.
+    fn merchant_order_id_source(&self) -> MerchantOrderIdSource {
+        MerchantOrderIdSource::OrderId
     }
 }
 
@@ -354,6 +418,16 @@ pub trait GetPaymentMethodV2:
     PaymentFlowData,
     GetPaymentMethodData,
     GetPaymentMethodResponseData,
+>
+{
+}
+
+pub trait RefreshPaymentMethodV2<T: PaymentMethodDataTypes>:
+    ConnectorIntegrationV2<
+    connector_flow::RefreshPaymentMethod,
+    RefreshPaymentMethodFlowData,
+    RefreshPaymentMethodData<T>,
+    RefreshPaymentMethodResponseData,
 >
 {
 }
@@ -613,6 +687,23 @@ pub trait IncomingWebhook {
         .into())
     }
 
+    /// fn process_payout_webhook
+    ///
+    /// Maps a payout webhook to the same shape a `PayoutService.Get` would
+    /// return: the terminal status derived from the event type, the payout
+    /// identifiers, and the failure details when the payout failed.
+    fn process_payout_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_payout_webhook",
+        }
+        .into())
+    }
+
     /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
         &self,
@@ -678,6 +769,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, domain_types::errors::IntegrationError> {
         Err(domain_types::errors::IntegrationError::NotImplemented(
             "process_redirect_response".to_string(),
@@ -751,24 +843,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
             }
             .into()),
         }
-    }
-
-    /// fn validate_psync_reference_id
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: AttemptStatus,
-        _connector_meta_data: Option<SecretSerdeValue>,
-    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
-        data.connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(
-                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                },
-            )
-            .map(|_| ())
     }
 
     /// fn is_webhook_source_verification_mandatory
@@ -900,6 +974,16 @@ pub trait PayoutEnrollDisburseAccountV2:
     PayoutFlowData,
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
+>
+{
+}
+
+pub trait PayoutEligibilityV2:
+    ConnectorIntegrationV2<
+    connector_flow::PayoutEligibility,
+    PayoutFlowData,
+    PayoutEligibilityRequest,
+    PayoutEligibilityResponse,
 >
 {
 }

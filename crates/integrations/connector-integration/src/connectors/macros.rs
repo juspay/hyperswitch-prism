@@ -76,6 +76,14 @@ pub(crate) fn validate_xml_structure(xml_str: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub(crate) fn serialize_typed_connector_payload<T: serde::Serialize>(
+    payload: &T,
+    context: &'static str,
+) -> Option<String> {
+    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, context)
+        .map(|msv| msv.inner().to_string())
+}
+
 pub struct NoRequestBody;
 pub struct NoRequestBodyTemplating;
 
@@ -165,10 +173,15 @@ pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
 macro_rules! expand_fn_get_request_body {
     ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ident, $response: ty) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 _req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 // always return None
                 Ok(None)
@@ -186,10 +199,15 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [<$connector RouterData>] {
@@ -197,8 +215,12 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 let form_data = <$curl_req as GetFormData>::get_form_data(&request);
-                Ok(Some(macro_types::RequestContent::FormData(form_data)))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::FormData(form_data),
+                    typed,
+                )))
             }
         }
     };
@@ -213,10 +235,15 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [<$connector RouterData>] {
@@ -224,6 +251,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
 
                 // Validate XML structure before sending
@@ -233,7 +261,10 @@ macro_rules! expand_fn_get_request_body {
                             .attach_printable(e)
                     })?;
 
-                Ok(Some(macro_types::RequestContent::RawBytes(soap_xml.into_bytes())))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::RawBytes(soap_xml.into_bytes()),
+                    typed,
+                )))
             }
         }
     };
@@ -248,10 +279,15 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 use crate::connectors::macros::ContentTypeSelector;
 
@@ -261,22 +297,24 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
 
                 // Get dynamic content type based on runtime conditions
                 let content_type = self.get_dynamic_content_type(req)?;
 
-                match content_type {
+                let content = match content_type {
                     common_enums::DynamicContentType::Json => {
-                        Ok(Some(macro_types::RequestContent::Json(Box::new(request))))
+                        macro_types::RequestContent::Json(Box::new(request))
                     }
                     common_enums::DynamicContentType::FormUrlEncoded => {
-                        Ok(Some(macro_types::RequestContent::FormUrlEncoded(Box::new(request))))
+                        macro_types::RequestContent::FormUrlEncoded(Box::new(request))
                     }
                     common_enums::DynamicContentType::FormData => {
                         let form_data = <$curl_req as GetFormData>::get_form_data(&request);
-                        Ok(Some(macro_types::RequestContent::FormData(form_data)))
+                        macro_types::RequestContent::FormData(form_data)
                     }
-                }
+                };
+                Ok(Some(macro_types::ConnectorRequestData::new(content, typed)))
             }
         }
     };
@@ -291,10 +329,15 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [< $connector RouterData >] {
@@ -302,7 +345,11 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                Ok(Some(macro_types::RequestContent::$content_type(Box::new(request))))
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::$content_type(Box::new(request)),
+                    typed,
+                )))
             }
         }
     };
@@ -322,10 +369,15 @@ macro_rules! expand_fn_get_request_body {
         preprocess_request
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 use error_stack::ResultExt;
                 let bridge = self.[< $flow:snake >];
@@ -334,6 +386,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
                     tracing::info!(
                         connector = stringify!($connector),
@@ -362,7 +415,10 @@ macro_rules! expand_fn_get_request_body {
                     },
                 )?;
                 let preprocessed = self.preprocess_request_bytes(req, json_bytes)?;
-                Ok(Some(macro_types::RequestContent::RawBytes(preprocessed)))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::RawBytes(preprocessed),
+                    typed,
+                )))
             }
         }
     };
@@ -372,6 +428,11 @@ pub(crate) use expand_fn_get_request_body;
 macro_rules! expand_fn_handle_response {
     // When preprocess_response is enabled - only for connectors that explicitly set it
     ($connector: ident, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty, preprocess_enabled) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::handle_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn handle_response_v2(
             &self,
             data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -381,6 +442,7 @@ macro_rules! expand_fn_handle_response {
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
             macro_types::ConnectorError,
         > {
+            use domain_types::connector_types::RawConnectorRequestResponse;
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
 
@@ -393,19 +455,37 @@ macro_rules! expand_fn_handle_response {
                 ))?;
 
             let response_body = bridge.response(response_bytes, res.status_code)?;
-            event_builder.map(|i| i.set_connector_response(&response_body));
+            // Serialize once: masked Value for event logging, String for typed_connector_response
+            let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+                &response_body,
+                "connector_response",
+            );
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
                 http_code: res.status_code,
             };
-            let result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
             Ok(result)
         }
     };
 
     // When preprocess_response is disabled or default
     ($connector: ident, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty, $preprocess_flag:tt) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::handle_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn handle_response_v2(
             &self,
             data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -415,15 +495,29 @@ macro_rules! expand_fn_handle_response {
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
             macro_types::ConnectorError,
         > {
+            use domain_types::connector_types::RawConnectorRequestResponse;
             paste::paste! {let bridge = self.[< $flow:snake >];}
             let response_body = bridge.response(res.response, res.status_code)?;
-            event_builder.map(|i| i.set_connector_response(&response_body));
+            // Serialize once: masked Value for event logging, String for typed_connector_response
+            let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+                &response_body,
+                "connector_response",
+            );
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
                 http_code: res.status_code,
             };
-            let result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
             Ok(result)
         }
     };
@@ -433,6 +527,7 @@ pub(crate) use expand_fn_handle_response;
 macro_rules! expand_default_functions {
     (
         function: get_headers,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -450,6 +545,7 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_content_type,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -461,11 +557,17 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_error_response_v2,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
         flow_response:$response: ty,
     ) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::error_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn get_error_response_v2(
             &self,
             res: Response,
@@ -514,6 +616,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -575,6 +678,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -634,6 +738,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -691,6 +796,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -750,6 +856,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -806,6 +913,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -861,6 +969,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -1301,7 +1410,11 @@ macro_rules! expand_imports {
             // pub(super) use domain_models::{
             //     AuthenticationInitiation, Confirmation, PostAuthenticationSync, PreAuthentication,
             // };
-            pub(super) use common_utils::{errors::CustomResult, events, request::RequestContent};
+            pub(super) use common_utils::{
+                errors::CustomResult,
+                events,
+                request::{ConnectorRequestData, RequestContent},
+            };
             pub(super) use domain_types::{
                 errors::{ConnectorError, IntegrationError},
                 router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -1343,7 +1456,7 @@ macro_rules! create_amount_converter_wrapper {
                 /// Convert connector amount back to MinorUnit.
                 ///
                 /// Returns generic ParsingError - caller should change_context appropriately:
-                /// ```
+                /// ```ignore
                 /// // In response transformation:
                 /// let amount = Convertor::convert_back(response.amount, currency)
                 ///     .change_context(crate::utils::response_handling_fail_for_connector(http_code, "macros"))?;
@@ -1377,10 +1490,10 @@ pub(crate) use create_amount_converter_wrapper;
 ///
 /// The macro uses a **recursive list-peeling** pattern with three arms:
 ///
-/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all eight
+/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all nine
 ///    payout flows (`PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `PayoutVoid`,
 ///    `PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`,
-///    `PayoutEnrollDisburseAccount`) and re-invokes itself with that list.
+///    `PayoutEnrollDisburseAccount`, `PayoutEligibility`) and re-invokes itself with that list.
 ///
 /// 2. **Recursive arm (`payout_flows: [head, tail…]`)** – Peels the first flow off the
 ///    list, delegates it to [`expand_payout_implementation!`] to emit the trait impls for
@@ -1407,7 +1520,8 @@ macro_rules! macro_connector_payout_implementation {
                 PayoutStage,
                 PayoutCreateLink,
                 PayoutCreateRecipient,
-                PayoutEnrollDisburseAccount
+                PayoutEnrollDisburseAccount,
+                PayoutEligibility
             ]
         );
     };
@@ -1482,6 +1596,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1514,6 +1629,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1546,6 +1662,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1578,6 +1695,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1610,6 +1728,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1642,6 +1761,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1674,6 +1794,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1706,6 +1827,40 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
+        }
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutEligibility,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutEligibility,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+            > for $connector<$generic_type>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutEligibility,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "payout_eligibility",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                ).into())
+            }
+
         }
     };
 }
@@ -2022,6 +2177,39 @@ macro_rules! expand_flow_status_impl {
             response: ::domain_types::connector_types::PaymentMethodTokenResponse,
         );
     };
+    (connector: $c:ident, flow: Recharge, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::RechargeV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::Recharge,
+            flow_name: "recharge",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::RechargeRequestData,
+            response: ::domain_types::connector_types::RechargeResponseData,
+        );
+    };
+    (connector: $c:ident, flow: CreatePaymentMethod, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::CreatePaymentMethodV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::CreatePaymentMethod,
+            flow_name: "create_payment_method",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::CreatePaymentMethodData,
+            response: ::domain_types::connector_types::CreatePaymentMethodResponseData,
+        );
+    };
+    (connector: $c:ident, flow: GetPaymentMethod, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetPaymentMethodV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetPaymentMethod,
+            flow_name: "get_payment_method",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::GetPaymentMethodData,
+            response: ::domain_types::connector_types::GetPaymentMethodResponseData,
+        );
+    };
     (connector: $c:ident, flow: PreAuthenticate, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::PaymentPreAuthenticateV2<$g> for $c<$g> {}
         $crate::connectors::macros::flow_status_emit!(
@@ -2175,6 +2363,7 @@ macro_rules! flow_status_emit {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -2202,6 +2391,7 @@ macro_rules! flow_status_emit {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
 }
@@ -2258,7 +2448,156 @@ macro_rules! frm_flow_not_implemented {
                 )
                 .into())
             }
+
         }
     };
 }
 pub(crate) use frm_flow_not_implemented;
+
+/// Generate a full `ConnectorIntegrationV2` impl for a flow that makes no
+/// outbound connector call — the entire response is built locally in
+/// `handle_response_v2`.  Mirrors `macro_connector_implementation!` but for
+/// the local-response-flows category (`CallConnectorAction::HandleResponseWithoutBuildRequest`).
+///
+/// Emits a `ConnectorIntegrationV2<$flow, $resource_common_data, $request, $response>`
+/// impl with:
+/// - `get_call_connector_action` → `HandleResponseWithoutBuildRequest`
+/// - `build_request_v2` → runs `other_functions.validate_request` if given, then `Ok(None)`
+/// - `get_url` → `Err(IntegrationError::NotImplemented(..))` (unreachable)
+/// - `handle_response_v2` → forwards to `$handle_response`
+///
+/// The connector file still owns the marker-trait impl (e.g.
+/// `impl PaymentPreAuthenticateV2<G> for C<G> {}`).
+///
+/// `$handle_response` is a connector-owned function (typically in `transformers.rs`)
+/// whose signature must match:
+/// ```text
+/// fn(data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
+///    event_builder: Option<&mut Event>,
+///    res: Response)
+///  -> CustomResult<RouterDataV2<$flow, $resource_common_data, $request, $response>, ConnectorError>
+/// ```
+///
+/// An optional trailing `other_functions: { validate_request: $validate_request }`
+/// block passes a connector-owned validation function that `build_request_v2` runs
+/// before returning `Ok(None)`. The executor still calls `build_request_v2` first for
+/// these flows, so this is where a connector rejects a bad config or request with an
+/// `IntegrationError` instead of the `ConnectorError` `handle_response_v2` can only
+/// produce. Its signature must match:
+/// ```text
+/// fn(req: &RouterDataV2<$flow, $resource_common_data, $request, $response>)
+///  -> CustomResult<(), IntegrationError>
+/// ```
+macro_rules! macro_connector_local_flow_implementation {
+    (
+        connector: $connector:ident,
+        flow_name: $flow:ident,
+        resource_common_data: $resource_common_data:ty,
+        flow_request: $request:ty,
+        flow_response: $response:ty,
+        handle_response: $handle_response:path,
+        generic_type: $g:tt,
+        [$($b:tt)*]
+        $(, other_functions: {
+            validate_request: $validate_request:path $(,)?
+        })?
+        $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::$flow,
+                $resource_common_data,
+                $request,
+                $response,
+            > for $connector<$g>
+        {
+            fn get_call_connector_action(&self) -> ::common_enums::CallConnectorAction {
+                ::common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+            }
+
+            fn build_request_v2(
+                &self,
+                req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                Option<::common_utils::request::Request>,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // No outbound call: the whole flow is handled locally in
+                // `handle_response_v2`. A `validate_request` from `other_functions`
+                // runs first, so a bad config or request fails as an
+                // `IntegrationError` rather than the `ConnectorError`
+                // `handle_response_v2` can only produce.
+                $(
+                    let validate_request = $validate_request;
+                    validate_request(req)?;
+                )?
+                let _ = req; // unused when no `validate_request` is given
+                Ok(None)
+            }
+
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                String,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // Unreachable: build_request_v2 returns None, so the framework
+                // never asks for a URL.
+                Err(::domain_types::errors::IntegrationError::NotImplemented(
+                    format!(
+                        "{} {} flow makes no outbound call",
+                        ::interfaces::api::ConnectorCommon::id(self),
+                        stringify!($flow),
+                    ),
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "get_url is unreachable for {} because build_request_v2 returns None",
+                            stringify!($flow),
+                        )),
+                        suggested_action: Some(
+                            "No action required: the response is built locally in handle_response_v2"
+                                .to_owned(),
+                        ),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+
+            fn handle_response_v2(
+                &self,
+                data: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                event_builder: Option<&mut ::common_utils::events::Event>,
+                res: ::domain_types::router_response_types::Response,
+            ) -> ::common_utils::errors::CustomResult<
+                ::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                ::domain_types::errors::ConnectorError,
+            > {
+                let handle_response = $handle_response;
+                handle_response(data, event_builder, res)
+            }
+        }
+    };
+}
+pub(crate) use macro_connector_local_flow_implementation;

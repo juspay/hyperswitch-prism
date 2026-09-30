@@ -117,10 +117,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status: common_enums::AttemptStatus = webhook_body.status.into();
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
             status,
             status_code: 200,
-            connector_response_reference_id: Some(transaction_id),
+            connector_response_reference_id: Some(transaction_id.clone()),
+            connector_request_reference_id: Some(transaction_id),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
@@ -175,6 +177,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Calida<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        Ok(())
+    }
 }
 
 macros::create_all_prerequisites!(
@@ -270,6 +279,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
@@ -280,6 +291,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -298,16 +313,6 @@ impl ConnectorValidation for Calida<DefaultPCIHolder> {
             .into()),
             _ => Ok(()),
         }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), IntegrationError> {
-        Ok(())
     }
 
     fn is_webhook_source_verification_mandatory(&self) -> bool {

@@ -70,12 +70,12 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            body: "{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -88,7 +88,7 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            body: "{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
     }

@@ -52,8 +52,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
+            // `get_connector_transaction_id()` already returns
+            // `CustomResult<String, IntegrationError>` and raises
+            // `MissingConnectorTransactionID { context }` itself -- do not re-wrap it.
+            let transaction_id = req.request.get_connector_transaction_id()?;
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/payments/{transaction_id}"))
         }
@@ -132,8 +134,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 All patterns start by extracting the transaction ID:
 
 ```rust
-let transaction_id = req.request.get_connector_transaction_id()
-    .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
+let transaction_id = req.request.get_connector_transaction_id()?;
 let base_url = self.connector_base_url_payments(req);
 ```
 
@@ -200,8 +201,7 @@ impl TryFrom<
         let router_data = &item.router_data;
         let transaction_id = router_data
             .request
-            .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID)?;
+            .get_connector_transaction_id()?;
 
         Ok(Self {
             transaction_id,
@@ -218,6 +218,12 @@ impl TryFrom<
 pub struct {ConnectorName}SyncResponse {
     pub id: String,
     pub status: {ConnectorName}PaymentStatus,
+    /// Merchant-side reference the connector echoes back; feeds
+    /// `connector_response_reference_id`.
+    pub reference: Option<String>,
+    /// Present only on in-band failures; drives the `Err(ErrorResponse)` branch below.
+    pub error: Option<String>,
+    pub error_code: Option<String>,
     // Add connector-specific fields as needed
 }
 ```
@@ -231,6 +237,9 @@ Map the connector's status enum to `common_enums::AttemptStatus` via the `From` 
 **Best practices:**
 - Always derive status from the connector's response field, never from HTTP status code.
 - Use the `From` trait for clean, testable mapping.
+- Handle unknown wire values at the **deserialization** layer with `#[serde(other)]`, and keep
+  the mapping `match` **exhaustive** -- a catch-all `_ =>` at the status-mapping layer hides
+  new vendor statuses from the compiler. Reviewers require both halves.
 
 ```rust
 #[derive(Debug, Deserialize, Clone)]
@@ -241,16 +250,23 @@ pub enum {ConnectorName}PaymentStatus {
     Pending,
     Authorized,
     Cancelled,
+    /// Deserialization-layer catch-all: an unrecognised status string lands here instead of
+    /// failing the whole response parse.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
     fn from(status: {ConnectorName}PaymentStatus) -> Self {
+        // Exhaustive on purpose -- no `_ =>` arm.
         match status {
             {ConnectorName}PaymentStatus::Succeeded => Self::Charged,
             {ConnectorName}PaymentStatus::Authorized => Self::Authorized,
             {ConnectorName}PaymentStatus::Pending    => Self::Pending,
             {ConnectorName}PaymentStatus::Failed     => Self::Failure,
             {ConnectorName}PaymentStatus::Cancelled  => Self::Voided,
+            // Non-terminal: a status we do not recognise is not proof of failure.
+            {ConnectorName}PaymentStatus::Unknown    => Self::Pending,
         }
     }
 }
@@ -280,7 +296,8 @@ impl TryFrom<
     >,
 > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<IntegrationError>;
+    // Response-side transformers fail with `ConnectorError`, not `IntegrationError`.
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<
@@ -293,15 +310,38 @@ impl TryFrom<
 
         let status = common_enums::AttemptStatus::from(response.status.clone());
 
+        // Carry identifiers through instead of hardcoding `None`. PSync must echo back the same
+        // reference Authorize published, otherwise the identifier round-trip breaks and the
+        // caller cannot correlate the sync with the original attempt.
+        // Prefer the reference the connector echoes in this response; fall back to the
+        // connector transaction id. Never `None` when the connector gave you either.
+        let connector_response_reference_id = response
+            .reference
+            .clone()
+            .or_else(|| Some(response.id.clone()));
+
+        // Re-publish whatever metadata the connector still needs on later flows. Read it from
+        // the inbound carrier (`router_data.request.connector_feature_data`) or rebuild it from
+        // this response -- do not drop it.
+        let connector_metadata = router_data
+            .request
+            .connector_feature_data
+            .clone()
+            .map(|meta| meta.expose());
+
+        // Enum struct-variant: no `..Default::default()`, all 11 fields are mandatory (E0063).
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,
+            connector_metadata,
             mandate_reference: None,
-            connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id,
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -316,34 +356,59 @@ impl TryFrom<
 }
 ```
 
+**Identifier carrier chain:** `TransactionResponse.connector_metadata` (written by Authorize)
+-> `PaymentsSyncData.connector_feature_data` on the PSync request (accessor
+`PaymentsSyncData::get_connector_meta()`) -> gRPC `connector_feature_data`. Emitting
+`connector_metadata: None` / `connector_response_reference_id: None` from PSync severs that
+chain -- that is the identifier round-trip bug, not a harmless stub.
+
 ---
 
 ## Error Handling in PSync Response
 
-When the connector response contains error information, return an `Err` variant:
+A 2xx body carrying a declined/failed status is still a failure and must come back as
+`response: Err(ErrorResponse { .. })`. Branch on a success predicate derived from the
+connector's own status -- `domain_types::utils::is_payment_failure` -- not on the HTTP code:
 
 ```rust
-if let Some(error) = &response.error {
+let status = common_enums::AttemptStatus::from(response.status.clone());
+
+if domain_types::utils::is_payment_failure(status) {
     return Ok(Self {
         resource_common_data: PaymentFlowData {
-            status: common_enums::AttemptStatus::Failure,
+            status,
             ..router_data.resource_common_data.clone()
         },
         response: Err(ErrorResponse {
-            code: response.error_code.clone().unwrap_or_default(),
-            message: error.clone(),
-            reason: Some(error.clone()),
+            // Never `.unwrap_or_default()` -- an empty code reaches the merchant blank.
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.clone(),
             status_code: item.http_code,
-            attempt_status: Some(common_enums::AttemptStatus::Failure),
+            // Flow-aware, derived from the connector response. Do NOT hardcode
+            // `Some(AttemptStatus::Failure)`: it is a type error now (the field is
+            // `Option<FlowStatus>`) and it is the bug that reports a charged payment as
+            // FAILURE. Do not blanket-`None` it either -- a hard decline that stays Pending
+            // keeps retrying forever. Set what the response actually proves.
+            attempt_status: Some(FlowStatus::Payment(status)),
             connector_transaction_id: Some(response.id.clone()),
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            // `ErrorResponse` has 13 fields and implements `Default`.
+            ..Default::default()
         }),
         ..router_data.clone()
     });
 }
 ```
+
+Exemplars in tree: `connectors/flywire.rs` (full flow-aware classification, including
+`FlowStatus::Refund`) and `connectors/noon.rs` (minimal form -- terminal only for one proven
+error code, `None` otherwise).
 
 ---
 
@@ -361,22 +426,39 @@ use domain_types::connector_types::{
 And in the transformers file:
 
 ```rust
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 use domain_types::connector_flow::PSync;
 use domain_types::connector_types::{
     PaymentFlowData, PaymentsResponseData, PaymentsSyncData, ResponseId,
 };
+use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::router_data::{ErrorResponse, FlowStatus};
+use hyperswitch_masking::ExposeInterface;   // for `SecretSerdeValue::expose()`
 ```
 
 ---
 
-## SourceVerification Stub
+## SourceVerification / BodyDecoding Stubs
 
-Required for every flow:
+`SourceVerification` (`crates/types-traits/interfaces/src/verification.rs`) and
+`BodyDecoding` (`interfaces/src/decode.rs`) are **non-generic** traits -- they take no flow
+type parameters. There is **one** impl per connector, not one per flow. Writing
+`SourceVerification<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>` is
+E0107 ("trait takes 0 generic arguments but 4 were supplied").
 
 ```rust
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
     for {ConnectorName}<T>
 {
 }
 ```
+
+Both traits are fully defaulted, so an empty impl is the whole stub. Override
+`get_secrets` / `get_algorithm` / `get_signature` / `get_message` only when the connector
+actually signs or encodes its callbacks. Exemplar:
+`crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.

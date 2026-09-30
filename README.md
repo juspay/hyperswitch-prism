@@ -248,6 +248,71 @@ Ready-made integrations for popular platforms.
 
 ---
 
+## 🐳 Running the gRPC Server (Docker)
+
+Prism also runs as a standalone gRPC server. Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry on every nightly tag — [browse the available tags](https://github.com/juspay/hyperswitch-prism/pkgs/container/hyperswitch-prism). `latest` follows the most recent nightly; pin a dated tag for anything you need to reproduce.
+
+```bash
+docker run --rm -p 8000:8000 ghcr.io/juspay/hyperswitch-prism:latest
+```
+
+The server registers its own descriptors, so [`grpcurl`](https://github.com/fullstorydev/grpcurl) needs no local `.proto` files — it can list the services and print the exact request schema:
+
+```bash
+grpcurl -plaintext localhost:8000 grpc.health.v1.Health/Check
+# { "status": "SERVING" }
+
+grpcurl -plaintext localhost:8000 list
+grpcurl -plaintext localhost:8000 describe types.PaymentService.Authorize
+grpcurl -plaintext localhost:8000 describe types.PaymentServiceAuthorizeRequest
+```
+
+Connector credentials are sent per request in the `x-connector-config` metadata header, as JSON of the form `{"config":{"Stripe":{"api_key":"sk_test_..."}}}` — it selects the connector and carries its credentials, and the server keeps neither. The proto definitions are in [`crates/types-traits/grpc-api-types/proto`](./crates/types-traits/grpc-api-types/proto).
+
+### Configuration
+
+The image ships `development.toml` (default), `sandbox.toml` and `production.toml`. Pick one with `CS__COMMON__ENVIRONMENT`:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e CS__COMMON__ENVIRONMENT=sandbox \
+  ghcr.io/juspay/hyperswitch-prism:latest
+```
+
+Individual keys are overridden with `CS__<SECTION>__<KEY>` environment variables, for example `CS__SERVER__PORT=9000`. To supply a config of your own, mount it over the one in the image:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/my-config.toml:/app/config/development.toml:ro" \
+  ghcr.io/juspay/hyperswitch-prism:latest
+```
+
+### Metrics
+
+Prometheus metrics are served on port `8080`. Publish that port as well if you want to scrape them:
+
+```bash
+docker run --rm -p 8000:8000 -p 8080:8080 ghcr.io/juspay/hyperswitch-prism:latest
+curl localhost:8080/metrics
+```
+
+The endpoint is empty until the server has handled its first request.
+
+The image is also built with the OTLP push pipeline compiled in, disabled by default.
+Enable it to push metrics to an OpenTelemetry collector over gRPC:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e CS__METRICS__OTEL__ENABLED=true \
+  -e CS__METRICS__OTEL__OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
+  ghcr.io/juspay/hyperswitch-prism:latest
+```
+
+The endpoint must be an OTLP gRPC receiver (default port `4317`). Enabling this does
+not affect the Prometheus endpoint above.
+
+---
+
 ## 🛠️ Development
 
 ### Prerequisites

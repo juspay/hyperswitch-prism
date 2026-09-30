@@ -109,6 +109,17 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         granular_request_messages: &[
             "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "PaymentMethodServiceGetRequest",
+            "PaymentMethodServiceTokenizeRequest",
+        ],
+        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
+        name: "payment_method_eligibility",
+        composite_request_message: "CompositePaymentMethodEligibilityRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "PaymentMethodServiceEligibilityRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,

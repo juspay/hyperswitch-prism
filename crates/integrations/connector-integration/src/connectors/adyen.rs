@@ -16,7 +16,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    pii::SecretSerdeValue,
     types::StringMinorUnit,
 };
 use domain_types::{
@@ -373,6 +372,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         }
 
@@ -384,16 +387,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         match response {
             Ok(response) => {
                 with_error_response_body!(event_builder, response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
+                // Mirror hyperswitch: message -> title -> placeholder.
+                let message = response
+                    .message
+                    .or(response.title)
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.error_code,
-                    message: response.message.to_owned(),
-                    reason: Some(response.message),
+                    message: message.clone(),
+                    reason: Some(message),
                     attempt_status: None,
                     connector_transaction_id: response.psp_reference,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -401,7 +417,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}));
                 }
                 tracing::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "mifinity")
+                utils::handle_json_response_deserialization_failure(res, "adyen")
             }
         }
     }
@@ -492,7 +508,14 @@ macros::macro_connector_implementation!(
                 // Build the request normally if encoded_data is present
                 let url = self.get_url(req)?;
                 let headers = self.get_headers(req)?;
-                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let request_data = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let (body, typed_request_value) = match request_data {
+                    Some(data) => (
+                        Some(data.content),
+                        data.typed_request.map(|msv| msv.inner().clone()),
+                    ),
+                    None => (None, None),
+                };
 
                 Ok(Some(
                     common_utils::request::RequestBuilder::new()
@@ -501,6 +524,7 @@ macros::macro_connector_implementation!(
                         .attach_default_headers()
                         .headers(headers)
                         .set_optional_body(body)
+                        .set_typed_connector_request(typed_request_value)
                         .build(),
                 ))
             } else {
@@ -608,6 +632,20 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Adyen<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -854,7 +892,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
-        transformers::get_adyen_webhook_event_type(notif.event_code).map_err(|e| report!(e))
+        transformers::get_adyen_webhook_event_type(notif.event_code, notif.success)
+            .map_err(|e| report!(e))
     }
 
     fn get_webhook_event_reference(
@@ -900,6 +939,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(notif.psp_reference),
                     merchant_refund_id: Some(notif.merchant_reference),
                     connector_transaction_id: notif.original_reference,
+                    merchant_transaction_id: None,
                 })
             }
             // Dispute events: psp_reference is the dispute ID; original_reference is the parent payment.
@@ -956,11 +996,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 notif.psp_reference.clone(),
             )),
             status: transformers::get_adyen_payment_webhook_event(notif.event_code, notif.success)?,
-            connector_response_reference_id: Some(notif.psp_reference),
+            connector_response_reference_id: Some(notif.psp_reference.clone()),
+            connector_request_reference_id: Some(notif.psp_reference),
             error_code,
             mandate_reference,
             error_message,
@@ -1431,22 +1473,6 @@ impl ConnectorValidation for Adyen<DefaultPCIHolder> {
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: AttemptStatus,
-        _connector_feature_data: Option<SecretSerdeValue>,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
-    }
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }

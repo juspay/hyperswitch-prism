@@ -3,6 +3,7 @@
   "supported_suites": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/Authorize",
-    "PaymentService/Refund"
+    "PaymentService/Refund",
+    "PaymentMethodService/Eligibility"
   ]
 }

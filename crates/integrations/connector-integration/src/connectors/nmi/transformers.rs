@@ -759,6 +759,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                 )
             }
@@ -774,6 +775,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             ),
         };
@@ -883,14 +888,19 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 response.transaction.last()
             });
 
-        // Handle empty response (means AuthenticationPending) or transaction data
+        // Handle empty response (NMI has no record of the order) or transaction data
         let (status, transaction_id) = if let Some(transaction) = transaction {
             // Map condition field from XML to AttemptStatus using NmiStatus enum
             let status = AttemptStatus::from(NmiStatus::from(transaction.condition.clone()));
             (status, Some(transaction.transaction_id.clone()))
         } else {
-            // Empty XML response = AuthenticationPending (during 3DS flow)
-            (AttemptStatus::AuthenticationPending, None)
+            // Empty XML response: NMI has no record of this order, so it is telling us nothing about
+            // the attempt. Report Unspecified rather than inventing a status -- it reaches the router
+            // as PaymentStatus::UNSPECIFIED, which resolves to the attempt's existing status. Claiming
+            // AuthenticationPending here happened to suit the 3DS flow (where the attempt already is
+            // authentication-pending), but it is wrong for every other way an order goes unknown to
+            // NMI -- e.g. an attempt that never reached the connector at all.
+            (AttemptStatus::Unspecified, None)
         };
 
         Ok(Self {
@@ -907,6 +917,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1005,6 +1016,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1115,6 +1127,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_refund_id: response.orderid.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,
@@ -1200,6 +1213,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 connector_refund_id,
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,
@@ -1303,6 +1317,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1560,6 +1575,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             ),
         };
@@ -1819,6 +1838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                 )
             }
@@ -1834,6 +1854,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             ),
         };
@@ -2032,6 +2056,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
             ),
             Response::Declined | Response::Error => (
@@ -2046,6 +2071,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             ),
         };

@@ -18,9 +18,9 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 strum = { version = "0.26", features = ["derive"] }
-reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "multipart"] }
 mime = "0.3.17"
-http = "0.2.12"
+http = "1.2.0"
 thiserror = { workspace = true }
 bytes = { workspace = true }
 time = "0.3.41"
@@ -30,6 +30,12 @@ async-trait = "0.1.88"
 actix-web = "4.11.0"
 
 error-stack = "0.4.1"
+
+[features]
+# Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
+# switch — no dependencies — so feature-off builds are byte-identical. Enabled
+# by grpc-server's `deja` umbrella feature.
+deja = []
 
 [lints]
 workspace = true

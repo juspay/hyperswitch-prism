@@ -35,6 +35,8 @@ Use this operation when you do not have the recipient's payout method details up
 | `webhook_url` | string | No | URL where payout status updates should be sent. |
 | `browser_info` | BrowserInformation | No | Information about the user's browser. |
 | `access_token` | SecretString | No | Access token for the connector, if required. |
+| `description` | string | No | Description of the payout. |
+| `source_bank_data` | SourceBankData | No | Details of the bank account from which the payout is funded. |
 
 ## Response Fields
 

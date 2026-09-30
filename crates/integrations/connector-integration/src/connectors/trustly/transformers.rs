@@ -13,14 +13,16 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     errors,
-    payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankRedirectData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::base64_decode,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use openssl::{
     hash::MessageDigest,
     pkey::PKey,
@@ -31,6 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 const TRUSTLY_VERSION: &str = "1.1";
+const BANK_LAST_DIGITS_LEN: usize = 4;
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyAuthType {
@@ -111,6 +114,8 @@ pub struct TrustlyPaymentRequestData {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct TrustlyPaymentRequestAttributes {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_i_d: Option<Secret<String>>,
     amount: StringMajorUnit,
     country: CountryAlpha2,
     currency: Currency,
@@ -271,7 +276,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::Trustly { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::Trustly {
+                additional_details,
+                ..
+            }) => {
                 let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
 
                 let return_url = item
@@ -283,8 +291,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         field_name: "return_url",
                         context: Default::default(),
                     })?;
-                let uuid = uuid::Uuid::new_v4().to_string();
+                let uuid = common_utils::fp_utils::generate_uuid_v4();
+                let account_id = additional_details.as_ref().and_then(|details| {
+                    let account_id = details
+                        .peek()
+                        .get("account_id")
+                        .and_then(|account_id| account_id.as_str())
+                        .map(|account_id| account_id.to_string());
+
+                    if account_id.is_none() {
+                        tracing::error!(
+                            "Trustly additional_details carried no readable account_id; the saved account cannot be charged and the customer will be asked to select their bank again"
+                        );
+                    }
+
+                    account_id
+                });
                 let attributes = TrustlyPaymentRequestAttributes {
+                    account_i_d: account_id.map(Secret::new),
                     amount: item
                         .connector
                         .amount_converter
@@ -498,6 +522,7 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -513,6 +538,10 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -578,7 +607,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let attributes = Some(TrustlyRefundAttributes {
             external_reference: item
                 .router_data
@@ -685,6 +714,7 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     connector_refund_id: response.result.data.orderid,
                     refund_status: common_enums::RefundStatus::from(response.result.data.result),
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 }),
                 ..item.router_data
             }),
@@ -699,6 +729,10 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -779,6 +813,252 @@ pub struct TrustlyWebhookAttributes {
     pub clearinghouse: Option<String>,
 }
 
+fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, String> {
+    match bank.trim().to_lowercase().as_str() {
+        "abanca" => Ok(common_enums::BankNames::Abanca),
+        "abn amro" => Ok(common_enums::BankNames::AbnAmro),
+        "aib" => Ok(common_enums::BankNames::Aib),
+        "aktia" => Ok(common_enums::BankNames::Aktia),
+        "ålandsbanken" => Ok(common_enums::BankNames::Alandsbanken),
+        "alior bank" => Ok(common_enums::BankNames::AliorBank),
+        "alm. brand" => Ok(common_enums::BankNames::AlmBrand),
+        "alpha fx" => Ok(common_enums::BankNames::AlphaFx),
+        "arbejdernes landsbank" => Ok(common_enums::BankNames::ArbejdernesLandsbank),
+        "arbuthnot latham" => Ok(common_enums::BankNames::ArbuthnotLatham),
+        "asn bank" => Ok(common_enums::BankNames::AsnBank),
+        "banco sabadell" => Ok(common_enums::BankNames::BancoDeSabadell),
+        "banco popular" => Ok(common_enums::BankNames::BancoPopular),
+        "banco santander" => Ok(common_enums::BankNames::BancoSantander),
+        "bank99 (ex-ing)" | "bank99" => Ok(common_enums::BankNames::Bank99Ag),
+        "bank austria" => Ok(common_enums::BankNames::BankAustria),
+        "millennium bank" => Ok(common_enums::BankNames::BankMillennium),
+        "bank of ireland uk" => Ok(common_enums::BankNames::BankOfIrelandUk),
+        "bank of scotland" => Ok(common_enums::BankNames::BankOfScotland),
+        "bank pekao" => Ok(common_enums::BankNames::BankPekaoSa),
+        "bank pocztowy" => Ok(common_enums::BankNames::BankPocztowy),
+        "bankia" => Ok(common_enums::BankNames::Bankia),
+        "bankinter" => Ok(common_enums::BankNames::Bankinter),
+        "barclays" => Ok(common_enums::BankNames::Barclays),
+        "bawag p.s.k." => Ok(common_enums::BankNames::BawagPsk),
+        "bbva" => Ok(common_enums::BankNames::Bbva),
+        "bn bank asa" => Ok(common_enums::BankNames::BnBank),
+        "bnp paribas" => Ok(common_enums::BankNames::BnpParibas),
+        "caixabank" => Ok(common_enums::BankNames::Caixa),
+        "cater allen" => Ok(common_enums::BankNames::CaterAllen),
+        "česká spořitelna" => Ok(common_enums::BankNames::CeskaSporitelna),
+        "chase uk" => Ok(common_enums::BankNames::Chase),
+        "chelsea building society" => Ok(common_enums::BankNames::ChelseaBuildingSociety),
+        "citadele" => Ok(common_enums::BankNames::Citadele),
+        "citi handlowy" => Ok(common_enums::BankNames::CitiHandlowy),
+        "citibank" => Ok(common_enums::BankNames::Citi),
+        "clydesdale bank" => Ok(common_enums::BankNames::ClydesdaleBank),
+        "comdirect" => Ok(common_enums::BankNames::Comdirect),
+        "commerzbank" => Ok(common_enums::BankNames::Commerzbank),
+        "coop pank" => Ok(common_enums::BankNames::CoopPank),
+        "the co-operative bank" => Ok(common_enums::BankNames::CooperativeBank),
+        "coutts" => Ok(common_enums::BankNames::Coutts),
+        "credit agricole" => Ok(common_enums::BankNames::CreditAgricole),
+        "the cumberland" => Ok(common_enums::BankNames::Cumberland),
+        "dab bank" => Ok(common_enums::BankNames::DabBank),
+        "danske bank" => Ok(common_enums::BankNames::DanskeBank),
+        "deutsche bank" => Ok(common_enums::BankNames::DeutscheBank),
+        "deutsche bank polska" => Ok(common_enums::BankNames::DeutscheBankPolska),
+        "djurslands bank" => Ok(common_enums::BankNames::DjurslandsBank),
+        "dkb - deutsche kreditbank" => Ok(common_enums::BankNames::Dkb),
+        "dnb" => Ok(common_enums::BankNames::Dnb),
+        "easybank" => Ok(common_enums::BankNames::EasyBank),
+        "erste sparkasse george" => Ok(common_enums::BankNames::ErsteBankUndSparkassen),
+        "etne sparebank" => Ok(common_enums::BankNames::EtneSparebank),
+        "evo banco" => Ok(common_enums::BankNames::EvoBanco),
+        "fana sparebank" => Ok(common_enums::BankNames::FanaSparebank),
+        "fidor bank" => Ok(common_enums::BankNames::FidorBank),
+        "first direct" => Ok(common_enums::BankNames::FirstDirect),
+        "flekkefjord sparebank" => Ok(common_enums::BankNames::FlekkefjordSparebank),
+        "forex" => Ok(common_enums::BankNames::ForexBank),
+        "getin bank" => Ok(common_enums::BankNames::GetinBank),
+        "halifax" => Ok(common_enums::BankNames::Halifax),
+        "handelsbanken" => Ok(common_enums::BankNames::Handelsbanken),
+        "haugesund sparebank" => Ok(common_enums::BankNames::HaugesundSparebank),
+        "c. hoare & co." => Ok(common_enums::BankNames::HoareAndCo),
+        "hsbc uk" => Ok(common_enums::BankNames::Hsbc),
+        "hypovereinsbank" => Ok(common_enums::BankNames::HypoVereinsbank),
+        "ibercaja" => Ok(common_enums::BankNames::Ibercaja),
+        "ica banken" => Ok(common_enums::BankNames::IcaBanken),
+        "icici bank uk" => Ok(common_enums::BankNames::IciciBank),
+        "ing" => Ok(common_enums::BankNames::Ing),
+        "ing bank śląski" => Ok(common_enums::BankNames::IngBankSlaski),
+        "ing-diba" => Ok(common_enums::BankNames::IngDiba),
+        "inteligo" => Ok(common_enums::BankNames::Inteligo),
+        "investec" => Ok(common_enums::BankNames::Investec),
+        "jyske bank" => Ok(common_enums::BankNames::JyskeBank),
+        "kleinwort hambros" => Ok(common_enums::BankNames::KleinwortHambros),
+        "klp banken" => Ok(common_enums::BankNames::KlpBanken),
+        "knab" => Ok(common_enums::BankNames::Knab),
+        "kreditbanken" => Ok(common_enums::BankNames::Kreditbanken),
+        "kutxabank" => Ok(common_enums::BankNames::Kutxabank),
+        "landkreditt bank as" => Ok(common_enums::BankNames::LandkredittBank),
+        "länsförsäkringar" => Ok(common_enums::BankNames::Lansforsakringar),
+        "lhv pank" => Ok(common_enums::BankNames::LhvPank),
+        "lillesands sparebank" => Ok(common_enums::BankNames::LillesandsSparebank),
+        "lloyds bank" => Ok(common_enums::BankNames::Lloyds),
+        "luminor" => Ok(common_enums::BankNames::Luminor),
+        "luster sparebank" => Ok(common_enums::BankNames::LusterSparebank),
+        "mbna" => Ok(common_enums::BankNames::Mbna),
+        "metro bank" => Ok(common_enums::BankNames::MetroBank),
+        "monzo" => Ok(common_enums::BankNames::Monzo),
+        "n26" => Ok(common_enums::BankNames::N26),
+        "natwest" => Ok(common_enums::BankNames::NatWest),
+        "nationwide" => Ok(common_enums::BankNames::Nationwide),
+        "nordea" => Ok(common_enums::BankNames::Nordea),
+        "nordea direct" => Ok(common_enums::BankNames::NordeaDirect),
+        "nordfyns bank" => Ok(common_enums::BankNames::NordfynsBank),
+        "nordjyske bank" => Ok(common_enums::BankNames::NordjyskeBank),
+        "norisbank" => Ok(common_enums::BankNames::Norisbank),
+        "nykredit bank" => Ok(common_enums::BankNames::NykreditBank),
+        "obos-banken as" => Ok(common_enums::BankNames::ObosBanken),
+        "omasp" => Ok(common_enums::BankNames::OmaSp),
+        "op" => Ok(common_enums::BankNames::Op),
+        "orange finanse" => Ok(common_enums::BankNames::OrangeFinanse),
+        "pareto bank asa" => Ok(common_enums::BankNames::ParetoBank),
+        "pko bank polski" => Ok(common_enums::BankNames::PkoBankPolski),
+        "pop pankki" => Ok(common_enums::BankNames::PopPankki),
+        "postbank" => Ok(common_enums::BankNames::PostBank),
+        "rabobank" => Ok(common_enums::BankNames::Rabobank),
+        "raiffeisen" => Ok(common_enums::BankNames::RaiffeisenBankengruppeOsterreich),
+        "regio bank" => Ok(common_enums::BankNames::Regiobank),
+        "revolut" => Ok(common_enums::BankNames::Revolut),
+        "ringkjøbing landbobank" => Ok(common_enums::BankNames::RingkjobingLandbobank),
+        "royal bank of scotland" => Ok(common_enums::BankNames::RoyalBankOfScotland),
+        "s-pankki" => Ok(common_enums::BankNames::SPankki),
+        "säästöpankki" => Ok(common_enums::BankNames::Saastopankki),
+        "santander" => Ok(common_enums::BankNames::Santander),
+        "santander uk" => Ok(common_enums::BankNames::SantanderUk),
+        "sbanken" => Ok(common_enums::BankNames::Sbanken),
+        "seb" => Ok(common_enums::BankNames::Seb),
+        "šiaulių bankas" => Ok(common_enums::BankNames::SiauliuBankas),
+        "silicon valley bank uk" => Ok(common_enums::BankNames::SiliconValleyBank),
+        "skandiabanken" => Ok(common_enums::BankNames::Skandiabanken),
+        "skjern bank" => Ok(common_enums::BankNames::SkjernBank),
+        "skudenes & aakra sparebank" => Ok(common_enums::BankNames::SkudenesOgAakraSparebank),
+        "sns bank" => Ok(common_enums::BankNames::SnsBank),
+        "søgne og greipstad sparebank" => Ok(common_enums::BankNames::SogneOgGreipstadSparebank),
+        "spar nord bank" => Ok(common_enums::BankNames::SparNordBank),
+        "sparbanken syd" => Ok(common_enums::BankNames::SparbankenSyd),
+        "sparda-bank" => Ok(common_enums::BankNames::SpardaBank),
+        "sparebank 1" => Ok(common_enums::BankNames::SpareBank1),
+        "sparebank 1 gudbrandsdal" => Ok(common_enums::BankNames::SpareBank1Gudbrandsdal),
+        "sparebank 1 hallingdal valdres" => {
+            Ok(common_enums::BankNames::SpareBank1HallingdalValdres)
+        }
+        "sparebank 1 lom og skjåk" => Ok(common_enums::BankNames::SpareBank1LomOgSkjak),
+        "sparebank 1 modum" => Ok(common_enums::BankNames::SpareBank1Modum),
+        "sparebank 1 nordmøre" => Ok(common_enums::BankNames::SpareBank1Nordmore),
+        "sparebank 1 ringerike hadeland" => {
+            Ok(common_enums::BankNames::SpareBank1RingerikeHadeland)
+        }
+        "sparebank 1 smn" => Ok(common_enums::BankNames::SpareBank1Smn),
+        "sparebank 1 sr-bank" => Ok(common_enums::BankNames::SpareBank1SrBank),
+        "sparebank 1 søre sunnmøre" => Ok(common_enums::BankNames::SpareBank1SoreSunnmore),
+        "sparebank 1 sørøst-norge (bv)" | "sparebank 1 sørøst-norge bv" | "sparebank 1 bv" => {
+            Ok(common_enums::BankNames::SpareBank1SorostNorgeBv)
+        }
+        "sparebank 1 sørøst-norge (telemark)"
+        | "sparebank 1 sørøst-norge telemark"
+        | "sparebank 1 telemark" => Ok(common_enums::BankNames::SpareBank1SorostNorgeTelemark),
+        "sparebank 1 østfold akershus" => Ok(common_enums::BankNames::SpareBank1OstfoldAkershus),
+        "sparebank 1 østlandet" => Ok(common_enums::BankNames::SpareBank1Ostlandet),
+        "sparebanken møre" => Ok(common_enums::BankNames::SparebankenMore),
+        "sparebanken øst" => Ok(common_enums::BankNames::SparebankenOst),
+        "sparebanken sogn og fjordane" => Ok(common_enums::BankNames::SparebankenSognOgFjordane),
+        "sparebanken sør" => Ok(common_enums::BankNames::SparebankenSor),
+        "sparebanken vest" => Ok(common_enums::BankNames::SparebankenVest),
+        "sparekassen danmark" => Ok(common_enums::BankNames::SparekassenDanmark),
+        "sparekassen sjælland-fyn" => Ok(common_enums::BankNames::SparekassenSjaellandFyn),
+        "spareskillingsbanken" => Ok(common_enums::BankNames::Spareskillingsbanken),
+        "sparkasse" => Ok(common_enums::BankNames::Sparkasse),
+        "starling bank" => Ok(common_enums::BankNames::Starling),
+        "swedbank" => Ok(common_enums::BankNames::Swedbank),
+        "swedbank (& sparbankerna)" | "swedbank & sparbankerna" => {
+            Ok(common_enums::BankNames::SwedbankSparbankerna)
+        }
+        "sydbank" => Ok(common_enums::BankNames::Sydbank),
+        "targobank" => Ok(common_enums::BankNames::TargoBank),
+        "tesco bank" => Ok(common_enums::BankNames::TescoBank),
+        "tide" => Ok(common_enums::BankNames::Tide),
+        "triodos" => Ok(common_enums::BankNames::Triodos),
+        "tsb bank" => Ok(common_enums::BankNames::TsbBank),
+        "ulster bank" => Ok(common_enums::BankNames::UlsterBank),
+        "vanquis bank" => Ok(common_enums::BankNames::VanquisBank),
+        "vestjysk bank" => Ok(common_enums::BankNames::VestjyskBank),
+        "virgin money uk" => Ok(common_enums::BankNames::VirginMoney),
+        "volksbank" => Ok(common_enums::BankNames::Volksbank),
+        "volksbank-raiffeisenbank" => Ok(common_enums::BankNames::VolksbankenRaiffeisenbanken),
+        "voss sparebank" => Ok(common_enums::BankNames::VossSparebank),
+        "wise" => Ok(common_enums::BankNames::Wise),
+        "yorkshire bank" => Ok(common_enums::BankNames::YorkshireBank),
+        "yorkshire building society" => Ok(common_enums::BankNames::YorkshireBuildingSociety),
+        "cash plus" => Ok(common_enums::BankNames::Zempler),
+        other => Err(format!("Unknown Trustly bank name: {other}")),
+    }
+}
+
+// Trustly can send more than the trailing four characters in `lastdigits`, so keep only the
+// last four digits before propagating them as the bank account's last digits.
+fn extract_bank_last_digits(lastdigits: &str) -> Option<Secret<String>> {
+    let digits: String = lastdigits
+        .trim()
+        .chars()
+        .rev()
+        .take(BANK_LAST_DIGITS_LEN)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
+
+    (!digits.is_empty()).then(|| Secret::new(digits))
+}
+
+pub fn extract_returned_bank_details(
+    data: &TrustlyWebhookData,
+) -> Option<PaymentMethodData<DefaultPCIHolder>> {
+    let attributes = data.attributes.as_ref()?;
+
+    let account_holder_name = attributes.name.clone();
+
+    let bank_name = attributes.bank.as_ref().and_then(|bank| {
+        map_trustly_bank_to_bank_name(bank.peek())
+            .map_err(|error| {
+                tracing::warn!(%error, "Failed to map Trustly bank to BankNames");
+            })
+            .ok()
+    });
+
+    let bank_last_digits = attributes
+        .lastdigits
+        .as_deref()
+        .and_then(extract_bank_last_digits);
+
+    let additional_details = data
+        .accountid
+        .clone()
+        .map(|accountid| Secret::new(serde_json::json!({ "account_id": accountid })));
+
+    if account_holder_name.is_none() && bank_last_digits.is_none() && additional_details.is_none() {
+        return None;
+    }
+
+    Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+        BankRedirectData::Trustly {
+            country: None,
+            account_holder_name,
+            bank_name,
+            bank_last_digits,
+            additional_details,
+            connector_instrument_id: data.accountid.clone().map(Secret::new),
+        },
+    ))
+}
+
 pub fn verify_webhook_signature(
     webhook_body: TrustlyWebhookBody,
     public_key: Vec<u8>,
@@ -831,6 +1111,50 @@ pub fn verify_webhook_signature(
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
 }
 
+pub const TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX: &str = "payout_";
+
+fn is_payout_message_id(message_id: &str) -> bool {
+    message_id.starts_with(TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX)
+}
+
+fn unexpected_webhook_event(
+    event: &TrustlyWebhookMethod,
+    flow: &'static str,
+) -> error_stack::Report<errors::WebhookError> {
+    error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound).attach_printable(format!(
+        "trustly: `{}` notification is not a {flow} event",
+        event.as_str()
+    ))
+}
+
+pub fn is_payment_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
+            | TrustlyWebhookMethod::Cancel
+            | TrustlyWebhookMethod::Account
+            | TrustlyWebhookMethod::Pending
+    ) && !is_payout_message_id(message_id)
+}
+
+pub fn is_refund_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed
+    ) && !is_payout_message_id(message_id)
+}
+
+pub fn is_payout_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
+    matches!(
+        event,
+        TrustlyWebhookMethod::PayoutConfirmation
+            | TrustlyWebhookMethod::PayoutFailed
+            | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Cancel
+    ) && is_payout_message_id(message_id)
+}
+
 pub fn get_webhook_event(
     event: TrustlyWebhookMethod,
     message_id: String,
@@ -851,7 +1175,10 @@ pub fn get_webhook_event(
         (TrustlyWebhookMethod::Cancel, false) => {
             domain_types::connector_types::EventType::PayoutCancelled
         }
-        (TrustlyWebhookMethod::Account, _) | (TrustlyWebhookMethod::Pending, _) => {
+        (TrustlyWebhookMethod::Account, _) => {
+            domain_types::connector_types::EventType::PaymentAssociatedDataUpdate
+        }
+        (TrustlyWebhookMethod::Pending, _) => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
         }
         (TrustlyWebhookMethod::PayoutConfirmation, true) => {
@@ -869,23 +1196,60 @@ pub fn get_webhook_event(
     }
 }
 
-pub fn get_trustly_payment_webhook_status(event: &TrustlyWebhookMethod) -> AttemptStatus {
+pub fn get_trustly_payment_webhook_status(
+    event: &TrustlyWebhookMethod,
+    message_id: &str,
+) -> error_stack::Result<AttemptStatus, errors::WebhookError> {
+    if !is_payment_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "payment"));
+    }
+
     match event {
-        TrustlyWebhookMethod::Credit => AttemptStatus::Charged,
-        TrustlyWebhookMethod::Debit => AttemptStatus::Failure,
-        TrustlyWebhookMethod::Cancel => AttemptStatus::Voided,
-        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => AttemptStatus::Pending,
-        _ => AttemptStatus::Pending,
+        TrustlyWebhookMethod::Credit => Ok(AttemptStatus::Charged),
+        TrustlyWebhookMethod::Debit => Ok(AttemptStatus::Failure),
+        TrustlyWebhookMethod::Cancel => Ok(AttemptStatus::Voided),
+        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => Ok(AttemptStatus::Pending),
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed => {
+            Err(unexpected_webhook_event(event, "payment"))
+        }
     }
 }
 
 pub fn get_trustly_refund_webhook_status(
     event: &TrustlyWebhookMethod,
-) -> common_enums::RefundStatus {
+    message_id: &str,
+) -> error_stack::Result<common_enums::RefundStatus, errors::WebhookError> {
+    if !is_refund_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "refund"));
+    }
+
     match event {
-        TrustlyWebhookMethod::PayoutConfirmation => common_enums::RefundStatus::Success,
-        TrustlyWebhookMethod::PayoutFailed => common_enums::RefundStatus::Failure,
-        _ => common_enums::RefundStatus::Pending,
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::RefundStatus::Success),
+        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::RefundStatus::Failure),
+        TrustlyWebhookMethod::Credit
+        | TrustlyWebhookMethod::Debit
+        | TrustlyWebhookMethod::Cancel
+        | TrustlyWebhookMethod::Account
+        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "refund")),
+    }
+}
+
+pub fn get_trustly_payout_webhook_status(
+    event: &TrustlyWebhookMethod,
+    message_id: &str,
+) -> error_stack::Result<common_enums::PayoutStatus, errors::WebhookError> {
+    if !is_payout_webhook_event(event, message_id) {
+        return Err(unexpected_webhook_event(event, "payout"));
+    }
+
+    match event {
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
+        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
+        TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
+        TrustlyWebhookMethod::Debit
+        | TrustlyWebhookMethod::Account
+        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "payout")),
     }
 }
 

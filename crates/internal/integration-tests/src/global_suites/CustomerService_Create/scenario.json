@@ -6,7 +6,9 @@
       "email": {
         "value": "auto_generate"
       },
-      "phone_number": "auto_generate",
+      "phone_number": {
+        "value": "auto_generate"
+      },
       "address": {
         "shipping_address": {
           "first_name": {
@@ -103,7 +105,9 @@
       "email": {
         "value": "auto_generate"
       },
-      "phone_number": "auto_generate",
+      "phone_number": {
+        "value": "auto_generate"
+      },
       "address": {
         "shipping_address": {
           "first_name": {

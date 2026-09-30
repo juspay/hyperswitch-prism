@@ -26,7 +26,6 @@ use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
-use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -167,6 +166,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         match response {
             Ok(response_data) => {
                 with_error_response_body!(event_builder, response_data);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response_data,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,
@@ -177,6 +180,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -268,7 +275,7 @@ macros::create_all_prerequisites!(
         {
             let auth = RapydAuthType::try_from(&req.connector_config)?;
             let timestamp = common_utils::date_time::now_unix_timestamp();
-            let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+            let salt = common_utils::crypto::generate_cryptographically_secure_random_string(12);
 
             let signature = self.generate_signature(
                 &auth,
@@ -359,7 +366,7 @@ macros::macro_connector_implementation!(
                 .unwrap_or(&url);
             // Get the exact request body that will be sent
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -425,7 +432,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -447,7 +454,7 @@ macros::macro_connector_implementation!(
     resource_common_data: PaymentFlowData,
     flow_request: PaymentVoidData,
     flow_response: PaymentsResponseData,
-    http_method: Post,
+    http_method: Delete,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -459,7 +466,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = "";
-            self.build_headers(req, "post", url_path, body)
+            self.build_headers(req, "delete", url_path, body)
         }
         fn get_url(
             &self,
@@ -491,7 +498,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_refunds(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -556,7 +563,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -616,6 +623,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -681,6 +689,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -715,7 +724,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_merchant_auth(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }

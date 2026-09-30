@@ -444,6 +444,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SilverflowPaymentsRes
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -525,6 +526,7 @@ impl TryFrom<ResponseRouterData<SilverflowSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -633,6 +635,7 @@ impl TryFrom<ResponseRouterData<SilverflowCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -739,6 +742,7 @@ impl TryFrom<ResponseRouterData<SilverflowRefundResponse, Self>>
                 connector_refund_id: item.response.key,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -800,6 +804,7 @@ impl TryFrom<ResponseRouterData<SilverflowRefundSyncResponse, Self>>
                 connector_refund_id: item.response.key,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -902,6 +907,7 @@ impl TryFrom<ResponseRouterData<SilverflowVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

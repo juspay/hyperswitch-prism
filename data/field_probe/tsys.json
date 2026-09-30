@@ -147,8 +147,8 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -159,8 +159,8 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -195,8 +195,8 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -283,8 +283,8 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -327,8 +327,8 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -363,12 +363,12 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -471,6 +471,10 @@
         "error": "This feature is not implemented: Payment method not implemented"
       },
       "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not implemented"
+      },
+      "Webpay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not implemented"
       },
@@ -652,7 +656,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"Sale\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"1000\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_txn_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
+          "body": "{\"Sale\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"1000\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"03/30\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_txn_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
         }
       }
     },
@@ -690,7 +694,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"Auth\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"0\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_mandate_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
+          "body": "{\"Auth\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"0\",\"currencyCode\":\"USD\",\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"03/30\",\"cvv2\":\"{{$card_cvc}}\",\"orderNumber\":\"probe_proxy_mandate_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
         }
       }
     },
@@ -704,6 +708,11 @@
       "default": {
         "status": "not_supported",
         "error": "mandate_revoke flow not supported by tsys connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -807,12 +816,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not implemented for Tsys SetupMandate"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_supported",
-        "error": "payment_method_token flow not supported by tsys connector"
       }
     },
     "verify_redirect": {

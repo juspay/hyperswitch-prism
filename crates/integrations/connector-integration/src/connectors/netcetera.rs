@@ -137,8 +137,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             && payment_method == common_enums::PaymentMethod::Card
         {
             match (redirect_state, completed_step) {
-                // Initial request: run the 3DS version / method call.
-                (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
+                // Initial request, nothing done yet: run the 3DS version / method call.
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+
+                // PreAuthenticate completed with no browser redirect needed (e.g. only
+                // 3DS1 supported, or the vault-token/card_proxy path skips DDC) — proceed
+                // straight to authorize instead of looping back into PreAuthenticate again.
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authorize
+                }
 
                 // After PreAuthenticate (DDC), the browser returns with params:
                 // run the authentication (AReq).
@@ -240,6 +247,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         {
             Ok(error_response) => {
                 with_error_response_body!(event_builder, error_response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &error_response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: error_response
@@ -257,6 +268,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => crate::utils::handle_json_response_deserialization_failure(res, "netcetera"),

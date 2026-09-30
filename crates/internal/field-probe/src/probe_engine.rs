@@ -65,7 +65,7 @@ pub(crate) type PciFfi = domain_types::payment_method_data::DefaultPCIHolder;
 #[derive(Debug)]
 enum ProbeAttemptResult {
     /// Successfully generated a connector request.
-    Success(common_utils::request::Request),
+    Success(Box<common_utils::request::Request>),
     /// Connector returned None (flow not implemented).
     NotImplemented,
     /// Connector returned an error.
@@ -119,7 +119,7 @@ where
     for _iteration in 0..max_iterations() {
         match attempt_probe(flow_name, &req, &mut call) {
             ProbeAttemptResult::Success(connector_req) => {
-                return handle_success(req, connector_req, required_fields);
+                return handle_success(req, *connector_req, required_fields);
             }
             ProbeAttemptResult::NotImplemented => {
                 return handle_not_implemented(required_fields);
@@ -166,7 +166,7 @@ where
             if connector_req.url.is_empty() {
                 ProbeAttemptResult::NotImplemented
             } else {
-                ProbeAttemptResult::Success(connector_req)
+                ProbeAttemptResult::Success(Box::new(connector_req))
             }
         }
         Ok(None) => ProbeAttemptResult::NotImplemented,

@@ -23,8 +23,7 @@
       },
       "capture_method": "AUTOMATIC",
       "customer": {
-        "id": "auto_generate",
-        "connector_customer_id": ""
+        "id": "auto_generate"
       },
       "state": {
         "access_token": {
@@ -33,15 +32,87 @@
           },
           "token_type": "",
           "expires_in_seconds": 0
-        },
-        "connector_customer_id": ""
+        }
       },
       "auth_type": "NO_THREE_DS",
-      "test_mode": true
+      "test_mode": true,
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      }
     },
     "assert": {
       "status": {
-        "one_of": ["CHARGED", "AUTHORIZED"]
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED"
+        ]
       },
       "connector_transaction_id": {
         "must_exist": true

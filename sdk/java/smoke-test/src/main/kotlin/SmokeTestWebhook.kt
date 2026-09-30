@@ -21,6 +21,7 @@ import payments.EventClient
 import payments.IntegrationError
 import payments.ConnectorError
 import types.Payment.*
+import types.Events.*
 import types.SdkConfig.*
 
 // ── ANSI color helpers ─────────────────────────────────────────────────────────

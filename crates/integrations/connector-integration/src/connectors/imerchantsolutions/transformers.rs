@@ -564,7 +564,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
-                | WalletData::DanaRedirect {}
+                | WalletData::DanaRedirect {} | WalletData::GrabpayRedirect {}
                 | WalletData::GcashRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -601,7 +601,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => {
+                | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
+                | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {} => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                         errors::IntegrationErrorContext {
@@ -740,6 +743,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -795,6 +802,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -973,6 +981,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -1003,6 +1015,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -1174,6 +1187,10 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -1238,6 +1255,7 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         ..router_data
                     })
@@ -1259,6 +1277,10 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -1308,6 +1330,7 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         ..router_data
                     })
@@ -1391,6 +1414,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsVoidResponseData, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1515,6 +1539,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsCaptureResponseData, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1597,6 +1622,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
                 connector_refund_id: item.response.psp_reference.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1660,6 +1686,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1688,6 +1715,10 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     });
 
                     Ok(Self {
@@ -1700,6 +1731,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                             connector_refund_id,
                             refund_status,
                             status_code: http_code,
+                            acquirer_reference_number: None,
                         }),
                         ..router_data
                     })

@@ -379,6 +379,7 @@ fn get_payments_response(connector_response: TsysResponse, http_code: u16) -> Pa
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -726,6 +727,7 @@ fn get_payments_sync_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -974,6 +976,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: return_response.transaction_id,
                 refund_status: common_enums::enums::RefundStatus::from(return_response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             TsysResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
@@ -1043,6 +1046,7 @@ impl TryFrom<ResponseRouterData<TsysRSyncResponse, Self>>
                     search_response.transaction_details,
                 ),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             SearchResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
@@ -1174,6 +1178,7 @@ fn get_setup_mandate_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -1473,5 +1478,9 @@ fn get_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }

@@ -48,13 +48,13 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -66,7 +66,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"id\":\"E-probe-001\",\"external_id\":\"probe_order_001\",\"status\":\"ACTIVE\",\"status_code\":\"200\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }

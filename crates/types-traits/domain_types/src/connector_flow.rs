@@ -101,6 +101,9 @@ pub struct PayoutCreateRecipient;
 pub struct PayoutEnrollDisburseAccount;
 
 #[derive(Debug, Clone)]
+pub struct PayoutEligibility;
+
+#[derive(Debug, Clone)]
 pub struct SurchargeCalculate;
 
 #[derive(Debug, Clone)]
@@ -117,6 +120,10 @@ pub struct CreatePaymentMethod;
 
 #[derive(Debug, Clone)]
 pub struct GetPaymentMethod;
+
+/// Refresh a stored payment method and return what the provider says changed.
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethod;
 
 #[derive(Debug, Clone)]
 pub struct PreRiskCheck;
@@ -174,12 +181,14 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
+    PayoutEligibility,
     SurchargeCalculate,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    RefreshPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
     FrmPaymentOutcome,

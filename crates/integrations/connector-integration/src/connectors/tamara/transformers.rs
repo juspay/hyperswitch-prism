@@ -12,10 +12,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
@@ -418,6 +418,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TamaraPaymentsRespons
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -457,6 +458,7 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -485,6 +487,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
                 connector_refund_id: item.response.order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -590,6 +593,7 @@ impl TryFrom<ResponseRouterData<TamaraCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -685,6 +689,7 @@ impl TryFrom<ResponseRouterData<TamaraVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -772,6 +777,7 @@ impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
                 connector_refund_id: item.response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -792,12 +798,18 @@ pub enum TamaraWebhookEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TamaraWebhookData {
+    pub capture_id: Option<String>,
+    pub refund_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TamaraWebhookEventType {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
     pub event_type: TamaraWebhookEvent,
-    pub data: Option<serde_json::Value>,
+    pub data: Option<TamaraWebhookData>,
 }
 
 impl From<TamaraWebhookEvent> for interfaces::webhooks::IncomingWebhookEvent {
@@ -969,9 +981,22 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
         } else {
             EligibilityStatus::Ineligible
         };
+        // PM-agnostic verdict fanned across every requested payment method.
+        let results = item
+            .router_data
+            .request
+            .payment_method_types
+            .iter()
+            .map(|payment_method_type| PMEligibility {
+                payment_method_type: *payment_method_type,
+                eligibility,
+                error_info: None,
+                payment_method_details: None,
+            })
+            .collect();
         Ok(Self {
             response: Ok(PaymentMethodEligibilityResponse {
-                eligibility,
+                results,
                 status_code: u32::from(item.http_code),
             }),
             ..item.router_data.clone()

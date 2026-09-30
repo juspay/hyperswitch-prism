@@ -13,6 +13,7 @@ import com.sun.jna.ptr.IntByReference
 import java.io.File
 import java.nio.charset.StandardCharsets
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import types.Payouts.*
 import types.Surcharge.*
@@ -278,6 +279,11 @@ class GrpcPaymentMethodClient internal constructor(
     suspend fun payment_method_get(req: PaymentMethodServiceGetRequest): PaymentMethodServiceGetResponse =
         callGrpc(config, "payment_method/payment_method_get", req, PaymentMethodServiceGetResponse.parser())
     /**
+     * PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+     */
+    suspend fun refresh(req: PaymentMethodServiceRefreshRequest): PaymentMethodServiceRefreshResponse =
+        callGrpc(config, "payment_method/refresh", req, PaymentMethodServiceRefreshResponse.parser())
+    /**
      * PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds.
      */
     suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
@@ -414,7 +420,7 @@ class GrpcPayoutClient internal constructor(
     suspend fun enroll_disburse_account(req: PayoutServiceEnrollDisburseAccountRequest): PayoutServiceEnrollDisburseAccountResponse =
         callGrpc(config, "payout/enroll_disburse_account", req, PayoutServiceEnrollDisburseAccountResponse.parser())
     /**
-     * PayoutService.Eligibility — Check if the payout method is eligible for the transaction
+     * PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
      */
     suspend fun payout_eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
         callGrpc(config, "payout/payout_eligibility", req, PayoutMethodEligibilityResponse.parser())
