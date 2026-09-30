@@ -22,6 +22,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "recurring_charge",
     "refund",
     "setup_recurring",
+    "void",
 ];
 
 #[allow(dead_code)]
@@ -247,6 +248,19 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
     }
 }
 
+pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
+    PaymentServiceVoidRequest {
+        merchant_void_id: Some("probe_void_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
+}
+
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
 #[allow(dead_code)]
@@ -365,6 +379,43 @@ pub async fn process_refund(
     Ok(format!("Refunded: {:?}", refund_response.status()))
 }
 
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+#[allow(dead_code)]
+pub async fn process_void_payment(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Step 1: Authorize — reserve funds on the payment method
+    let authorize_response = client
+        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
+        .await?;
+
+    match authorize_response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
+        }
+        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
+        _ => {}
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    let void_response = client
+        .void(
+            build_void_request(
+                authorize_response
+                    .connector_transaction_id
+                    .as_deref()
+                    .unwrap_or(""),
+            ),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+
+    Ok(format!("Voided: {:?}", void_response.status()))
+}
+
 // Flow: PaymentService.Authorize (Card)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -459,6 +510,22 @@ pub async fn process_setup_recurring(
     ))
 }
 
+// Flow: PaymentService.Void
+#[allow(dead_code)]
+pub async fn process_void(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .void(
+            build_void_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -470,14 +537,16 @@ async fn main() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
         "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
+        "process_void_payment" => process_void_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
+        "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_authorize, process_capture, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_void", flow);
             return;
         }
     };
