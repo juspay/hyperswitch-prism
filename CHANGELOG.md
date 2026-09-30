@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.30.2
+
+### Features
+
+- **connector:** [Stripe] port error_on_requires_action and dispute RDR details ([#2392](https://github.com/juspay/connector-service/pull/2392)) ([`32452be`](https://github.com/juspay/connector-service/commit/32452be72bcd53e0b8d0af4ef32dd9fd0a0f2478))
+- **grace:** Techspec-driven grpcurl test agent, curl E2E, doubled rework caps ([#2422](https://github.com/juspay/connector-service/pull/2422)) ([`6cd99c6`](https://github.com/juspay/connector-service/commit/6cd99c6c667556f74ea18d17b1d840283b400024))
+
+**Full Changelog:** [`2026.09.30.1...2026.09.30.2`](https://github.com/juspay/connector-service/compare/2026.09.30.1...2026.09.30.2)
+
+- - -
+
 ## 2026.09.30.1
 
 ### Features
