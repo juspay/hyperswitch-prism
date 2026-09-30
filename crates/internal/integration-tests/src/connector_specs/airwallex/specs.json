@@ -11,6 +11,27 @@
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "ideal",
+    "klarna",
+    "blik",
+    "paypal_redirect",
+    "skrill_redirect",
+    "trustly"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: run.json .units - IncrementalAuthorization is not in UNITS and stays not_implemented for Airwallex"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: data/field_probe/airwallex.json flows.authorize - Airwallex offers no UPI arm, so the UPI sync dependency cannot exist",
+      "sync_upi_intent": "PM_NOT_OFFERED: data/field_probe/airwallex.json flows.authorize - Airwallex offers no UPI arm, so the UPI sync dependency cannot exist",
+      "sync_upi_qr": "PM_NOT_OFFERED: data/field_probe/airwallex.json flows.authorize - Airwallex offers no UPI arm, so the UPI sync dependency cannot exist"
+    }
+  }
 }

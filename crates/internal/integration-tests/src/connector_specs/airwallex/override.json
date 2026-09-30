@@ -4,6 +4,58 @@
       "grpc_req": {
         "request_extended_authorization": true
       }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 8051,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "2223000010181375"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error.connector_details.code": {
+          "equals": "issuer_declined"
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {"equals": "PAYMENT_INTENT_SUCCESS"},
+        "event_content.payments_response.connector_transaction_id": {"equals": "int_aaaat9w2hgh8mzi1111"},
+        "event_content.payments_response.status": {"equals": "CHARGED"}
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_type": {"equals": "PAYMENT_INTENT_FAILURE"},
+        "event_content.payments_response.connector_transaction_id": {"equals": "int_aaaat9w2hgh8mzi2222"},
+        "event_content.payments_response.status": {"equals": "FAILURE"}
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {"equals": "WEBHOOK_REFUND_SUCCESS"},
+        "event_content.refunds_response.connector_refund_id": {"equals": "rfd_aaaanqn5bgh8mnssssh_ga04nr"},
+        "event_content.refunds_response.status": {"equals": "REFUND_SUCCESS"}
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {"equals": "PAYMENT_INTENT_SUCCESS"}
+      }
     }
   }
 }
