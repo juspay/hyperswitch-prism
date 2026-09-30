@@ -20,7 +20,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 | `{FLOWS}` | Comma list or JSON array of units: flow marker (`crates/types-traits/domain_types/src/connector_flow.rs`), flow group, `IncomingWebhook`, or `Marker/PaymentMethod`. A single `{FLOW}` is a one-element list | `Refund,RSync,3DS,Authorize/Wallet` |
 | `{HS_REPO_PATH}` | Hyperswitch checkout; empty → HS surfaces `E2E_SKIPPED` | `/home/dev/hyperswitch` |
 | `{RUN_ID}` | Optional: resume `grace/runs/{RUN_ID}/` (see Resume) | `braintree-a1b2c3` |
-| `{MAX_RUN_HOURS}` | R9 time budget; default 12 | `12` |
+| `{MAX_RUN_HOURS}` | R9 time budget; default 24 | `24` |
 | `{MIN_FREE_GB}` | S0 disk threshold; empty = `2.0_preflight.md` default | `80` |
 | `{MIN_FREE_GB_RUNTIME}` | R10 threshold; default 20 | `20` |
 | `{STALE_DAYS}` | S0 cleanup: idle age that makes a clean checkout's `target/` eligible; default 3 | `3` |
@@ -42,7 +42,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - **Hyperswitch checkout**: a worktree and branch `feat/{connector}-ucs-<run6>` are created inside it; its own tree is
   not modified. Empty `{HS_REPO_PATH}` = no HS surface (`E2E_SKIPPED`), no HS PR, no HS parity.
 - **Network**: one push of the run branch and one PR on `juspay/hyperswitch-prism` at S7, plus at most one Hyperswitch PR.
-- **Duration**: hours, not minutes (`MAX_RUN_HOURS`, default 12). The session must stay alive; after a crash, resume with
+- **Duration**: hours, not minutes (`MAX_RUN_HOURS`, default 24). The session must stay alive; after a crash, resume with
   `{RUN_ID}` (run ids are the directory names under `grace/runs/`, which is gitignored).
 
 ## RULES
@@ -55,7 +55,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
 - R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
-- R9 **Time budget** `MAX_RUN_HOURS` (default 12): when exceeded, finish the current stage and go to S6/S7.
+- R9 **Time budget** `MAX_RUN_HOURS` (default 24): when exceeded, finish the current stage and go to S6/S7.
 - R10 **Disk guard** before S4, S4z and each S5 build: if free space < `MIN_FREE_GB_RUNTIME` (20), re-run the 2.0 cleanup; if still low, stop at the stage boundary (resumable).
 - R11 **Autonomous**: no questions; every ambiguity is decided and recorded in the stage's `decisions.md`.
 - R12 **Process ownership**: kill only PIDs recorded in this run dir whose `/proc/<pid>/exe` is under this repo.
@@ -560,8 +560,8 @@ convincing the oracle.
 **4. RCA** — `2.6e_rca.md` (`S5:rca:<N>`, `N` = latest exec round with `test/results/r<N>.json` and no `rca/r<N>.json`).
 `BUG_IDS` = in-scope bugs whose `flows[]` are not all markers of withdrawn units, with status `open`
 (or `rca` after `needs_probe`), `duplicate_of` null, `attempts` <
-`fix_attempts_per_bug`, `run.json .bugs[].reappeared` ≤ 1. Over the fix cap → `unresolved`;
-reappeared twice → `unresolved` + withdraw brief for its units. No ids left, or `rca_rounds` at cap → 6.
+`fix_attempts_per_bug`, `run.json .bugs[].reappeared` ≤ 2. Over the fix cap → `unresolved`;
+reappeared three times → `unresolved` + withdraw brief for its units. No ids left, or `rca_rounds` at cap → 6.
 
 ```
   RUN_DIR: {RUN_DIR}
@@ -734,12 +734,12 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
-| RCA rounds / fix attempts per bug | 6 / 4 | `rca_rounds` / `fix_attempts_per_bug` |
-| AMEND: links / techspec / plan / codegen per unit / HS | 4 / 4 / 6 / 8 / 2 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
-| Gate iterations per codegen spawn / finalize | 5 / 3 | `gate_iterations_codegen` / `gate_iterations_finalize` |
-| Plan validator fix iterations (2.3a Phase 11, per spawn) | 3 | `validator_fix_iterations` |
-| ENV repairs per RCA round | 2 | `env_repairs_per_round` |
-| Review remediation rounds / crash re-spawn per stage | 1 / 1 | `review_remediation_rounds` / `crash_respawn_per_stage` |
+| RCA rounds / fix attempts per bug | 12 / 8 | `rca_rounds` / `fix_attempts_per_bug` |
+| AMEND: links / techspec / plan / codegen per unit / HS | 8 / 8 / 12 / 16 / 4 | `amend_links` / `amend_techspec` / `amend_plan` / `amend_codegen_per_unit` / `amend_hs` |
+| Gate iterations per codegen spawn / finalize | 10 / 6 | `gate_iterations_codegen` / `gate_iterations_finalize` |
+| Plan validator fix iterations (2.3a Phase 11, per spawn) | 6 | `validator_fix_iterations` |
+| ENV repairs per RCA round | 4 | `env_repairs_per_round` |
+| Review remediation rounds / crash re-spawn per stage | 2 / 2 | `review_remediation_rounds` / `crash_respawn_per_stage` |
 | Stop early | a round where the blocking open count doesn't fall | `stop_early` |
 | Warm UCS build wait / BASELINE join wait (minutes) | 120 / 180 | `warm_build_wait_min` / `baseline_join_min` |
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
@@ -847,6 +847,7 @@ OPEN_BUGS: <bug_id>(<severity>,<status>), … | none
 | `S4:*` | `2.3b_codegen_unit.md` | `S4`, `S4z` | `code/<NN>-<unit_fs>.json`, `gate/ci_parity.json` | `NEW`, `AMEND` |
 | `BASELINE`, `S5:env:*` | `2.6a_test_env.md` | `test_env` | `test/baseline.json`, `env/env.json` | `BASELINE`, `POST_CODEGEN`, `REPAIR` |
 | `S5:exec:*` | `2.6d_test_exec.md` | `test_exec` | `test/results/r<N>.json` | `FULL_RUN`, `ROUND` |
+| `S5:grpc:*` | `2.6f_grpc_agent.md` | `grpc_agent` | `test/grpc/r<N>.json` | — (loops internally to a terminal `SURFACE_STATUS`) |
 | `S5:rca:*` | `2.6e_rca.md` | `rca` | `rca/r<N>.json` | — |
 | `S5:e2e:*` | `2.5_e2e.md` | `e2e` | `e2e/<N>.json` | — |
 | `S6:review:*` | `2.7_review.md` | `S6` | `review/findings.json` | `FULL`, `INCREMENTAL` |
