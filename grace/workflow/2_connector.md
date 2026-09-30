@@ -587,7 +587,10 @@ two need no orchestration (one is not a bug, the other goes to RCA in step 4).
 - `env` → `2.6a_test_env.md` `REPAIR` (`RESULTS`), under `env_repairs_per_round`.
 - `hs_config` → `2.6a_test_env.md` `REPAIR` likewise; a second one in the same round is not a repair, it is a
   finding — let it reach RCA.
-- `scenario_data` → **2.3b `AMEND`** per affected unit, brief `rca/briefs/o-scen-r<N>-<unit_fs>.json`
+- `scenario_data` → **2.2 `AMEND`** (`amend_techspec`), brief `rca/briefs/o-scen-r<N>-<unit_fs>.json`, then
+  2.3a `AMEND` so the matrix is rebuilt from the corrected spec — the row came from the techspec, so editing
+  the row instead would be the run grading itself. Only a `static:*` failure goes to **2.3b `AMEND`** per
+  affected unit, because those validate committed `connector_specs/` data
   (`origin: SCENARIO_DATA`, `units: [<unit>]`, evidence the failing checks' transcripts, `required_change`
   "correct the scenario data for <check ids> against plan §8's oracle; do not weaken an assertion"), under
   `amend_codegen_per_unit`.
