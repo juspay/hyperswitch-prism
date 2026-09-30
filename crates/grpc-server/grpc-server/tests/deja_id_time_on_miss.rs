@@ -31,7 +31,7 @@ fn every_id_and_time_seam_answers_a_miss_instead_of_stopping() {
 
     for uuid in [fp_utils::generate_uuid_v4(), fp_utils::generate_uuid_v7()] {
         let parsed = uuid::Uuid::parse_str(&uuid).expect("a synthesized uuid must parse");
-        assert_eq!(parsed.get_version_num(), 8, "{uuid}");
+        assert_eq!(parsed.get_version_num(), 8);
     }
 
     let id = fp_utils::generate_id(12, "pay");
@@ -69,7 +69,7 @@ fn every_id_and_time_seam_answers_a_miss_instead_of_stopping() {
     assert_eq!(domain_types::utils::generate_random_bytes(24).len(), 24);
     let secret = common_utils::crypto::generate_cryptographically_secure_random_string(32);
     assert_eq!(secret.chars().count(), 32);
-    assert!(secret.chars().all(|c| ALPHANUMERIC.contains(c)), "{secret}");
+    assert!(secret.chars().all(|c| ALPHANUMERIC.contains(c)));
 
     let now = date_time::now();
     assert_eq!(now.year(), 1970, "{now}");
