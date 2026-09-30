@@ -557,11 +557,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// CreateOrder is not an AttemptStatus flow (its response type is
-// `PaymentCreateOrderResponse`, carrying an order id) — outside macro scope.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Juspay<T>
 {
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Juspay<T>,
+    flow: CreateOrder,
+    statuses: [Started, Pending, AuthenticationPending, Authorized, Charged, Voided, Failure],
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: JuspayCreateOrderResponse,
+        status: |_request, response| common_enums::AttemptStatus::from(response.status),
+    },
 }
 
 // Authorize: mirrors `From<JuspayOrderStatus> for AttemptStatus`

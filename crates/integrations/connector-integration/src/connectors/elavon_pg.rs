@@ -680,6 +680,28 @@ macros::macro_connector_implementation!(
 // not_supported:   EPG's v1 API has no such resource at all.
 // Flow declarations mirror the production transformer mappings, including
 // context-dependent and nonterminal outcomes.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: CreateOrder,
+    status: Pending,
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: ElavonPgCreateOrderResponse,
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: PreAuthenticate,
+    status: AuthenticationPending,
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: ElavonPgPreAuthenticateResponse,
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,

@@ -748,6 +748,65 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: transformers::MonerisPreAuthenticateResponse,
+        status: |_request, response| {
+            use common_enums::AttemptStatus;
+            use transformers::MonerisThreeDSecureTransactionStatus;
+            match response.three_d_secure_transaction_status {
+                MonerisThreeDSecureTransactionStatus::Authenticated
+                | MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted
+                | MonerisThreeDSecureTransactionStatus::InformationOnly => {
+                    AttemptStatus::AuthenticationSuccessful
+                }
+                MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired
+                | MonerisThreeDSecureTransactionStatus::Decoupled => {
+                    AttemptStatus::AuthenticationPending
+                }
+                MonerisThreeDSecureTransactionStatus::NotAuthenticated
+                | MonerisThreeDSecureTransactionStatus::Rejected => {
+                    AttemptStatus::AuthenticationFailed
+                }
+            }
+        },
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PostAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: transformers::MonerisPostAuthenticateResponse,
+        status: |_request, response| {
+            use common_enums::AttemptStatus;
+            use transformers::MonerisThreeDSecureTransactionStatus;
+            match response.three_d_secure_transaction_status {
+                Some(MonerisThreeDSecureTransactionStatus::Authenticated)
+                | Some(MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted)
+                | Some(MonerisThreeDSecureTransactionStatus::InformationOnly) => {
+                    AttemptStatus::AuthenticationSuccessful
+                }
+                Some(MonerisThreeDSecureTransactionStatus::Decoupled)
+                | Some(MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired) => {
+                    AttemptStatus::AuthenticationPending
+                }
+                Some(MonerisThreeDSecureTransactionStatus::NotAuthenticated)
+                | Some(MonerisThreeDSecureTransactionStatus::Rejected)
+                | None => AttemptStatus::AuthenticationFailed,
+            }
+        },
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Moneris<T>,

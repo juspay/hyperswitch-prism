@@ -871,13 +871,58 @@ domain_types::impl_flow_status_mapping! {
 // + `operationTime` (`NexixpayVoidResponse`), and the TryFrom hardcodes
 // `AttemptStatus::Voided` — no status enum exists on the response to map.
 //
-// NOTE: no impl_flow_status_mapping! for PreAuthenticate / PostAuthenticate / SetupMandate
-// / ClientAuthenticationToken. PreAuthenticate and PostAuthenticate are 3DS legs whose
-// statuses (`AuthenticationSuccessful` / `AuthenticationFailed` / `AuthenticationPending`)
-// are intermediates, never terminals — no honest TERMINAL_SUCCESS exists, and neither
-// flow has a `FlowStatusRules` impl. SetupMandate issues a zero-amount `/init` and reuses
-// the PreAuthenticate mapping (Threeds-challenge → `AuthenticationPending`), producing no
-// terminal either. ClientAuthenticationToken returns a session token only.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: NexixpayPreAuthenticateResponse,
+        status: |_request, response| {
+            use common_enums::AttemptStatus;
+            use transformers::NexixpayPaymentStatus;
+            match &response.operation.operation_result {
+                NexixpayPaymentStatus::ThreedsValidated => {
+                    AttemptStatus::AuthenticationSuccessful
+                }
+                NexixpayPaymentStatus::ThreedsFailed
+                | NexixpayPaymentStatus::Declined
+                | NexixpayPaymentStatus::DeniedByRisk => AttemptStatus::AuthenticationFailed,
+                _ => AttemptStatus::AuthenticationPending,
+            }
+        },
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: PostAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: NexixpayPostAuthenticateResponse,
+        status: |_request, response| {
+            use common_enums::AttemptStatus;
+            use transformers::NexixpayPaymentStatus;
+            match &response.operation.operation_result {
+                NexixpayPaymentStatus::ThreedsValidated => {
+                    AttemptStatus::AuthenticationSuccessful
+                }
+                NexixpayPaymentStatus::ThreedsFailed
+                | NexixpayPaymentStatus::Declined
+                | NexixpayPaymentStatus::DeniedByRisk => AttemptStatus::AuthenticationFailed,
+                _ => AttemptStatus::AuthenticationPending,
+            }
+        },
+    },
+}
+
+// NOTE: no impl_flow_status_mapping! for SetupMandate / ClientAuthenticationToken.
+// SetupMandate issues a zero-amount `/init` and reuses the PreAuthenticate mapping
+// (Threeds-challenge → `AuthenticationPending`), producing no terminal. ClientAuthenticationToken
+// returns a session token only.
 
 // RepeatPayment — mirrors the MIT TryFrom (transformers.rs:2326), same
 // `From<NexixpayPaymentStatus>` mapping adapted to `RepeatPayment::ALLOWED`:

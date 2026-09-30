@@ -99,6 +99,30 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Authorized, Charged, Pending, Failure],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: transformers::PaydotcomPreAuthenticateResponse,
+        status: |_request, response| response.attempt_status(),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paydotcom<T>,
+    flow: Authenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Authorized, Charged, Pending, Failure],
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: transformers::PaydotcomAuthenticateResponse,
+        status: |_request, response| response.attempt_status(),
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paydotcom<T>,

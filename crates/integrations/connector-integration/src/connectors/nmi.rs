@@ -947,13 +947,20 @@ domain_types::impl_refund_flow_status_mapping! {
     }
 }
 
-// NOTE: no impl_flow_status_mapping! for PreAuthenticate. The Collect.js leg
-// (transformers.rs:1489) answers `Approved` with a *redirect* bundle and never reaches a
-// payment terminal — its only happy-path status is `AuthenticationPending`, which is an
-// intermediate (`AuthenticationPending ∉ PreAuthenticate::TERMINAL_SUCCESS_SET` — the
-// connector's `FlowStatusRules` only cover Authorize/PSync/Capture/Void/SetupMandate/
-// RepeatPayment/`IncrementalAuthorization`, and PreAuthenticate carries no rules), so no
-// honest success terminal exists to declare.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, Failure],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: NmiPreAuthenticateResponse,
+        status: |_request, response| match response.response {
+            nmi::Response::Approved => common_enums::AttemptStatus::AuthenticationPending,
+            nmi::Response::Declined | nmi::Response::Error => common_enums::AttemptStatus::Failure,
+        },
+    },
+}
 
 // SetupMandate — mirrors the SetupMandate TryFrom (transformers.rs:1793): `Approved` →
 // `Charged` (the vault write is a zero-amount sale; there is no separate "registered"
