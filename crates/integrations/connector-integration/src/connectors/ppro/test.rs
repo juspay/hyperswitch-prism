@@ -596,26 +596,27 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_webhook_source_no_secret_returns_error() {
+    fn test_verify_webhook_source_no_secret_returns_error() -> Result<(), Box<dyn std::error::Error>>
+    {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)
-            .expect("signing helper should not fail");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
         let request = make_signed_request(&body, &signature);
 
         let result = connector.verify_webhook_source(request, None, None);
-        assert!(
+        ensure!(
             result.is_err(),
             "missing webhook_secret in connector config should return an error"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_verify_webhook_source_rpc_webhook_secrets_not_used() {
+    fn test_verify_webhook_source_rpc_webhook_secrets_not_used(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)
-            .expect("signing helper should not fail");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
         let request = make_signed_request(&body, &signature);
 
         // The RPC `webhook_secrets` field is ignored for Ppro: verification is
@@ -625,28 +626,28 @@ mod tests {
             additional_secret: None,
         };
         let result = connector.verify_webhook_source(request, Some(rpc_secrets), None);
-        assert!(
+        ensure!(
             result.is_err(),
             "RPC webhook_secrets without connector config webhook_secret should fail"
         );
+        Ok(())
     }
 
     // ── Webhook: get_ppro_signature_elements_from_header ─────────────────────
 
     #[test]
-    fn test_get_ppro_signature_elements_from_header_parses_elements() {
+    fn test_get_ppro_signature_elements_from_header_parses_elements(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut headers = HashMap::new();
         headers.insert(
             "ppro-signature".to_string(),
             "t=1700000000,s=deadbeef".to_string(),
         );
         let elements =
-            crate::connectors::ppro::transformers::get_ppro_signature_elements_from_header(
-                &headers,
-            )
-            .expect("valid header should parse");
-        assert_eq!(elements.get("t").map(String::as_str), Some("1700000000"));
-        assert_eq!(elements.get("s").map(String::as_str), Some("deadbeef"));
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers)?;
+        ensure_eq!(elements.get("t").map(String::as_str), Some("1700000000"));
+        ensure_eq!(elements.get("s").map(String::as_str), Some("deadbeef"));
+        Ok(())
     }
 
     #[test]
@@ -656,18 +657,16 @@ mod tests {
             "PPRO-Signature".to_string(),
             "t=1700000000,s=deadbeef".to_string(),
         );
-        let result = crate::connectors::ppro::transformers::get_ppro_signature_elements_from_header(
-            &headers,
-        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
         assert!(result.is_ok(), "header lookup must be case-insensitive");
     }
 
     #[test]
     fn test_get_ppro_signature_elements_from_header_missing() {
         let headers = HashMap::new();
-        let result = crate::connectors::ppro::transformers::get_ppro_signature_elements_from_header(
-            &headers,
-        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
         assert!(result.is_err(), "missing header should return an error");
     }
 
@@ -679,9 +678,8 @@ mod tests {
             "ppro-signature".to_string(),
             "t=1700000000,deadbeef".to_string(),
         );
-        let result = crate::connectors::ppro::transformers::get_ppro_signature_elements_from_header(
-            &headers,
-        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
         assert!(
             result.is_err(),
             "element without '=' should return an error"
