@@ -1,11 +1,11 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
+    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -47,6 +47,31 @@ const ECOMMERCE_INDICATOR_SECURE: &str = "07";
 const CVV_INDICATOR_PRESENT: &str = "0";
 /// Flag value indicating yes/enabled for proc flag fields.
 const MIT_YES: &str = "Y";
+
+// =============================================================================
+// VOID ENUMS
+// =============================================================================
+
+/// `AuthorizationType` field values. Only "RV" (Reversal) is used for voids.
+/// "FP" (Force Post) is used on completion/capture calls.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum WorldpayraftAuthorizationType {
+    #[serde(rename = "RV")]
+    Reversal,
+}
+
+/// `ReversalAdviceReasonCd` values per the RAFT spec.
+/// Use `NormalReversal` for merchant-initiated voids; `CustomerCancel` when
+/// the cancellation_reason field is populated.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum WorldpayraftReversalAdviceReasonCode {
+    /// 000 — Normal Reversal (merchant void)
+    #[serde(rename = "000")]
+    NormalReversal,
+    /// 006 — Customer Cancel
+    #[serde(rename = "006")]
+    CustomerCancel,
+}
 
 // =============================================================================
 // AUTH TYPE
@@ -495,7 +520,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let status = if map_payment_status(&inner.return_code, &inner.response_code) {
-            AttemptStatus::Authorized
+            if item.router_data.request.is_auto_capture() {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Authorized
+            }
         } else {
             AttemptStatus::Failure
         };
@@ -1420,6 +1449,203 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: response.api_transaction_id.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// VOID REQUEST
+// =============================================================================
+// A void is a reversal sent to the SAME endpoint as the original authorization:
+//   - credit card auth   → POST /credit/authorization  (body key: "creditauth")
+//   - debit card preauth → POST /debit/preauth          (body key: "debitpreauth")
+// The reversal is distinguished from a normal auth by AuthorizationType: "RV".
+// The original authorization is linked via ReferenceTraceNumbers.AuthorizationNumber.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftVoidInner {
+    pub misc_amounts_balances: WorldpayraftAmounts,
+    #[serde(rename = "AuthorizationType")]
+    pub authorization_type: WorldpayraftAuthorizationType,
+    #[serde(rename = "ReversalAdviceReasonCd")]
+    pub reversal_reason: WorldpayraftReversalAdviceReasonCode,
+    pub reference_trace_numbers: WorldpayraftCaptureTraceNumbers,
+    #[serde(rename = "WorldPayMerchantID")]
+    pub world_pay_merchant_id: Secret<String>,
+    #[serde(rename = "APITransactionID")]
+    pub api_transaction_id: String,
+    pub local_date_time: String,
+}
+
+/// Outer wrapper for void/reversal requests.
+///
+/// `{ "creditauth": { "AuthorizationType": "RV", ... } }` → POST /credit/authorization
+#[derive(Debug, Serialize)]
+pub struct WorldpayraftVoidRequest {
+    pub creditauth: WorldpayraftVoidInner,
+}
+
+// =============================================================================
+// VOID RESPONSE
+// =============================================================================
+
+/// Outer wrapper for void/reversal response.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorldpayraftVoidResponse {
+    pub creditauthresponse: WorldpayraftCardAuthResponseInner,
+}
+
+// =============================================================================
+// TryFrom: RouterDataV2 → WorldpayraftVoidRequest
+// =============================================================================
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayraftRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for WorldpayraftVoidRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: WorldpayraftRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
+
+        let amount = router_data.request.amount.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT void requires the original authorized amount".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let currency = router_data.request.currency.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT void requires currency to convert the amount".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+
+        let transaction_amount = item
+            .connector
+            .amount_converter
+            .convert(amount, currency)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT requires the void amount in major currency units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let connector_txn_id = &router_data.request.connector_transaction_id;
+        let (_, auth_num, retrieval_ref, sys_trace) =
+            parse_connector_transaction_id(connector_txn_id);
+
+        if auth_num.is_empty() {
+            return Err(error_stack::report!(
+                errors::IntegrationError::InvalidDataFormat {
+                    field_name: "connector_transaction_id",
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Expected format: [C|D]|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber, got: {connector_txn_id}"
+                        )),
+                        ..Default::default()
+                    },
+                }
+            ));
+        }
+
+        let reversal_reason = if router_data.request.cancellation_reason.is_some() {
+            WorldpayraftReversalAdviceReasonCode::CustomerCancel
+        } else {
+            WorldpayraftReversalAdviceReasonCode::NormalReversal
+        };
+
+        let api_transaction_id = truncate_api_transaction_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
+        let local_date_time = get_local_datetime();
+
+        Ok(Self {
+            creditauth: WorldpayraftVoidInner {
+                misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
+                authorization_type: WorldpayraftAuthorizationType::Reversal,
+                reversal_reason,
+                reference_trace_numbers: WorldpayraftCaptureTraceNumbers {
+                    authorization_number: auth_num.to_string(),
+                    retrieval_ref_number: retrieval_ref.to_string(),
+                    system_trace_number: sys_trace.to_string(),
+                },
+                world_pay_merchant_id: auth.merchant_id,
+                api_transaction_id,
+                local_date_time,
+            },
+        })
+    }
+}
+
+// =============================================================================
+// TryFrom: WorldpayraftVoidResponse → RouterDataV2
+// =============================================================================
+
+impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<WorldpayraftVoidResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let inner = &item.response.creditauthresponse;
+
+        let status = if map_payment_status(&inner.return_code, &inner.response_code) {
+            AttemptStatus::Voided
+        } else {
+            AttemptStatus::VoidFailed
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: inner.api_transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
