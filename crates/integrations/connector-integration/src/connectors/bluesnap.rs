@@ -54,17 +54,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bluesnap<T>,
     flow:            Authorize,
     source:          bluesnap::BluesnapProcessingStatus,
     context:         Option<bluesnap::BluesnapTxnType>,
     params:          [processing_status, txn_type],
-    success_status:  Success,
-    success_targets: [Authorized, Charged],
-    failure_status:  Fail,
-    failure_target:  Failure,
+    success: Success => [Authorized, Charged],
+    failure: Fail => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BluesnapAuthorizeResponse,
@@ -93,17 +91,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bluesnap<T>,
     flow:            PSync,
     source:          bluesnap::BluesnapProcessingStatus,
     context:         Option<bluesnap::BluesnapTxnType>,
     params:          [processing_status, txn_type],
-    success_status:  Success,
-    success_targets: [Authorized, Charged, Voided],
-    failure_status:  Fail,
-    failure_target:  Failure,
+    success: Success => [Authorized, Charged, Voided],
+    failure: Fail => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: BluesnapPSyncResponse,
@@ -132,17 +128,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bluesnap<T>,
     flow:            Void,
     source:          bluesnap::BluesnapProcessingStatus,
     context:         Option<bluesnap::BluesnapTxnType>,
     params:          [processing_status, txn_type],
-    success_status:  Success,
-    success_targets: [Voided],
-    failure_status:  Fail,
-    failure_target:  VoidFailed,
+    success: Success => [Voided],
+    failure: Fail => VoidFailed,
     extractors: {
         request: PaymentVoidData,
         response: BluesnapVoidResponse,
@@ -185,17 +179,15 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bluesnap<T>,
     flow:            Capture,
     source:          bluesnap::BluesnapProcessingStatus,
     context:         Option<bluesnap::BluesnapTxnType>,
     params:          [processing_status, txn_type],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Fail,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Fail => Failure,
     extractors: {
         request: PaymentsCaptureData,
         response: BluesnapCaptureResponse,
@@ -229,15 +221,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Mirrors `From<BluesnapRefundStatus> for RefundStatus`. The enum has no
 // failure variant — BlueSnap refunds are initiated (Pending) or done
 // (Success); rejections arrive as non-2xx into `build_error_response`.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bluesnap<T>,
     flow: Refund,
     source: bluesnap::BluesnapRefundStatus,
     context: (),
     params: [status, _context],
-    success_targets: [Success],
-    failure_sample: None,
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundsData,
         response: BluesnapRefundResponse,
@@ -262,15 +254,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Pending/PendingMerchantReview → Pending, Fail → Failure. The
 // `card_transaction_type` (unused by the refund mapping) rides along as the
 // mapping context, matching the payment-flow declarations above.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Bluesnap<T>,
     flow:           RSync,
     source:         bluesnap::BluesnapProcessingStatus,
     context:        Option<bluesnap::BluesnapTxnType>,
     params:         [status, ctx],
-    success_status: Success,
-    failure_status: Fail,
+    success: Success => Success,
+    failure: Fail => Failure,
     extractors: {
         request: RefundSyncData,
         response: BluesnapRefundSyncResponse,

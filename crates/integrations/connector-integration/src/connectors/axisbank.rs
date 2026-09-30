@@ -72,17 +72,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // PSync (Status 360): mirror of `map_transaction_status` — `Success` is
 // disambiguated by the gateway_response_code in the payload (ctx).
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     connector:       Axisbank<T>,
     flow:            PSync,
     source:          crate::connectors::juspay_upi_stack::types::OuterResponseCode,
     context:         Option<String>,
     params:          [status, ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failure,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Failure => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: AxisbankSyncResponse,

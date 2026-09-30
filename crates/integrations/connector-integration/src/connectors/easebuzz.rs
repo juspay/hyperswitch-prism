@@ -138,17 +138,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Failure, anything else — and non-JSON HTML-redirect bodies — → Pending. The
 // raw string is typed as `easebuzz::EasebuzzAuthorizeStatus`; the `()` context
 // is unused, the `_ctx` form is only there to host the three-way match.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Easebuzz<T>,
     flow:            Authorize,
     source:          easebuzz::EasebuzzAuthorizeStatus,
     context:         (),
     params:          [status, _ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failure,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Failure => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: EasebuzzPaymentsResponse,
@@ -258,15 +256,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Easebuzz<T>,
     flow: Refund,
     source: bool,
     context: (),
     params: [accepted, _context],
-    success_targets: [Success],
-    failure_sample: Some(false),
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundsData,
         response: EasebuzzRefundResponse,
@@ -290,15 +288,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ("refunded"/"settled" → Success, "cancelled"/"reverse chargeback"/"failed"
 // → Failure, anything else → Pending), typed as
 // `easebuzz::EasebuzzRefundSyncStatus`.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Easebuzz<T>,
     flow:      RSync,
     source:    (),
     context:   easebuzz::EasebuzzRefundSyncStatus,
     params:    [_source, status],
-    success_targets: [Success],
-    failure_targets: [Failure],
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundSyncData,
         response: EasebuzzRefundSyncResponse,

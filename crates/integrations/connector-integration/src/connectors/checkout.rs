@@ -67,17 +67,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ── Authorize ────────────────────────────────────────────────────────────────
 // Mirrors `get_attempt_status_cap`: `Authorized` maps to `Charged` when the
 // capture method is Automatic/absent (auto-capture), else `Authorized`.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Checkout<T>,
     flow:            Authorize,
     source:          transformers::CheckoutPaymentStatus,
     context:         Option<common_enums::CaptureMethod>,
     params:          [status, capture_method],
-    success_status:  Captured,
-    success_targets: [Charged, Authorized],
-    failure_status:  Declined,
-    failure_target:  Failure,
+    success: Captured => [Charged, Authorized],
+    failure: Declined => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: PaymentsResponse,
@@ -122,17 +120,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ── PSync ────────────────────────────────────────────────────────────────────
 // Mirrors `get_attempt_status_intent`: the intent (stored in connector_meta at
 // authorize time) decides whether `Authorized` means `Charged` or `Authorized`.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Checkout<T>,
     flow:            PSync,
     source:          transformers::CheckoutPaymentStatus,
     context:         transformers::CheckoutPaymentIntent,
     params:          [status, psync_flow],
-    success_status:  Captured,
-    success_targets: [Charged, Authorized],
-    failure_status:  Declined,
-    failure_target:  Failure,
+    success: Captured => [Charged, Authorized],
+    failure: Declined => Failure,
     {
         use common_enums::AttemptStatus;
         use transformers::{CheckoutPaymentIntent, CheckoutPaymentStatus};
@@ -197,15 +193,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // BLOCKED: RSync performs a fallible lookup by connector_refund_id in a response
 // list. Inline extractors cannot return the same missing-row error.
 #[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Checkout<T>,
     flow:           RSync,
     source:         transformers::CheckoutActionApproval,
     context:        (),
     params:         [status, ctx],
-    success_status: Approved,
-    failure_status: Rejected,
+    success: Approved => Success,
+    failure: Rejected => Failure,
     {
         let _ = ctx;
         use common_enums::RefundStatus;
@@ -228,15 +224,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // BLOCKED: Refund status is derived solely from the HTTP code, which is absent
 // from the runtime extractor interface.
 #[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Checkout<T>,
     flow:           Refund,
     source:         transformers::CheckoutRefundVerdict,
     context:        (),
     params:         [status, ctx],
-    success_status: Accepted,
-    failure_status: Other,
+    success: Accepted => Success,
+    failure: Other => Failure,
     {
         let _ = ctx;
         use common_enums::RefundStatus;

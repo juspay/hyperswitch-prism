@@ -65,17 +65,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // `From<&GetnetPaymentStatus> for AttemptStatus`, except that a redirect present
 // alongside a non-terminal status upgrades it to `AuthenticationPending`.
 // The ctx boolean is `redirection_data.is_some()` (Default = false = no redirect).
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Getnet<T>,
     flow:            Authorize,
     source:          transformers::GetnetPaymentStatus,
     context:         bool,
     params:          [status, has_redirect],
-    success_status:  Approved,
-    success_targets: [Charged, Authorized],
-    failure_status:  Denied,
-    failure_target:  Failure,
+    success: Approved => [Charged, Authorized],
+    failure: Denied => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GetnetAuthorizeResponse,

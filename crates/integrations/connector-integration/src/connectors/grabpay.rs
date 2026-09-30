@@ -1191,17 +1191,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 // `tx_status`. `_ctx!` (with `()` context) rather than the plain macro because
 // the `Unknown(String)` catch-all variant carries data and cannot be written in
 // the declarative `variant => target` body.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Grabpay<T>,
     flow:            Authorize,
     source:          grabpay::GrabpayPaymentStatus,
     context:         (),
     params:          [status, ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GrabpayAuthorizeResponse,
@@ -1228,17 +1226,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ── PSync ────────────────────────────────────────────────────────────────────
 // The PSync TryFrom (`GrabpayChargeCompleteResponse`) uses the identical
 // `AttemptStatus::from(GrabpayPaymentStatus)` mapping as Authorize.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Grabpay<T>,
     flow:            PSync,
     source:          grabpay::GrabpayPaymentStatus,
     context:         (),
     params:          [status, ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: GrabpayChargeCompleteResponse,
@@ -1266,15 +1262,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // `GrabpayRefundStatus::Unknown(String)` catch-all carries the raw tx_status
 // string, so the declarative `variant => target` body cannot express it — use
 // the context form with `()` (mirrors the Authorize/PSync `_ctx!` above).
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Grabpay<T>,
     flow:           Refund,
     source:         grabpay::GrabpayRefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_status: Success,
-    failure_status: Failed,
+    success: Success => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: GrabpayRefundResponse,
@@ -1301,15 +1297,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Grabpay<T>,
     flow:           RSync,
     source:         grabpay::GrabpayRefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_status: Success,
-    failure_status: Failed,
+    success: Success => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundSyncData,
         response: GrabpayRefundSyncResponse,

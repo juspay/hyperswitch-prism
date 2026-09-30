@@ -121,15 +121,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Authorize: mirrors the TryFrom exactly. Approved → PA: Authorized, P/PAC: Charged,
 // R/VP/VR: Pending (connector misuse, not in macro arms — see note in the mapping body).
 // Declined → Failure (auto-capture) / AuthorizationFailed (manual), hence the ctx.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: Authorize,
     source: Option<transformers::BamboraPaymentType>,
     context: bool,
     params: [status, manual_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: Some(None),
+    success: _ => [Authorized, Charged],
+    failure: none,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BamboraAuthorizeResponse,
@@ -156,15 +156,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Capture: mirrors the TryFrom exactly — it looks only at `approved` (any approved
 // completion → Charged, else Failure); `payment_type` is not consulted.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: Capture,
     source: bool,
     context: (),
     params: [status, _context],
-    success_targets: [Charged],
-    failure_sample: Some(false),
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request: PaymentsCaptureData,
         response: BamboraCaptureResponse,
@@ -182,15 +182,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Void: mirrors the TryFrom exactly — it looks only at `approved` (approved → Voided,
 // else VoidFailed); `payment_type` is not consulted.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: Void,
     source: bool,
     context: (),
     params: [status, _context],
-    success_targets: [Voided],
-    failure_sample: Some(false),
+    success: _ => [Voided],
+    failure: none,
     extractors: {
         request: PaymentVoidData,
         response: BamboraVoidResponse,
@@ -209,15 +209,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // PSync: mirrors the TryFrom exactly. Approved → PA: Authorized, P/PAC: Charged,
 // VP/VR: Voided, R: Pending. Declined → Failure (auto) / AuthorizationFailed (manual),
 // hence the ctx.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: PSync,
     source: Option<transformers::BamboraPaymentType>,
     context: bool,
     params: [status, manual_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: Some(None),
+    success: _ => [Authorized, Charged],
+    failure: none,
     extractors: {
         request: PaymentsSyncData,
         response: BamboraPSyncResponse,
@@ -246,15 +246,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Refund: mirrors the TryFrom exactly — it looks only at `approved` (approved → Success,
 // else Failure).
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: Refund,
     source: bool,
     context: (),
     params: [status, _context],
-    success_targets: [Success],
-    failure_sample: Some(false),
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundsData,
         response: BamboraRefundResponse,
@@ -272,15 +272,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // RSync: mirrors the TryFrom exactly — it looks only at `approved` (approved → Success,
 // else Failure).
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bambora<T>,
     flow: RSync,
     source: bool,
     context: (),
     params: [status, _context],
-    success_targets: [Success],
-    failure_sample: Some(false),
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundSyncData,
         response: BamboraRSyncResponse,

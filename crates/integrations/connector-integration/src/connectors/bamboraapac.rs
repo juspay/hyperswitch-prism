@@ -59,15 +59,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Authorize: mirrors the TryFrom exactly. response_code 0 → Authorized (manual capture) /
 // Charged (auto) — hence the ctx; non-zero → Failure.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: Authorize,
     source: u8,
     context: bool,
     params: [code, manual_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: Some(1),
+    success: _ => [Authorized, Charged],
+    failure: none,
     {
         if code != 0 {
             common_enums::AttemptStatus::Failure
@@ -121,15 +121,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // PSync: mirrors the TryFrom exactly. Found + response_code 0 → Authorized (manual) /
 // Charged (auto) — hence the ctx; found + non-zero or not-found → Failure.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: PSync,
     source: u8,
     context: bool,
     params: [code, manual_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: Some(1),
+    success: _ => [Authorized, Charged],
+    failure: none,
     {
         if code != 0 {
             common_enums::AttemptStatus::Failure
@@ -182,15 +182,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // Capture: mirrors the TryFrom exactly. response_code 0 → Charged, non-zero → Failure.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: Capture,
     source: u8,
     context: (),
     params: [code, _context],
-    success_targets: [Charged],
-    failure_sample: Some(1),
+    success: _ => [Charged],
+    failure: none,
     {
         if code != 0 {
             common_enums::AttemptStatus::Failure
@@ -241,15 +241,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // Refund: mirrors the TryFrom exactly. response_code 0 → Success, non-zero → Failure.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: Refund,
     source: u8,
     context: (),
     params: [code, _context],
-    success_targets: [Success],
-    failure_sample: Some(1),
+    success: _ => [Success],
+    failure: none,
     {
         if code != 0 {
             common_enums::RefundStatus::Failure
@@ -302,15 +302,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // RSync: mirrors the TryFrom exactly. Found + response_code 0 → Success; found + non-zero or
 // not-found → Failure.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: RSync,
     source: u8,
     context: (),
     params: [code, _context],
-    success_targets: [Success],
-    failure_sample: Some(1),
+    success: _ => [Success],
+    failure: none,
     {
         if code != 0 {
             common_enums::RefundStatus::Failure
@@ -364,15 +364,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // outcome), with the same 0/non-zero semantics as response_code:
 // 0 → Charged (registration done — SetupMandate uses Charged, not Authorized),
 // non-zero → Failure.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: SetupMandate,
     source: u8,
     context: (),
     params: [code, _context],
-    success_targets: [Charged],
-    failure_sample: Some(1),
+    success: _ => [Charged],
+    failure: none,
     {
         if code != 0 {
             common_enums::AttemptStatus::Failure
@@ -424,15 +424,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // RepeatPayment also respects manual capture: an approved authorization stays Authorized.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Bamboraapac<T>,
     flow: RepeatPayment,
     source: u8,
     context: bool,
     params: [code, manual_capture],
-    success_targets: [Charged],
-    failure_sample: Some(1),
+    success: _ => [Charged],
+    failure: none,
     {
         if code != 0 {
             common_enums::AttemptStatus::Failure

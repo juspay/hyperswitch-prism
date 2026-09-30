@@ -108,17 +108,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 // `RequiresCustomerAction` variant (DeviceDataCollection → DeviceDataCollectionPending),
 // so the mapping is context-aware via `Option<AirwallexNextActionType>`.
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            Authorize,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: AirwallexPaymentsResponse,
@@ -158,17 +156,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            PSync,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: AirwallexSyncResponse,
@@ -214,17 +210,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // with Authorize, where RequiresPaymentMethod/RequiresCustomerAction carry their
 // payment-lifecycle meaning; here they (like RequiresCapture/Processing/Pending)
 // mean the pre-capture intent is still mid-flight, i.e. the cancel is in progress.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            Void,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Cancelled,
-    success_targets: [Voided],
-    failure_status:  Succeeded,
-    failure_target:  Failure,
+    success: Cancelled => [Voided],
+    failure: Succeeded => Failure,
     extractors: {
         request: PaymentVoidData,
         response: AirwallexVoidResponse,
@@ -258,17 +252,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            Capture,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsCaptureData,
         response: AirwallexCaptureResponse,
@@ -356,17 +348,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // SetupMandate: `Authorized` is not in this flow's ALLOWED set — a successful CIT
 // verification is Charged (mirrors how the TryFrom's Charged-producing variants map).
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            SetupMandate,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: SetupMandateRequestData<T>,
         response: AirwallexSetupMandateResponse,
@@ -403,17 +393,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Airwallex<T>,
     flow:            RepeatPayment,
     source:          transformers::AirwallexPaymentStatus,
     context:         Option<transformers::AirwallexNextActionType>,
     params:          [status, next_action],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: RepeatPaymentData<T>,
         response: AirwallexRepeatPaymentResponse,
