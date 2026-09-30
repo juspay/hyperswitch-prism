@@ -283,7 +283,12 @@ macros::macro_connector_implementation!(
                     .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
                     .unwrap_or(false)
             );
-            let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
+            let path = match (is_debit, req.request.is_auto_capture()) {
+                (true, true) => "debit/purchase",
+                (true, false) => "debit/preauth",
+                (false, true) => "credit/purchase",
+                (false, false) => "credit/authorization",
+            };
             Ok(format!("{base_url}/{path}"))
         }
     }

@@ -35,8 +35,10 @@ const RETURN_CODE_SUCCESS: &str = "0000";
 /// Worldpay RAFT issuer-level success code (ResponseCode).
 const RESPONSE_CODE_SUCCESS: &str = "000";
 
-/// E-commerce channel entry mode.
+/// E-commerce channel entry mode (used for CreditAuthorization / preauth).
 const ENTRY_MODE_ECOMM: &str = "E-COMM";
+/// Keyed entry mode (used for CreditPurchase / one-step auto-capture).
+const ENTRY_MODE_KEYED: &str = "KEYED";
 /// POS condition code for e-commerce.
 const POS_CONDITION_CODE_ECOMM: &str = "59";
 /// Terminal entry capability (not applicable for e-commerce).
@@ -44,7 +46,7 @@ const TERMINAL_ENTRY_CAP_DEFAULT: &str = "0";
 /// E-commerce indicator: 3DS authenticated.
 const ECOMMERCE_INDICATOR_SECURE: &str = "07";
 /// CVV2/CVC2 indicator: value provided.
-const CVV_INDICATOR_PRESENT: &str = "0";
+const CVV_INDICATOR_PRESENT: &str = "1";
 /// Flag value indicating yes/enabled for proc flag fields.
 const MIT_YES: &str = "Y";
 
@@ -218,7 +220,7 @@ pub struct WorldpayraftCardInfo<
 pub struct WorldpayraftCardVerificationData {
     #[serde(rename = "Cvv2Cvc2CIDIndicator")]
     pub cvv_indicator: String,
-    #[serde(rename = "CVV2CVC2")]
+    #[serde(rename = "Cvv2Cvc2CIDValue")]
     pub cvv2_cvc2: Secret<String>,
 }
 
@@ -270,7 +272,8 @@ pub struct WorldpayraftCardAuthInner<
     pub terminal_data: WorldpayraftTerminalData,
     #[serde(rename = "E-commerceData")]
     pub ecommerce_data: WorldpayraftEcommerceData,
-    pub reference_trace_numbers: WorldpayraftRequestTraceNumbers,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_trace_numbers: Option<WorldpayraftRequestTraceNumbers>,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
@@ -280,8 +283,10 @@ pub struct WorldpayraftCardAuthInner<
 
 /// Outer wrapper for authorize requests.
 ///
-/// Credit cards use `{ "creditauth": { ... } }` → POST /credit/authorization
-/// Debit cards use  `{ "debitpreauth": { ... } }` → POST /debit/preauth
+/// Credit cards (manual capture): `{ "creditauth": { ... } }` → POST /credit/authorization
+/// Debit cards (manual capture):  `{ "debitpreauth": { ... } }` → POST /debit/preauth
+/// Credit cards (auto-capture):   `{ "creditpurchase": { ... } }` → POST /credit/purchase
+/// Debit cards (auto-capture):    `{ "debitpurchase": { ... } }` → POST /debit/purchase
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayraftAuthorizeRequest<
@@ -292,6 +297,12 @@ pub enum WorldpayraftAuthorizeRequest<
     },
     Debit {
         debitpreauth: WorldpayraftCardAuthInner<T>,
+    },
+    CreditPurchase {
+        creditpurchase: WorldpayraftCardAuthInner<T>,
+    },
+    DebitPurchase {
+        debitpurchase: WorldpayraftCardAuthInner<T>,
     },
 }
 
@@ -339,6 +350,12 @@ pub enum WorldpayraftAuthorizeResponse {
     },
     Debit {
         debitpreauthresponse: WorldpayraftCardAuthResponseInner,
+    },
+    CreditPurchase {
+        creditpurchaseresponse: WorldpayraftCardAuthResponseInner,
+    },
+    DebitPurchase {
+        debitpurchaseresponse: WorldpayraftCardAuthResponseInner,
     },
 }
 
@@ -423,6 +440,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
 
+        let is_auto_capture = router_data.request.is_auto_capture();
+
         let card_verification_data = {
             let cvv_str = card.card_cvc.peek();
             if !cvv_str.is_empty() {
@@ -463,6 +482,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let api_transaction_id = truncate_api_transaction_id(payment_id);
         let local_date_time = get_local_datetime();
 
+        // CreditAuthorization (_0501_Type) and CreditPurchase (_0301_Type) schemas do not
+        // include SystemTraceNumber — the simulator flags it as an unexpected field.
+        // Debit preauth (non-auto-capture) retains SystemTraceNumber until debit schemas
+        // are validated against the simulator.
+        let reference_trace_numbers = if is_debit && !is_auto_capture {
+            Some(WorldpayraftRequestTraceNumbers {
+                system_trace_number,
+            })
+        } else {
+            None
+        };
+
+        // Credit auth and credit purchase both expect KEYED for ECOM.
+        // Debit preauth (non-auto-capture) retains E-COMM until debit flows are validated.
+        let entry_mode = if is_debit && !is_auto_capture {
+            ENTRY_MODE_ECOMM
+        } else {
+            ENTRY_MODE_KEYED
+        };
+
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
             card_info: WorldpayraftCardInfo {
@@ -472,27 +511,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_verification_data,
             address_verification_data,
             terminal_data: WorldpayraftTerminalData {
-                entry_mode: ENTRY_MODE_ECOMM.to_string(),
+                entry_mode: entry_mode.to_string(),
                 pos_condition_code: POS_CONDITION_CODE_ECOMM.to_string(),
                 terminal_entry_cap: TERMINAL_ENTRY_CAP_DEFAULT.to_string(),
             },
             ecommerce_data: WorldpayraftEcommerceData {
                 ecommerce_indicator: ECOMMERCE_INDICATOR_SECURE.to_string(),
             },
-            reference_trace_numbers: WorldpayraftRequestTraceNumbers {
-                system_trace_number,
-            },
+            reference_trace_numbers,
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id,
             local_date_time,
         };
 
-        if is_debit {
-            Ok(Self::Debit {
+        match (is_debit, is_auto_capture) {
+            (true, true) => Ok(Self::DebitPurchase {
+                debitpurchase: inner,
+            }),
+            (true, false) => Ok(Self::Debit {
                 debitpreauth: inner,
-            })
-        } else {
-            Ok(Self::Credit { creditauth: inner })
+            }),
+            (false, true) => Ok(Self::CreditPurchase {
+                creditpurchase: inner,
+            }),
+            (false, false) => Ok(Self::Credit { creditauth: inner }),
         }
     }
 }
@@ -517,6 +559,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WorldpayraftAuthorizeResponse::Debit {
                 debitpreauthresponse,
             } => (true, debitpreauthresponse),
+            WorldpayraftAuthorizeResponse::CreditPurchase {
+                creditpurchaseresponse,
+            } => (false, creditpurchaseresponse),
+            WorldpayraftAuthorizeResponse::DebitPurchase {
+                debitpurchaseresponse,
+            } => (true, debitpurchaseresponse),
         };
 
         let status = if map_payment_status(&inner.return_code, &inner.response_code) {
