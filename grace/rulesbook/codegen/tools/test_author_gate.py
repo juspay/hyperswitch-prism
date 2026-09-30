@@ -127,6 +127,19 @@ def response_asserting(rules):
 
 # ------------------------------------------------------------------ report helpers
 
+def load_report(report_path):
+    """(blob, error) for a report path. error is None only when a blob was read."""
+    if not report_path or report_path == "none":
+        return None, None                      # legitimately not given
+    if not os.path.isfile(report_path):
+        return None, "file does not exist"
+    try:
+        with open(report_path, "r", encoding="utf-8") as fh:
+            return json.load(fh), None
+    except (OSError, ValueError) as exc:
+        return None, "unreadable or not JSON (%s)" % exc.__class__.__name__
+
+
 def report_rows(report_path):
     """(suite, case) -> list of outcomes.
 
@@ -134,16 +147,13 @@ def report_rows(report_path):
     Phase 6), whose `rows[]` carry `method` (a `Service/Method`, the same shape
     `specs.json` `supported_suites` uses), `case_id` and `outcome`.
 
-    The legacy harness report (`runs[]` with `suite`/`scenario`/`assertion_result`)
-    is still accepted, because the 2.3b foundation smoke can still produce one.
+    The legacy harness report (`runs[]` with `suite`/`scenario`/`assertion_result`) is
+    still accepted so an older run directory stays readable; nothing in the current
+    pipeline writes one.
     """
     rows = {}
-    if not report_path or report_path == "none" or not os.path.isfile(report_path):
-        return rows
-    try:
-        with open(report_path, "r", encoding="utf-8") as fh:
-            blob = json.load(fh)
-    except (OSError, ValueError):
+    blob, _error = load_report(report_path)
+    if blob is None:
         return rows
     for entry in blob.get("rows") or []:
         key = (entry.get("method"), entry.get("case_id"))
@@ -154,6 +164,28 @@ def report_rows(report_path):
         key = (entry.get("suite"), entry.get("scenario"))
         rows.setdefault(key, []).append(entry.get("assertion_result"))
     return rows
+
+
+def scenario_passes(blob):
+    """(suite, scenario) pairs that PASSed in one report blob.
+
+    A gRPC round row is keyed by `case_id`, which is a different namespace from a
+    `specs.json` scenario name -- so WAIV-02 would never fire on it. The row carries
+    `suite_ref` ("<suite>/<scenario>") for exactly this join; rows with none came from
+    no committed scenario and cannot be waived.
+    """
+    passed = set()
+    for entry in (blob or {}).get("rows") or []:
+        ref = entry.get("suite_ref")
+        if ref and entry.get("outcome") == "PASS" and "/" in ref:
+            suite, _, scenario = ref.rpartition("/")
+            passed.add((suite, scenario))
+    for entry in (blob or {}).get("runs") or []:          # legacy harness report
+        if entry.get("is_dependency"):
+            continue
+        if entry.get("assertion_result") == "PASS":
+            passed.add((entry.get("suite"), entry.get("scenario")))
+    return passed
 
 
 def prior_passes(run_dir):
@@ -177,9 +209,8 @@ def prior_passes(run_dir):
                 if not (name == "report.json"
                         or (name.startswith("r") and name.endswith(".json"))):
                     continue
-                for key, outcomes in report_rows(os.path.join(root, name)).items():
-                    if "PASS" in outcomes:
-                        passed.add(key)
+                blob, _error = load_report(os.path.join(root, name))
+                passed |= scenario_passes(blob)
     return passed
 
 
@@ -324,7 +355,7 @@ def main():
                     help="the run's base_sha; the diff is computed against it")
     ap.add_argument("--specs-dir", default=SPECS_DIR)
     ap.add_argument("--report", default="none",
-                    help="this round's report.json; omit to skip the report-backed checks")
+                    help="this round's test/grpc/r<N>.json; omit before the first test round")
     ap.add_argument("--run-dir", default="none",
                     help="RUN_DIR, so WAIV-02 can see earlier rounds' reports")
     ap.add_argument("--plan", default="none")
@@ -366,14 +397,21 @@ def main():
     # check carries pass: None, which `all(... is not False ...)` counts as passing -- so
     # a mistyped or stale path would silently turn SUITE-01 and WAIV-02 off while the gate
     # still reported pass. "none" (or omitted) stays a legitimate "no round has run yet".
-    report_missing = bool(args.report) and args.report != "none" \
-        and not os.path.isfile(args.report)
+    # A --report that was given but yields nothing must fail, not skip. A skipped check
+    # carries pass: None, which `all(... is not False ...)` counts as passing -- so a stale
+    # path, a truncated file or a round that executed no rows would silently turn SUITE-01
+    # and WAIV-02 off while the gate still reported pass. "none" (or omitted) stays a
+    # legitimate "no round has run yet".
+    report_blob, report_error = load_report(args.report)
+    rows = report_rows(args.report)
+    if args.report and args.report != "none" and not rows:
+        report_error = report_error or "contains no rows"
+    report_missing = bool(report_error)
     if report_missing:
         report["unparsed"].append({
-            "file": args.report,
-            "detail": "--report was given but the file does not exist, so the checks that need "
-                      "it could not run; a missing report is a failure, not a skip"})
-    rows = report_rows(args.report)
+            "what": "--report %s" % args.report,
+            "why": "%s, so the checks that need it could not run; that is a failure, not a skip"
+                   % report_error})
     have_report = bool(rows)
     passed_before = prior_passes(None if args.run_dir == "none" else args.run_dir)
 
@@ -412,7 +450,7 @@ def main():
             "Waiving a scenario that already passed in this run hides a working test.")
     else:
         add("WAIV-02", "waiver_not_over_a_pass", [], "",
-            skipped=("--report %s does not exist" % args.report) if report_missing
+            skipped=("--report %s: %s" % (args.report, report_error)) if report_missing
             else "no report from an earlier round")
 
     if have_report:
@@ -421,7 +459,7 @@ def main():
             "as covered.")
     else:
         add("SUITE-01", "declared_suite_has_a_pass", [], "",
-            skipped=("--report %s does not exist" % args.report) if report_missing
+            skipped=("--report %s: %s" % (args.report, report_error)) if report_missing
             else "no --report given")
 
     for chk in report["checks"]:
