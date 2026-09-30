@@ -2860,6 +2860,14 @@ impl Deref for PaymentIntentSyncResponse {
     }
 }
 
+/// Response struct for stripe's payment intents search api (v1/payment_intents/search),
+/// used in PSync when the connector transaction id is missing, where the payment intent
+/// is retrieved by searching on metadata[order_id] (connector_request_reference_id)
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripePaymentIntentSearchResponse {
+    pub data: Vec<PaymentIntentSyncResponse>,
+}
+
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
@@ -4936,6 +4944,7 @@ pub(super) fn transform_headers_for_connect_platform(
 pub enum PaymentSyncResponse {
     PaymentIntentSyncResponse(PaymentIntentSyncResponse),
     SetupMandateResponse(SetupMandateResponse),
+    PaymentIntentSearchResponse(StripePaymentIntentSearchResponse),
 }
 
 impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
@@ -4958,6 +4967,38 @@ impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
                     router_data: item.router_data,
                     http_code: item.http_code,
                 })
+            }
+            // Sync is done using the connector_request_reference_id sent as metadata[order_id]
+            // in the payment intent, the search api responds with a list of matching payment intents
+            PaymentSyncResponse::PaymentIntentSearchResponse(search_response) => {
+                match search_response.data.into_iter().next() {
+                    Some(payment_intent_sync_response) => Self::try_from(ResponseRouterData {
+                        response: payment_intent_sync_response,
+                        router_data: item.router_data,
+                        http_code: item.http_code,
+                    }),
+                    None => {
+                        let mut router_data = item.router_data;
+                        router_data.response = Err(domain_types::router_data::ErrorResponse {
+                            code: consts::NO_ERROR_CODE.to_string(),
+                            message:
+                                "No payment found at the processor for the given metadata order_id"
+                                    .to_string(),
+                            reason: None,
+                            status_code: 404,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        });
+                        Ok(router_data)
+                    }
+                }
             }
         }
     }
