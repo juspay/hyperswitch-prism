@@ -739,6 +739,17 @@ fn stored_card_on_file(mandate_reference: &MandateReferenceId) -> Option<Datatra
     })
 }
 
+fn repeat_payment_card_on_file(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    mandate_reference: &MandateReferenceId,
+) -> Option<DatatransCardOnFile> {
+    if payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        None
+    } else {
+        stored_card_on_file(mandate_reference)
+    }
+}
+
 /// Builds the optional `3D` object for a card request (Authorize / SetupMandate).
 /// - external/passthrough 3DS (merchant supplied `authentication_data`) -> `Authentication`
 /// - Datatrans-native 3DS (`auth_type == ThreeDs` with no external data, or a flow that
@@ -1366,8 +1377,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             alias: Secret::new(alias),
             expiry_month,
             expiry_year,
-            // Replay the COF id the CIT enrolled, when one was retained on the mandate.
-            card_on_file: stored_card_on_file(&router_data.request.mandate_reference),
+            // Apple Pay repeat payments charge the stored alias without a COF id.
+            // Other aliases replay the COF id enrolled by the CIT, when available.
+            card_on_file: repeat_payment_card_on_file(
+                router_data.request.payment_method_type,
+                &router_data.request.mandate_reference,
+            ),
             // MIT charges an already-3DS-authenticated alias; no cardholder challenge / redirect.
             three_ds: None,
         });
