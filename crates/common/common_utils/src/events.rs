@@ -398,6 +398,7 @@ pub enum FlowName {
     RefreshPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
+    PrePayoutRiskCheck,
     PaymentMethodEligibility,
 }
 
@@ -449,6 +450,7 @@ impl FlowName {
             Self::RefreshPaymentMethod => "RefreshPaymentMethod",
             Self::PreRiskCheck => "PreRiskCheck",
             Self::PostRiskCheck => "PostRiskCheck",
+            Self::PrePayoutRiskCheck => "PrePayoutRiskCheck",
             Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }

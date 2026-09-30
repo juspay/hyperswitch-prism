@@ -383,5 +383,10 @@ service FraudAndRiskManagementService {
   // Evaluate fraud risk after payment processing. Analyzes payment outcomes
   // and post-transaction signals to refine risk models and detect chargeback fraud.
   rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
+
+  // Evaluate fraud risk before payout processing. Analyzes payout amount and
+  // payout method details to determine if the payout should proceed, be
+  // rejected, or flagged for manual review.
+  rpc PrePayoutRiskCheck(FrmServicePrePayoutRiskCheckRequest) returns (FrmServicePrePayoutRiskCheckResponse);
 }
 

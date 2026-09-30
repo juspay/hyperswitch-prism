@@ -33,7 +33,8 @@ use domain_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
         FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
         FrmRefundProcessedResponse, PostRiskCheckRequest, PostRiskCheckResponse,
-        PreRiskCheckRequest, PreRiskCheckResponse,
+        PrePayoutRiskCheckRequest, PrePayoutRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -158,6 +159,7 @@ pub trait FrmServiceTrait:
     + ServerAuthentication
     + PreRiskCheckV2
     + PostRiskCheckV2
+    + PrePayoutRiskCheckV2
     + FrmPaymentOutcomeV2
     + FrmRefundProcessedV2
     + FrmChargebackReceivedV2
@@ -1034,6 +1036,16 @@ pub trait PostRiskCheckV2:
     FrmFlowData,
     PostRiskCheckRequest,
     PostRiskCheckResponse,
+>
+{
+}
+
+pub trait PrePayoutRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PrePayoutRiskCheck,
+    FrmFlowData,
+    PrePayoutRiskCheckRequest,
+    PrePayoutRiskCheckResponse,
 >
 {
 }

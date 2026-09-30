@@ -6,14 +6,16 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck, PreRiskCheck,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck,
+        PrePayoutRiskCheck, PreRiskCheck,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     frm::frm_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
         FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
         FrmRefundProcessedResponse, PostRiskCheckRequest, PostRiskCheckResponse,
-        PreRiskCheckRequest, PreRiskCheckResponse,
+        PrePayoutRiskCheckRequest, PrePayoutRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -290,6 +292,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PrePayoutRiskCheckV2 for Nsure<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::FrmPaymentOutcomeV2 for Nsure<T>
 {
 }
@@ -520,4 +527,16 @@ macros::frm_flow_not_implemented!(
     request: PostRiskCheckRequest,
     response: PostRiskCheckResponse,
     flow_name: "post_risk_check",
+);
+
+// PrePayoutRiskCheck is not supported: nSure's pre-auth flow is scoped to
+// payments, not payouts.
+macros::frm_flow_not_implemented!(
+    connector: Nsure,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: PrePayoutRiskCheck,
+    request: PrePayoutRiskCheckRequest,
+    response: PrePayoutRiskCheckResponse,
+    flow_name: "pre_payout_risk_check",
 );
