@@ -924,35 +924,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant_transaction_id: Some(notif.merchant_reference),
                 })
             }
-            // HS routes these events by merchantReference (PaymentAttemptId), not
-            // pspReference. Leave connector_transaction_id empty so the HS bridge
-            // does not prefer connector_transaction_id over merchant_transaction_id.
+            // AUTHORISATION-like events carry both the Adyen PSP reference and
+            // the merchant reference. Return both so Prism remains a transparent
+            // parse layer; HS is responsible for choosing the lookup key.
             WebhookEventCode::Authorisation
             | WebhookEventCode::OfferClosed
             | WebhookEventCode::RecurringContract => {
                 WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(notif.psp_reference),
                     merchant_transaction_id: Some(notif.merchant_reference),
                 })
             }
-            // HS routes refund webhooks by merchantReference (RefundId), not the
-            // Adyen refund PSP reference. Keep connector_refund_id empty so the
-            // HS bridge uses merchant_refund_id.
+            // Refund events carry the refund PSP reference, merchant refund
+            // reference, and parent payment PSP reference. Return all of them.
             WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
             | WebhookEventCode::RefundReversed => {
                 WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: None,
+                    connector_refund_id: Some(notif.psp_reference),
                     merchant_refund_id: Some(notif.merchant_reference),
                     connector_transaction_id: notif.original_reference,
                     merchant_transaction_id: None,
                 })
             }
-            // HS routes Adyen dispute webhooks by the parent payment PSP reference
-            // (originalReference). The dispute PSP reference is still returned in
-            // process_dispute_webhook as dispute_id; do not put it here because
-            // the HS bridge prefers connector_dispute_id over connector_transaction_id.
+            // Dispute events carry the dispute PSP reference and the parent
+            // payment PSP reference (originalReference). Return both so Prism
+            // stays a transparent parse layer; the HS bridge prefers the
+            // parent payment reference (connector_transaction_id) for the
+            // payment lookup, matching the Direct path.
             WebhookEventCode::NotificationOfChargeback
             | WebhookEventCode::Chargeback
             | WebhookEventCode::ChargebackReversed
@@ -971,7 +971,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WebhookEventCode::DisputeDefensePeriodEnded
             | WebhookEventCode::IssuerResponseTimeframeExpired => {
                 WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: None,
+                    connector_dispute_id: Some(notif.psp_reference),
                     connector_transaction_id: notif.original_reference,
                 })
             }
