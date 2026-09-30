@@ -121,14 +121,14 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"0\",\"CVV2CVC2\":\"737\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_txn_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"737\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_txn_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       },
       "CashappQr": {
@@ -636,14 +636,14 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"0\",\"CVV2CVC2\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_txn_\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_txn_\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
