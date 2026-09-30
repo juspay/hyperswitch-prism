@@ -346,7 +346,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: D24SyncResponse,
-        source: |response| response.status.clone(),
+        source: |response| response.status,
         context: |_request, _response| (),
     },
     {
@@ -501,7 +501,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: D24RefundSyncResponse,
-        source: |response| response.status.clone(),
+        source: |response| response.status,
         context: |_request, _response| (),
     },
     {

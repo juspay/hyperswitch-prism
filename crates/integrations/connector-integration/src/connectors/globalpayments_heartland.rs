@@ -29,7 +29,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         common_data: &CommonData,
         _request: &RefundSyncData,
         response: &GlobalpaymentsHeartlandRSyncResponse,
-    ) -> Result<Self::MappedStatus, domain_types::ConnectorError>
+    ) -> Result<Self::MappedStatus, ConnectorError>
     where
         CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
     {
@@ -87,7 +87,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         common_data: &CommonData,
         _request: &PaymentsSyncData,
         response: &GlobalpaymentsHeartlandPSyncResponse,
-    ) -> Result<Self::MappedStatus, domain_types::ConnectorError>
+    ) -> Result<Self::MappedStatus, ConnectorError>
     where
         CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
     {

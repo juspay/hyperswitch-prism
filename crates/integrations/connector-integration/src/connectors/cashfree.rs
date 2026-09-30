@@ -81,7 +81,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     flow:            Capture,
     source:          cashfree::CashfreeCaptureStatus,
     context:         (),
-    params:          [status, ctx],
+    params:          [status, _ctx],
     success_status:  Success,
     success_targets: [Charged],
     failure_status:  Failed,
@@ -101,7 +101,6 @@ domain_types::impl_flow_status_mapping_ctx! {
         context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use cashfree::CashfreeCaptureStatus;
         match status {
             CashfreeCaptureStatus::Success => AttemptStatus::Charged,
@@ -125,7 +124,7 @@ domain_types::impl_flow_status_mapping_ctx! {
     flow:            Void,
     source:          cashfree::CashfreeVoidStatus,
     context:         (),
-    params:          [status, ctx],
+    params:          [status, _ctx],
     success_status:  Void,
     success_targets: [Voided],
     failure_status:  Failed,
@@ -145,7 +144,6 @@ domain_types::impl_flow_status_mapping_ctx! {
         context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use cashfree::CashfreeVoidStatus;
         match status {
             CashfreeVoidStatus::Void => AttemptStatus::Voided,
@@ -240,7 +238,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     flow:           RSync,
     source:         cashfree::CashfreeRefundStatus,
     context:        (),
-    params:         [status, ctx],
+    params:         [status, _ctx],
     success_status: Success,
     failure_status: Failed,
     extractors: {
@@ -250,7 +248,6 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
         context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use cashfree::CashfreeRefundStatus;
         match status {
@@ -275,7 +272,7 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
     flow:           Refund,
     source:         cashfree::CashfreeRefundStatus,
     context:        (),
-    params:         [status, ctx],
+    params:         [status, _ctx],
     success_status: Success,
     failure_status: Failed,
     extractors: {
@@ -285,7 +282,6 @@ domain_types::impl_refund_flow_status_mapping_ctx! {
         context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use cashfree::CashfreeRefundStatus;
         match status {
