@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.30.1
+
+### Features
+
+- **config:** Split raw and typed connector data flags ([#2386](https://github.com/juspay/connector-service/pull/2386)) ([`77ee0e3`](https://github.com/juspay/connector-service/commit/77ee0e39ee764321852eea6e5b095995db48ebe9))
+- **connector:** Add payout flows to gigadat ([#1181](https://github.com/juspay/connector-service/pull/1181)) ([`0afc343`](https://github.com/juspay/connector-service/commit/0afc34339671794d464298871bb3b4a7cbce601e))
+- Add raw_connector_status for Tamara ([#2387](https://github.com/juspay/connector-service/pull/2387)) ([`7a4c83a`](https://github.com/juspay/connector-service/commit/7a4c83a35c0c4050e8b67a7c96e4b85b6cc4140d))
+
+### Bug Fixes
+
+- **connectors:** [Adyen] shopperInteraction MOTO, [Stripe] wallet billing details ([#2404](https://github.com/juspay/connector-service/pull/2404)) ([`91d3327`](https://github.com/juspay/connector-service/commit/91d33279571c96eaa0adb45241df7ffed3a9cc4a))
+- **qwikcilver:** Retain wallet details in eligibility ([#2421](https://github.com/juspay/connector-service/pull/2421)) ([`6170d62`](https://github.com/juspay/connector-service/commit/6170d62f18ebb042acd17945ea799421d61e99e6))
+
+**Full Changelog:** [`2026.09.30.0...2026.09.30.1`](https://github.com/juspay/connector-service/compare/2026.09.30.0...2026.09.30.1)
+
+- - -
+
 ## 2026.09.30.0
 
 ### Bug Fixes
