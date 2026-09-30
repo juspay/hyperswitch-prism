@@ -264,7 +264,7 @@ comma-joined string. **Derived briefs** `rca/briefs/<brief_id>.<nc|u|wd>.json` c
 ```
 init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m ─ S2 ─ S3 ─ S4 U0…Un ─ S4z ─ S5 ─ S6 ─ S7
            │                                                              └ bg __hs__ (after U0)
-           ├─ waiter warm/ucs_build.exit ─ bg BASELINE ──────────── joined by S3 and S4
+           ├─ waiter warm/ucs_build.exit ─ bg BASELINE ─ S5:grpc:0 ─ joined by S3 and S4
            └─ S5 spawns 2.5_e2e.md per unit group ───────────────── joined by S5 step 5 and S6
 
 There is no test lane. Test *data* is written by S4 itself (`2.3b_codegen_unit.md` Phase 2t) into the
@@ -372,6 +372,14 @@ On the warm-build `JOIN` (present or timeout); if S2 has already returned, start
 
 Any return satisfies the join; only a `done` BASELINE is ingested in round 1.
 
+**gRPC baseline.** `2.6a_test_env.md` `BASELINE` owns the runtime and the capability picture but not the
+gRPC measurement (its 5a). After the BASELINE join **and** S2's return, before S3, spawn
+`2.6f_grpc_agent.md` once as `S5:grpc:0` with `MODE: BASELINE`, `ROUND: 0` and the same
+`CONNECTOR`/`UNITS`/`TECHSPEC_PATH` as 2a above. It writes `test/baseline_bugs.json` and
+`test/grpc/r0.json` against the **base tree**, one iteration, no RCA loop. It runs here and not with
+the warm build because it needs the techspec S2 writes. Without it round 1's `INGEST: baseline` has
+nothing to ingest and every pre-existing failure is charged to this run.
+
 **Deferred capability probe.** BASELINE races S2, so 5e often runs before `{TECHSPEC_PATH}` exists. After the join
 **and** S2's return, before S3: any `test/capabilities.json` entry whose `.probe` starts with `deferred:`
 → one foreground 2.6a spawn (`S5:env:0:<k>`), the same template with `PROBE_ONLY: 1`, so
@@ -470,7 +478,7 @@ diagnosis list; it is never passed to a spawn.
 `SCENARIO_DATA` AMENDs, every RCA brief and every unit those briefs touch — then runs **one** `__finalize__`,
 **one** env rebuild (Loop-back protocol rule 1 step 8) and **one** `FULL_RUN`. Only that sweep may say a bug is
 fixed or a unit converged. Narrow execution keeps exactly two legal uses, and neither is a verdict: RCA's own
-targeted probes (`2.6e_rca.md` "Phase 0: Verify live" — a `test_ucs --suite --scenario` re-run or a direct
+targeted probes (`2.6e_rca.md` "Phase 0: Verify live" — a matrix-row replay or a direct
 sandbox call), which diagnose one bug, and the bookkeeping spawn `ONLY_CHECKS: none`, which ingests and applies
 status updates without executing anything. **A narrow `ROUND` may never be cited as evidence that a bug is
 fixed.** Why, measured: in one run 9 partial rounds cost 37.9M tokens where a full sweep costs 6.4–7.3M, and one
@@ -509,7 +517,38 @@ at cap, `SECRET_LEAK` or `TREE_MODIFIED` → flag `TEST_ENV_FAILED` (+ that toke
 `plan_order` (`__hs__` last; at cap `amend_codegen_per_unit` → `SKIP`) → `__finalize__` (once; it is the whole list when
 `build_units` found none) → code audit → `POST_CODEGEN` once more; `BUILD_FAILED` again → flag `TEST_ENV_FAILED` → S6.
 
-**2. Exec** — `2.6d_test_exec.md` (`S5:exec:<N>`):
+**2. Exec** — two spawns, in this order and sharing one `<N>`: the gRPC surface, then the ingest that
+grades it. 2b reads the file 2a writes, so 2a is not optional and never runs after.
+
+**2a — gRPC surface**, `2.6f_grpc_agent.md` (`S5:grpc:<N>`, foreground; it loops internally to a
+terminal `SURFACE_STATUS` and needs no orchestrator loop of its own):
+
+```
+  RUN_DIR: {RUN_DIR}
+  CONNECTOR: <connector_lc>
+  UNITS: <units csv>
+  ROUND: <N>
+  MODE: ROUND
+  ONLY_CASES: all        (omit only when 2b is `MODE: ROUND` — see below)
+  TECHSPEC_PATH: {TECHSPEC_PATH}
+```
+
+`ONLY_CASES: all` whenever 2b is `MODE: FULL_RUN`, which is every verdict round. 2.6f otherwise
+re-runs only the rows that are not yet `PASS`, and its `full_matrix` flag then comes back `false` —
+which 2.6d reads, and which makes the round ineligible to say a bug is fixed. A verdict round whose
+2a was narrow is the same defect as a narrow `ROUND` claiming convergence.
+
+It writes `test/grpc/r<N>.json`. **Every terminal status still writes that file**, so 2b runs after
+each of them — `SUCCESS`, `CREDS_ISSUE`, `SANDBOX_BLOCKED`, `SPEC_GAP` and `CAP_EXHAUSTED` are inputs
+to grading, never a substitute for it, and only 2.6d may turn one into a bug or a unit status.
+`BLOCKED` (`ENV`) → Env `REPAIR`, then the same spawn with the next `N`. `FAILED` `MISSING <file>` →
+its owner as in 2b, then the same spawn with the next `N`. Its `SPEC_GAP` is the one status that
+leaves this loop: route it exactly as S4's `SPEC_GAP` row does — `rca/briefs/o-sg-<NN>.json` → links
+for the unit (FOCUS = REASON topic) → S1m → S2 `AMEND` → S3 `AMEND` → S3 follow-up; at cap → withdraw.
+The matrix is derived from the techspec, so a row it cannot anchor is a spec defect, not a test to
+weaken.
+
+**2b — ingest**, `2.6d_test_exec.md` (`S5:exec:<N>`):
 
 ```
   RUN_DIR: {RUN_DIR}
@@ -573,7 +612,7 @@ reappeared three times → `unresolved` + withdraw brief for its units. No ids l
 `DONE`/`PARTIAL` → `bump rca_rounds`, `note_rca <N>`. `PARTIAL` with `NEXT` `needs a sandbox example for <bug_id>`
 → those bugs get no brief this round; they re-enter the next RCA round on the same evidence, and at
 `fix_attempts_per_bug` they become `unresolved`. There is no PROBE stage to spawn: RCA runs its own probes now,
-as a targeted `test_ucs --suite --scenario` re-run or a direct sandbox call (`2.6e_rca.md` "## Phase 0: Verify
+as a targeted matrix-row replay or a direct sandbox call (`2.6e_rca.md` "## Phase 0: Verify
 live"), neither of which needs an agent or a request file. Those probes are diagnosis, never a verdict — only a
 `FULL_RUN` says a bug is fixed.
 `BLOCKED` (`ENV`) → `REPAIR` → same RCA spawn. `FAILED` → one re-spawn, still → 6. Every brief of the round →
@@ -608,8 +647,8 @@ that a bug is fixed. Otherwise → 7.
 `ev SKIP S5:e2e reason=hs:<unavailable_reason>`. 2.6d then derives `E2E_SKIPPED` only for `NO_CHECKOUT` and
 `FAILED` otherwise, which is the fail-closed half of the rule and must not be softened here.
 
-Otherwise one spawn per flow group of the non-withdrawn units (a group = the units 2.5's spec table maps to the
-same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(bump e2e)`:
+Otherwise one spawn per flow group of the non-withdrawn units (a group = the units 2.5's flow-driver table
+drives with one payment chain, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(bump e2e)`:
 
 ```
   RUN_DIR: {RUN_DIR}
@@ -627,7 +666,8 @@ same Cypress specs, so `Refund` and `RSync` share one), `<N>` = `printf %02d $(b
 the row stays terminal and its units have no record, which 2.6d turns into `e2e_status: FAILED` with reason
 `NO_E2E_RUN`. **Do not convert that into a skip.** `HS_PR` from any record is carried to 2.8.
 
-A 2.5 spawn may edit the HS worktree (its Phase 5, including the Cypress harness defects). Those edits are
+A 2.5 spawn may edit the HS worktree (its Phase 5: the gate overrides, config mapping and
+`ucs_only_connectors` entry). Those edits are
 `__hs__`'s territory in every other stage, so a 2.5 spawn runs only when no `S4:*:__hs__` row is `running`, and
 2.8 commits them on the same HS branch.
 
@@ -746,7 +786,8 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
 | Detached job wait per launch (minutes) | 120 | `detached_wait_min` |
 
-`baseline_join_min` must exceed the `2.6a_test_env.md` BASELINE harness `timeout 3600` (60) plus a 90-minute boot margin.
+`baseline_join_min` covers `2.6a_test_env.md` `BASELINE` — the build, the servers and the probes — plus a 90-minute
+boot margin. The gRPC baseline is a separate foreground spawn after S2 (`S5:grpc:0`) and is not inside this join.
 At the cap: non-blocking → PR "Known issues"; blocking unresolved or `TEST_ENV_FAILED` → PR `INCOMPLETE`.
 
 ## Resume
@@ -847,7 +888,7 @@ OPEN_BUGS: <bug_id>(<severity>,<status>), … | none
 | `S4:*` | `2.3b_codegen_unit.md` | `S4`, `S4z` | `code/<NN>-<unit_fs>.json`, `gate/ci_parity.json` | `NEW`, `AMEND` |
 | `BASELINE`, `S5:env:*` | `2.6a_test_env.md` | `test_env` | `test/baseline.json`, `env/env.json` | `BASELINE`, `POST_CODEGEN`, `REPAIR` |
 | `S5:exec:*` | `2.6d_test_exec.md` | `test_exec` | `test/results/r<N>.json` | `FULL_RUN`, `ROUND` |
-| `S5:grpc:*` | `2.6f_grpc_agent.md` | `grpc_agent` | `test/grpc/r<N>.json` | — (loops internally to a terminal `SURFACE_STATUS`) |
+| `S5:grpc:*` | `2.6f_grpc_agent.md` | `grpc_agent` | `test/grpc/r<N>.json` (`BASELINE` also `test/baseline_bugs.json`) | `ROUND`, `BASELINE` — loops internally to a terminal `SURFACE_STATUS` |
 | `S5:rca:*` | `2.6e_rca.md` | `rca` | `rca/r<N>.json` | — |
 | `S5:e2e:*` | `2.5_e2e.md` | `e2e` | `e2e/<N>.json` | — |
 | `S6:review:*` | `2.7_review.md` | `S6` | `review/findings.json` | `FULL`, `INCREMENTAL` |
