@@ -1512,6 +1512,20 @@ pub async fn call_connector_api(
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 
+    // Dedicated retry client: its pool never retains idle connections, so the
+    // single auto-retry after "connection closed before message completed" is
+    // guaranteed to dial a brand-new TCP connection instead of checking out
+    // another potentially stale connection from the shared pool.
+    let retry_client = create_retry_client(
+        proxy,
+        should_bypass_proxy,
+        proxy_name,
+        request.certificate.clone(),
+        request.certificate_key.clone(),
+        request.ca_certificate.clone(),
+        test_mode,
+    )?;
+
     let client = create_client(
         proxy,
         should_bypass_proxy,
@@ -1653,14 +1667,21 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
+
+    let request = request
+        .build()
+        .change_context(ApiClientError::RequestNotSent(
+            "failed to build connector request".to_string(),
+        ))?;
+    let (response, retried) =
+        crate::http_client::send_request_with_retry(&client, request, Some(&retry_client)).await;
 
     if retried {
         #[cfg(feature = "otel")]
         crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
         tracing::info!(
             connector = %connector_host,
-            "Auto-retried request due to connection closed before message completed"
+            "Auto-retried request due to connection closed before message completed (fresh connection)"
         );
     }
 
@@ -1674,6 +1695,25 @@ pub async fn call_connector_api(
     handle_response(response).await
 }
 
+/// Pool mode for connector HTTP clients.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PoolMode {
+    /// Normal pooling: idle keep-alive connections are retained and reused.
+    Pooled,
+    /// `pool_max_idle_per_host(0)`: the pool never retains idle connections,
+    /// so every request is guaranteed to dial a brand-new TCP connection.
+    NoPool,
+}
+
+impl PoolMode {
+    fn apply(self, builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+        match self {
+            Self::Pooled => builder,
+            Self::NoPool => builder.pool_max_idle_per_host(0),
+        }
+    }
+}
+
 pub fn create_client(
     proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
@@ -1683,10 +1723,61 @@ pub fn create_client(
     ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        PoolMode::Pooled,
+    )
+}
+
+/// Variant of [`create_client`] whose connection pool never retains idle
+/// connections, guaranteeing that every request dials a brand-new TCP
+/// connection. Used for the single auto-retry after a "connection closed
+/// before message completed" error: handing the retry to the shared pool
+/// risks sending it over another equally stale keep-alive connection and
+/// losing the same race twice.
+pub fn create_retry_client(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
+    test_mode: bool,
+) -> CustomResult<Client, ApiClientError> {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        PoolMode::NoPool,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn create_client_impl(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
+    test_mode: bool,
+    pool_mode: PoolMode,
+) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder =
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
+            let client_builder = pool_mode.apply(client_builder);
 
             let identity = create_identity_from_certificate_and_key(
                 encoded_certificate,
@@ -1708,7 +1799,13 @@ pub fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode),
+        _ => get_base_client(
+            proxy_config,
+            should_bypass_proxy,
+            proxy_name,
+            test_mode,
+            pool_mode,
+        ),
     }
 }
 
@@ -1718,6 +1815,13 @@ const DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS: u64 = 30;
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
 
+/// Caches for the dedicated retry clients ([`PoolMode::NoPool`]); kept separate
+/// from the pooled caches above, which are keyed only by proxy configuration.
+static PROXY_NO_POOL_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> =
+    OnceCell::new();
+static DEFAULT_NO_POOL_CLIENT: OnceCell<Client> = OnceCell::new();
+
+#[allow(clippy::too_many_arguments)]
 fn get_or_create_proxy_client(
     cache: &RwLock<HashMap<(Proxy, String), Client>>,
     cache_key: (Proxy, String),
@@ -1725,6 +1829,7 @@ fn get_or_create_proxy_client(
     should_bypass_proxy: bool,
     proxy_name: &str,
     test_mode: bool,
+    pool_mode: PoolMode,
 ) -> CustomResult<Client, ApiClientError> {
     let read_result = cache
         .read()
@@ -1752,15 +1857,16 @@ fn get_or_create_proxy_client(
                 None => {
                     tracing::info!("Creating new proxy client for config: {:?}", cache_key);
 
-                    let new_client = get_client_builder(
-                        proxy_config,
-                        should_bypass_proxy,
-                        proxy_name,
-                        test_mode,
-                    )?
-                    .build()
-                    .change_context(ApiClientError::ClientConstructionFailed)
-                    .attach_printable("Failed to construct proxy client")?;
+                    let new_client = pool_mode
+                        .apply(get_client_builder(
+                            proxy_config,
+                            should_bypass_proxy,
+                            proxy_name,
+                            test_mode,
+                        )?)
+                        .build()
+                        .change_context(ApiClientError::ClientConstructionFailed)
+                        .attach_printable("Failed to construct proxy client")?;
 
                     write_lock.insert(cache_key.clone(), new_client.clone());
                     tracing::debug!("Cached new proxy client for config: {:?}", cache_key);
@@ -1778,6 +1884,7 @@ fn get_base_client(
     should_bypass_proxy: bool,
     proxy_name: &str,
     test_mode: bool,
+    pool_mode: PoolMode,
 ) -> CustomResult<Client, ApiClientError> {
     if let Some(cache_key) = proxy_config.cache_key(should_bypass_proxy, proxy_name) {
         tracing::debug!(
@@ -1785,7 +1892,12 @@ fn get_base_client(
             cache_key
         );
 
-        let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+        let cache = match pool_mode {
+            PoolMode::Pooled => PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new())),
+            PoolMode::NoPool => {
+                PROXY_NO_POOL_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+            }
+        };
 
         let client = get_or_create_proxy_client(
             cache,
@@ -1794,16 +1906,27 @@ fn get_base_client(
             should_bypass_proxy,
             proxy_name,
             test_mode,
+            pool_mode,
         )?;
 
         Ok(client)
     } else {
         tracing::debug!("No proxy configuration detected, using DEFAULT_CLIENT");
 
-        let client = DEFAULT_CLIENT
+        let cell = match pool_mode {
+            PoolMode::Pooled => &DEFAULT_CLIENT,
+            PoolMode::NoPool => &DEFAULT_NO_POOL_CLIENT,
+        };
+        let client = cell
             .get_or_try_init(|| {
-                tracing::info!("Initializing DEFAULT_CLIENT (no proxy configuration)");
-                get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?
+                tracing::info!("Initializing default client (no proxy configuration)");
+                pool_mode
+                    .apply(get_client_builder(
+                        proxy_config,
+                        should_bypass_proxy,
+                        proxy_name,
+                        test_mode,
+                    )?)
                     .build()
                     .change_context(ApiClientError::ClientConstructionFailed)
                     .attach_printable("Failed to construct default client")

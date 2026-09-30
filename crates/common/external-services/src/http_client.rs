@@ -4,7 +4,7 @@ use common_enums::ApiClientError;
 use error_stack::{report, Report};
 
 /// Sends an HTTP request via reqwest, automatically retrying once if the
-/// connection was closed by the remote side before the message completed.
+/// connection was closed by the remote side before the message could complete.
 ///
 /// This handles a well-known race condition in HTTP connection pooling: hyper
 /// maintains a pool of idle keep-alive connections and occasionally selects one
@@ -19,6 +19,18 @@ use error_stack::{report, Report};
 /// Hyperswitch has run this same blind retry in production at scale without
 /// double-charge incidents.
 ///
+/// The retry is sent through `retry_client` when provided, falling back to the
+/// original `client` otherwise. Callers SHOULD pass a dedicated client whose
+/// pool never retains idle connections (`pool_max_idle_per_host(0)` — see
+/// `create_retry_client` in `service.rs`): retrying on the same client that
+/// just lost the race hands the retry to the very same pool, which during a
+/// bursty traffic pattern is likely to hold other equally stale connections —
+/// the retry then loses the same race again on a second corpse.
+///
+/// When the connection-closed error fires, a best-effort snapshot of this
+/// host's TCP socket table (from `/proc/net/tcp*`) is logged so operators can
+/// correlate failures with the number of idle/half-closed sockets on the machine.
+///
 /// The request is cloned via `try_clone()` before the first attempt. If the
 /// body is a stream that cannot be cloned, the retry is skipped and the
 /// original error is returned.
@@ -26,24 +38,30 @@ use error_stack::{report, Report};
 /// Returns `(response, retried)` where `retried` is `true` if the first attempt
 /// hit a connection-closed error and a retry was attempted.
 pub async fn send_request_with_retry(
-    request: reqwest::RequestBuilder,
+    client: &reqwest::Client,
+    request: reqwest::Request,
+    retry_client: Option<&reqwest::Client>,
 ) -> (Result<reqwest::Response, Report<ApiClientError>>, bool) {
+    let request_url = request.url().clone();
     // Clone the request before sending so we have a backup for retry.
     // `try_clone()` returns None for streaming bodies that cannot be cloned.
     let cloned_request = request.try_clone();
 
-    let response = send_request(request).await;
+    let response = execute_request(client, request).await;
 
     match response {
         Err(ref error)
             if error.current_context() == &ApiClientError::ConnectionClosedIncompleteMessage =>
         {
+            log_tcp_socket_snapshot(&request_url);
             match cloned_request {
                 Some(cloned) => {
+                    let retry_client = retry_client.unwrap_or(client);
                     tracing::info!(
-                        "Retrying request due to connection closed before message completed"
+                        url = %request_url,
+                        "Retrying request due to connection closed before message completed on a fresh connection"
                     );
-                    (send_request(cloned).await, true)
+                    (execute_request(retry_client, cloned).await, true)
                 }
                 None => {
                     tracing::info!(
@@ -58,10 +76,11 @@ pub async fn send_request_with_retry(
 }
 
 /// Sends a single HTTP request and maps reqwest errors to `ApiClientError`.
-async fn send_request(
-    request: reqwest::RequestBuilder,
+async fn execute_request(
+    client: &reqwest::Client,
+    request: reqwest::Request,
 ) -> Result<reqwest::Response, Report<ApiClientError>> {
-    request.send().await.map_err(|error| {
+    client.execute(request).await.map_err(|error| {
         let api_error = match error {
             error if error.is_timeout() => ApiClientError::RequestTimeoutReceived,
             error if is_connection_closed_before_message_could_complete(&error) => {
@@ -94,6 +113,120 @@ fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) ->
         source = err.source();
     }
     false
+}
+
+/// Count of this host's TCP sockets grouped by connection state.
+///
+/// `ESTABLISHED` sockets with no in-flight request are exactly the idle
+/// keep-alive connections hyper's connection pool hands out on checkout.
+/// `CLOSE_WAIT` sockets are peers that sent us a FIN which the pool has not
+/// reaped yet — the "armed landmine" population. A high `close_wait` count at
+/// the moment of a connection-closed error is direct evidence for the
+/// stale-pool race this module exists to survive.
+#[derive(Debug, Default, Clone, Copy)]
+struct TcpSocketSnapshot {
+    established: u64,
+    close_wait: u64,
+    time_wait: u64,
+    fin_wait: u64,
+    other: u64,
+}
+
+impl TcpSocketSnapshot {
+    fn record(&mut self, state: &str) {
+        match state {
+            "01" => self.established += 1,         // ESTABLISHED
+            "04" | "05" => self.fin_wait += 1,     // FIN_WAIT1/2
+            "06" => self.time_wait += 1,           // TIME_WAIT
+            "08" => self.close_wait += 1,          // CLOSE_WAIT
+            "02" | "03" | "09" => self.other += 1, // SYN_SENT/SYN_RECV/LAST_ACK
+            _ => {}                                // skip CLOSE / CLOSING / LISTEN — not actionable
+        }
+    }
+}
+
+/// Best-effort snapshot of this host's TCP socket table from `/proc/net/tcp{,6}`.
+///
+/// Returns `(filtered, total)` where `filtered` only counts sockets whose
+/// remote port equals `remote_port` (the connector/upstream port, so the
+/// filtered counts track sockets that could end up in this connector's pool)
+/// and `total` counts every realised outbound socket on the host. Returns
+/// `None` when the table cannot be read (restricted procfs etc.).
+#[cfg(target_os = "linux")]
+fn tcp_socket_snapshot(remote_port: Option<u16>) -> Option<(TcpSocketSnapshot, TcpSocketSnapshot)> {
+    let mut filtered = TcpSocketSnapshot::default();
+    let mut total = TcpSocketSnapshot::default();
+    let mut read_any = false;
+
+    for path in ["/proc/net/tcp", "/proc/net/tcp6"] {
+        let Ok(contents) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        read_any = true;
+        for line in contents.lines().skip(1) {
+            // Format: sl local_address rem_address st ...
+            let mut fields = line.split_whitespace();
+            let _sl = fields.next();
+            let _local = fields.next();
+            let (Some(remote), Some(state)) = (fields.next(), fields.next()) else {
+                continue;
+            };
+            if state == "0A" {
+                // LISTEN: inbound, never part of a client pool
+                continue;
+            }
+            total.record(state);
+
+            let port_matches = remote
+                .rsplit(':')
+                .next()
+                .and_then(|port| u16::from_str_radix(port, 16).ok())
+                .is_some_and(|port| remote_port.is_none_or(|want| port == want));
+            if port_matches {
+                filtered.record(state);
+            }
+        }
+    }
+
+    read_any.then_some((filtered, total))
+}
+
+/// `/proc/net/tcp*` is Linux-only; nothing actionable to report elsewhere.
+#[cfg(not(target_os = "linux"))]
+fn tcp_socket_snapshot(
+    _remote_port: Option<u16>,
+) -> Option<(TcpSocketSnapshot, TcpSocketSnapshot)> {
+    None
+}
+
+/// Logs the current TCP-socket table broken down by state, so a
+/// connection-closed failure can be correlated with the number of idle
+/// (`ESTABLISHED`) and half-closed (`CLOSE_WAIT`) sockets on the host.
+fn log_tcp_socket_snapshot(request_url: &reqwest::Url) {
+    let remote_port = request_url.port_or_known_default();
+    match tcp_socket_snapshot(remote_port) {
+        Some((filtered, total)) => {
+            tracing::info!(
+                url = %request_url,
+                remote_port,
+                filtered_established = filtered.established,
+                filtered_close_wait = filtered.close_wait,
+                filtered_time_wait = filtered.time_wait,
+                filtered_fin_wait = filtered.fin_wait,
+                total_established = total.established,
+                total_close_wait = total.close_wait,
+                total_time_wait = total.time_wait,
+                total_fin_wait = total.fin_wait,
+                "TCP socket snapshot at connection-closed error (stale idle-pool connection race)"
+            );
+        }
+        None => {
+            tracing::info!(
+                url = %request_url,
+                "TCP socket snapshot unavailable (cannot read /proc/net/tcp*)"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -146,7 +279,28 @@ mod tests {
     #[tokio::test]
     async fn retries_once_when_connection_closed_before_message_completed() {
         let (url, seen) = spawn_server(1).await;
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url)).await;
+        let client = reqwest::Client::new();
+        let request = client.get(&url).build().unwrap();
+        let (response, retried) = send_request_with_retry(&client, request, None).await;
+        assert!(retried, "the request should have been retried");
+        assert_eq!(response.unwrap().status(), 200);
+        assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn retries_on_dedicated_retry_client_when_provided() {
+        // The dedicated retry client never retains idle connections, so the
+        // retry is guaranteed to dial a brand-new connection instead of
+        // checking out another potentially stale one from the shared pool.
+        let (url, seen) = spawn_server(1).await;
+        let client = reqwest::Client::new();
+        let retry_client = reqwest::Client::builder()
+            .pool_max_idle_per_host(0)
+            .build()
+            .unwrap();
+        let request = client.get(&url).build().unwrap();
+        let (response, retried) =
+            send_request_with_retry(&client, request, Some(&retry_client)).await;
         assert!(retried, "the request should have been retried");
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(seen.load(Ordering::SeqCst), 2);
@@ -155,12 +309,32 @@ mod tests {
     #[tokio::test]
     async fn does_not_retry_more_than_once() {
         let (url, seen) = spawn_server(usize::MAX).await;
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url)).await;
+        let client = reqwest::Client::new();
+        let retry_client = reqwest::Client::builder()
+            .pool_max_idle_per_host(0)
+            .build()
+            .unwrap();
+        let request = client.get(&url).build().unwrap();
+        let (response, retried) =
+            send_request_with_retry(&client, request, Some(&retry_client)).await;
         assert!(retried);
         assert_eq!(
             response.unwrap_err().current_context(),
             &ApiClientError::ConnectionClosedIncompleteMessage
         );
         assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn tcp_socket_snapshot_reads_proc_table() {
+        let (url, _) = spawn_server(usize::MAX).await;
+        let client = reqwest::Client::new();
+        let request = client.get(&url).build().unwrap();
+        let remote_port = request.url().port_or_known_default();
+        let (filtered, total) = tcp_socket_snapshot(remote_port)
+            .expect("should be able to read /proc/net/tcp on linux");
+        assert!(filtered.established <= total.established);
+        assert!(filtered.close_wait <= total.close_wait);
     }
 }
