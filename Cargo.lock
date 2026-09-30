@@ -2192,6 +2192,7 @@ dependencies = [
  "ucs_cards",
  "ucs_common_enums",
  "ucs_common_utils",
+ "unicode-normalization",
  "url 2.5.8",
  "utoipa",
 ]
