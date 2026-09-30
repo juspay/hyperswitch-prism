@@ -3784,6 +3784,13 @@ message PaymentServiceSetupRecurringRequest {
   // additionalData.authorisationType / manualCapture) need the real value;
   // absent means the connector's default (automatic).
   optional CaptureMethod capture_method = 42;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen). Stripe's setup_intents needs it
+  // for on_behalf_of on a destination charge, and to echo the charge details back
+  // as mandate_reference.mandate_metadata.
+  optional SplitPaymentsDetails split_payments = 43;
 }
 
 // Response message for a mandate setup operation
