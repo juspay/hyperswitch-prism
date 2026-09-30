@@ -119,13 +119,14 @@ pub(crate) type ResponseRouterDataType<T, R> = types::ResponseRouterData<
 /// configuration block in `create_all_prerequisites!`.
 pub(crate) struct FlowStatusMappingProbe<Connector, Flow, Request, Response>(
     PhantomData<(Connector, Flow, Request, Response)>,
+    &'static str,
 );
 
 impl<Connector, Flow, Request, Response>
     FlowStatusMappingProbe<Connector, Flow, Request, Response>
 {
-    pub(crate) const fn new() -> Self {
-        Self(PhantomData)
+    pub(crate) const fn new(connector_name: &'static str) -> Self {
+        Self(PhantomData, connector_name)
     }
 }
 
@@ -145,6 +146,11 @@ impl<Connector, Flow, CommonData, Request, Response, RawResponse>
     for &FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
 where
     Connector: domain_types::flow_status::ConnectorRuntimeStatusMapping<Flow, Request, RawResponse>,
+    <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Flow,
+        Request,
+        RawResponse,
+    >>::MappedStatus: std::fmt::Debug + PartialEq + Copy,
     CommonData: domain_types::flow_status::FlowStatusSetter<
             Flow,
             <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
@@ -183,6 +189,24 @@ where
                 status_code,
                 "macros",
             ))?;
+
+        if domain_types::flow_status::is_live_status_transformer_connector(self.1) {
+            let transformer_status = result.resource_common_data.current_mapped_flow_status();
+            if transformer_status != mapped_status {
+                tracing::warn!(
+                    connector = self.1,
+                    flow = std::any::type_name::<Flow>(),
+                    transformer_status = ?transformer_status,
+                    framework_status = ?mapped_status,
+                    connector_request_reference_id = ?result
+                        .resource_common_data
+                        .connector_request_reference_id(),
+                    "live connector status mismatch between transformer and status framework"
+                );
+            }
+            return Ok(result);
+        }
+
         result
             .resource_common_data
             .set_mapped_flow_status(mapped_status)
@@ -1134,7 +1158,7 @@ macro_rules! expand_bridge_router_data {
                 $flow,
                 <$router_data as crate::connectors::macros::FlowTypes>::Request,
                 $response,
-            >::new();
+            >::new(stringify!($connector));
             (&probe).convert_bridge_response(response, status_code)
         }
     };

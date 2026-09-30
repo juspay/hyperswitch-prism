@@ -59,6 +59,22 @@ pub const fn const_contains(slice: &[AttemptStatus], target: AttemptStatus) -> b
 /// report the terminal outcome via webhook or sync.
 pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &["adyen"];
 
+/// Live connectors whose transformer-produced status remains the runtime source
+/// of truth while the status framework runs in shadow mode for mismatch logging.
+pub const LIVE_STATUS_TRANSFORMER_CONNECTORS: &[&str] = &[
+    "stripe",
+    "adyen",
+    "cybersource",
+    "paypal",
+    "authorizedotnet",
+];
+
+pub fn is_live_status_transformer_connector(connector: &str) -> bool {
+    LIVE_STATUS_TRANSFORMER_CONNECTORS
+        .iter()
+        .any(|live_connector| live_connector.eq_ignore_ascii_case(connector))
+}
+
 /// `const`-compatible string slice membership test.
 pub const fn const_contains_str(slice: &[&str], target: &str) -> bool {
     let mut i = 0;
