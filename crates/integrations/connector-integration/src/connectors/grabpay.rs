@@ -1175,6 +1175,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Grabpay<T>,
+    flow: Authenticate,
+    status: AuthenticationPending,
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: GrabpayAuthenticateResponse,
+    },
+}
+
 // ── Authorize ────────────────────────────────────────────────────────────────
 // The Authorize TryFrom is a plain `AttemptStatus::from(GrabpayPaymentStatus)` on
 // `tx_status`. `_ctx!` (with `()` context) rather than the plain macro because

@@ -62,6 +62,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: CreateOrder,
+    statuses: [
+        PaymentMethodAwaited,
+        AuthenticationPending,
+        Pending,
+        Charged,
+        Failure,
+        Voided,
+        Authorized,
+    ],
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: AirwallexIntentResponse,
+        status: |_request, response| match response.status {
+            airwallex::AirwallexPaymentStatus::RequiresPaymentMethod => {
+                common_enums::AttemptStatus::PaymentMethodAwaited
+            }
+            airwallex::AirwallexPaymentStatus::RequiresCustomerAction => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            airwallex::AirwallexPaymentStatus::Processing
+            | airwallex::AirwallexPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+            airwallex::AirwallexPaymentStatus::Succeeded
+            | airwallex::AirwallexPaymentStatus::Settled
+            | airwallex::AirwallexPaymentStatus::Paid
+            | airwallex::AirwallexPaymentStatus::CaptureRequested => {
+                common_enums::AttemptStatus::Charged
+            }
+            airwallex::AirwallexPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+            airwallex::AirwallexPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+            airwallex::AirwallexPaymentStatus::RequiresCapture
+            | airwallex::AirwallexPaymentStatus::Authorized => {
+                common_enums::AttemptStatus::Authorized
+            }
+        },
+    },
+}
+
 // All five payment flows authenticate the same way: the `TryFrom` implementations call
 // `get_payment_status(status, next_action)`. `next_action` only refines the
 // `RequiresCustomerAction` variant (DeviceDataCollection → DeviceDataCollectionPending),

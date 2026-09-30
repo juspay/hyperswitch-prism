@@ -141,6 +141,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: GetnetPreAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: Authenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: GetnetAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: PostAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: GetnetPostAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
 // ── PSync ────────────────────────────────────────────────────────────────────
 // The PSync TryFrom is a plain `AttemptStatus::from(&GetnetPaymentStatus)` — no
 // redirect handling — so every body target is exactly the generic From mapping.

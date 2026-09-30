@@ -490,6 +490,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: BarclaycardAuthSetupResponse,
+        status: |_request, response| barclaycard::auth_setup_status(response),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: Authenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: BarclaycardAuthenticateResponse,
+        status: |_request, response| barclaycard::authenticate_status(response),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: PostAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: BarclaycardPostAuthenticateResponse,
+        status: |_request, response| barclaycard::authenticate_status(response),
+    },
+}
+
 // SetupMandate implementation is below using macro_connector_implementation!
 
 macros::create_all_prerequisites!(

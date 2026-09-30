@@ -1994,7 +1994,7 @@ fn build_threeds_authentication_data(response: &GetnetThreeDsResponse) -> Authen
 }
 
 /// Map the three-state Globalgetnet status to a UCS `AttemptStatus`.
-fn threeds_status_to_attempt(status: Option<&GetnetThreeDsStatus>) -> AttemptStatus {
+pub fn threeds_status_to_attempt(status: Option<&GetnetThreeDsStatus>) -> AttemptStatus {
     match status {
         Some(GetnetThreeDsStatus::Authenticated) => AttemptStatus::AuthenticationSuccessful,
         Some(GetnetThreeDsStatus::Denied) => AttemptStatus::AuthenticationFailed,

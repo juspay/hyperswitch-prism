@@ -171,9 +171,16 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
     },
 }
 
-// NOTE: no impl_flow_status_mapping! for CreateOrder. Order creation is an
-// ack-only step — the TryFrom hardcodes `AttemptStatus::Pending` regardless
-// of the response body, so there is no status mapping to mirror.
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cashfree<T>,
+    flow: CreateOrder,
+    status: Pending,
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: CashfreeOrderCreateResponse,
+    },
+}
 
 // ── PSync ────────────────────────────────────────────────────────────────────
 // Mirrors the `From<CashfreePaymentStatus> for AttemptStatus` impl in
