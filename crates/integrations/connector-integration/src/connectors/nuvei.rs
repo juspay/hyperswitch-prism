@@ -66,6 +66,27 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nuvei<T>,
+    flow: CreateOrder,
+    statuses: [Pending, Failure],
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: transformers::NuveiOpenOrderResponse,
+        status: |_request, response| {
+            if matches!(
+                response.status,
+                transformers::NuveiPaymentStatus::Error | transformers::NuveiPaymentStatus::Failed
+            ) {
+                common_enums::AttemptStatus::Failure
+            } else {
+                common_enums::AttemptStatus::Pending
+            }
+        },
+    },
+}
+
 // Maps extracted transaction_details; absent details return Err before mapping (no AttemptStatus).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
