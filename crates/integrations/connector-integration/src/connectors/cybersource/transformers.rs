@@ -3843,7 +3843,9 @@ pub fn authenticate_status(
         CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
             common_enums::AttemptStatus::from(info_response.status)
         }
-        CybersourceAuthenticateResponse::ErrorInformation(_) => common_enums::AttemptStatus::Failure,
+        CybersourceAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::Failure
+        }
     }
 }
 
