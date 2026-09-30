@@ -1264,8 +1264,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                     } else {
                         (common_enums::EligibilityStatus::Unknown, None)
                     };
-                // Verdict fanned across every requested PM; the wallet details
-                // only attach to the wallet PM they describe.
+                // Each result describes the same wallet lookup, including legacy unspecified PMs.
                 let results = data
                     .request
                     .payment_method_types
@@ -1274,13 +1273,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                         payment_method_type: *payment_method_type,
                         eligibility,
                         error_info: None,
-                        payment_method_details: if *payment_method_type
-                            == grpc_api_types::payments::PaymentMethodType::QwikcilverWallet
-                        {
-                            payment_method_details.clone()
-                        } else {
-                            None
-                        },
+                        payment_method_details: payment_method_details.clone(),
                     })
                     .collect();
                 Ok(PaymentMethodEligibilityResponse {
