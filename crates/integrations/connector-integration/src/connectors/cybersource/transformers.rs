@@ -3836,6 +3836,17 @@ pub enum CybersourceAuthenticateResponse {
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
 }
 
+pub fn authenticate_status(
+    response: &CybersourceAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            common_enums::AttemptStatus::from(info_response.status)
+        }
+        CybersourceAuthenticateResponse::ErrorInformation(_) => common_enums::AttemptStatus::Failure,
+    }
+}
+
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<CybersourceAuthenticateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
@@ -4265,6 +4276,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Clone, Copy)]
 pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,

@@ -74,6 +74,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpay<T>
 {
 }
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      CreateOrder,
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentCreateOrderData,
+        response: TrustpayCreateIntentResponse,
+    },
+}
+
 domain_types::impl_flow_status_mapping_ctx! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Trustpay<T>,

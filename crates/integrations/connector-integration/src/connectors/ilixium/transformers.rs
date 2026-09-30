@@ -1815,6 +1815,13 @@ fn map_attempt_status(
     }
 }
 
+pub fn pre_authenticate_status<T: PaymentMethodDataTypes>(
+    request: &PaymentsPreAuthenticateData<T>,
+    response: &IlixiumPreAuthenticateResponse,
+) -> AttemptStatus {
+    map_attempt_status(response, request.is_auto_capture().unwrap_or(true))
+}
+
 /// Maps a `/direct/capture` response onto a UCS attempt status.
 ///
 /// Kept separate from [`map_attempt_status`] because the same `status.code` means something

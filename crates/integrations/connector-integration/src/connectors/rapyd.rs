@@ -66,6 +66,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Rapyd<T>
 {
 }
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Rapyd<T>,
+    flow:      CreateOrder,
+    statuses:  [Pending, Charged, Failure],
+    runtime: {
+        request:  PaymentCreateOrderData,
+        response: RapydCreateOrderResponse,
+        status:   |_request, response| match response.data.as_ref().map(|data| data.status.as_str()) {
+            Some("DON") => common_enums::AttemptStatus::Charged,
+            Some("EXP" | "DEC") | None => common_enums::AttemptStatus::Failure,
+            _ => common_enums::AttemptStatus::Pending,
+        },
+    },
+}
+
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,

@@ -120,6 +120,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Cybersource<T>
 {
 }
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      PreAuthenticate,
+    statuses:  [AuthenticationPending, Failure],
+    runtime: {
+        request:  PaymentsPreAuthenticateData<T>,
+        response: CybersourceAuthSetupResponse,
+        status:   |_request, response| match response {
+            CybersourceAuthSetupResponse::ClientAuthSetupInfo(_) => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            CybersourceAuthSetupResponse::ErrorInformation(_) => {
+                common_enums::AttemptStatus::Failure
+            }
+        },
+    },
+}
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      Authenticate,
+    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request:  PaymentsAuthenticateData<T>,
+        response: CybersourceAuthenticateResponse,
+        status:   |_request, response| cybersource::authenticate_status(response),
+    },
+}
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      PostAuthenticate,
+    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request:  PaymentsPostAuthenticateData<T>,
+        response: CybersourcePostAuthenticateResponse,
+        status:   |_request, response| cybersource::authenticate_status(response),
+    },
+}
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cybersource<T>,

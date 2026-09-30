@@ -219,6 +219,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Globalpay<T>,
+    flow:      PostAuthenticate,
+    statuses:  [AuthenticationPending, Authorized, Charged, Voided, Pending, Failure],
+    runtime: {
+        request:  PaymentsPostAuthenticateData<T>,
+        response: GlobalpayConfirmResponse,
+        status:   |_request, response| AttemptStatus::from(response.status.clone()),
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,

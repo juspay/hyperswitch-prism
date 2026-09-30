@@ -577,6 +577,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Ilixium<T>,
+    flow:      PreAuthenticate,
+    statuses:  [AuthenticationPending, Authorized, Charged, Pending, Failure],
+    runtime: {
+        request:  PaymentsPreAuthenticateData<T>,
+        response: IlixiumPreAuthenticateResponse,
+        status:   |request, response| transformers::pre_authenticate_status(request, response),
+    },
+}
+
 domain_types::impl_flow_status_mapping_ctx! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Ilixium<T>,

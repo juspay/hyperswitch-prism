@@ -44,6 +44,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      CreateOrder,
+    statuses:  [Pending, Failure],
+    runtime: {
+        request:  PaymentCreateOrderData,
+        response: PaymeGenerateSaleResponse,
+        status:   |_request, response| {
+            if response.status_code == 0 {
+                common_enums::AttemptStatus::Pending
+            } else {
+                common_enums::AttemptStatus::Failure
+            }
+        },
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,

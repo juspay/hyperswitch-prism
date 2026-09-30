@@ -259,6 +259,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __impl_connector_flow_allowed_status_mapping_flow_guard {
+    (CreateOrder) => {};
     (Authorize) => {};
     (PreAuthenticate) => {};
     (Authenticate) => {};
@@ -266,7 +267,7 @@ macro_rules! __impl_connector_flow_allowed_status_mapping_flow_guard {
     ($flow:ident) => {
         compile_error!(concat!(
             "impl_connector_flow_allowed_status_mapping is only for initiate/authentication ",
-            "payment flows (Authorize, PreAuthenticate, Authenticate, PostAuthenticate), not `",
+            "payment flows (CreateOrder, Authorize, PreAuthenticate, Authenticate, PostAuthenticate), not `",
             stringify!($flow),
             "`. Use impl_flow_status_mapping! / impl_flow_status_mapping_ctx! for terminal ",
             "payment flows."

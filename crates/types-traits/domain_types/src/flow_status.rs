@@ -248,6 +248,82 @@ impl FlowStatusRules for connector_flow::RepeatPayment {
     ];
 }
 
+impl FlowStatusRules for connector_flow::CreateOrder {
+    const NAME: &'static str = "CreateOrder";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Charged, AttemptStatus::Authorized];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Failure, AttemptStatus::AuthenticationFailed];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::Started,
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::PreAuthenticate {
+    const NAME: &'static str = "PreAuthenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationSuccessful];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::Authenticate {
+    const NAME: &'static str = "Authenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::PostAuthenticate {
+    const NAME: &'static str = "PostAuthenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Voided,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
 // PSync mirrors whatever state the payment is in — intentionally broad.
 impl FlowStatusRules for connector_flow::PSync {
     const NAME: &'static str = "PSync";
@@ -360,6 +436,10 @@ assert_flow_rules!(connector_flow::Void);
 assert_flow_rules!(connector_flow::VoidPC);
 assert_flow_rules!(connector_flow::SetupMandate);
 assert_flow_rules!(connector_flow::RepeatPayment);
+assert_flow_rules!(connector_flow::CreateOrder);
+assert_flow_rules!(connector_flow::PreAuthenticate);
+assert_flow_rules!(connector_flow::Authenticate);
+assert_flow_rules!(connector_flow::PostAuthenticate);
 assert_flow_rules!(connector_flow::PSync);
 assert_flow_rules!(connector_flow::IncrementalAuthorization);
 
