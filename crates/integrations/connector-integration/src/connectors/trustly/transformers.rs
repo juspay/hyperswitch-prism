@@ -829,7 +829,7 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "banco sabadell" => Ok(common_enums::BankNames::BancoDeSabadell),
         "banco popular" => Ok(common_enums::BankNames::BancoPopular),
         "banco santander" => Ok(common_enums::BankNames::BancoSantander),
-        "bank99 (ex-ing)" => Ok(common_enums::BankNames::Bank99Ag),
+        "bank99 (ex-ing)" | "bank99" => Ok(common_enums::BankNames::Bank99Ag),
         "bank austria" => Ok(common_enums::BankNames::BankAustria),
         "millennium bank" => Ok(common_enums::BankNames::BankMillennium),
         "bank of ireland uk" => Ok(common_enums::BankNames::BankOfIrelandUk),
@@ -849,7 +849,8 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "chase uk" => Ok(common_enums::BankNames::Chase),
         "chelsea building society" => Ok(common_enums::BankNames::ChelseaBuildingSociety),
         "citadele" => Ok(common_enums::BankNames::Citadele),
-        "citi handlowy" | "citibank" => Ok(common_enums::BankNames::Citi),
+        "citi handlowy" => Ok(common_enums::BankNames::CitiHandlowy),
+        "citibank" => Ok(common_enums::BankNames::Citi),
         "clydesdale bank" => Ok(common_enums::BankNames::ClydesdaleBank),
         "comdirect" => Ok(common_enums::BankNames::Comdirect),
         "commerzbank" => Ok(common_enums::BankNames::Commerzbank),
@@ -860,7 +861,8 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "the cumberland" => Ok(common_enums::BankNames::Cumberland),
         "dab bank" => Ok(common_enums::BankNames::DabBank),
         "danske bank" => Ok(common_enums::BankNames::DanskeBank),
-        "deutsche bank" | "deutsche bank polska" => Ok(common_enums::BankNames::DeutscheBank),
+        "deutsche bank" => Ok(common_enums::BankNames::DeutscheBank),
+        "deutsche bank polska" => Ok(common_enums::BankNames::DeutscheBankPolska),
         "djurslands bank" => Ok(common_enums::BankNames::DjurslandsBank),
         "dkb - deutsche kreditbank" => Ok(common_enums::BankNames::Dkb),
         "dnb" => Ok(common_enums::BankNames::Dnb),
@@ -883,7 +885,9 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "ibercaja" => Ok(common_enums::BankNames::Ibercaja),
         "ica banken" => Ok(common_enums::BankNames::IcaBanken),
         "icici bank uk" => Ok(common_enums::BankNames::IciciBank),
-        "ing" | "ing bank śląski" | "ing-diba" => Ok(common_enums::BankNames::Ing),
+        "ing" => Ok(common_enums::BankNames::Ing),
+        "ing bank śląski" => Ok(common_enums::BankNames::IngBankSlaski),
+        "ing-diba" => Ok(common_enums::BankNames::IngDiba),
         "inteligo" => Ok(common_enums::BankNames::Inteligo),
         "investec" => Ok(common_enums::BankNames::Investec),
         "jyske bank" => Ok(common_enums::BankNames::JyskeBank),
@@ -905,7 +909,8 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "n26" => Ok(common_enums::BankNames::N26),
         "natwest" => Ok(common_enums::BankNames::NatWest),
         "nationwide" => Ok(common_enums::BankNames::Nationwide),
-        "nordea" | "nordea direct" => Ok(common_enums::BankNames::Nordea),
+        "nordea" => Ok(common_enums::BankNames::Nordea),
+        "nordea direct" => Ok(common_enums::BankNames::NordeaDirect),
         "nordfyns bank" => Ok(common_enums::BankNames::NordfynsBank),
         "nordjyske bank" => Ok(common_enums::BankNames::NordjyskeBank),
         "norisbank" => Ok(common_enums::BankNames::Norisbank),
@@ -926,7 +931,8 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "royal bank of scotland" => Ok(common_enums::BankNames::RoyalBankOfScotland),
         "s-pankki" => Ok(common_enums::BankNames::SPankki),
         "säästöpankki" => Ok(common_enums::BankNames::Saastopankki),
-        "santander" | "santander uk" => Ok(common_enums::BankNames::Santander),
+        "santander" => Ok(common_enums::BankNames::Santander),
+        "santander uk" => Ok(common_enums::BankNames::SantanderUk),
         "sbanken" => Ok(common_enums::BankNames::Sbanken),
         "seb" => Ok(common_enums::BankNames::Seb),
         "šiaulių bankas" => Ok(common_enums::BankNames::SiauliuBankas),
@@ -939,20 +945,28 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "spar nord bank" => Ok(common_enums::BankNames::SparNordBank),
         "sparbanken syd" => Ok(common_enums::BankNames::SparbankenSyd),
         "sparda-bank" => Ok(common_enums::BankNames::SpardaBank),
-        "sparebank 1"
-        | "sparebank 1 gudbrandsdal"
-        | "sparebank 1 hallingdal valdres"
-        | "sparebank 1 lom og skjåk"
-        | "sparebank 1 modum"
-        | "sparebank 1 nordmøre"
-        | "sparebank 1 ringerike hadeland"
-        | "sparebank 1 smn"
-        | "sparebank 1 sr-bank"
-        | "sparebank 1 søre sunnmøre"
-        | "sparebank 1 sørøst-norge (bv)"
-        | "sparebank 1 sørøst-norge (telemark)"
-        | "sparebank 1 østfold akershus"
-        | "sparebank 1 østlandet" => Ok(common_enums::BankNames::SpareBank1),
+        "sparebank 1" => Ok(common_enums::BankNames::SpareBank1),
+        "sparebank 1 gudbrandsdal" => Ok(common_enums::BankNames::SpareBank1Gudbrandsdal),
+        "sparebank 1 hallingdal valdres" => {
+            Ok(common_enums::BankNames::SpareBank1HallingdalValdres)
+        }
+        "sparebank 1 lom og skjåk" => Ok(common_enums::BankNames::SpareBank1LomOgSkjak),
+        "sparebank 1 modum" => Ok(common_enums::BankNames::SpareBank1Modum),
+        "sparebank 1 nordmøre" => Ok(common_enums::BankNames::SpareBank1Nordmore),
+        "sparebank 1 ringerike hadeland" => {
+            Ok(common_enums::BankNames::SpareBank1RingerikeHadeland)
+        }
+        "sparebank 1 smn" => Ok(common_enums::BankNames::SpareBank1Smn),
+        "sparebank 1 sr-bank" => Ok(common_enums::BankNames::SpareBank1SrBank),
+        "sparebank 1 søre sunnmøre" => Ok(common_enums::BankNames::SpareBank1SoreSunnmore),
+        "sparebank 1 sørøst-norge (bv)" | "sparebank 1 sørøst-norge bv" | "sparebank 1 bv" => {
+            Ok(common_enums::BankNames::SpareBank1SorostNorgeBv)
+        }
+        "sparebank 1 sørøst-norge (telemark)"
+        | "sparebank 1 sørøst-norge telemark"
+        | "sparebank 1 telemark" => Ok(common_enums::BankNames::SpareBank1SorostNorgeTelemark),
+        "sparebank 1 østfold akershus" => Ok(common_enums::BankNames::SpareBank1OstfoldAkershus),
+        "sparebank 1 østlandet" => Ok(common_enums::BankNames::SpareBank1Ostlandet),
         "sparebanken møre" => Ok(common_enums::BankNames::SparebankenMore),
         "sparebanken øst" => Ok(common_enums::BankNames::SparebankenOst),
         "sparebanken sogn og fjordane" => Ok(common_enums::BankNames::SparebankenSognOgFjordane),
@@ -963,7 +977,10 @@ fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, 
         "spareskillingsbanken" => Ok(common_enums::BankNames::Spareskillingsbanken),
         "sparkasse" => Ok(common_enums::BankNames::Sparkasse),
         "starling bank" => Ok(common_enums::BankNames::Starling),
-        "swedbank" | "swedbank (& sparbankerna)" => Ok(common_enums::BankNames::Swedbank),
+        "swedbank" => Ok(common_enums::BankNames::Swedbank),
+        "swedbank (& sparbankerna)" | "swedbank & sparbankerna" => {
+            Ok(common_enums::BankNames::SwedbankSparbankerna)
+        }
         "sydbank" => Ok(common_enums::BankNames::Sydbank),
         "targobank" => Ok(common_enums::BankNames::TargoBank),
         "tesco bank" => Ok(common_enums::BankNames::TescoBank),

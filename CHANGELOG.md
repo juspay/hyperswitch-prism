@@ -19,6 +19,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.30.0
+
+### Bug Fixes
+
+- **core:** Use Unspecified for placeholder attempt status ([#2375](https://github.com/juspay/connector-service/pull/2375)) ([`91f64db`](https://github.com/juspay/connector-service/commit/91f64db533ad06eda61435a83bec608a44abaeb3))
+- **data:** Close the GlobalpaymentsRealex array in integration-source-links.json ([#2381](https://github.com/juspay/connector-service/pull/2381)) ([`d7847f9`](https://github.com/juspay/connector-service/commit/d7847f93c82109d24fc5fbf2dcd5f3704af9e8e4))
+- **domain_types:** Convert non-US/CA state names to subdivision codes ([#2374](https://github.com/juspay/connector-service/pull/2374)) ([`393a0ad`](https://github.com/juspay/connector-service/commit/393a0addf28176a70331599f0c9f8eca08e0b7e7))
+- **framework:** Give UCS internal-processing latency its own histogram buckets ([#2383](https://github.com/juspay/connector-service/pull/2383)) ([`8ca6d78`](https://github.com/juspay/connector-service/commit/8ca6d78975fe15f40f178625d0de25735ec5c4b3))
+
+### Documentation
+
+- **grace:** Update FRM, integrity, and authenticator rules ([#2399](https://github.com/juspay/connector-service/pull/2399)) ([`0033e47`](https://github.com/juspay/connector-service/commit/0033e47e5f6395b3efdd95cd27b90f5476e919d0))
+
+### Revert
+
+- **grace:**
+  - Roll back #2332 and #2366 prose, keep the enforcement gate and close two holes in it ([#2401](https://github.com/juspay/connector-service/pull/2401)) ([`636364b`](https://github.com/juspay/connector-service/commit/636364bcc2ba0ad2bbe8f188bac9ce3da5e5147a))
+  - Drop the Payments/Refunds/Mandates flow groups, keep the gate ([#2406](https://github.com/juspay/connector-service/pull/2406)) ([`3f96f17`](https://github.com/juspay/connector-service/commit/3f96f17720baa5a3d056df65ba02ece7724543df))
+
+**Full Changelog:** [`2026.09.29.2...2026.09.30.0`](https://github.com/juspay/connector-service/compare/2026.09.29.2...2026.09.30.0)
+
+- - -
+
+## 2026.09.29.2
+
+### Features
+
+- **connector:** Add support for santander ted banktransfer payouts ([#2337](https://github.com/juspay/connector-service/pull/2337)) ([`a9f7681`](https://github.com/juspay/connector-service/commit/a9f76818d705f21aff639383a461ae5f272cb1b0))
+
+### Bug Fixes
+
+- **connector:** [Trustly] map each bank to its own BankNames variant ([#2389](https://github.com/juspay/connector-service/pull/2389)) ([`636462a`](https://github.com/juspay/connector-service/commit/636462ae8a17841cef63b86ae048863f3b351b95))
+- **connectors:** [Adyen] card SetupMandate shopperName, [Stripe] wallet-token address gate ([#2385](https://github.com/juspay/connector-service/pull/2385)) ([`52fa84d`](https://github.com/juspay/connector-service/commit/52fa84d4e97825da99382d20f92321b3fccdefd9))
+- **grpc:** Return connector HTTP errors in flow responses ([#1480](https://github.com/juspay/connector-service/pull/1480)) ([`19d02b8`](https://github.com/juspay/connector-service/commit/19d02b8dad4937e95d1401ff1de801c7bb733254))
+
+**Full Changelog:** [`2026.09.29.1...2026.09.29.2`](https://github.com/juspay/connector-service/compare/2026.09.29.1...2026.09.29.2)
+
+- - -
+
 ## 2026.09.29.1
 
 ### Features
