@@ -91,7 +91,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Closed => [Charged],
     failure: Error => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: RapydAuthorizeResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: RapydAuthorizeResponse,
+        source: |_resource_common_data, _request, response| {
+            Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error))
+        },
+        context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(),
+    },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -117,7 +124,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Closed => [Charged],
     failure: Error => Failure,
-    extractors: { request: PaymentsSyncData, response: RapydPSyncResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: {
+        request: PaymentsSyncData,
+        response: RapydPSyncResponse,
+        source: |_resource_common_data, _request, response| {
+            Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error))
+        },
+        context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(),
+    },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -143,7 +157,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: CanceledByClientOrBank => [Voided],
     failure: Error => VoidFailed,
-    extractors: { request: PaymentVoidData, response: RapydVoidResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: {
+        request: PaymentVoidData,
+        response: RapydVoidResponse,
+        source: |_resource_common_data, _request, response| {
+            Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error))
+        },
+        context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(),
+    },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -167,7 +188,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Completed => Success,
     failure:   Error     => Failure,
-    extractors: { request: RefundSyncData, response: RapydRSyncResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RefundStatus::Error), context: |_request, _response| (), },
+    extractors: { request: RefundSyncData, response: RapydRSyncResponse, source: |_resource_common_data, _request, response| Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RefundStatus::Error)), context: |_resource_common_data, _request, _response | (), },
     {
         Rejected => Failure,
         Pending  => Pending,
@@ -184,7 +205,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Completed => Success,
     failure:   Error     => Failure,
-    extractors: { request: RefundsData, response: RefundResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RefundStatus::Error), context: |_request, _response| (), },
+    extractors: { request: RefundsData, response: RefundResponse, source: |_resource_common_data, _request, response| Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RefundStatus::Error)), context: |_resource_common_data, _request, _response | (), },
     {
         Rejected => Failure,
         Pending  => Pending,
@@ -203,7 +224,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Closed => [Charged],
     failure: Error => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: RapydCaptureResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: {
+        request: PaymentsCaptureData,
+        response: RapydCaptureResponse,
+        source: |_resource_common_data, _request, response| {
+            Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error))
+        },
+        context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(),
+    },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -236,7 +264,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Closed => [Charged],
     failure: Error => Failure,
-    extractors: { request: SetupMandateRequestData<T>, response: RapydSetupMandateResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: RapydSetupMandateResponse,
+        source: |_resource_common_data, _request, response| {
+            Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error))
+        },
+        context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(),
+    },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -262,7 +297,7 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Closed => [Charged],
     failure: Error => Failure,
-    extractors: { request: RepeatPaymentData<T>, response: RapydRepeatPaymentResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
+    extractors: { request: RepeatPaymentData<T>, response: RapydRepeatPaymentResponse, source: |_resource_common_data, _request, response| Ok(response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error)), context: |_resource_common_data, _request, response | response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {

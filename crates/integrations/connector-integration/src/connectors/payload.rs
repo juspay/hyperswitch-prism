@@ -74,8 +74,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: PayloadAuthorizeResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Processed  => Charged,
@@ -98,8 +98,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: PayloadPSyncResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Authorized,
@@ -122,8 +122,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: PayloadVoidResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => VoidInitiated,
@@ -146,8 +146,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: PayloadRSyncResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Processing =>  Pending,
@@ -168,8 +168,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: PayloadRefundResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Processing => Pending,
@@ -190,8 +190,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: PayloadCaptureResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Pending,
@@ -229,8 +229,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: PayloadSetupMandateResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Pending,
@@ -253,8 +253,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: PayloadRepeatPaymentResponse,
-        source: |response| match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Authorized,

@@ -133,11 +133,11 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: LoonioPaymentResponseData,
-        source: |response| match response {
+        source: |_resource_common_data, _request, response| Ok(match response {
             LoonioPaymentResponseData::Sync(sync) => sync.state,
             LoonioPaymentResponseData::Webhook(_) => transformers::LoonioTransactionStatus::Pending,
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created             => AuthenticationPending,

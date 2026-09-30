@@ -241,8 +241,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GlobalpayAuthorizeResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Captured  => Charged,
@@ -270,8 +270,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GlobalpayPSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Preauthorized => Authorized,
@@ -304,8 +304,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: GlobalpayVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Preauthorized => VoidInitiated,
@@ -333,8 +333,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: GlobalpayCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Preauthorized => Pending,
@@ -363,8 +363,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GlobalpayRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Funded        => Success,
@@ -392,8 +392,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: GlobalpayRSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Captured      => Success,
@@ -423,8 +423,8 @@ domain_types::impl_flow_status_mapping! {
         request: SetupMandateRequestData<T>,
         response: GlobalpaySetupMandateResponse,
         // Successful tokenization has no response status and maps to Charged.
-        source: |_response| globalpay::GlobalpayPaymentStatus::Captured,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, _response| Ok(globalpay::GlobalpayPaymentStatus::Captured),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Preauthorized => Pending,
@@ -452,8 +452,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: GlobalpayRepeatPaymentResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Preauthorized => Authorized,

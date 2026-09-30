@@ -698,8 +698,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GlomopayAuthorizeResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         InProgress    => AuthenticationPending,
@@ -722,8 +722,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GlomopayPaymentSyncResponse,
-        source: |response| response.data.first().map(|payment| payment.status).unwrap_or(transformers::GlomopayPaymentStatus::Pending),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.data.first().map(|payment| payment.status).unwrap_or(transformers::GlomopayPaymentStatus::Pending)),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         InProgress    => AuthenticationPending,
@@ -746,8 +746,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GlomopayRefundResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending       => Pending,
@@ -772,8 +772,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: GlomopayRefundSyncResponse,
-        source: |_response| transformers::GlomopayRefundStatus::Pending,
-        context: |request, response| response.data.iter()
+        source: |_resource_common_data, _request, _response| Ok(transformers::GlomopayRefundStatus::Pending),
+        context: |_resource_common_data, request, response | response.data.iter()
             .find(|refund| refund.id == request.connector_refund_id)
             .map(|refund| refund.status),
     },

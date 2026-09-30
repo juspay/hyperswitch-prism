@@ -64,8 +64,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: FortePaymentsResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Complete  => Charged,
@@ -88,8 +88,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: FortePaymentsSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Complete   => Charged,
@@ -112,8 +112,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: ForteCancelResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Complete   => VoidFailed,
@@ -136,8 +136,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: RefundSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Ready => Pending,
@@ -157,8 +157,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: RefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Ready => Pending,
@@ -178,8 +178,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: ForteCaptureResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Pending,

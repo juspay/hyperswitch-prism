@@ -71,8 +71,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: DlocalPaymentsResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Paid     => Charged,
@@ -96,8 +96,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: DlocalPaymentsSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Authorized,
@@ -121,8 +121,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: DlocalPaymentsVoidResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => VoidInitiated,
@@ -146,8 +146,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: RefundSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending   => Pending,
@@ -168,8 +168,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: RefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending   => Pending,
@@ -190,8 +190,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: DlocalPaymentsCaptureResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Pending,
@@ -219,8 +219,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: DlocalRepeatPaymentResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Charged,
@@ -244,8 +244,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: DlocalRepeatPaymentResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized => Authorized,

@@ -76,8 +76,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: FiservPaymentsResponse,
-        source: |response| response.gateway_response.transaction_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Succeeded   => Charged,
@@ -103,8 +103,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: FiservSyncResponse,
-        source: |response| response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized  => Authorized,
@@ -129,8 +129,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: FiservVoidResponse,
-        source: |response| response.gateway_response.transaction_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized  => VoidInitiated,
@@ -155,8 +155,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: FiservRefundSyncResponse,
-        source: |response| response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Captured    => Success,
@@ -181,8 +181,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: FiservRefundResponse,
-        source: |response| response.gateway_response.transaction_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Captured    => Success,
@@ -207,8 +207,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: FiservCaptureResponse,
-        source: |response| response.gateway_response.transaction_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized  => Pending,

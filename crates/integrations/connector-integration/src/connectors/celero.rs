@@ -62,7 +62,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: CeleroPaymentsResponse,
-        source: |response| match response.status {
+        source: |_resource_common_data, _request, response| Ok(match response.status {
             celero::CeleroResponseStatus::Success => response.data.as_ref().map_or(
                 celero::CeleroTransactionStatus::Error,
                 |data| match data.response {
@@ -70,8 +70,8 @@ domain_types::impl_flow_status_mapping! {
                 },
             ),
             celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Approved          => Authorized,
@@ -97,7 +97,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: CeleroSyncResponse,
-        source: |response| match response.status {
+        source: |_resource_common_data, _request, response| Ok(match response.status {
             celero::CeleroResponseStatus::Success => response
                 .data
                 .first()
@@ -105,8 +105,8 @@ domain_types::impl_flow_status_mapping! {
                     transaction.status
                 }),
             celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Approved          => Authorized,
@@ -132,8 +132,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: CeleroVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
     }
@@ -153,8 +153,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: CeleroCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
     }
@@ -181,8 +181,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: CeleroRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }
@@ -201,8 +201,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: CeleroRefundSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }

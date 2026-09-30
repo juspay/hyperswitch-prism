@@ -817,15 +817,7 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<AffirmRefundResponse, Self>) -> Result<Self, Self::Error> {
-        // Affirm processes refunds synchronously and returns the created event on 2xx.
-        // Confirm it is actually a `refund` event before reporting success; anything
-        // else is left Pending for RSync to resolve rather than assuming any 2xx means
-        // the money moved.
-        let affirm_status = match item.response.event_type.as_str() {
-            "refund" => AffirmRefundStatus::Refunded,
-            _ => AffirmRefundStatus::Pending,
-        };
-        let refund_status = RefundStatus::from(affirm_status);
+        let refund_status = RefundStatus::from(item.response.flow_status());
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),

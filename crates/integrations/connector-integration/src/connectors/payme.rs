@@ -72,7 +72,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: PaymePaymentResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.status_code != 0
                 && (response.payme_status != "success" || response.status_error_code.is_some())
             {
@@ -80,8 +80,8 @@ domain_types::impl_flow_status_mapping! {
             } else {
                 response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
             }
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Initial      => Pending,
@@ -108,7 +108,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: PaymeSyncResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.status_code != 0 {
                 payme::SaleStatus::Failed
             } else {
@@ -118,8 +118,8 @@ domain_types::impl_flow_status_mapping! {
                     .and_then(|item| item.sale_status.clone())
                     .unwrap_or(payme::SaleStatus::Initial)
             }
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Initial      => Pending,
@@ -146,8 +146,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: PaymePaymentResponse,
-        source: |response| response.void_flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.void_flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending       => Pending,
@@ -169,7 +169,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: PaymePaymentResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.status_code != 0
                 && (response.payme_status != "success" || response.status_error_code.is_some())
             {
@@ -177,8 +177,8 @@ domain_types::impl_flow_status_mapping! {
             } else {
                 response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
             }
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Initial      => Pending,
@@ -206,8 +206,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: PaymeRefundResponse,
-        source: |response| response.refund_status.clone().unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.refund_status.clone().unwrap_or(payme::SaleStatus::Initial)),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         PartialRefund  => Success,
@@ -234,8 +234,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: PaymeRSyncResponse,
-        source: |response| response.items.first().and_then(|item| item.sale_status.clone()).unwrap_or(payme::SaleStatus::Initial),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.items.first().and_then(|item| item.sale_status.clone()).unwrap_or(payme::SaleStatus::Initial)),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         PartialRefund  => Success,

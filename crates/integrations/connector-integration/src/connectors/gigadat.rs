@@ -133,8 +133,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GigadatSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         StatusInited   => Pending,
@@ -161,14 +161,14 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GigadatRefundResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.success {
                 gigadat::GigadatRefundStatus::Success
             } else {
                 gigadat::GigadatRefundStatus::Failure
             }
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending => Pending,

@@ -99,8 +99,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: CybersourcePaymentsResponse,
-        source: |response| response.flow_status(),
-        context: |request, _response| request.is_auto_capture(),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         match (status, capture) {
@@ -172,8 +172,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: CybersourceTransactionResponse,
-        source: |response| response.flow_status(),
-        context: |request, _response| request.is_auto_capture(),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         match (status, capture) {
@@ -201,8 +201,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: CybersourceVoidResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized             => VoidInitiated,
@@ -238,8 +238,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCancelPostCaptureData,
         response: CybersourceVoidPCResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized             => Pending,
@@ -275,8 +275,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: CybersourceRsyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Transmitted => Success,
@@ -299,8 +299,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: CybersourceRefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Transmitted => Success,
@@ -323,8 +323,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: CybersourceCaptureResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized             => Pending,
@@ -399,8 +399,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: CybersourceSetupMandateResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized             => Charged,
@@ -438,8 +438,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: CybersourceRepeatPaymentResponse,
-        source: |response| response.flow_status(),
-        context: |request, _response| request.is_auto_capture(),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         match (status, capture) {
@@ -467,8 +467,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsIncrementalAuthorizationData,
         response: CybersourcePaymentsIncrementalAuthorizationResponse,
-        source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthorizedPendingReview => Pending,

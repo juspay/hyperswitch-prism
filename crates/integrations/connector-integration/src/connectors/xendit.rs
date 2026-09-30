@@ -72,8 +72,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: XenditPaymentResponse,
-        source:   |response| response.status.clone(),
-        context:  |request, _response| request.is_auto_capture(),
+        source:   |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         use common_enums::AttemptStatus;
@@ -99,7 +99,7 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::PaymentStatus,
     success:   Succeeded         => Charged,
     failure:   Failed            => Failure,
-    extractors: { request: PaymentsSyncData, response: XenditResponse, source: |response| match response { XenditResponse::Payment(payment) => payment.status.clone(), _ => transformers::PaymentStatus::Failed }, context: |_request, _response| (), },
+    extractors: { request: PaymentsSyncData, response: XenditResponse, source: |_resource_common_data, _request, response| Ok(match response { XenditResponse::Payment(payment) => payment.status.clone(), _ => transformers::PaymentStatus::Failed }), context: |_resource_common_data, _request, _response | (), },
     {
         AwaitingCapture  => Authorized,
         Verified         => Charged,
@@ -118,7 +118,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Succeeded         => Success,
     failure:   Failed            => Failure,
-    extractors: { request: RefundSyncData, response: RefundSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: RefundSyncData, response: RefundSyncResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         Cancelled        => Failure,
         Pending          => Pending,
@@ -136,7 +136,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::RefundStatus,
     success:   Succeeded         => Success,
     failure:   Failed            => Failure,
-    extractors: { request: RefundsData, response: RefundResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: RefundsData, response: RefundResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         Cancelled        => Failure,
         Pending          => Pending,
@@ -154,7 +154,7 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::PaymentStatus,
     success:   Succeeded         => Charged,
     failure:   Failed            => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: XenditCaptureResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: PaymentsCaptureData, response: XenditCaptureResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         AwaitingCapture  => Pending,
         Verified         => Charged,

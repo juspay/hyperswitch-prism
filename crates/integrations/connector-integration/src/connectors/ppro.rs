@@ -139,7 +139,12 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: PproAuthorizeResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: PproAuthorizeResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
+    },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -170,7 +175,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
-    extractors: { request: PaymentsSyncData, response: PproPSyncResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: PaymentsSyncData, response: PproPSyncResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -197,7 +202,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Voided               => Voided,
     failure:   Failed               => Failure,
-    extractors: { request: PaymentVoidData, response: PproVoidResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: PaymentVoidData, response: PproVoidResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -224,7 +229,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Captured             => Charged,
     failure:   Failed               => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: PproCaptureResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: PaymentsCaptureData, response: PproCaptureResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -251,7 +256,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    PproRefundStatus,
     success:   RefundSettled => Success,
     failure:   Failed        => Failure,
-    extractors: { request: RefundsData, response: PproRefundResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: RefundsData, response: PproRefundResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         Refunded  => Success,
         Pending   => Pending,
@@ -271,7 +276,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    PproRefundStatus,
     success:   RefundSettled => Success,
     failure:   Failed        => Failure,
-    extractors: { request: RefundSyncData, response: PproRSyncResponse, source: |response| match response.status { PproPaymentStatus::RefundSettled | PproPaymentStatus::Refunded => PproRefundStatus::RefundSettled, PproPaymentStatus::Failed => PproRefundStatus::Failed, _ => PproRefundStatus::Pending }, context: |_request, _response| (), },
+    extractors: { request: RefundSyncData, response: PproRSyncResponse, source: |_resource_common_data, _request, response| Ok(match response.status { PproPaymentStatus::RefundSettled | PproPaymentStatus::Refunded => PproRefundStatus::RefundSettled, PproPaymentStatus::Failed => PproRefundStatus::Failed, _ => PproRefundStatus::Pending }), context: |_resource_common_data, _request, _response | (), },
     {
         Refunded  => Success,
         Pending   => Pending,
@@ -291,7 +296,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
-    extractors: { request: SetupMandateRequestData<T>, response: PproAgreementResponse, source: |response| match response.status { PproAgreementStatus::Active => PproPaymentStatus::Success, PproAgreementStatus::AuthenticationPending => PproPaymentStatus::AuthenticationPending, PproAgreementStatus::Initializing => PproPaymentStatus::AuthorizationProcessing, PproAgreementStatus::Failed => PproPaymentStatus::Failed, PproAgreementStatus::Revoked => PproPaymentStatus::Voided }, context: |_request, _response| (), },
+    extractors: { request: SetupMandateRequestData<T>, response: PproAgreementResponse, source: |_resource_common_data, _request, response| Ok(match response.status { PproAgreementStatus::Active => PproPaymentStatus::Success, PproAgreementStatus::AuthenticationPending => PproPaymentStatus::AuthenticationPending, PproAgreementStatus::Initializing => PproPaymentStatus::AuthorizationProcessing, PproAgreementStatus::Failed => PproPaymentStatus::Failed, PproAgreementStatus::Revoked => PproPaymentStatus::Voided }), context: |_resource_common_data, _request, _response | (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -318,7 +323,7 @@ domain_types::impl_flow_status_mapping! {
     source:    PproPaymentStatus,
     success:   Success              => Charged,
     failure:   Failed               => Failure,
-    extractors: { request: RepeatPaymentData<T>, response: PproPaymentsResponse, source: |response| response.status.clone(), context: |_request, _response| (), },
+    extractors: { request: RepeatPaymentData<T>, response: PproPaymentsResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
     {
         AuthorizationProcessing => Pending,
         CaptureProcessing       => Pending,
@@ -369,7 +374,7 @@ macros::macro_connector_implementation!(
             let agr_id = req.request.connector_mandate_id().ok_or(
                 IntegrationError::MissingRequiredField {
                     field_name: "mandate_reference.connector_mandate_id",
-                context: Default::default()
+                    context: Default::default(),
                 },
             )?;
             Ok(format!(

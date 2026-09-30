@@ -64,8 +64,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: HipayAuthorizeResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationFailed                       => AuthenticationFailed,
@@ -114,8 +114,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: HipayPSyncResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationFailed                       => AuthenticationFailed,
@@ -165,8 +165,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: HipayVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationFailed                       => VoidFailed,
@@ -215,13 +215,13 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: HipayRSyncResponse,
-        source: |response| match response.status {
+        source: |_resource_common_data, _request, response| Ok(match response.status {
             25 => hipay::HipayRefundStatus::Refunded,
             26 => hipay::HipayRefundStatus::PartiallyRefunded,
             65 => hipay::HipayRefundStatus::RefundRefused,
             _ => hipay::HipayRefundStatus::RefundRequested,
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         RefundRequested    => Pending,
@@ -242,8 +242,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: HipayRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         RefundRequested    => Pending,
@@ -264,8 +264,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: HipayCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationFailed                       => CaptureFailed,

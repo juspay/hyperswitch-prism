@@ -137,7 +137,7 @@ domain_types::impl_flow_status_mapping! {
     source:    placetopay::PlacetopayTransactionStatus,
     success:   Ok               => Charged,
     failure:   Failed           => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: PlacetopayPaymentsResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: PaymentsAuthorizeData<T>, response: PlacetopayPaymentsResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Charged,
         Rejected         => Failure,
@@ -165,7 +165,7 @@ domain_types::impl_flow_status_mapping! {
     source:    placetopay::PlacetopayTransactionStatus,
     success:   Ok               => Charged,
     failure:   Failed           => Failure,
-    extractors: { request: PaymentsSyncData, response: PlacetopayPSyncResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: PaymentsSyncData, response: PlacetopayPSyncResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Charged,
         Rejected         => Failure,
@@ -187,7 +187,7 @@ domain_types::impl_flow_status_mapping! {
     source:    placetopay::PlacetopayTransactionStatus,
     success:   Ok               => Voided,
     failure:   Failed           => Failure,
-    extractors: { request: PaymentVoidData, response: PlacetopayVoidResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: PaymentVoidData, response: PlacetopayVoidResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Voided,
         Rejected         => Failure,
@@ -229,7 +229,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    placetopay::PlacetopayRefundStatus,
     success:   Ok               => Success,
     failure:   Failed           => Failure,
-    extractors: { request: RefundsData, response: PlacetopayRefundResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: RefundsData, response: PlacetopayRefundResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Success,
         Refunded         => Success,
@@ -252,7 +252,7 @@ domain_types::impl_flow_status_mapping! {
     source:    placetopay::PlacetopayTransactionStatus,
     success:   Ok               => Charged,
     failure:   Failed           => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: PlacetopayCaptureResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: PaymentsCaptureData, response: PlacetopayCaptureResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Charged,
         Rejected         => CaptureFailed,
@@ -274,7 +274,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    placetopay::PlacetopayRefundStatus,
     success:   Ok               => Success,
     failure:   Failed           => Failure,
-    extractors: { request: RefundSyncData, response: PlacetopayRSyncResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: RefundSyncData, response: PlacetopayRSyncResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => Success,
         Refunded         => Success,
@@ -297,7 +297,7 @@ domain_types::impl_flow_status_mapping! {
     source:    placetopay::PlacetopayTransactionStatus,
     success:   Ok               => VoidedPostCapture,
     failure:   Failed           => Failure,
-    extractors: { request: PaymentsCancelPostCaptureData, response: PlacetopayVoidPcResponse, source: |response| response.flow_status(), context: |_request, _response| (), },
+    extractors: { request: PaymentsCancelPostCaptureData, response: PlacetopayVoidPcResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
     {
         Approved         => VoidedPostCapture,
         Rejected         => Failure,

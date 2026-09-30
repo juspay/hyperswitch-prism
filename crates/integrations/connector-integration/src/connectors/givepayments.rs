@@ -61,8 +61,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GivepaymentsPaymentResponseData,
-        source: |response| response.processing_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created    => Pending,
@@ -86,8 +86,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GivepaymentsPaymentSyncResponse,
-        source: |response| response.processing_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created    => Pending,
@@ -111,8 +111,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: GivepaymentsRefundSyncResponse,
-        source: |response| response.processing_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created  => Pending,
@@ -136,8 +136,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GivepaymentsRefundResponseData,
-        source: |response| response.processing_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created  => Pending,
@@ -161,8 +161,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: GivepaymentsRepeatPaymentResponse,
-        source: |response| response.processing_state.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Created    => Pending,

@@ -168,8 +168,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: CalidaPaymentsResponse,
-        source:   |response| response.status,
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending          => AuthenticationPending,
@@ -191,8 +191,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: CalidaSyncResponse,
-        source:   |response| response.status,
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending          => AuthenticationPending,

@@ -13,23 +13,24 @@ macro_rules! __impl_runtime_payment_status_mapping {
             type MappedStatus = common_enums::AttemptStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 request: &$request,
                 response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
-                let source_from: fn(&$response) ->
-                    <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::ConnectorStatus =
-                    $source_from;
-                let context_from: fn(&$request, &$response) ->
+                let source_from: fn(&CommonData, &$request, &$response) -> Result<
+                    <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::ConnectorStatus,
+                    $crate::ConnectorError,
+                > = $source_from;
+                let context_from: fn(&CommonData, &$request, &$response) ->
                     <Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::MappingContext =
                     $context_from;
 
                 Ok(<Self as $crate::flow_status::ConnectorTerminalMapping<$flow>>::map_attempt_status(
-                    source_from(response),
-                    context_from(request, response),
+                    source_from(resource_common_data, request, response)?,
+                    context_from(resource_common_data, request, response),
                 ))
             }
         }
@@ -70,7 +71,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
             type MappedStatus = common_enums::AttemptStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 request: &$request,
                 response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
@@ -108,7 +109,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
             type MappedStatus = common_enums::AttemptStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 _request: &$request,
                 _response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
@@ -154,7 +155,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
             type MappedStatus = common_enums::AttemptStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 request: &$request,
                 response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
@@ -199,7 +200,7 @@ macro_rules! impl_connector_flow_allowed_status_mapping {
             type MappedStatus = common_enums::AttemptStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 _request: &$request,
                 _response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
@@ -378,23 +379,24 @@ macro_rules! __impl_runtime_refund_status_mapping {
             type MappedStatus = common_enums::RefundStatus;
 
             fn map_runtime_status<CommonData>(
-                _common_data: &CommonData,
+                resource_common_data: &CommonData,
                 request: &$request,
                 response: &$response,
             ) -> Result<Self::MappedStatus, $crate::ConnectorError>
             where
                 CommonData: $crate::flow_status::FlowStatusReader<Self::MappedStatus>,
             {
-                let source_from: fn(&$response) ->
-                    <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::ConnectorStatus =
-                    $source_from;
-                let context_from: fn(&$request, &$response) ->
+                let source_from: fn(&CommonData, &$request, &$response) -> Result<
+                    <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::ConnectorStatus,
+                    $crate::ConnectorError,
+                > = $source_from;
+                let context_from: fn(&CommonData, &$request, &$response) ->
                     <Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::MappingContext =
                     $context_from;
 
                 Ok(<Self as $crate::flow_status::ConnectorRefundTerminalMapping<$flow>>::map_refund_status(
-                    source_from(response),
-                    context_from(request, response),
+                    source_from(resource_common_data, request, response)?,
+                    context_from(resource_common_data, request, response),
                 ))
             }
         }
@@ -507,6 +509,46 @@ macro_rules! impl_flow_status_mapping {
         failure: none,
 
         extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: $context_from,
+            },
+            $body
+        }
+    };
+
+    // ── context-aware statusless mapping with runtime extractors ─────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
             request:  $request:ty,
             response: $response:ty,
             source:   $source_from:expr,
@@ -557,6 +599,48 @@ macro_rules! impl_flow_status_mapping {
             params: [$status_name, $ctx_name],
             success_targets: [$($success_target),+],
             failure_targets: [],
+            $body
+        }
+    };
+
+    // ── context-aware enum/status mapping with runtime extractors ────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: $success_variant:ident => [ $($success_target:ident),+ $(,)? ],
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_status: $success_variant,
+            success_targets: [$($success_target),+],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: $context_from,
+            },
             $body
         }
     };
@@ -630,6 +714,43 @@ macro_rules! impl_flow_status_mapping {
             failure_target: $failure_target,
             $body
         }
+    };
+
+    // ── with runtime extractors and explicit generics ────────────────────
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        flow:      $flow:ty,
+        source:    $source:ty,
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        {
+            $( $variant:ident => $target:ident ),* $(,)?
+        }
+    ) => {
+        $crate::impl_flow_status_mapping! {
+            generics:  [$($generic)*],
+            connector: $connector,
+            flow:      $flow,
+            source:    $source,
+            success:   $success_variant => $success_target,
+            failure:   $failure_variant => $failure_target,
+            { $( $variant => $target ),* }
+        }
+        $crate::__impl_runtime_payment_status_mapping!(
+            [$($generic)*],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
     };
 
     // ── with runtime extractors and explicit generics ────────────────────
@@ -886,6 +1007,41 @@ macro_rules! __impl_flow_status_mapping_ctx {
         success_targets: [ $($success_target:ident),+ $(,)? ],
         failure_targets: [ $($failure_target:ident),* $(,)? ],
         extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [$($failure_target),*],
+            $body
+        }
+        $crate::__impl_runtime_payment_status_mapping!(
+            [$($($generic)*)?],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
+    };
+
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        extractors: {
             request:  $request:ty,
             response: $response:ty,
             source:   $source_from:expr,
@@ -976,6 +1132,51 @@ macro_rules! __impl_flow_status_mapping_ctx {
                 $body
             }
         }
+    };
+
+    // ── with runtime extractors and explicit generics ────────────────────
+    (
+        generics:        [ $($generic:tt)* ],
+        connector:       $connector:ty,
+        flow:            $flow:ty,
+        source:          $source:ty,
+        context:         $ctx:ty,
+
+        params:          [$status_name:ident, $ctx_name:ident],
+
+        success_status:  $success_variant:ident,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+
+        failure_status:  $failure_variant:ident,
+        failure_target:  $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            generics:        [$($generic)*],
+            connector:       $connector,
+            flow:            $flow,
+            source:          $source,
+            context:         $ctx,
+            params:          [$status_name, $ctx_name],
+            success_status:  $success_variant,
+            success_targets: [$($success_target),+],
+            failure_status:  $failure_variant,
+            failure_target:  $failure_target,
+            $body
+        }
+        $crate::__impl_runtime_payment_status_mapping!(
+            [$($generic)*],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
     };
 
     // ── with runtime extractors and explicit generics ────────────────────
@@ -1288,6 +1489,46 @@ macro_rules! impl_refund_flow_status_mapping {
         failure: none,
 
         extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: $context_from,
+            },
+            $body
+        }
+    };
+
+    // ── context-aware statusless mapping with runtime extractors ─────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
             request:  $request:ty,
             response: $response:ty,
             source:   $source_from:expr,
@@ -1338,6 +1579,48 @@ macro_rules! impl_refund_flow_status_mapping {
             params: [$status_name, $ctx_name],
             success_targets: [$($success_target),+],
             failure_targets: [],
+            $body
+        }
+    };
+
+    // ── context-aware enum/status mapping with runtime extractors ────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_status: $success_variant,
+            success_targets: [$success_target],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: $context_from,
+            },
             $body
         }
     };
@@ -1411,6 +1694,43 @@ macro_rules! impl_refund_flow_status_mapping {
             failure_target: $failure_target,
             $body
         }
+    };
+
+    // ── with runtime extractors and explicit generics ────────────────────
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        flow:      $flow:ty,
+        source:    $source:ty,
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        {
+            $( $variant:ident => $target:ident ),* $(,)?
+        }
+    ) => {
+        $crate::impl_refund_flow_status_mapping! {
+            generics:  [$($generic)*],
+            connector: $connector,
+            flow:      $flow,
+            source:    $source,
+            success:   $success_variant => $success_target,
+            failure:   $failure_variant => $failure_target,
+            { $( $variant => $target ),* }
+        }
+        $crate::__impl_runtime_refund_status_mapping!(
+            [$($generic)*],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
     };
 
     // ── with runtime extractors and explicit generics ────────────────────
@@ -1607,6 +1927,41 @@ macro_rules! impl_refund_flow_status_mapping {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __impl_refund_flow_status_mapping_ctx {
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_targets: [ $($failure_target:ident),* $(,)? ],
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success_targets: [$($success_target),+],
+            failure_targets: [$($failure_target),*],
+            $body
+        }
+        $crate::__impl_runtime_refund_status_mapping!(
+            [$($($generic)*)?],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
+    };
+
     // ── expression mappings with runtime extractors ──────────────────────
     (
         $(generics: [$($generic:tt)*],)?
@@ -1706,6 +2061,50 @@ macro_rules! __impl_refund_flow_status_mapping_ctx {
                 $body
             }
         }
+    };
+
+    // ── with runtime extractors and explicit generics ────────────────────
+    (
+        generics:        [ $($generic:tt)* ],
+        connector:       $connector:ty,
+        flow:            $flow:ty,
+        source:          $source:ty,
+        context:         $ctx:ty,
+
+        params:          [$status_name:ident, $ctx_name:ident],
+
+        success_status:  $success_variant:ident,
+        success_targets: [ $($success_target:ident),+ $(,)? ],
+        failure_status:  $failure_variant:ident,
+        failure_target:  $failure_target:ident,
+
+        extractors: {
+            request:    $request:ty,
+            response:   $response:ty,
+            source: $source_from:expr,
+            context:    $context_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            generics:       [$($generic)*],
+            connector:      $connector,
+            flow:           $flow,
+            source:         $source,
+            context:        $ctx,
+            params:         [$status_name, $ctx_name],
+            success_status: $success_variant,
+            success_targets: [$($success_target),+],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            $body
+        }
+        $crate::__impl_runtime_refund_status_mapping!(
+            [$($generic)*],
+            $connector, $flow, $request, $response,
+            $source_from, $context_from
+        );
     };
 
     // ── with runtime extractors and explicit generics ────────────────────

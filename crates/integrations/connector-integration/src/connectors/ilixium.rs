@@ -601,8 +601,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: IlixiumPaymentResponse,
-        source: |response| response.status.code,
-        context: |request, response| transformers::IlixiumAuthorizeCtx {
+        source: |_resource_common_data, _request, response| Ok(response.status.code),
+        context: |_resource_common_data, request, response | transformers::IlixiumAuthorizeCtx {
             operation_type: response.operation_type,
             has_three_ds_url: response.three_ds_acs_url().is_some(),
             is_auto_capture: request.is_auto_capture(),
@@ -653,8 +653,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: IlixiumCaptureResponse,
-        source: |response| response.status.code,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.code),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending             => CaptureInitiated,
@@ -680,8 +680,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: IlixiumVoidResponse,
-        source: |response| response.status.code,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.code),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Cancelled           => Voided,
@@ -711,63 +711,49 @@ domain_types::impl_flow_status_mapping! {
     params:    [status, _ctx],
     success: _ => [Charged],
     failure: none,
-    {
-        status
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        PSync,
-        PaymentsSyncData,
-        IlixiumHistoryResponse,
-    > for Ilixium<T>
-{
-    type MappedStatus = common_enums::AttemptStatus;
-
-    fn map_runtime_status<CommonData>(
-        common_data: &CommonData,
-        request: &PaymentsSyncData,
-        response: &IlixiumHistoryResponse,
-    ) -> Result<Self::MappedStatus, errors::ConnectorError>
-    where
-        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
-    {
-        let current_status =
-            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(common_data);
-        let connector_request_reference_id =
-            domain_types::flow_status::FlowStatusReader::connector_request_reference_id(
-                common_data,
-            )
-            .ok_or_else(|| {
-                errors::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                    Some(
-                        "Ilixium PSync requires connector_request_reference_id to derive \
-                             transaction.merchantRef for POST /history/operations"
-                            .to_string(),
-                    ),
+    extractors: {
+        request: PaymentsSyncData,
+        response: IlixiumHistoryResponse,
+        source: |resource_common_data, request, response| {
+            let current_status =
+                domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                    resource_common_data,
+                );
+            let connector_request_reference_id =
+                domain_types::flow_status::FlowStatusReader::connector_request_reference_id(
+                    resource_common_data,
                 )
-            })?;
-        let merchant_ref = transformers::derive_merchant_ref(connector_request_reference_id)
-            .map_err(|_| errors::ConnectorError::ResponseHandlingFailed {
-                context: errors::ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(
-                        "Could not derive the Ilixium transaction.merchantRef to match this \
-                         payment against POST /history/operations."
-                            .to_string(),
-                    ),
-                },
-            })?;
+                .ok_or_else(|| {
+                    errors::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                        Some(
+                            "Ilixium PSync requires connector_request_reference_id to derive \
+                             transaction.merchantRef for POST /history/operations"
+                                .to_string(),
+                        ),
+                    )
+                })?;
+            let merchant_ref = transformers::derive_merchant_ref(connector_request_reference_id)
+                .map_err(|_| errors::ConnectorError::ResponseHandlingFailed {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "Could not derive the Ilixium transaction.merchantRef to match this \
+                             payment against POST /history/operations."
+                                .to_string(),
+                        ),
+                    },
+                })?;
 
-        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<PSync>>::map_attempt_status(
-            response.payment_sync_flow_status(
+            Ok(response.payment_sync_flow_status(
                 &merchant_ref,
                 current_status,
                 request.is_auto_capture(),
-            ),
-            (),
-        ))
+            ))
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        status
     }
 }
 
@@ -781,8 +767,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: IlixiumRefundResponse,
-        source: |response| response.status.code,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.code),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending             => Pending,
@@ -808,8 +794,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: IlixiumRefundHistoryResponse,
-        source: |response| response.status.code,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.code),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending             => Pending,

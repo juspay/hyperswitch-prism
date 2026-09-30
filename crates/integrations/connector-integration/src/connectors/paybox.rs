@@ -288,8 +288,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |request, _response| request.is_auto_capture(),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         use common_enums::AttemptStatus;
@@ -320,8 +320,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: PayboxPSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorised => Authorized,
@@ -346,8 +346,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsCaptureData,
         response: PayboxCaptureResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }
@@ -368,8 +368,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentVoidData,
         response: PayboxVoidResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }
@@ -390,8 +390,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request:  RefundsData,
         response: PayboxRefundResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }
@@ -412,10 +412,10 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: PayboxRSyncResponse,
-        source: |response| response.status.clone().unwrap_or_else(|| {
+        source: |_resource_common_data, _request, response| Ok(response.status.clone().unwrap_or_else(|| {
             if response.response_code == SUCCESS_CODE { PayboxStatus::Refunded } else { PayboxStatus::Rejected }
-        }),
-        context: |_request, _response| (),
+        })),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Cancelled  => Failure,
@@ -442,8 +442,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  RepeatPaymentData<T>,
         response: PayboxRepeatPaymentResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |request, _response| request.is_auto_capture(),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
     },
     {
         use common_enums::AttemptStatus;
@@ -472,8 +472,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  SetupMandateRequestData<T>,
         response: PayboxSetupMandateResponse,
-        source:   |response| response.payment_verdict(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.payment_verdict()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {}
 }

@@ -94,32 +94,18 @@ domain_types::impl_flow_status_mapping! {
     params:         [status, previous_attempt_status],
     success: _ => [Charged],
     failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustpayPaymentsResponse,
+        source: |_resource_common_data, _request, response| Ok(trustpay::authorize_flow_status(response)),
+        context: |resource_common_data, _request, _response| {
+            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                resource_common_data,
+            )
+        },
+    },
     {
         status.attempt_status(previous_attempt_status)
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        Authorize,
-        PaymentsAuthorizeData<T>,
-        TrustpayPaymentsResponse,
-    > for Trustpay<T>
-{
-    type MappedStatus = common_enums::AttemptStatus;
-
-    fn map_runtime_status<CommonData>(
-        common_data: &CommonData,
-        _request: &PaymentsAuthorizeData<T>,
-        response: &TrustpayPaymentsResponse,
-    ) -> Result<Self::MappedStatus, ConnectorError>
-    where
-        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
-    {
-        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Authorize>>::map_attempt_status(
-            trustpay::authorize_flow_status(response),
-            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(common_data),
-        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -135,32 +121,18 @@ domain_types::impl_flow_status_mapping! {
     params:         [status, previous_attempt_status],
     success: _ => [Charged],
     failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TrustpayPaymentsSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(trustpay::authorize_flow_status(response)),
+        context: |resource_common_data, _request, _response| {
+            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                resource_common_data,
+            )
+        },
+    },
     {
         status.attempt_status(previous_attempt_status)
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        PSync,
-        PaymentsSyncData,
-        TrustpayPaymentsSyncResponse,
-    > for Trustpay<T>
-{
-    type MappedStatus = common_enums::AttemptStatus;
-
-    fn map_runtime_status<CommonData>(
-        common_data: &CommonData,
-        _request: &PaymentsSyncData,
-        response: &TrustpayPaymentsSyncResponse,
-    ) -> Result<Self::MappedStatus, ConnectorError>
-    where
-        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
-    {
-        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<PSync>>::map_attempt_status(
-            trustpay::authorize_flow_status(response),
-            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(common_data),
-        ))
     }
 }
 
@@ -178,29 +150,16 @@ domain_types::impl_refund_flow_status_mapping! {
     params:         [status, _ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_resource_common_data, _request, response| {
+            trustpay::refund_flow_status(response)
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
     {
         status
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        RSync,
-        RefundSyncData,
-        RefundSyncResponse,
-    > for Trustpay<T>
-{
-    type MappedStatus = common_enums::RefundStatus;
-
-    fn map_runtime_status<CommonData>(
-        _common_data: &CommonData,
-        _request: &RefundSyncData,
-        response: &RefundSyncResponse,
-    ) -> Result<Self::MappedStatus, ConnectorError>
-    where
-        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
-    {
-        trustpay::refund_flow_status(response)
     }
 }
 
@@ -218,26 +177,16 @@ domain_types::impl_refund_flow_status_mapping! {
     params:         [status, _ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |_resource_common_data, _request, response| {
+            trustpay::refund_flow_status(response)
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
     {
         status
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    domain_types::flow_status::ConnectorRuntimeStatusMapping<Refund, RefundsData, RefundResponse>
-    for Trustpay<T>
-{
-    type MappedStatus = common_enums::RefundStatus;
-
-    fn map_runtime_status<CommonData>(
-        _common_data: &CommonData,
-        _request: &RefundsData,
-        response: &RefundResponse,
-    ) -> Result<Self::MappedStatus, ConnectorError>
-    where
-        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
-    {
-        trustpay::refund_flow_status(response)
     }
 }
 
@@ -272,13 +221,13 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: TrustpaySetupMandateResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             trustpay::card_payment_flow_status(
                 response.payment_status.clone(),
                 response.redirect_url.clone(),
             )
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationPending => AuthenticationPending,
@@ -299,13 +248,13 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: TrustpayRepeatPaymentResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             trustpay::card_payment_flow_status(
                 response.payment_status.clone(),
                 response.redirect_url.clone(),
             )
-        },
-        context: |_request, _response| (),
+        }),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         AuthenticationPending => AuthenticationPending,

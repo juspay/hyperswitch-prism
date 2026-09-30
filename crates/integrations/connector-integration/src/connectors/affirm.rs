@@ -78,11 +78,11 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: AffirmPaymentsResponse,
-        source:   |response| match response {
+        source:   |_resource_common_data, _request, response| Ok(match response {
             AffirmPaymentsResponse::Checkout(_) => transformers::AffirmTransactionStatus::Unknown,
             AffirmPaymentsResponse::Transaction(transaction) => transaction.status.clone(),
-        },
-        context:  |_request, response| matches!(response, AffirmPaymentsResponse::Checkout(_)),
+        }),
+        context: |_resource_common_data, _request, response | matches!(response, AffirmPaymentsResponse::Checkout(_)),
     },
     {
         if is_checkout_initiate {
@@ -119,8 +119,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: AffirmSyncResponse,
-        source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized        => Authorized,
@@ -148,8 +148,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsCaptureData,
         response: AffirmCaptureResponse,
-        source:   |_response| transformers::AffirmTransactionStatus::Captured,
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, _response| Ok(transformers::AffirmTransactionStatus::Captured),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized        => Pending,
@@ -177,8 +177,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentVoidData,
         response: AffirmVoidResponse,
-        source:   |_response| transformers::AffirmTransactionStatus::Voided,
-        context:  |_request, _response| (),
+        source:   |_resource_common_data, _request, _response| Ok(transformers::AffirmTransactionStatus::Voided),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Authorized        => VoidInitiated,
@@ -206,8 +206,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: AffirmRefundResponse,
-        source: |response| response.flow_status(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
     },
     { Pending => Pending, }
 }
@@ -228,8 +228,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: AffirmRSyncResponse,
-        source: |response| response.status.clone(),
-        context: |request, response| response.has_refund_event(&request.connector_refund_id),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, request, response | response.has_refund_event(&request.connector_refund_id),
     },
     {
         match (refund_event_found, status) {

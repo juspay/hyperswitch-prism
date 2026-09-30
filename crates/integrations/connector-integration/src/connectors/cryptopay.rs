@@ -152,8 +152,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: CryptopayPaymentsResponse,
-        source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.data.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         New        => AuthenticationPending,
@@ -175,8 +175,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: CryptopayPaymentsSyncResponse,
-        source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.data.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         New        => AuthenticationPending,

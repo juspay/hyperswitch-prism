@@ -67,8 +67,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: HyperpgAuthorizeResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         New                          => Pending,
@@ -95,8 +95,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: HyperpgSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         New                          => Pending,
@@ -123,8 +123,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: HyperpgRefundResponse,
-        source: |_response| transformers::HyperpgRefundStatus::Pending,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, _response| Ok(transformers::HyperpgRefundStatus::Pending),
+        context: |_resource_common_data, _request, _response | (),
     },
     {
         Pending => Pending,
@@ -147,8 +147,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: HyperpgRefundSyncResponse,
-        source: |response| response.refunds.as_ref().and_then(|refunds| refunds.first()).map(|refund| refund.status.clone()),
-        context: |request, _response| request.refund_status,
+        source: |_resource_common_data, _request, response| Ok(response.refunds.as_ref().and_then(|refunds| refunds.first()).map(|refund| refund.status.clone())),
+        context: |_resource_common_data, request, _response | request.refund_status,
     },
     {
         status.as_ref().map(common_enums::RefundStatus::from).unwrap_or(previous_status)
