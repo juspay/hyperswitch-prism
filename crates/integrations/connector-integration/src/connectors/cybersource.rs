@@ -87,17 +87,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cybersource<T>,
     flow:            Authorize,
     source:          cybersource::CybersourcePaymentStatus,
     context:         bool,
     params:          [status, capture],
-    success_status:  Authorized,
-    success_targets: [Authorized, Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Authorized => [Authorized, Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: CybersourcePaymentsResponse,
@@ -161,17 +159,16 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
         status:   |_request, response| cybersource::authenticate_status(response),
     },
 }
-domain_types::impl_flow_status_mapping_ctx! {
+
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cybersource<T>,
     flow:            PSync,
     source:          cybersource::CybersourcePaymentStatus,
     context:         bool,
     params:          [status, capture],
-    success_status:  Transmitted,
-    success_targets: [Authorized, Charged, Voided],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Transmitted => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: CybersourceTransactionResponse,
@@ -429,17 +426,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Cybersource<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cybersource<T>,
     flow:            RepeatPayment,
     source:          cybersource::CybersourcePaymentStatus,
     context:         bool,
     params:          [status, capture],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: RepeatPaymentData<T>,
         response: CybersourceRepeatPaymentResponse,

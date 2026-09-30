@@ -589,17 +589,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
     },
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Ilixium<T>,
     flow:            Authorize,
     source:          transformers::IlixiumStatusCode,
     context:         transformers::IlixiumAuthorizeCtx,
     params:          [status, ctx],
-    success_status:  Success,
-    success_targets: [Charged, Authorized],
-    failure_status:  Declined,
-    failure_target:  Failure,
+    success: Success => [Charged, Authorized],
+    failure: Declined => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: IlixiumPaymentResponse,
@@ -704,15 +702,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
     flow:      PSync,
     source:    common_enums::AttemptStatus,
     context:   (),
     params:    [status, _ctx],
-    success_targets: [Charged],
-    failure_sample: Some(common_enums::AttemptStatus::Failure),
+    success: _ => [Charged],
+    failure: none,
     {
         status
     }

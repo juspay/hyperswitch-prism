@@ -299,7 +299,7 @@ pub enum PayboxPaymentVerdict {
 }
 
 impl PayboxPaymentResponse {
-    /// Flow-status view used by the `impl_flow_status_mapping_ctx!` macros:
+    /// Flow-status view used by the `impl_flow_status_mapping!` macros:
     /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
     pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
         if self.response_code == SUCCESS_CODE {

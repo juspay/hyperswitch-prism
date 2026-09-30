@@ -66,17 +66,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
     flow:            Authorize,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,
     params:          [status, is_checkout_initiate],
-    success_status:  Captured,
-    success_targets: [Charged],
-    failure_status:  Declined,
-    failure_target:  Failure,
+    success: Captured => [Charged],
+    failure: Declined => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: AffirmPaymentsResponse,
@@ -218,15 +216,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
     flow:            RSync,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,
     params:          [status, refund_event_found],
-    success_status:  Refunded,
-    failure_status:  Declined,
+    success: Refunded => Success,
+    failure: Declined => Failure,
     extractors: {
         request: RefundSyncData,
         response: AffirmRSyncResponse,

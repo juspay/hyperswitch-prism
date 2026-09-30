@@ -82,17 +82,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
     },
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            Authorize,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  Closed,
-    success_targets: [Charged],
-    failure_status:  Error,
-    failure_target:  Failure,
+    success: Closed => [Charged],
+    failure: Error => Failure,
     extractors: { request: PaymentsAuthorizeData<T>, response: RapydAuthorizeResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
@@ -110,17 +108,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Rapyd<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            PSync,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  Closed,
-    success_targets: [Charged],
-    failure_status:  Error,
-    failure_target:  Failure,
+    success: Closed => [Charged],
+    failure: Error => Failure,
     extractors: { request: PaymentsSyncData, response: RapydPSyncResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
@@ -138,17 +134,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Rapyd<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            Void,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  CanceledByClientOrBank,
-    success_targets: [Voided],
-    failure_status:  Error,
-    failure_target:  VoidFailed,
+    success: CanceledByClientOrBank => [Voided],
+    failure: Error => VoidFailed,
     extractors: { request: PaymentVoidData, response: RapydVoidResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
@@ -200,17 +194,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Rapyd<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            Capture,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  Closed,
-    success_targets: [Charged],
-    failure_status:  Error,
-    failure_target:  CaptureFailed,
+    success: Closed => [Charged],
+    failure: Error => CaptureFailed,
     extractors: { request: PaymentsCaptureData, response: RapydCaptureResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
@@ -235,17 +227,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Rapyd<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            SetupMandate,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  Closed,
-    success_targets: [Charged],
-    failure_status:  Error,
-    failure_target:  Failure,
+    success: Closed => [Charged],
+    failure: Error => Failure,
     extractors: { request: SetupMandateRequestData<T>, response: RapydSetupMandateResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;
@@ -263,17 +253,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Rapyd<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Rapyd<T>,
     flow:            RepeatPayment,
     source:          transformers::RapydPaymentStatus,
     context:         transformers::NextAction,
     params:          [status, ctx],
-    success_status:  Closed,
-    success_targets: [Charged],
-    failure_status:  Error,
-    failure_target:  Failure,
+    success: Closed => [Charged],
+    failure: Error => Failure,
     extractors: { request: RepeatPaymentData<T>, response: RapydRepeatPaymentResponse, source: |response| response.data.as_ref().map(|data| data.status.clone()).unwrap_or(transformers::RapydPaymentStatus::Error), context: |_request, response| response.data.as_ref().map(|data| data.next_action.clone()).unwrap_or_default(), },
     {
         use common_enums::AttemptStatus;

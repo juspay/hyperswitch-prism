@@ -60,17 +60,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
     flow:      Authorize,
     source:    transformers::PaymentStatus,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Charged, Authorized],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged, Authorized],
+    failure: Failed => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: XenditPaymentResponse,

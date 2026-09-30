@@ -135,15 +135,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
     flow: RSync,
     source: Option<transformers::HyperpgRefundStatus>,
     context: common_enums::RefundStatus,
     params: [status, previous_status],
-    success_targets: [Success],
-    failure_sample: Some(Some(transformers::HyperpgRefundStatus::Failed)),
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundSyncData,
         response: HyperpgRefundSyncResponse,

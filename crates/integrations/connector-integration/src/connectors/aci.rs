@@ -54,17 +54,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 // Authorize: Succeeded maps to Authorized (manual-capture) or Charged (auto-capture)
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
     flow:           Authorize,
     source:         aci::AciPaymentStatus,
     context:        bool,
     params:         [status, auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Authorized, Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Authorized, Charged],
+    failure: Failed => Failure,
     {
         match (status, auto_capture) {
             (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
@@ -81,17 +79,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // PSync: also context-dependent on auto_capture
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
     flow:           PSync,
     source:         aci::AciPaymentStatus,
     context:        bool,
     params:         [status, auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Authorized, Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Authorized, Charged],
+    failure: Failed => Failure,
     {
         match (status, auto_capture) {
             (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
@@ -181,17 +177,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
     flow:           RepeatPayment,
     source:         aci::AciPaymentStatus,
     context:        bool,
     params:         [status, auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     {
         match (status, auto_capture) {
             (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,

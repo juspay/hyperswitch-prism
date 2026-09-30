@@ -85,17 +85,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
     },
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Trustpay<T>,
     flow:           Authorize,
     source:         transformers::TrustpayAuthorizeStatus,
     context:        common_enums::AttemptStatus,
     params:         [status, previous_attempt_status],
-    success_targets: [Charged],
-    failure_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
-        transformers::TrustpayCardPaymentStatus::Failed,
-    )),
+    success: _ => [Charged],
+    failure: none,
     {
         status.attempt_status(previous_attempt_status)
     }
@@ -128,17 +126,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Trustpay<T>
 {
 }
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Trustpay<T>,
     flow:           PSync,
     source:         transformers::TrustpayAuthorizeStatus,
     context:        common_enums::AttemptStatus,
     params:         [status, previous_attempt_status],
-    success_targets: [Charged],
-    failure_sample: Some(transformers::TrustpayAuthorizeStatus::Card(
-        transformers::TrustpayCardPaymentStatus::Failed,
-    )),
+    success: _ => [Charged],
+    failure: none,
     {
         status.attempt_status(previous_attempt_status)
     }
@@ -173,15 +169,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Trustpay<T>,
     flow:           RSync,
     source:         common_enums::RefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_targets: [Success],
-    failure_sample: Some(common_enums::RefundStatus::Failure),
+    success: _ => [Success],
+    failure: none,
     {
         status
     }
@@ -213,15 +209,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Trustpay<T>,
     flow:           Refund,
     source:         common_enums::RefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_targets: [Success],
-    failure_sample: Some(common_enums::RefundStatus::Failure),
+    success: _ => [Success],
+    failure: none,
     {
         status
     }

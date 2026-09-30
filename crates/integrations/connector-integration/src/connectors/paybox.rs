@@ -276,15 +276,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // The flow-status view is therefore the binary `PayboxPaymentVerdict`; the
 // capture method (request context) decides Authorized vs Charged, mirroring
 // the TryFrom exactly.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      Authorize,
     source:    PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: Some(PayboxPaymentVerdict::Rejected),
+    success: _ => [Authorized, Charged],
+    failure: none,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
@@ -430,15 +430,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // RepeatPayment answers with a CODEREPONSE ack only; the TryFrom branches the
 // success status on the capture method, exactly like Authorize.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
     flow:      RepeatPayment,
     source:    PayboxPaymentVerdict,
     context:   bool,
     params:    [status, is_auto_capture],
-    success_targets: [Charged],
-    failure_sample: Some(PayboxPaymentVerdict::Rejected),
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: PayboxRepeatPaymentResponse,

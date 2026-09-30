@@ -760,15 +760,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
     flow: RSync,
     source: transformers::GlomopayRefundStatus,
     context: Option<transformers::GlomopayRefundStatus>,
     params: [status, matched_status],
-    success_targets: [Success],
-    failure_sample: Some(transformers::GlomopayRefundStatus::Failed),
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundSyncData,
         response: GlomopayRefundSyncResponse,
