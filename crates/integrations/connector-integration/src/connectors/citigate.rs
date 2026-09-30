@@ -407,18 +407,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // BLOCKED: Authorize distinguishes authentication failures (103/106/700/800
 // and malformed 600) from authorization failures. CitigateAuthStatus collapses
 // all of those into NotReceived, so the declaration cannot mirror every branch.
-#[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
     flow:            Authorize,
     source:          citigate::CitigateAuthStatus,
     context:         citigate::CitigateFlowCtx,
     params:          [status, ctx],
-    success_status:  Approved,
-    success_targets: [Charged, Authorized],
-    failure_status:  NotReceived,
-    failure_target:  AuthorizationFailed,
+    success: Approved => [Charged, Authorized],
+    failure: NotReceived => AuthorizationFailed,
     {
         use citigate::{CitigateAuthStatus, CitigateTransTypeId};
         use common_enums::AttemptStatus;
@@ -452,18 +449,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // this granularity.
 // BLOCKED: PSync likewise distinguishes authentication-failure response codes
 // before its general Failure arm; CitigateSyncStatus loses that code detail.
-#[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
     flow:            PSync,
     source:          citigate::CitigateSyncStatus,
     context:         citigate::CitigateFlowCtx,
     params:          [status, ctx],
-    success_status:  CancelApproved,
-    success_targets: [Voided],
-    failure_status:  PurchaseNotApproved,
-    failure_target:  Failure,
+    success: CancelApproved => [Voided],
+    failure: PurchaseNotApproved => Failure,
     {
         use citigate::{CitigateSyncStatus, CitigateTransTypeId};
         use common_enums::AttemptStatus;
@@ -549,16 +543,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // BLOCKED: Refund maps five documented transient response codes to Pending and
 // other failures to Failure. CitigatePostAuthStatus collapses all non-zero codes,
 // so this declaration cannot preserve that distinction.
-#[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,
     flow:           Refund,
     source:         citigate::CitigatePostAuthStatus,
     context:        (),
     params:         [status, ctx],
-    success_status: Approved,
-    failure_status: NotReceived,
+    success: Approved => Success,
+    failure: NotReceived => Failure,
     {
         let _ = ctx;
         match status {
@@ -580,16 +573,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // `context = CitigateFlowCtx` (the `TransTypeID` echo).
 // BLOCKED: RSync also needs the raw response code to distinguish transient
 // Pending responses from terminal failures; the current source type loses it.
-#[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,
     flow:           RSync,
     source:         citigate::CitigatePostAuthStatus,
     context:        citigate::CitigateFlowCtx,
     params:         [status, ctx],
-    success_status: Approved,
-    failure_status: NotReceived,
+    success: Approved => Success,
+    failure: NotReceived => Failure,
     {
         use citigate::{CitigatePostAuthStatus, CitigateTransTypeId};
         use common_enums::RefundStatus;

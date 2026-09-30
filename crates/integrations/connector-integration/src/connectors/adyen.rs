@@ -115,17 +115,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 
 // Mirrors `get_adyen_payment_status`: the HTTP response legs carry `AdyenStatus`
 // and disambiguate manual-capture (Authorized) vs auto-capture (Charged) via ctx.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Adyen<T>,
     flow:            Authorize,
     source:          adyen::AdyenStatus,
     context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
-    success_status:  Authorised,
-    success_targets: [Authorized, Charged],
-    failure_status:  Refused,
-    failure_target:  Failure,
+    success: Authorised => [Authorized, Charged],
+    failure: Refused => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: AdyenPaymentResponse,
@@ -175,17 +173,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // PSync uses the same `get_adyen_payment_status` mapping as Authorize.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Adyen<T>,
     flow:            PSync,
     source:          adyen::AdyenStatus,
     context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
-    success_status:  Authorised,
-    success_targets: [Authorized, Charged],
-    failure_status:  Refused,
-    failure_target:  Failure,
+    success: Authorised => [Authorized, Charged],
+    failure: Refused => Failure,
     extractors: {
         request:  PaymentsSyncData,
         response: AdyenPSyncResponse,
@@ -321,17 +317,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Mirrors the RepeatPayment TryFrom: same `get_adyen_payment_status` mapping as
 // Authorize, disambiguated by capture method.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Adyen<T>,
     flow:            RepeatPayment,
     source:          adyen::AdyenStatus,
     context:         (bool, Option<PaymentMethodType>),
     params:          [status, ctx],
-    success_status:  Authorised,
-    success_targets: [Charged],
-    failure_status:  Refused,
-    failure_target:  Failure,
+    success: Authorised => [Charged],
+    failure: Refused => Failure,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: AdyenRepeatPaymentResponse,

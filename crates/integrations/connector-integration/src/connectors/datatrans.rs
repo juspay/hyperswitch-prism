@@ -58,15 +58,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: Authorize,
     source: bool,
     context: bool,
     params: [requires_challenge, manual_capture],
-    success_targets: [Authorized, Charged],
-    failure_sample: None,
+    success: _ => [Authorized, Charged],
+    failure: none,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: DatatransPaymentsResponse,
@@ -94,17 +94,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // all read as `Charged` because a finished alias creation has no capture step.
 // A `credit` synced on the payment endpoint is not a payment outcome (→
 // `Failure`, refunds are tracked via RSync).
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Datatrans<T>,
     flow:            PSync,
     source:          datatrans::DatatransPaymentStatus,
     context:         datatrans::DatatransTransactionType,
     params:          [status, txn_type],
-    success_status:  Settled,
-    success_targets: [Voided],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Settled => [Voided],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: DatatransSyncResponse,
@@ -149,15 +147,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: Void,
     source: (),
     context: (),
     params: [_ack, _context],
-    success_targets: [Voided],
-    failure_sample: None,
+    success: _ => [Voided],
+    failure: none,
     extractors: {
         request: PaymentVoidData,
         response: DatatransVoidResponse,
@@ -180,15 +178,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: Capture,
     source: (),
     context: (),
     params: [_ack, _context],
-    success_targets: [Charged],
-    failure_sample: None,
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request: PaymentsCaptureData,
         response: DatatransCaptureResponse,
@@ -202,15 +200,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: SetupMandate,
     source: bool,
     context: bool,
     params: [requires_challenge, manual_capture],
-    success_targets: [Charged],
-    failure_sample: None,
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request: SetupMandateRequestData<T>,
         response: DatatransSetupMandateResponse,
@@ -232,15 +230,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: RepeatPayment,
     source: bool,
     context: bool,
     params: [requires_challenge, manual_capture],
-    success_targets: [Charged],
-    failure_sample: None,
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request: RepeatPaymentData<T>,
         response: DatatransRepeatPaymentResponse,
@@ -280,15 +278,15 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Datatrans<T>,
     flow: Refund,
     source: (),
     context: (),
     params: [_ack, _context],
-    success_targets: [Success],
-    failure_sample: None,
+    success: _ => [Success],
+    failure: none,
     extractors: {
         request: RefundsData,
         response: DatatransRefundResponse,
@@ -308,15 +306,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // A `payment`/`card_check` leg synced on the refund endpoint is not a refund
 // outcome (→ Failure). Context is the response's `transaction_type`, same as
 // the PSync mapping above.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Datatrans<T>,
     flow:           RSync,
     source:         datatrans::DatatransPaymentStatus,
     context:        datatrans::DatatransTransactionType,
     params:         [status, txn_type],
-    success_status: Settled,
-    failure_status: Failed,
+    success: Settled => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundSyncData,
         response: DatatransRefundSyncResponse,

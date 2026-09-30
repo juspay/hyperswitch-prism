@@ -61,17 +61,15 @@ pub(crate) mod headers {
 }
 
 // Mirrors `map_boa_attempt_status((status, is_auto_capture))` in the Authorize TryFrom.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bankofamerica<T>,
     flow:            Authorize,
     source:          transformers::BankofamericaPaymentStatus,
     context:         bool,
     params:          [status, auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Authorized, Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Authorized, Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BankofamericaPaymentsResponse,
@@ -122,17 +120,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // previous common status when it is absent. Exact runtime mapping needs
 // FlowStatusReader for that branch.
 #[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Bankofamerica<T>,
     flow:            PSync,
     source:          transformers::BankofamericaPaymentStatus,
     context:         bool,
     params:          [status, auto_capture],
-    success_status:  Transmitted,
-    success_targets: [Authorized, Charged, Voided],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Transmitted => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
     {
         use transformers::BankofamericaPaymentStatus as S;
         match status {
@@ -213,15 +209,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // BLOCKED: RSync preserves the previous refund status when its optional nested
 // application status is absent. Exact runtime mapping needs FlowStatusReader.
 #[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Bankofamerica<T>,
     flow:           RSync,
     source:         transformers::BankofamericaRefundStatus,
     context:        Option<String>,
     params:         [status, ctx],
-    success_status: Succeeded,
-    failure_status: Failed,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,
@@ -252,15 +248,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Bankofamerica<T>
 {
 }
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Bankofamerica<T>,
     flow:           Refund,
     source:         transformers::BankofamericaRefundStatus,
     context:        Option<String>,
     params:         [status, ctx],
-    success_status: Succeeded,
-    failure_status: Failed,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,

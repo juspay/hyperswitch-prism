@@ -67,17 +67,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Barclaycard<T>,
     flow:            Authorize,
     source:          responses::BarclaycardPaymentStatus,
     context:         bool,
     params:          [status, auto_capture],
-    success_status:  Authorized,
-    success_targets: [Authorized, Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Authorized => [Authorized, Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BarclaycardAuthorizeResponse,
@@ -134,17 +132,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // application_information.status is absent. Exact runtime mapping therefore
 // requires FlowStatusReader rather than an infallible inline source extractor.
 #[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Barclaycard<T>,
     flow:            PSync,
     source:          responses::BarclaycardPaymentStatus,
     context:         bool,
     params:          [status, auto_capture],
-    success_status:  Authorized,
-    success_targets: [Authorized, Charged, Voided],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Authorized => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
     {
         use responses::BarclaycardPaymentStatus as S;
         match status {
@@ -283,17 +279,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // return Voided, outside RepeatPayment::ALLOWED, while this macro changed them
 // to Failure.
 #[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Barclaycard<T>,
     flow:            RepeatPayment,
     source:          responses::BarclaycardPaymentStatus,
     context:         bool,
     params:          [status, auto_capture],
-    success_status:  Succeeded,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
     {
         use responses::BarclaycardPaymentStatus as S;
         match status {
@@ -358,15 +352,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // `BarclaycardRefundStatus` variant has a fixed target except `TwoZeroOne`,
 // which splits on the response's `error_information.reason` (the ctx here) —
 // PROCESSOR_DECLINED fails the refund, anything else keeps it Pending.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Barclaycard<T>,
     flow:           Refund,
     source:         responses::BarclaycardRefundStatus,
     context:        Option<String>,
     params:         [status, ctx],
-    success_status: Succeeded,
-    failure_status: Failed,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: BarclaycardRefundResponse,
@@ -404,15 +398,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // nested application status is absent. Exact runtime mapping needs
 // FlowStatusReader for that branch.
 #[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Barclaycard<T>,
     flow:           RSync,
     source:         responses::BarclaycardRefundStatus,
     context:        Option<String>,
     params:         [status, ctx],
-    success_status: Succeeded,
-    failure_status: Failed,
+    success: Succeeded => Success,
+    failure: Failed => Failure,
     {
         use common_enums::RefundStatus;
         use responses::BarclaycardRefundStatus as S;

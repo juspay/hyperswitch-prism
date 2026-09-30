@@ -75,17 +75,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // string is typed as `cashfree::CashfreeCaptureStatus`, which documents the
 // same mapping — the `_ctx` form with `()` context is used only because the
 // declarative macro's per-variant arms cannot express the `_` catch-all.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cashfree<T>,
     flow:            Capture,
     source:          cashfree::CashfreeCaptureStatus,
     context:         (),
     params:          [status, _ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  CaptureFailed,
+    success: Success => [Charged],
+    failure: Failed => CaptureFailed,
     extractors: {
         request: PaymentsCaptureData,
         response: CashfreeCaptureResponse,
@@ -118,17 +116,15 @@ domain_types::impl_flow_status_mapping_ctx! {
 // "VOID_INITIATED" string here, so Pending is the honest in-flight verdict.
 // The raw string is typed as `cashfree::CashfreeVoidStatus`; same catch-all
 // rationale for the `_ctx` form as Capture.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cashfree<T>,
     flow:            Void,
     source:          cashfree::CashfreeVoidStatus,
     context:         (),
     params:          [status, _ctx],
-    success_status:  Void,
-    success_targets: [Voided],
-    failure_status:  Failed,
-    failure_target:  VoidFailed,
+    success: Void => [Voided],
+    failure: Failed => VoidFailed,
     extractors: {
         request: PaymentVoidData,
         response: CashfreeVoidResponse,
@@ -187,17 +183,15 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 // transformers.rs that the PSync TryFrom routes through. The `_ctx` variant is
 // used (with `()` context) only because `Unknown(String)` is a tuple variant
 // that the plain macro's unit-variant arms cannot match.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Cashfree<T>,
     flow:            PSync,
     source:          cashfree::CashfreePaymentStatus,
     context:         (),
     params:          [status, _ctx],
-    success_status:  Success,
-    success_targets: [Charged],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Success => [Charged],
+    failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: CashfreeSyncResponse,
@@ -239,15 +233,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Failure, anything else → `Other` → Pending, i.e. still in flight). The
 // `_ctx` form with `()` context is used only because the declarative macro's
 // match arms cannot cover the catch-all `Other` semantics in a readable way.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Cashfree<T>,
     flow:           RSync,
     source:         cashfree::CashfreeRefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_status: Success,
-    failure_status: Failed,
+    success: Success => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundSyncData,
         response: CashfreeRefundSyncResponse,
@@ -273,15 +267,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 // Refund runs the identical `map_refund_status` mapping as RSync — the refund
 // create response carries the same `refund_status` string.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Cashfree<T>,
     flow:           Refund,
     source:         cashfree::CashfreeRefundStatus,
     context:        (),
     params:         [status, _ctx],
-    success_status: Success,
-    failure_status: Failed,
+    success: Success => Success,
+    failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: CashfreeRefundResponse,

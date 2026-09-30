@@ -419,17 +419,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // manual capture), then `is_auto_capture` splits an approval into
 // `Charged` / `Authorized`.  The `source:` enum is the issuer decision; the
 // gateway code and the capture flag ride in `GlobalpaymentsHeartlandAuthorizeCtx`.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       GlobalpaymentsHeartland<T>,
     flow:            Authorize,
     source:          transformers::GlobalpaymentsHeartlandFlowStatus,
     context:         transformers::GlobalpaymentsHeartlandAuthorizeCtx,
     params:          [issuer, ctx],
-    success_status:  Approved,
-    success_targets: [Charged, Authorized],
-    failure_status:  Other,
-    failure_target:  AuthorizationFailed,
+    success: Approved => [Charged, Authorized],
+    failure: Other => AuthorizationFailed,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GlobalpaymentsHeartlandPaymentsResponse,
@@ -483,17 +481,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // indistinguishable — the known limitation on the TryFrom), active
 // `CreditSale`/`CreditReturn` → Charged, a reversed auth/sale or any
 // `CreditVoid` record → Voided, everything else → Pending.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       GlobalpaymentsHeartland<T>,
     flow:            PSync,
     source:          transformers::GlobalpaymentsHeartlandFlowStatus,
     context:         transformers::GlobalpaymentsHeartlandSyncCtx,
     params:          [status, ctx],
-    success_status:  Approved,
-    success_targets: [Authorized, Charged, Voided],
-    failure_status:  Other,
-    failure_target:  Failure,
+    success: Approved => [Authorized, Charged, Voided],
+    failure: Other => Failure,
     {
         use common_enums::AttemptStatus;
         use transformers::{
@@ -598,15 +594,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // pair decides: active `CreditReturn` → Success, a reversed return → Failure,
 // everything else → Pending.  RSync shares PSync's `GlobalpaymentsHeartlandSyncCtx`
 // — the decision surface is the same `ReportTxnDetail` triple.
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      GlobalpaymentsHeartland<T>,
     flow:           RSync,
     source:         transformers::GlobalpaymentsHeartlandFlowStatus,
     context:        transformers::GlobalpaymentsHeartlandSyncCtx,
     params:         [status, ctx],
-    success_status: Approved,
-    failure_status: Other,
+    success: Approved => Success,
+    failure: Other => Failure,
     {
         use common_enums::RefundStatus;
         use transformers::{

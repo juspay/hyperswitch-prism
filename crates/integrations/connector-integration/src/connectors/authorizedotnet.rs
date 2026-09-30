@@ -75,15 +75,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // SetupMandate (zero-mandate): the response is a customer-profile payload, not a
 // transaction — verification success is signalled by `ResultCode::Ok` (or the
 // E00039 duplicate-profile case) and surfaces as `Charged` per the flow rules.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     connector: Authorizedotnet<T>,
     flow:      SetupMandate,
     source:    bool,
     context:   (),
     params:    [is_success, _context],
-    success_targets: [Charged],
-    failure_targets: [Failure],
+    success: _ => [Charged],
+    failure: none,
     extractors: {
         request: SetupMandateRequestData<T>,
         response: AuthorizedotnetSetupMandateResponse,
@@ -350,17 +350,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // BLOCKED: RepeatPayment calls get_hs_status(Operation::Authorize). A held-for-
 // review response returns Unresolved, which RepeatPayment::ALLOWED excludes.
 #[cfg(any())]
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     connector:       Authorizedotnet<T>,
     flow:            RepeatPayment,
     source:          transformers::AuthorizedotnetPaymentStatus,
     context:         transformers::AuthorizedotnetPaymentCtx,
     params:          [status, ctx],
-    success_status:  Approved,
-    success_targets: [Charged],
-    failure_status:  Declined,
-    failure_target:  Failure,
+    success: Approved => [Charged],
+    failure: Declined => Failure,
     {
         use common_enums::AttemptStatus;
         use transformers::AuthorizedotnetPaymentStatus as S;
@@ -386,15 +384,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // `ctx.is_manual_capture` selects Authorized (manual) vs Charged (automatic);
 // `ctx.is_result_code_ok` mirrors the ResultCode::Error short-circuit which
 // overrides any transaction-level status.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     connector:       Authorizedotnet<T>,
     flow:            Authorize,
     source:          transformers::AuthorizedotnetPaymentsResponse,
     context:         Option<common_enums::CaptureMethod>,
     params:          [response, capture_method],
-    success_targets: [Authorized, Charged],
-    failure_targets: [Failure],
+    success: _ => [Authorized, Charged],
+    failure: none,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: AuthorizedotnetAuthorizeResponse,

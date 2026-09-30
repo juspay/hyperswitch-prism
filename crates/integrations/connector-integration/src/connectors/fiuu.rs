@@ -74,17 +74,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Failure, "22" → Pending. The redirect/QR legs force `AuthenticationPending`
 // and the recurring leg uses `FiuuRecurringStautus`; neither is covered by
 // this declaration.
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Fiuu<T>,
     flow:            Authorize,
     source:          fiuu::FiuuAuthorizeStatus,
     context:         fiuu::FiuuCaptureMethodCtx,
     params:          [status, ctx],
-    success_status:  Approved,
-    success_targets: [Charged, Authorized],
-    failure_status:  Failed,
-    failure_target:  Failure,
+    success: Approved => [Charged, Authorized],
+    failure: Failed => Failure,
     {
         match status {
             fiuu::FiuuAuthorizeStatus::Approved => match ctx {
@@ -146,15 +144,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // branch preserves the existing common status. `Unknown` is outside the flow's
 // allowed set, and coercing it to Pending would change production behavior.
 #[cfg(any())]
-domain_types::impl_refund_flow_status_mapping_ctx! {
+domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Fiuu<T>,
     flow:           RSync,
     source:         fiuu::RefundStatus,
     context:        (),
     params:         [status, ctx],
-    success_status: Success,
-    failure_status: Rejected,
+    success: Success => Success,
+    failure: Rejected => Failure,
     {
         let _ = ctx;
         match status {
