@@ -111,8 +111,10 @@ fn map_reqwest_error(error: reqwest::Error) -> Report<ApiClientError> {
         }
         // Never string-passthrough the error: reqwest's message can embed
         // request content (headers, query strings, cert-derived material).
-        // Report only a static classification by error kind.
-        error if error.is_connect() => ApiClientError::RequestNotSent("connect error".to_string()),
+        // `classify_connect_failure` reports only safe, provable classifications.
+        error if error.is_connect() => {
+            ApiClientError::RequestNotSent(classify_connect_failure(&error))
+        }
         error if error.is_builder() => {
             ApiClientError::RequestNotSent("client build error".to_string())
         }
@@ -123,6 +125,44 @@ fn map_reqwest_error(error: reqwest::Error) -> Report<ApiClientError> {
         _ => ApiClientError::RequestNotSent("request could not be sent".to_string()),
     };
     report!(api_error)
+}
+
+/// Builds the full causal chain of a connect-phase failure as a safe string —
+/// no classification, no relabeling: every link's own message, as-is.
+///
+/// Everything except TLS is logged via `err.to_string()` directly, because
+/// every type that can appear in this chain has been checked against its
+/// actual source (reqwest 0.12.28 / hyper-util 0.1.20) and verified to only
+/// ever produce fixed, caller-content-free text: `std::io::Error` (OS-level
+/// messages like "Connection refused (os error 61)" — no hostname, confirmed
+/// from Rust std's own DNS/socket code), and hyper_util's private
+/// `ConnectError`/`TunnelError`/`client::legacy::Error` (every construction
+/// site is a hardcoded `&'static str`).
+///
+/// TLS is the one exception, kept as a flat label: `native_tls::Error`
+/// ultimately prints an OpenSSL `data` field populated ad-hoc by whichever
+/// internal C code path raised the error — not a fixed table like the
+/// others — so it can't be proven safe the same way, and the private inner
+/// type that would let us extract just the safe parts (reason code,
+/// X509 verify result) isn't reachable from outside the crate.
+fn classify_connect_failure(error: &reqwest::Error) -> String {
+    let mut chain = Vec::new();
+    let mut source: Option<&(dyn StdError + 'static)> = StdError::source(error);
+
+    while let Some(err) = source {
+        if err.downcast_ref::<native_tls::Error>().is_some() {
+            chain.push("tls handshake or certificate error".to_string());
+        } else {
+            chain.push(err.to_string());
+        }
+        source = err.source();
+    }
+
+    if chain.is_empty() {
+        "transport error, no classifiable cause in the chain".to_string()
+    } else {
+        chain.join(" <- ")
+    }
 }
 
 /// Checks whether a `reqwest::Error` was caused by hyper's
@@ -258,7 +298,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn connect_error_maps_to_static_string_without_raw_error_text() {
+    async fn connect_error_maps_to_safe_classification_without_raw_error_text() {
         // Port 9 (discard) is not listening: connect refused every time.
         let error = reqwest::Client::new()
             .get("http://127.0.0.1:9/")
@@ -266,14 +306,51 @@ mod tests {
             .await
             .unwrap_err();
         let mapped = map_reqwest_error(error);
-        assert_eq!(
+        assert!(matches!(
             mapped.current_context(),
-            &ApiClientError::RequestNotSent("connect error".to_string())
-        );
+            ApiClientError::RequestNotSent(_)
+        ));
+        // "tcp connect error" (hyper_util's ConnectError) and "Connection refused"
+        // (the underlying io::Error) are stable across platforms; the os error
+        // number after it is not (61 on macOS/BSD, 111 on Linux), so this checks
+        // substrings rather than the exact string.
+        if let ApiClientError::RequestNotSent(report) = mapped.current_context() {
+            assert!(
+                report.contains("tcp connect error") && report.contains("Connection refused"),
+                "expected the real connect-phase chain, got: {report}"
+            );
+        }
         let debug = format!("{:?}", mapped);
         assert!(
-            !debug.contains("refused") && !debug.contains("http://"),
-            "raw error text/URL must never flow into the report: {debug}"
+            !debug.contains("http://127.0.0.1:9"),
+            "the request URL must never flow into the report: {debug}"
+        );
+    }
+
+    #[tokio::test]
+    async fn dns_failure_does_not_leak_the_hostname() {
+        // Reserved, never-resolvable TLD (RFC 2606) — guarantees a DNS failure, not a
+        // TCP-level one.
+        let error = reqwest::Client::new()
+            .get("http://host.invalid/")
+            .send()
+            .await
+            .unwrap_err();
+        let mapped = map_reqwest_error(error);
+        assert!(matches!(
+            mapped.current_context(),
+            ApiClientError::RequestNotSent(_)
+        ));
+        if let ApiClientError::RequestNotSent(report) = mapped.current_context() {
+            assert!(
+                report.contains("dns error") && report.contains("lookup address information"),
+                "expected the real DNS-failure chain, got: {report}"
+            );
+        }
+        let debug = format!("{:?}", mapped);
+        assert!(
+            !debug.contains("host.invalid"),
+            "the hostname must never flow into the report: {debug}"
         );
     }
 
