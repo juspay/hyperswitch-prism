@@ -1,6 +1,10 @@
 use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
+pub use crate::payment_method_data::{
+    AdditionalCardInfo, AdditionalPaymentData, GooglePayAdditionalData,
+};
+
 use crate::{
     connector_flow::{
         CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
@@ -1441,6 +1445,80 @@ impl ForeignFrom<common_enums::CardType> for grpc_api_types::payments::CardType 
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::CardType> for common_enums::CardType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::CardType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::CardType::Credit => Ok(Self::Credit),
+            grpc_api_types::payments::CardType::Debit => Ok(Self::Debit),
+            grpc_api_types::payments::CardType::Prepaid => Ok(Self::Prepaid),
+            grpc_api_types::payments::CardType::Store => Ok(Self::Store),
+            grpc_api_types::payments::CardType::ChargeCard => Ok(Self::ChargeCard),
+            grpc_api_types::payments::CardType::Unspecified => {
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Unspecified card type".to_string()),
+                        ..Default::default()
+                    },
+                }))
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::CardSegmentType> for common_enums::CardSegmentType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::CardSegmentType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::CardSegmentType::Business => Ok(Self::Business),
+            grpc_api_types::payments::CardSegmentType::Commercial => Ok(Self::Commercial),
+            grpc_api_types::payments::CardSegmentType::Consumer => Ok(Self::Consumer),
+            grpc_api_types::payments::CardSegmentType::Government => Ok(Self::Government),
+            grpc_api_types::payments::CardSegmentType::Unspecified => {
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_segment_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Unspecified card segment type".to_string()),
+                        ..Default::default()
+                    },
+                }))
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::FundingSource> for common_enums::FundingSource {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::FundingSource,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::FundingSource::Credit => Ok(Self::Credit),
+            grpc_api_types::payments::FundingSource::Debit => Ok(Self::Debit),
+            grpc_api_types::payments::FundingSource::Prepaid => Ok(Self::Prepaid),
+            grpc_api_types::payments::FundingSource::ChargeCard => Ok(Self::ChargeCard),
+            grpc_api_types::payments::FundingSource::DeferredDebit => Ok(Self::DeferredDebit),
+            grpc_api_types::payments::FundingSource::Unspecified => {
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "funding_source",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Unspecified funding source".to_string()),
+                        ..Default::default()
+                    },
+                }))
+            }
+        }
+    }
+}
+
 impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
     for grpc_api_types::payments::PaymentMethod
 {
@@ -1929,7 +2007,7 @@ impl<
                         transaction_identifier: apple_wallet.transaction_identifier,
                     };
                     Ok(Self::Wallet(payment_method_data::WalletData::ApplePay(
-                        wallet_data,
+                        Box::new(wallet_data),
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(
@@ -1989,7 +2067,7 @@ impl<
                         tokenization_data: gpay_tokenization_data,
                     };
                     Ok(Self::Wallet(payment_method_data::WalletData::GooglePay(
-                        wallet_data,
+                        Box::new(wallet_data),
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::GooglePayThirdPartySdk(
@@ -14144,50 +14222,77 @@ pub struct ConnectorInfo {
     pub connector_type: PaymentConnectorCategory,
 }
 
-/// Required for passing additional details for Recurring payments from initial payments
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum AdditionalPaymentData {
-    /// Card-specific additional payment data
-    Card(AdditionalCardInfo),
-}
-
-/// Additional card information for payment processing
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdditionalCardInfo {
-    /// The name of issuer of the card
-    pub card_issuer: Option<String>,
-    /// Last 4 digits of the card number
-    pub last4: Option<String>,
-    /// The ISIN of the card
-    pub card_isin: Option<String>,
-    /// Extended bin of card, contains the first 8 digits of card number
-    pub card_extended_bin: Option<String>,
-    /// Card expiry month (sensitive)
-    pub card_exp_month: Option<Secret<String>>,
-    /// Card expiry year (sensitive)
-    pub card_exp_year: Option<Secret<String>>,
-    /// Card holder name (sensitive)
-    pub card_holder_name: Option<Secret<String>>,
-}
-
 impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<AdditionalPaymentData> {
     fn foreign_from(data: grpc_payment_types::AdditionalPaymentData) -> Self {
         match data.payment_method_data {
             Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Card(card)) => {
-                Some(AdditionalPaymentData::Card(AdditionalCardInfo {
-                    card_issuer: card.card_issuer,
-                    last4: card.last4,
-                    card_isin: card.card_isin,
-                    card_extended_bin: card.card_extended_bin,
-                    card_exp_month: card.card_exp_month,
-                    card_exp_year: card.card_exp_year,
-                    card_holder_name: card.card_holder_name,
-                }))
+                Some(AdditionalPaymentData::Card(Box::new(grpc_card_info_to_domain(card))))
             }
+
+            Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Wallet(
+                wallet_data,
+            )) => match wallet_data.wallet_data {
+                Some(grpc_payment_types::additional_wallet_info::WalletData::ApplePay(
+                    apple_pay_data,
+                )) => Some(AdditionalPaymentData::Wallet(
+                    payment_method_data::WalletAdditionalData::ApplePay(Box::new(
+                        payment_method_data::ApplePayAdditionalData {
+                            display_name: apple_pay_data.display_name,
+                            card_info: apple_pay_data.card_info.map(grpc_card_info_to_domain),
+                        },
+                    )),
+                )),
+                Some(grpc_payment_types::additional_wallet_info::WalletData::GooglePay(
+                    google_pay_data,
+                )) => Some(AdditionalPaymentData::Wallet(
+                    payment_method_data::WalletAdditionalData::GooglePay(Box::new(
+                        GooglePayAdditionalData {
+                            payment_method_data_type: google_pay_data.payment_method_data_type,
+                            card_info: google_pay_data.card_info.map(grpc_card_info_to_domain),
+                            email: google_pay_data.email.and_then(|e| {
+                                let raw = e.expose();
+                                Email::try_from(raw)
+                                    .inspect_err(|_| {
+                                        tracing::warn!(
+                                            "invalid Google Pay email in additional_payment_data, dropping"
+                                        )
+                                    })
+                                    .ok()
+                            }),
+                        },
+                    )),
+                )),
+                None => None,
+            },
 
             None => None,
         }
+    }
+}
+
+fn grpc_card_info_to_domain(card: grpc_payment_types::AdditionalCardInfo) -> AdditionalCardInfo {
+    let issuer_country = CountryAlpha2::foreign_try_from(card.issuer_country()).ok();
+    let card_type = common_enums::CardType::foreign_try_from(card.card_type()).ok();
+    let card_segment_type =
+        common_enums::CardSegmentType::foreign_try_from(card.card_segment_type()).ok();
+    let funding_source = common_enums::FundingSource::foreign_try_from(card.funding_source()).ok();
+    AdditionalCardInfo {
+        card_issuer: card.card_issuer,
+        last4: card.last4,
+        card_isin: card.card_isin,
+        card_extended_bin: card.card_extended_bin,
+        card_exp_month: card.card_exp_month,
+        card_exp_year: card.card_exp_year,
+        card_holder_name: card.card_holder_name,
+        card_bin: card.card_bin,
+        card_type,
+        auth_code: card.auth_code,
+        card_subtype: card.card_subtype,
+        card_segment_type,
+        funding_source,
+        issuer_country,
+        card_network: card.card_network,
+        device_pan_bin: card.device_pan_bin,
     }
 }
 
