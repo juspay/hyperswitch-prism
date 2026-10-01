@@ -33,7 +33,7 @@ use interfaces::{
 };
 use serde::Serialize;
 pub mod transformers;
-use error_stack::{report, ResultExt};
+use error_stack::{ResultExt, report};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
@@ -807,6 +807,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Authorized => Authorized,
     failure:   Failed     => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: NoonPaymentsResponse,
+        source:   |response| response.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Captured            => Charged,
         PartiallyCaptured   => Charged,
@@ -839,6 +845,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Captured => Charged,
     failure:   Failed   => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: NoonPaymentsResponse,
+        source:   |response| response.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Authorized          => Authorized,
         PartiallyCaptured   => Charged,
@@ -873,6 +885,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Captured => Charged,
     failure:   Failed   => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: NoonPaymentsResponse,
+        source:   |response| response.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         PartiallyCaptured   => PartialCharged,
         PartiallyRefunded   => Charged,
@@ -906,6 +924,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Reversed => Voided,
     failure:   Failed   => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: NoonPaymentsResponse,
+        source:   |response| response.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         PartiallyReversed   => Voided,
         Cancelled           => Voided,
@@ -940,6 +964,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Authorized => Charged,
     failure:   Failed     => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: SetupMandateResponse,
+        source:   |response| response.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Captured            => Charged,
         PartiallyCaptured   => Charged,
@@ -973,6 +1003,12 @@ domain_types::impl_flow_status_mapping! {
     source:    noon::NoonPaymentStatus,
     success:   Captured => Charged,
     failure:   Failed   => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: NoonRepeatPaymentResponse,
+        source:   |response| response.0.result.order.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Authorized          => Authorized,
         PartiallyCaptured   => Charged,
@@ -1009,6 +1045,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    noon::RefundStatus,
     success:   Success => Success,
     failure:   Failed  => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: RefundResponse,
+        source:   |response| response.result.transaction.status.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
     }
@@ -1016,6 +1058,10 @@ domain_types::impl_refund_flow_status_mapping! {
 
 // RSync — mirrors the RSync TryFrom (transformers.rs:1017), same
 // `From<noon::RefundStatus>` mapping.
+// NOTE: no extractors — the RSync response carries a transactions *list* and the
+// RSync TryFrom selects the refund record by scanning `transactions` for the entry
+// with a `transaction_reference` (fallible); a runtime extractor cannot reproduce
+// that selection exactly.
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Noon<T>,

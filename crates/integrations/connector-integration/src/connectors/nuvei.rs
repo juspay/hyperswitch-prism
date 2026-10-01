@@ -43,6 +43,15 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Authorized, Charged],
     failure: none,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: transformers::NuveiPaymentResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |request, response| (
+            response.status.clone(),
+            request.is_auto_capture(),
+        ),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -97,6 +106,22 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: transformers::NuveiSyncResponse,
+        source:   |response| response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.transaction_status.clone()),
+        context:  |_request, response| (
+            response.status.clone(),
+            transformers::NuveiSyncTransactionType::from_wire(
+                response.transaction_details
+                    .as_ref()
+                    .and_then(|details| details.transaction_type.as_deref()),
+            ),
+        ),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -133,6 +158,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Charged, PartialCharged],
     failure: none,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: transformers::NuveiCaptureResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| response.status.clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -164,6 +195,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Voided],
     failure: none,
+    extractors: {
+        request:  PaymentVoidData,
+        response: transformers::NuveiVoidResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| response.status.clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -196,6 +233,18 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Charged],
     failure: none,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: transformers::NuveiSetupMandateResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| (
+            response.status.clone(),
+            response.payment_option
+                .as_ref()
+                .and_then(|option| option.user_payment_option_id.clone())
+                .is_some(),
+        ),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -230,6 +279,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Charged],
     failure: none,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: transformers::NuveiRepeatPaymentResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| response.status.clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -261,6 +316,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request:  RefundsData,
+        response: transformers::NuveiRefundResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| response.status.clone(),
+    },
     {
         use common_enums::RefundStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};
@@ -291,6 +352,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request:  RefundSyncData,
+        response: transformers::NuveiRefundSyncResponse,
+        source:   |response| response.transaction_status.clone(),
+        context:  |_request, response| response.status.clone(),
+    },
     {
         use common_enums::RefundStatus;
         use transformers::{NuveiPaymentStatus, NuveiTransactionStatus};

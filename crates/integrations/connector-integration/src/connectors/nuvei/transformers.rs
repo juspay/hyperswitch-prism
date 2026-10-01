@@ -79,8 +79,8 @@ impl NuveiAuthType {
         format!("{:x}", hasher.finalize())
     }
 
-    pub fn get_timestamp(
-    ) -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
+    pub fn get_timestamp()
+    -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
         // Generate timestamp in YYYYMMDDHHmmss format using common_utils date_time
         common_utils::date_time::DateTime::from(common_utils::date_time::now())
     }
@@ -1010,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 }
             }
@@ -1074,7 +1074,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 }
             }
@@ -1098,7 +1098,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 };
 
@@ -1129,7 +1129,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Payment method not supported by Nuvei in this transformer".to_string(),
                     Default::default(),
                 )
-                .into())
+                .into());
             }
         };
 
@@ -2687,7 +2687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector: "nuvei",
                     context: Default::default(),
                 }
-                .into())
+                .into());
             }
         };
 

@@ -664,7 +664,7 @@ pub struct ImerchantsolutionsPaymentsResponseData {
     merchant_reference: Option<String>,
     amount: AmountDetails,
     result_code: ResultCode,
-    status: ImerchantsolutionsPaymentStatus,
+    pub status: ImerchantsolutionsPaymentStatus,
     additional_data: Option<AdditionalData>,
     capture_mode: Option<CaptureMode>,
     capture_delay_hours: Option<i32>,
@@ -1050,7 +1050,7 @@ pub struct ImerchantsolutionsPSyncResponseData {
     capture_closed: Option<bool>,
     captures: Vec<Captures>,
     currency: Currency,
-    status: ImerchantsolutionsPaymentStatus,
+    pub status: ImerchantsolutionsPaymentStatus,
     capture_mode: CaptureMode,
     captured_at: Option<String>,
     can_capture: bool,
@@ -1384,7 +1384,7 @@ pub struct ImerchantsolutionsVoidResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    status: ImerchantsolutionsVoidStatus,
+    pub status: ImerchantsolutionsVoidStatus,
     message: Option<String>,
 }
 
@@ -1500,7 +1500,7 @@ pub struct ImerchantsolutionsCaptureResponseData {
     captured_amount: Option<MinorUnit>,
     total_captured: Option<MinorUnit>,
     currency: Currency,
-    status: ImerchantsolutionsCaptureStatus,
+    pub status: ImerchantsolutionsCaptureStatus,
     capture_closed: Option<bool>,
     final_capture: Option<bool>,
     remainder_released: Option<RemainderReleased>,
@@ -1603,7 +1603,7 @@ pub struct ImerchantsolutionsRefundResponseData {
     refunded_amount: MinorUnit,
     total_refunded: MinorUnit,
     currency: Currency,
-    status: ImerchantsolutionsRefundStatus,
+    pub status: ImerchantsolutionsRefundStatus,
     message: Option<String>,
 }
 
@@ -1667,7 +1667,7 @@ pub struct ImerchantsolutionsRsyncResponseData {
     total_refunded: Option<MinorUnit>,
     remaining_amount: Option<MinorUnit>,
     currency: Currency,
-    status: ImerchantsolutionsRefundStatus,
+    pub status: ImerchantsolutionsRefundStatus,
     can_refund: bool,
     refunds: Vec<Refunds>,
 }

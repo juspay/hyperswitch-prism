@@ -77,6 +77,12 @@ domain_types::impl_flow_status_mapping! {
     params:          [verdict, is_auto_capture],
     success: Success => [Charged, Authorized],
     failure: Failure => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: EtisalatResponse,
+        source:   |response| etisalat::EtisalatResponseVerdict::from(&response.transaction),
+        context:  |request, _response| request.is_auto_capture(),
+    },
     {
         use common_enums::AttemptStatus;
         use etisalat::EtisalatResponseVerdict;
@@ -126,6 +132,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    etisalat::EtisalatResponseVerdict,
     success:   Success => Success,
     failure:   Failure => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: EtisalatResponse,
+        source:   |response| etisalat::EtisalatResponseVerdict::from(&response.transaction),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
     }
@@ -144,6 +156,12 @@ domain_types::impl_flow_status_mapping! {
     source:    etisalat::EtisalatResponseVerdict,
     success:   Success => Voided,
     failure:   Failure => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: EtisalatResponse,
+        source:   |response| etisalat::EtisalatResponseVerdict::from(&response.transaction),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
     }
@@ -163,6 +181,12 @@ domain_types::impl_flow_status_mapping! {
     source:    etisalat::EtisalatResponseVerdict,
     success:   Success => Charged,
     failure:   Failure => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: EtisalatResponse,
+        source:   |response| etisalat::EtisalatResponseVerdict::from(&response.transaction),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
     }

@@ -956,12 +956,22 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Approved => [Authorized, Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: FiservcommercehubAuthorizeResponse,
+        source:   |response| response.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
 
+// NOTE: skipped extractors — the PSync response (`FiservcommercehubPSyncResponse`)
+// is a Vec wrapper and the TryFrom's status lookup is fallible (empty list →
+// deserialization error), so no infallible `fn(&Response) -> Source` extractor can
+// express it.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
@@ -986,6 +996,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Approved => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: FiservcommercehubCaptureResponse,
+        source:   |response| response.0.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         common_enums::AttemptStatus::from(&status)
@@ -1001,6 +1017,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Cancelled => [Voided],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentVoidData,
+        response: FiservcommercehubVoidResponse,
+        source:   |response| response.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         common_enums::AttemptStatus::from(&status)
@@ -1016,6 +1038,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Approved => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: FiservcommercehubRepeatResponse,
+        source:   |response| response.0.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         common_enums::AttemptStatus::from(&status)
@@ -1031,6 +1059,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Approved => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: FiservcommercehubSetupMandateResponse,
+        source:   |response| response.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         match status {
@@ -1051,12 +1085,22 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: Approved => Success,
     failure: Declined => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: FiservcommercehubRefundResponse,
+        source:   |response| response.gateway_response.transaction_state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         common_enums::RefundStatus::from(&status)
     }
 }
 
+// NOTE: skipped extractors — the RSync response (`FiservcommercehubRSyncResponse`)
+// is a Vec wrapper and the TryFrom's status lookup is fallible (empty list →
+// deserialization error), so no infallible `fn(&Response) -> Source` extractor can
+// express it.
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,

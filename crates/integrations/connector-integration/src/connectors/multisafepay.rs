@@ -450,6 +450,12 @@ domain_types::impl_flow_status_mapping! {
     source:    multisafepay::MultisafepayPaymentStatus,
     success:   Completed  => Charged,
     failure:   Declined   => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: MultisafepayPaymentsResponse,
+        source: |response| response.data.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Initialized => AuthenticationPending,
         Uncleared   => Pending,
@@ -467,6 +473,12 @@ domain_types::impl_flow_status_mapping! {
     source:    multisafepay::MultisafepayPaymentStatus,
     success:   Completed  => Charged,
     failure:   Declined   => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: MultisafepayPaymentsSyncResponse,
+        source: |response| response.data.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Initialized => AuthenticationPending,
         Uncleared   => Pending,
@@ -488,6 +500,18 @@ domain_types::impl_refund_flow_status_mapping! {
     params:         [verdict, ctx],
     success: Succeeded => Success,
     failure: Failed => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: MultisafepayRefundResponse,
+        source: |response| {
+            if response.success {
+                multisafepay::MultisafepayRefundVerdict::Succeeded
+            } else {
+                multisafepay::MultisafepayRefundVerdict::Failed
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use common_enums::RefundStatus;
@@ -511,6 +535,18 @@ domain_types::impl_refund_flow_status_mapping! {
     params:         [verdict, ctx],
     success: Succeeded => Success,
     failure: Failed => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: MultisafepayRefundSyncResponse,
+        source: |response| {
+            if response.success {
+                multisafepay::MultisafepayRefundVerdict::Succeeded
+            } else {
+                multisafepay::MultisafepayRefundVerdict::Failed
+            }
+        },
+        context: |_request, _response| (),
+    },
     {
         let _ = ctx;
         use common_enums::RefundStatus;
