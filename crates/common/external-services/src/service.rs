@@ -1507,7 +1507,6 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
     let connector_host = url.host_str().unwrap_or("unknown").to_string();
-    let connector_port = url.port_or_known_default();
 
     let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
 
@@ -1682,10 +1681,9 @@ pub async fn call_connector_api(
     if retried {
         #[cfg(feature = "otel")]
         crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
-        crate::http_client::log_tcp_socket_snapshot(&connector_host, connector_port);
         tracing::info!(
             connector = %connector_host,
-            "Auto-retried request due to connection closed before message completed (on a fresh connection)"
+            "Auto-retried request due to connection closed before message completed"
         );
     }
 
