@@ -93,9 +93,11 @@ async fn send_request_with_client(
     client: &reqwest::Client,
     request: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, Report<ApiClientError>> {
-    let request = request.build().map_err(|error| {
+    // Static message: `build()` errors can embed header values (auth
+    // signatures, cert-derived material); never string them into the report.
+    let request = request.build().map_err(|_error| {
         report!(ApiClientError::RequestNotSent(
-            error.without_url().to_string()
+            "failed to build connector request".to_string()
         ))
     })?;
     client.execute(request).await.map_err(map_reqwest_error)
@@ -107,9 +109,18 @@ fn map_reqwest_error(error: reqwest::Error) -> Report<ApiClientError> {
         error if is_connection_closed_before_message_could_complete(&error) => {
             ApiClientError::ConnectionClosedIncompleteMessage
         }
-        // Strip the URL so credentials carried in the query string never
-        // reach the error logs.
-        _ => ApiClientError::RequestNotSent(error.without_url().to_string()),
+        // Never string-passthrough the error: reqwest's message can embed
+        // request content (headers, query strings, cert-derived material).
+        // Report only a static classification by error kind.
+        error if error.is_connect() => ApiClientError::RequestNotSent("connect error".to_string()),
+        error if error.is_builder() => {
+            ApiClientError::RequestNotSent("client build error".to_string())
+        }
+        error if error.is_request() => ApiClientError::RequestNotSent("request error".to_string()),
+        error if error.is_redirect() => {
+            ApiClientError::RequestNotSent("redirect error".to_string())
+        }
+        _ => ApiClientError::RequestNotSent("request could not be sent".to_string()),
     };
     report!(api_error)
 }
@@ -243,6 +254,26 @@ mod tests {
             factory_called.load(Ordering::SeqCst),
             0,
             "the fresh client must only be built when a retry is actually needed"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_error_maps_to_static_string_without_raw_error_text() {
+        // Port 9 (discard) is not listening: connect refused every time.
+        let error = reqwest::Client::new()
+            .get("http://127.0.0.1:9/")
+            .send()
+            .await
+            .unwrap_err();
+        let mapped = map_reqwest_error(error);
+        assert_eq!(
+            mapped.current_context(),
+            &ApiClientError::RequestNotSent("connect error".to_string())
+        );
+        let debug = format!("{:?}", mapped);
+        assert!(
+            !debug.contains("refused") && !debug.contains("http://"),
+            "raw error text/URL must never flow into the report: {debug}"
         );
     }
 
