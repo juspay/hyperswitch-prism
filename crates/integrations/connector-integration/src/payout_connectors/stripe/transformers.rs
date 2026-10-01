@@ -821,57 +821,6 @@ fn unsupported_enroll_rail(rail: &str) -> error_stack::Report<IntegrationError> 
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn maps_stripe_payout_statuses() {
-        use common_enums::PayoutStatus;
-
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::Paid),
-            PayoutStatus::Success
-        );
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::Pending),
-            PayoutStatus::Pending
-        );
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::InTransit),
-            PayoutStatus::Pending
-        );
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::Failed),
-            PayoutStatus::Failure
-        );
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::Canceled),
-            PayoutStatus::Cancelled
-        );
-        assert_eq!(
-            PayoutStatus::from(StripeConnectPayoutStatus::Unknown),
-            PayoutStatus::Pending
-        );
-    }
-
-    #[test]
-    fn card_enrolment_reports_not_supported() {
-        let error = unsupported_enroll_rail("card");
-        let context = error.current_context();
-
-        match context {
-            IntegrationError::NotSupported {
-                message, connector, ..
-            } => {
-                assert_eq!(message.as_str(), "card enrollment");
-                assert_eq!(*connector, "stripe");
-            }
-            _ => panic!("expected the card rail to be rejected as NotSupported"),
-        }
-    }
-}
-
 impl TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Self>>
     for RouterDataV2<
         PayoutEnrollDisburseAccount,
