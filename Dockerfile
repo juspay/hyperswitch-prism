@@ -4,7 +4,22 @@
 ########################################
 # 1. Base image with necessary tools
 ########################################
-FROM public.ecr.aws/docker/library/rust:slim-bookworm AS base
+# build-time probe: cargo-chef/sccache are compiled on the current toolchain and copied in,
+# so the pinned older toolchain below only affects the measured cook/build steps.
+FROM public.ecr.aws/docker/library/rust:slim-bookworm AS tools
+RUN apt-get update \
+    && apt-get install -y \
+       pkg-config \
+       libssl-dev \
+       g++ \
+       make \
+       perl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=tools /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/sccache /usr/local/cargo/bin/
+RUN rustc --version && cargo --version
+
+FROM public.ecr.aws/docker/library/rust:1.97-slim-bookworm AS base
 
 # Install system dependencies and clean up
 RUN apt-get update \
