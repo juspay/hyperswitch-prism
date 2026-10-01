@@ -7831,21 +7831,21 @@ pub(crate) fn get_dispute_stage_and_status(
 > {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
+    // Stage and status mirror HS direct Adyen behavior:
+    // - stage: `impl From<WebhookEventCode> for DisputeStage` in the
+    //   hyperswitch Adyen connector (PreDispute is never produced there)
+    // - status: the dispute event produced by `get_adyen_webhook_event`,
+    //   which HS core converts 1:1 into `DisputeStatus`
     match code {
+        // Stage::Dispute
         WebhookEventCode::NotificationOfChargeback => {
-            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
-                Some(DisputeStatus::Undefended) | Some(DisputeStatus::Pending) => {
-                    HSDisputeStatus::DisputeOpened
-                }
+                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
-                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
-                Some(DisputeStatus::Responded)
-                | Some(DisputeStatus::Expired)
-                | Some(DisputeStatus::Unresponded) => HSDisputeStatus::DisputeOpened,
                 Some(DisputeStatus::Unknown) => {
                     return Err(
                         error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
@@ -7855,6 +7855,21 @@ pub(crate) fn get_dispute_stage_and_status(
                             ),
                     );
                 }
+                Some(_) => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::RequestForInformation => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Expired) => HSDisputeStatus::DisputeExpired,
+                _ => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::InformationSupplied => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Responded) => HSDisputeStatus::DisputeChallenged,
+                _ => HSDisputeStatus::DisputeOpened,
             };
             Ok((DisputeStage::Dispute, status))
         }
@@ -7872,27 +7887,50 @@ pub(crate) fn get_dispute_stage_and_status(
             };
             Ok((DisputeStage::Dispute, status))
         }
+        WebhookEventCode::DisputeDefensePeriodEnded => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
+                _ => HSDisputeStatus::DisputeLost,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::IssuerResponseTimeframeExpired => {
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeWon))
+        }
+        // Stage::PreArbitration
         WebhookEventCode::SecondChargeback => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
-            if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(
-                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
-                        "Received unknown Adyen dispute status in PrearbitrationWon event",
-                    ),
-                );
-            }
-            let status = match dispute_status {
-                Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
-                _ => HSDisputeStatus::DisputeWon,
-            };
-            Ok((DisputeStage::PreArbitration, status))
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
         }
         WebhookEventCode::PrearbitrationLost => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeOpened))
+        }
+        WebhookEventCode::PrearbitrationAccepted => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeAccepted))
+        }
+        WebhookEventCode::PrearbitrationDeclined => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeChallenged))
+        }
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
+        }
+        WebhookEventCode::SchemeArbitrationLost => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
+        }
+        // Dispute stage/status must only be resolved for dispute events;
+        // refuse to guess for anything else.
+        _ => Err(error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(
+            format!(
+                "Received non-dispute Adyen webhook event code {code:?}; \
+                 cannot resolve dispute stage and status"
+            ),
+        )),
     }
 }
 
