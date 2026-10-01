@@ -551,10 +551,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-/// The `AU*`/`TR*` id-prefix split the payment TryFroms (`Authorize`, `PSync`,
+/// The `AU*`/`TR*` id-prefix split the payment TryFrom impls (`Authorize`, `PSync`,
 /// `RepeatPayment`) key their `FinixId`-vs-`FinixPaymentStatus` matrix on.
 /// Extracted as its own type so the `impl_flow_status_mapping!` context is
-/// the same semantically-true discriminant the TryFroms match on — the
+/// the same semantically-true discriminant the TryFrom impls match on — the
 /// `Author` (authorization, `AU*`) vs `Transfer` (capture/debit, `TR*`)
 /// distinction — rather than the raw id string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

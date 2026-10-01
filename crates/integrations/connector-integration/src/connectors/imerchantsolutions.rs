@@ -734,7 +734,6 @@ domain_types::impl_flow_status_mapping! {
         request:  PaymentsAuthorizeData<T>,
         response: ImerchantsolutionsPaymentsResponseData,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Authorised         => Authorized,
@@ -767,7 +766,6 @@ domain_types::impl_flow_status_mapping! {
         request:  RepeatPaymentData<T>,
         response: ImerchantsolutionsRepeatPaymentResponse,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Authorised         => Authorized,
@@ -795,8 +793,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      PSync,
     source:    imerchantsolutions::ImerchantsolutionsStatusSource,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
     extractors: {
@@ -810,7 +807,6 @@ domain_types::impl_flow_status_mapping! {
                 imerchantsolutions::ImerchantsolutionsStatusSource::Webhook(r.status.clone())
             }
         },
-        context: |_request, _response| (),
     },
     {
         use common_enums::AttemptStatus;
@@ -852,15 +848,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      Void,
     source:    imerchantsolutions::ImerchantsolutionsVoidStatus,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Voided],
     failure: none,
     extractors: {
         request:  PaymentVoidData,
         response: ImerchantsolutionsVoidResponseData,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::AttemptStatus;
@@ -881,15 +875,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      Capture,
     source:    imerchantsolutions::ImerchantsolutionsCaptureStatus,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Charged, PartialCharged],
     failure: none,
     extractors: {
         request:  PaymentsCaptureData,
         response: ImerchantsolutionsCaptureResponseData,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::AttemptStatus;
@@ -913,15 +905,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      Refund,
     source:    imerchantsolutions::ImerchantsolutionsRefundStatus,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request:  RefundsData,
         response: ImerchantsolutionsRefundResponseData,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;
@@ -945,8 +935,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      RSync,
     source:    imerchantsolutions::ImerchantsolutionsRefundStatusSource,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Success],
     failure: none,
     extractors: {
@@ -960,7 +949,6 @@ domain_types::impl_refund_flow_status_mapping! {
                 imerchantsolutions::ImerchantsolutionsRefundStatusSource::Webhook(r.status.clone())
             }
         },
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;

@@ -61,11 +61,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Helcim<T>
 {
 }
-// All four payment TryFroms (Authorize, PSync, Capture, Void — transformers.rs:302,
+// All four payment TryFrom impls (Authorize, PSync, Capture, Void — transformers.rs:302,
 // 336, 441, 518) route through the *same* shared
 // `From<HelcimPaymentsResponse> for AttemptStatus` (transformers.rs:234), whose
 // verdict is the `(transaction_type, status)` pair. The ctx is
-// `HelcimTransactionType`, the enum the TryFroms match on; the default
+// `HelcimTransactionType`, the enum the TryFrom impls match on; the default
 // (`Purchase`) makes `success_connector_status()` map to the purchase path's
 // `Charged` — the flow each TryFrom legitimately terminates in.
 domain_types::impl_flow_status_mapping! {

@@ -454,7 +454,6 @@ domain_types::impl_flow_status_mapping! {
         request:  PaymentsAuthorizeData<T>,
         response: MultisafepayPaymentsResponse,
         source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Initialized => AuthenticationPending,
@@ -477,7 +476,6 @@ domain_types::impl_flow_status_mapping! {
         request:  PaymentsSyncData,
         response: MultisafepayPaymentsSyncResponse,
         source: |response| response.data.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Initialized => AuthenticationPending,
@@ -489,15 +487,13 @@ domain_types::impl_flow_status_mapping! {
 // Refund — mirrors the Refund TryFrom (transformers.rs:1090): the response carries only a
 // `success: bool` flag, folded into `MultisafepayRefundStatus::{Succeeded, Failed}` and
 // mapped by `From<MultisafepayRefundStatus> for RefundStatus` (transformers.rs:533).
-// `Processing` is unreachable here (that variant exists for the webhook path). The
-// `()` context is unused; the `_ctx` variant only gives the verdict enum a wildcard arm.
+// `Processing` is unreachable here (that variant exists for the webhook path).
 domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Multisafepay<T>,
     flow:           Refund,
     source:         multisafepay::MultisafepayRefundVerdict,
-    context:        (),
-    params:         [verdict, ctx],
+    params:         [verdict],
     success: Succeeded => Success,
     failure: Failed => Failure,
     extractors: {
@@ -510,10 +506,8 @@ domain_types::impl_refund_flow_status_mapping! {
                 multisafepay::MultisafepayRefundVerdict::Failed
             }
         },
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use multisafepay::MultisafepayRefundVerdict;
         match verdict {
@@ -531,8 +525,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Multisafepay<T>,
     flow:           RSync,
     source:         multisafepay::MultisafepayRefundVerdict,
-    context:        (),
-    params:         [verdict, ctx],
+    params:         [verdict],
     success: Succeeded => Success,
     failure: Failed => Failure,
     extractors: {
@@ -545,10 +538,8 @@ domain_types::impl_refund_flow_status_mapping! {
                 multisafepay::MultisafepayRefundVerdict::Failed
             }
         },
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use multisafepay::MultisafepayRefundVerdict;
         match verdict {

@@ -1052,7 +1052,7 @@ pub struct JpmorganOrbitalInquiryResponse(pub JpmorganOrbitalPaymentsResponse);
 // `procStatus` / `approvalStatus` code pairs), so each flow boils those down to a
 // binary verdict enum, extracted by the functions below from the deserialized
 // response. These are status-mapping views only — `to_outcome` is wired into the
-// flow macros; the TryFroms keep reading the raw code pairs.
+// flow macros; the TryFrom impls keep reading the raw code pairs.
 
 /// The Authorize (`/payments`) terminal verdict, equivalent to `is_success()`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -831,7 +831,7 @@ macros::macro_connector_implementation!(
 /// mapping keeps `Other`/extracted fallback free of the request-dependent
 /// split).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum NmiVerdictPatch {
+pub enum NmiVerdictPatch {
     None,
     SetApprovedSale,
     SetApprovedAuth,

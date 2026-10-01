@@ -738,18 +738,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Authorize,
     source: moneris::MonerisPaymentStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Succeeded => [Charged, Authorized],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: MonerisAuthorizeResponse,
         source: |response| response.payment_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(status)
     }
 }
@@ -818,18 +815,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: PSync,
     source: moneris::MonerisPaymentStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Succeeded => [Charged, Authorized, Voided],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentsSyncData,
         response: MonerisPaymentSyncResponse,
         source: |response| response.payment_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(status)
     }
 }
@@ -839,18 +833,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: RepeatPayment,
     source: moneris::MonerisPaymentStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Succeeded => [Charged],
     failure: Declined => Failure,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: MonerisRepeatPaymentResponse,
         source: |response| response.payment_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(status)
     }
 }
@@ -860,18 +851,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Void,
     source: moneris::MonerisPaymentStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Canceled => [Voided],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentVoidData,
         response: MonerisPaymentVoidResponse,
         source: |response| response.payment_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(status)
     }
 }
@@ -901,18 +889,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Refund,
     source: moneris::MonerisRefundStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Succeeded => Success,
     failure: Declined => Failure,
     extractors: {
         request:  RefundsData,
         response: MonerisRefundResponse,
         source: |response| response.refund_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::RefundStatus::from(status)
     }
 }
@@ -922,18 +907,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Moneris<T>,
     flow: RSync,
     source: moneris::MonerisRefundStatus,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Succeeded => Success,
     failure: Declined => Failure,
     extractors: {
         request:  RefundSyncData,
         response: MonerisRefundSyncResponse,
         source: |response| response.refund_status.clone(),
-        context: |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::RefundStatus::from(status)
     }
 }

@@ -789,7 +789,6 @@ domain_types::impl_flow_status_mapping! {
     },
     {
         use common_enums::AttemptStatus;
-        let _ = ctx;
         match status {
             nexinets::NexinetsPaymentStatus::Success => AttemptStatus::Charged,
             // Ok: capture accepted, settlement still in flight.
@@ -824,7 +823,6 @@ domain_types::impl_flow_status_mapping! {
     },
     {
         use common_enums::AttemptStatus;
-        let _ = ctx;
         match status {
             nexinets::NexinetsPaymentStatus::Success => AttemptStatus::Voided,
             nexinets::NexinetsPaymentStatus::Ok
@@ -868,7 +866,6 @@ domain_types::impl_flow_status_mapping! {
     },
     {
         use common_enums::AttemptStatus;
-        let _ = ctx;
         match status {
             // Preauth-context Success/Ok → get_status gives Authorized, promoted to Charged.
             nexinets::NexinetsPaymentStatus::Success
@@ -959,7 +956,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundsData,
         response: NexinetsRefundResponse,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Declined   => Failure,
@@ -981,7 +977,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundSyncData,
         response: RefundSyncResponse,
         source: |response| response.status.clone(),
-        context: |_request, _response| (),
     },
     {
         Declined   => Failure,
