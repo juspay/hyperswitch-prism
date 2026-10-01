@@ -496,6 +496,138 @@ macro_rules! __impl_runtime_refund_status_mapping {
 /// both are in `Authorize::TERMINAL_SUCCESS_SET`.
 #[macro_export]
 macro_rules! impl_flow_status_mapping {
+    // ── no-context statusless mapping with runtime extractors ───────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: |_request, _response| (),
+            },
+            $body
+        }
+    };
+
+    // ── no-context statusless mapping ───────────────────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            $body
+        }
+    };
+
+    // ── no-context enum/status mapping with runtime extractors ──────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => [ $($success_target:ident),+ $(,)? ],
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_status: $success_variant,
+            success_targets: [$($success_target),+],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: |_request, _response| (),
+            },
+            $body
+        }
+    };
+
+    // ── no-context enum/status mapping ──────────────────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => [ $($success_target:ident),+ $(,)? ],
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        $body:block
+    ) => {
+        $crate::__impl_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_status: $success_variant,
+            success_targets: [$($success_target),+],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            $body
+        }
+    };
+
     // ── context-aware statusless mapping with runtime extractors ─────────
     (
         $(generics: [$($generic:tt)*],)?
@@ -1476,6 +1608,138 @@ macro_rules! assert_terminal_mapping {
 /// ```
 #[macro_export]
 macro_rules! impl_refund_flow_status_mapping {
+    // ── no-context statusless mapping with runtime extractors ───────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: |_request, _response| (),
+            },
+            $body
+        }
+    };
+
+    // ── no-context statusless mapping ───────────────────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_targets: [$($success_target),+],
+            failure_targets: [],
+            $body
+        }
+    };
+
+    // ── no-context enum/status mapping with runtime extractors ──────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   $source_from:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_status: $success_variant,
+            success_targets: [$success_target],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: $source_from,
+                context: |_request, _response| (),
+            },
+            $body
+        }
+    };
+
+    // ── no-context enum/status mapping ──────────────────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        $body:block
+    ) => {
+        $crate::__impl_refund_flow_status_mapping_ctx! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: (),
+            params: [$status_name, _ctx],
+            success_status: $success_variant,
+            success_targets: [$success_target],
+            failure_status: $failure_variant,
+            failure_target: $failure_target,
+            $body
+        }
+    };
+
     // ── context-aware statusless mapping with runtime extractors ─────────
     (
         $(generics: [$($generic:tt)*],)?
