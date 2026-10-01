@@ -553,7 +553,7 @@ domain_types::impl_refund_flow_status_mapping! {
     success: Approved => Success,
     failure: NotReceived => Failure,
     {
-        let _ = ctx;
+        ctx;
         match status {
             citigate::CitigatePostAuthStatus::Approved => common_enums::RefundStatus::Success,
             citigate::CitigatePostAuthStatus::NotReceived => common_enums::RefundStatus::Failure,
