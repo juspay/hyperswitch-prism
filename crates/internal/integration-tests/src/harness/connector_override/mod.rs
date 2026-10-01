@@ -284,6 +284,15 @@ fn signature_context<'a>(
                 .and_then(Value::as_str),
             ..Default::default()
         },
+        // Airwallex signs `x-timestamp ++ body`; the timestamp comes from the
+        // fixture's own header so the signature matches what the connector reads.
+        "airwallex" => crate::webhook_signatures::SignatureContext {
+            timestamp: grpc_req
+                .pointer("/request_details/headers/x-timestamp")
+                .and_then(Value::as_str)
+                .and_then(|ts| ts.parse::<i64>().ok()),
+            ..Default::default()
+        },
         _ => crate::webhook_signatures::SignatureContext::default(),
     }
 }

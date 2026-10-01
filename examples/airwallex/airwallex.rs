@@ -20,6 +20,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_order",
     "create_server_authentication_token",
     "get",
+    "parse_event",
     "proxy_authorize",
     "refund",
     "refund_get",
@@ -170,6 +171,33 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             ..Default::default()
         }),
         ..Default::default()
+    }
+}
+
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_100_2019102201549020043_8321220011893766\",\"name\":\"payment_intent.succeeded\",\"accountId\":\"78814faa-1b30-4598-a9c8-f0583db8d09d\",\"data\":{\"object\":{\"request_id\":\"d6a92e2a-02e5-c37b-c977-13796ec7443a\",\"id\":\"int_aaaat9w2hgh8mzi1111\",\"merchant_order_id\":\"0000000000\",\"amount\":16.66,\"currency\":\"USD\",\"captured_amount\":16.66,\"status\":\"SUCCEEDED\",\"created_at\":\"2023-01-13T07:32:05+0000\",\"updated_at\":\"2023-01-13T07:32:05+0000\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_100_2019102201549020043_8321220011893766\",\"name\":\"payment_intent.succeeded\",\"accountId\":\"78814faa-1b30-4598-a9c8-f0583db8d09d\",\"data\":{\"object\":{\"request_id\":\"d6a92e2a-02e5-c37b-c977-13796ec7443a\",\"id\":\"int_aaaat9w2hgh8mzi1111\",\"merchant_order_id\":\"0000000000\",\"amount\":16.66,\"currency\":\"USD\",\"captured_amount\":16.66,\"status\":\"SUCCEEDED\",\"created_at\":\"2023-01-13T07:32:05+0000\",\"updated_at\":\"2023-01-13T07:32:05+0000\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -547,6 +575,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -607,11 +645,12 @@ async fn main() {
             process_create_server_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_order, process_create_server_authentication_token, process_get, process_proxy_authorize, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_order, process_create_server_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_refund_get, process_void", flow);
             return;
         }
     };

@@ -2,6 +2,22 @@
 #![allow(clippy::uninlined_format_args)]
 #![allow(legacy_derive_helpers)]
 
+pub(crate) mod masking_serde {
+    use hyperswitch_masking::Secret;
+    use serde::Serializer;
+
+    pub fn secret_string<S: Serializer>(value: &str, s: S) -> Result<S::Ok, S::Error> {
+        serde::Serialize::serialize(&Secret::<String>::new(value.to_owned()), s)
+    }
+
+    pub fn optional_secret_string<S: Serializer>(
+        value: &Option<String>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        serde::Serialize::serialize(&value.clone().map(Secret::<String>::new), s)
+    }
+}
+
 pub const FILE_DESCRIPTOR_SET: &[u8] =
     tonic::include_file_descriptor_set!("connector_service_descriptor");
 
