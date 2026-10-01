@@ -100,7 +100,51 @@ def load_source(connector, src_dir):
 
 
 
-def _variants(body):
+def _words(ident):
+    """Split a Rust identifier into lowercase words. Handles snake_case fields and
+    PascalCase variants, plus acronym runs (`dsTransID` -> ds, trans, id)."""
+    parts = []
+    for seg in ident.split("_"):
+        if not seg:
+            continue
+        parts += [w for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+", seg) if w]
+    return [w.lower() for w in parts]
+
+
+def _rename(ident, style):
+    """Apply a serde `rename_all` style to an identifier, as serde does.
+
+    `lowercase`/`UPPERCASE` are literal case changes on the identifier; every other
+    style is rebuilt from the identifier's words. Omitting this made the parser read
+    `three_ds_version` where serde emits `threeDsVersion` -- and `rename_all` appears
+    ~2,200 times in the connectors tree, so the wire names would simply not match the
+    capability table and the gate would find nothing to check.
+    """
+    if not style:
+        return ident
+    if style == "lowercase":
+        return ident.lower()
+    if style == "UPPERCASE":
+        return ident.upper()
+    w = _words(ident)
+    if not w:
+        return ident
+    if style == "snake_case":
+        return "_".join(w)
+    if style == "SCREAMING_SNAKE_CASE":
+        return "_".join(w).upper()
+    if style == "kebab-case":
+        return "-".join(w)
+    if style == "SCREAMING-KEBAB-CASE":
+        return "-".join(w).upper()
+    if style == "PascalCase":
+        return "".join(x.capitalize() for x in w)
+    if style == "camelCase":
+        return w[0] + "".join(x.capitalize() for x in w[1:])
+    return ident
+
+
+def _variants(body, style=None):
     """Wire names of an enum's variants, independent of line layout.
 
     Splits on top-level commas, so `A, B` and one-per-line both parse. A
@@ -119,15 +163,15 @@ def _variants(body):
             if ren:
                 names.add(ren.group(1))
             elif ident:
-                names.add(snake(ident.group(1)))
+                names.add(_rename(ident.group(1), style or "snake_case"))
             chunk = []
         else:
             chunk.append(ch)
     return names
 
 
-def _wire_fields(body):
-    """Wire names of a struct's fields: a serde rename wins, else the field name."""
+def _wire_fields(body, style=None):
+    """Wire names of a struct's fields: a per-field rename wins, else rename_all."""
     names = set()
     for chunk in re.split(r",\s*(?=(?:#\[|pub\b))", body):
         ren = re.search(r'rename\s*=\s*"([^"]+)"', chunk)
@@ -135,18 +179,24 @@ def _wire_fields(body):
         if ren:
             names.add(ren.group(1))
         elif fld:
-            names.add(fld.group(1))
+            names.add(_rename(fld.group(1), style))
     return names
 
 
 def _blocks(src, kind):
-    """(name, body) for every `<kind> <name> { ... }` in src, brace-matched."""
+    """(name, body, rename_all) for every `<kind> <name> { ... }`, brace-matched.
+
+    rename_all is read from the derive attributes immediately preceding the header.
+    """
     for m in re.finditer(r"\b" + kind + r"\s+([A-Z][A-Za-z0-9_]*)\b[^{;]*\{", src):
         depth, i = 1, m.end()
         while i < len(src) and depth:
             depth += {"{": 1, "}": -1}.get(src[i], 0)
             i += 1
-        yield m.group(1), src[m.end():i - 1]
+        head = src[max(0, m.start() - 400):m.start()]
+        head = head[head.rfind("}") + 1:]          # stay inside this item's attributes
+        styles = re.findall(r'rename_all\s*=\s*"([^"]+)"', head)
+        yield m.group(1), src[m.end():i - 1], (styles[-1] if styles else None)
 
 
 def emittable_types(sources, type_keys):
@@ -160,8 +210,8 @@ def emittable_types(sources, type_keys):
     """
     types, where = set(), set()
     for path, src in sources.items():
-        for name, body in _blocks(src, "enum"):
-            variants = _variants(body)
+        for name, body, style in _blocks(src, "enum"):
+            variants = _variants(body, style)
             if variants & set(type_keys):
                 types |= variants
                 where.add("%s::%s" % (os.path.basename(path), name))
@@ -177,8 +227,8 @@ def emitted_options(sources, vocab):
     """
     names, where = set(), set()
     for path, src in sources.items():
-        for name, body in _blocks(src, "struct"):
-            fields = _wire_fields(body)
+        for name, body, style in _blocks(src, "struct"):
+            fields = _wire_fields(body, style)
             if fields & set(vocab):
                 names |= fields
                 where.add("%s::%s" % (os.path.basename(path), name))
@@ -343,6 +393,21 @@ def selftest():
     assert opts == {"3d_required", "avs_required"}, opts
     assert tys == {"in_amex_card", "in_credit_visa_card"}, tys
     assert ow and tw, (ow, tw)
+
+    # serde rename_all: the wire name is not the Rust field name. `rename_all` appears
+    # ~2,200 times in the connectors tree, so ignoring it meant the parser emitted
+    # snake_case names that matched no table and the gate quietly checked nothing.
+    cam = {"c.rs": strip_comments(
+        '#[serde(rename_all = "camelCase")]\n'
+        'pub struct O { pub three_ds_version: Option<String>, pub ds_trans_id: Option<String> }\n'
+        '#[serde(rename_all = "SCREAMING_SNAKE_CASE")]\n'
+        'enum T { InAmexCard }\n')}
+    assert emitted_options(cam, {"threeDsVersion"})[0] == {"threeDsVersion", "dsTransId"}
+    assert emittable_types(cam, {"IN_AMEX_CARD"})[0] == {"IN_AMEX_CARD"}
+    # A per-field rename still wins over the container style.
+    ovr = {"o.rs": '#[serde(rename_all = "camelCase")]\n'
+                   'pub struct O { #[serde(rename = "3d_required")] pub three_ds: bool }\n'}
+    assert emitted_options(ovr, {"3d_required"})[0] == {"3d_required"}
 
     # A connector that shares no vocabulary with the table anchors nothing. main()
     # turns this into SHP-03 + exit 2; it must never read as a silent pass.
