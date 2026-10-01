@@ -2336,6 +2336,7 @@ dependencies = [
  "lazy_static",
  "log_utils",
  "mime 0.3.17",
+ "native-tls",
  "once_cell",
  "opentelemetry",
  "prometheus",

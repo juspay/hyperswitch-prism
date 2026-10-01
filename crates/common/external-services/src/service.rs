@@ -1517,6 +1517,14 @@ pub async fn call_connector_api(
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 
+    // Cloned up front because `create_client` moves the certificate fields;
+    // used only if a retry on a fresh connection is needed.
+    let retry_certificates = (
+        request.certificate.clone(),
+        request.certificate_key.clone(),
+        request.ca_certificate.clone(),
+    );
+
     let client = create_client(
         proxy,
         should_bypass_proxy,
@@ -1658,7 +1666,22 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
+    // On "connection closed before message completed", the retry is sent over
+    // a NEW TCP connection: a fresh client owns a fresh pool, so nothing stale
+    // can be checked out. The fresh client is built lazily, only on the error.
+    let (response, retried) = crate::http_client::send_request_with_retry(request, move || {
+        let (cert, cert_key, ca_cert) = retry_certificates;
+        create_fresh_client(
+            proxy,
+            should_bypass_proxy,
+            proxy_name,
+            cert,
+            cert_key,
+            ca_cert,
+            test_mode,
+        )
+    })
+    .await;
 
     if retried {
         #[cfg(feature = "otel")]
@@ -1688,6 +1711,55 @@ pub fn create_client(
     ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        true,
+    )
+}
+
+/// Builds a brand-new client bypassing the shared client caches. The returned
+/// client owns a fresh connection pool, so its first request always dials a
+/// new TCP connection. Used as the retry client after a "connection closed
+/// before message completed" error: retrying through the shared pool risks
+/// checking out another equally stale keep-alive connection.
+pub fn create_fresh_client(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
+    test_mode: bool,
+) -> CustomResult<Client, ApiClientError> {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn create_client_impl(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
+    test_mode: bool,
+    use_client_cache: bool,
+) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder =
@@ -1713,7 +1785,13 @@ pub fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode),
+        _ if use_client_cache => {
+            get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode)
+        }
+        _ => get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?
+            .build()
+            .change_context(ApiClientError::ClientConstructionFailed)
+            .attach_printable("Failed to construct fresh client"),
     }
 }
 
