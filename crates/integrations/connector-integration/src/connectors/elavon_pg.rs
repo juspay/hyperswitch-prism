@@ -711,6 +711,16 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Captured => [Authorized, Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: ElavonPgTransactionResponse,
+        source:   |response| response.state,
+        context:  |request, response| (
+            response.is_authorized,
+            response.is_held_for_review.unwrap_or(false),
+            elavon_pg::resolve_auto_capture(response.do_capture, request.is_auto_capture(), &response.id),
+        ),
+    },
     {
         common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
             state: &status,
@@ -730,6 +740,16 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Captured => [Authorized, Charged, Voided],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: ElavonPgPsyncResponse,
+        source:   |response| response.state,
+        context:  |request, response| (
+            response.is_authorized,
+            response.is_held_for_review.unwrap_or(false),
+            elavon_pg::resolve_auto_capture(response.do_capture, request.is_auto_capture(), &response.id),
+        ),
+    },
     {
         common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
             state: &status,
@@ -749,6 +769,15 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Captured => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: ElavonPgCaptureResponse,
+        source:   |response| response.state,
+        context:  |_request, response| (
+            response.is_authorized,
+            response.is_held_for_review.unwrap_or(false),
+        ),
+    },
     {
         common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
             state: &status,
@@ -768,6 +797,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Authorized => [Voided],
     failure: Declined => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: ElavonPgVoidResponse,
+        source:   |response| response.state,
+        context:  |_request, response| response.is_authorized,
+    },
     {
         common_enums::AttemptStatus::from(elavon_pg::ElavonPgChildStatus {
             state: &status,
@@ -785,6 +820,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: Authorized => Success,
     failure: Declined => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: ElavonPgRefundResponse,
+        source:   |response| response.state,
+        context:  |_request, response| response.is_authorized,
+    },
     {
         common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
             state: &status,
@@ -802,6 +843,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: Authorized => Success,
     failure: Declined => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: ElavonPgRsyncResponse,
+        source:   |response| response.state,
+        context:  |_request, response| response.is_authorized,
+    },
     {
         common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
             state: &status,

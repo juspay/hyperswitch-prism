@@ -485,6 +485,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: STL => [Authorized, Charged],
     failure: PST => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: ElavonPSyncResponse,
+        source:   |response| response.ssl_trans_status.clone(),
+        context:  |_request, response| response.ssl_transaction_type.clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use elavon::{SyncTransactionType, TransactionSyncStatus};
@@ -518,6 +524,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: STL => Success,
     failure: PST => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: ElavonRSyncResponse,
+        source:   |response| response.ssl_trans_status.clone(),
+        context:  |_request, response| response.ssl_transaction_type.clone(),
+    },
     {
         use common_enums::RefundStatus;
         use elavon::{SyncTransactionType, TransactionSyncStatus};
@@ -535,6 +547,9 @@ domain_types::impl_refund_flow_status_mapping! {
     }
 }
 
+// NOTE: skipped extractors — the status-mapping context is the HTTP status
+// code (`u16` `http_code`), which lives alongside the response body rather
+// than in the request or response types, so no runtime extractor can supply it.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Elavon<T>,
@@ -549,6 +564,9 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
+// NOTE: skipped extractors — the status-mapping context is the HTTP status
+// code (`u16` `http_code`), which lives alongside the response body rather
+// than in the request or response types, so no runtime extractor can supply it.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Elavon<T>,
@@ -575,6 +593,9 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
+// NOTE: skipped extractors — the status-mapping context is the HTTP status
+// code (`u16` `http_code`), which lives alongside the response body rather
+// than in the request or response types, so no runtime extractor can supply it.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Elavon<T>,
@@ -598,6 +619,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request:  RefundsData,
+        response: ElavonRefundResponse,
+        source:   |response| response.result.clone(),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         match status {

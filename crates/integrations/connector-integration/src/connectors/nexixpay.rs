@@ -826,6 +826,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::NexixpayPaymentStatus,
     success:   Authorized   => Authorized,
     failure:   Failed       => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: NexixpayPaymentsResponse,
+        source: |response| response.operation.operation_result.clone(),
+        context: |_request, _response| (),
+    },
     {
         Declined         => Failure,
         DeniedByRisk     => Failure,
@@ -848,6 +854,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::NexixpayPaymentStatus,
     success:   Authorized   => Authorized,
     failure:   Failed       => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: NexixpaySyncResponse,
+        source: |response| response.operation_result.clone(),
+        context: |_request, _response| (),
+    },
     {
         Declined         => Failure,
         DeniedByRisk     => Failure,
@@ -936,6 +948,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::NexixpayPaymentStatus,
     success:   Executed    => Charged,
     failure:   Failed      => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: NexixpayRepeatPaymentResponse,
+        source: |response| response.operation.operation_result.clone(),
+        context: |_request, _response| (),
+    },
     {
         Declined         => Failure,
         DeniedByRisk     => Failure,
@@ -963,6 +981,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::NexixpayRefundResultStatus,
     success:   Refunded => Success,
     failure:   Failed   => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: NexixpayRSyncResponse,
+        source: |response| response.operation_result.clone(),
+        context: |_request, _response| (),
+    },
     {
         Executed => Success,
         Voided   => Success,

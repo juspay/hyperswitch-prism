@@ -139,6 +139,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MolliePaymentStatus,
     success:   Authorized => Authorized,
     failure:   Failed => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: MolliePaymentsResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Open => AuthenticationPending,
         Pending => Pending,
@@ -161,6 +167,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MolliePaymentStatus,
     success:   Paid => Charged,
     failure:   Failed => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: MolliePaymentsResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Open => AuthenticationPending,
         Pending => Pending,
@@ -220,6 +232,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MollieRefundStatus,
     success:   Refunded => Success,
     failure:   Failed => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: MollieRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Queued => Pending,
         Pending => Pending,
@@ -241,6 +259,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MollieRefundStatus,
     success:   Refunded => Success,
     failure:   Failed => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: MollieRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
     {
         Queued => Pending,
         Pending => Pending,

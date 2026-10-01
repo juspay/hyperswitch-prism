@@ -301,6 +301,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Approved => [Charged, Authorized],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |request, _response| transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::MerchantePaymentStatus;
@@ -332,6 +340,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, ctx],
     success: Approved => [Charged, Authorized],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |request, _response| transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::MerchantePaymentStatus;
@@ -361,6 +377,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MerchantePaymentStatus,
     success:   Approved => Charged,
     failure:   Declined => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -377,6 +399,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MerchantePaymentStatus,
     success:   Approved => Voided,
     failure:   Declined => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -393,6 +421,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MerchantePaymentStatus,
     success:   Approved => Success,
     failure:   Declined => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -409,6 +443,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    transformers::MerchantePaymentStatus,
     success:   Approved => Success,
     failure:   Declined => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -429,6 +469,14 @@ domain_types::impl_flow_status_mapping! {
     // always sent auto-capture in practice, so the Charged arm is canonical).
     success:         Approved => [Charged],
     failure:         Declined => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |request, _response| transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use transformers::MerchantePaymentStatus;
@@ -459,6 +507,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::MerchantePaymentStatus,
     success:   Approved => Charged,
     failure:   Declined => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: transformers::MerchantePaymentResponse,
+        source: |response| transformers::MerchantePaymentStatus::from(response),
+        context: |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

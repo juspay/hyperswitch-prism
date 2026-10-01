@@ -589,6 +589,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::JuspayOrderStatus,
     success:   Charged => Charged,
     failure:   AuthorizationFailed => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: transformers::JuspayAuthorizeResponse,
+        source: |response| response.status,
+        context: |_request, _response| (),
+    },
     {
         New => Started,
         Created => Started,
@@ -623,6 +629,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::JuspayOrderStatus,
     success:   Charged => Charged,
     failure:   AuthorizationFailed => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: transformers::JuspayOrderStatusResponse,
+        source: |response| response.status,
+        context: |_request, _response| (),
+    },
     {
         New => Started,
         Created => Started,
@@ -660,6 +672,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::JuspayOrderStatus,
     success:   Charged => Charged,
     failure:   CaptureFailed => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: transformers::JuspayCaptureResponse,
+        source: |response| response.status,
+        context: |_request, _response| (),
+    },
     {
         CaptureInitiated => CaptureInitiated,
         New => Pending,
@@ -721,6 +739,12 @@ domain_types::impl_flow_status_mapping! {
     source:    transformers::JuspayOrderStatus,
     success:   Voided => Voided,
     failure:   VoidFailed => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: transformers::JuspayVoidResponse,
+        source: |response| response.status,
+        context: |_request, _response| (),
+    },
     {
         VoidInitiated => VoidInitiated,
         New => Pending,

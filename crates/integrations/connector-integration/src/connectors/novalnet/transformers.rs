@@ -947,9 +947,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // Specific implementations for RepeatPayment flow
-impl<
-        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize + Serialize,
-    > TryFrom<ResponseRouterData<NovalnetPaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize + Serialize>
+    TryFrom<ResponseRouterData<NovalnetPaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -1309,7 +1308,7 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
     result: ResultData,
-    transaction: Option<NovalnetSyncResponseTransactionData>,
+    pub transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1797,7 +1796,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCancelResponse {
     result: ResultData,
-    transaction: Option<NovalnetPaymentsResponseTransactionData>,
+    pub transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>

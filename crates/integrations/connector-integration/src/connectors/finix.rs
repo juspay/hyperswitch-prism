@@ -313,6 +313,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, id_kind],
     success: Succeeded => [Authorized, Charged],
     failure: Failed => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: FinixAuthorizeResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, response| {
+            finix::FinixIdKind::from(&finix::FinixId::from(response.id.clone()))
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};
@@ -374,6 +382,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, id_kind],
     success: Succeeded => [Authorized, Charged],
     failure: Failed => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: FinixPSyncResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, response| {
+            finix::FinixIdKind::from(&finix::FinixId::from(response.id.clone()))
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};
@@ -409,6 +425,12 @@ domain_types::impl_flow_status_mapping! {
     source:    finix::FinixPaymentStatus,
     success:   Succeeded => Voided,
     failure:   Failed    => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: FinixVoidResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
         Canceled => Voided,
@@ -431,6 +453,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    finix::FinixPaymentStatus,
     success:   Succeeded => Success,
     failure:   Failed    => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: FinixRefundResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
         Canceled => Failure,
@@ -452,6 +480,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    finix::FinixPaymentStatus,
     success:   Succeeded => Success,
     failure:   Failed    => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: FinixRSyncResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, _response| (),
+    },
     {
         Pending => Pending,
         Canceled => Failure,
@@ -482,6 +516,14 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, id_kind],
     success: Succeeded => [Charged],
     failure: Failed => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: FinixRepeatPaymentResponse,
+        source:   |response| response.state.clone(),
+        context:  |_request, response| {
+            finix::FinixIdKind::from(&finix::FinixId::from(response.id.clone()))
+        },
+    },
     {
         use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};

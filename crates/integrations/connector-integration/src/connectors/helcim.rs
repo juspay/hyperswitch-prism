@@ -77,6 +77,12 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, transaction_type],
     success: Approved => [Charged, Authorized],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: HelcimPaymentsResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, response| response.transaction_type().clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
@@ -120,6 +126,12 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, transaction_type],
     success: Approved => [Charged, Authorized, Voided],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: HelcimPaymentsSyncResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, response| response.transaction_type().clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
@@ -163,6 +175,12 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, transaction_type],
     success: Approved => [Voided],
     failure: Declined => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: HelcimPaymentsVoidResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, response| response.transaction_type().clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
@@ -206,6 +224,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    helcim::HelcimPaymentStatus,
     success:   Approved => Success,
     failure:   Declined => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: RefundResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -222,6 +246,12 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    helcim::HelcimPaymentStatus,
     success:   Approved => Success,
     failure:   Declined => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: RefundSyncResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, _response| (),
+    },
     {}
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -240,6 +270,12 @@ domain_types::impl_flow_status_mapping! {
     params:          [status, transaction_type],
     success: Approved => [Charged],
     failure: Declined => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: HelcimPaymentsCaptureResponse,
+        source:   |response| response.status().clone(),
+        context:  |_request, response| response.transaction_type().clone(),
+    },
     {
         use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};

@@ -11,6 +11,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Authorized, Charged],
     failure: none,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: PayconexPaymentsResponse,
+        source:   |response| response.transaction_approved,
+        context:  |request, _response| request.is_auto_capture(),
+    },
     {
         transformers::map_payment_status(true, status, ctx)
     }
@@ -26,6 +32,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: PayconexSyncResponse,
+        source:   |response| (response.found, response.transaction_approved),
+        context:  |request, _response| request.is_auto_capture(),
+    },
     {
         transformers::map_payment_status(status.0, status.1, ctx)
     }
@@ -41,6 +53,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Charged, PartialCharged],
     failure: none,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: PayconexCaptureResponse,
+        source:   |response| response.transaction_approved,
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         if status {
@@ -61,6 +79,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Voided],
     failure: none,
+    extractors: {
+        request:  PaymentVoidData,
+        response: PayconexVoidResponse,
+        source:   |response| response.transaction_approved,
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         if status {
@@ -80,6 +104,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request:  RefundsData,
+        response: PayconexRefundResponse,
+        source:   |response| response.transaction_approved,
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         transformers::map_refund_status(true, status)
@@ -95,6 +125,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, ctx],
     success: _ => [Success],
     failure: none,
+    extractors: {
+        request:  RefundSyncData,
+        response: PayconexRefundSyncResponse,
+        source:   |response| (response.found, response.transaction_approved),
+        context:  |_request, _response| (),
+    },
     {
         let _ = ctx;
         transformers::map_refund_status(status.0, status.1)

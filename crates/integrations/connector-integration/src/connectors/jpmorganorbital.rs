@@ -387,6 +387,10 @@ domain_types::impl_flow_status_mapping! {
 // `procStatus != "0"`) maps to the TryFrom's `Unresolved` — deliberately non-terminal,
 // since the payment may still have landed. `success_connector_status()` cannot
 // represent it; only `map_attempt_status` does.
+// The TryFrom's echo-aware derivation (`echoed_trans_type` from the inquiry answer or
+// the stored capture method) collapses to `Charged` for this connector: it only ever
+// sends `transType "AC"` (manual capture is refused in the request transformer), so
+// the source extraction via `inquiry_outcome()` is exact.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: JpmorganOrbital<T>,
@@ -394,10 +398,23 @@ domain_types::impl_flow_status_mapping! {
     source:    jpmorganorbital::JpmorganOrbitalInquiryOutcome,
     success:   Success  => Charged,
     failure:   Failure  => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: jpmorganorbital::JpmorganOrbitalInquiryResponse,
+        source: |response| response.0.inquiry_outcome(),
+        context: |_request, _response| (),
+    },
     {
         NotFound => Unresolved,
     }
 }
+
+// NOTE — Authorize: no runtime extractors. The TryFrom's success branch derives the
+// status from the *request's* `capture_method` (`success_status(trans_type_for(
+// capture_method))`), and request-side success resolution is outside the
+// `extractors.source` surface (JpmorganOrbitalAuthorizeOutcome only collapses the
+// wire verdict). Runtime coverage for Authorize needs a request-aware runtime
+// mapping shape, not this enum-style extractor block.
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // Authorize and PSync are implemented above and therefore appear in neither list.

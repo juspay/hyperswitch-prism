@@ -807,6 +807,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Closed => [Charged, Authorized],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -821,6 +827,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Closed => [Charged, Authorized, Voided],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -835,6 +847,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Closed => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -849,6 +867,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Voided => [Voided],
     failure: Declined => Failure,
+    extractors: {
+        request:  PaymentVoidData,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -863,6 +887,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Closed => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -877,6 +907,12 @@ domain_types::impl_flow_status_mapping! {
     params: [status, ctx],
     success: Closed => [Charged],
     failure: Declined => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: responses::JpmorganPaymentsResponse,
+        source: |response| response.transaction_state.clone(),
+        context: |_request, response| response.capture_method.clone(),
+    },
     {
         jpmorgan::map_transaction_state_to_attempt_status(&status, &ctx)
     }
@@ -891,6 +927,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, state],
     success: Success => Success,
     failure: Denied => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: responses::JpmorganRefundResponse,
+        source: |response| response.response_status.clone(),
+        context: |_request, response| response.transaction_state.clone(),
+    },
     {
         responses::RefundStatus::from((status, state)).into()
     }
@@ -905,6 +947,12 @@ domain_types::impl_refund_flow_status_mapping! {
     params: [status, state],
     success: Success => Success,
     failure: Denied => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: responses::JpmorganRefundResponse,
+        source: |response| response.response_status.clone(),
+        context: |_request, response| response.transaction_state.clone(),
+    },
     {
         responses::RefundStatus::from((status, state)).into()
     }

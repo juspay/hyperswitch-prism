@@ -56,7 +56,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
-use error_stack::{report, ResultExt};
+use error_stack::{ResultExt, report};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -849,6 +849,11 @@ fn get_webhook_object_from_body(
 // the TryFrom's absence default (`Progress` when a redirect form exists — "Novalnet does
 // not send us the transaction.status for redirection flow" — else `Pending`). All targets
 // are in `Authorize::ALLOWED`.
+// NOTE: no extractors — the TryFrom's status is
+// `transaction.status.unwrap_or(Progress if redirect_url present else Pending)`, so the
+// runtime source would be `(Option<NovalnetTransactionStatus>, bool)`; a tuple source
+// ties the generated `map_attempt_status` to a tuple pattern the variant-table body
+// cannot express, so this mapping stays compile-time only.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -875,6 +880,16 @@ domain_types::impl_flow_status_mapping! {
     source:    novalnet::NovalnetTransactionStatus,
     success:   Confirmed => Charged,
     failure:   Failure   => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: NovalnetPSyncResponse,
+        source:   |response| response
+            .transaction
+            .as_ref()
+            .map(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending),
+        context:  |_request, _response| (),
+    },
     {
         Success     => Charged,
         OnHold      => Authorized,
@@ -895,6 +910,16 @@ domain_types::impl_flow_status_mapping! {
     source:    novalnet::NovalnetTransactionStatus,
     success:   Confirmed => Charged,
     failure:   Failure   => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: NovalnetCaptureResponse,
+        source:   |response| response
+            .transaction
+            .as_ref()
+            .map(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending),
+        context:  |_request, _response| (),
+    },
     {
         Success     => Charged,
         OnHold      => CaptureInitiated,
@@ -915,6 +940,16 @@ domain_types::impl_flow_status_mapping! {
     source:    novalnet::NovalnetTransactionStatus,
     success:   Deactivated => Voided,
     failure:   Failure     => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: NovalnetCancelResponse,
+        source:   |response| response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending),
+        context:  |_request, _response| (),
+    },
     {
         Success   => VoidFailed,
         Confirmed => VoidFailed,
@@ -925,11 +960,10 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
-// SetupMandate — mirrors the SetupMandate TryFrom (transformers.rs:848): same mapping
-// adapted to `SetupMandate::ALLOWED` — `Authorized`-shaped states (`OnHold`) read as
-// `Charged` (a parked mandate registration terminates like DLocal/checkout precedent;
-// there is no separate "on-hold captured" AttemptStatus for mandate setup), `Deactivated`
-// reads as `Failure`.
+// NOTE: no extractors — the SetupMandate TryFrom (transformers.rs:848) defaults a
+// missing transaction status to `Progress` only when the response carries a redirect
+// URL, else `Pending`; the tuple-source shape needed for runtime extraction cannot be
+// dispatched by the variant-table map (see the Authorize note above).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -947,9 +981,10 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
-// RepeatPayment — mirrors the RepeatPayment TryFrom (transformers.rs:953), same mapping
-// adapted to `RepeatPayment::ALLOWED` (no `Voided`): a deactivated mandate instrument is a
-// terminal failure for the MIT.
+// NOTE: no extractors — the RepeatPayment TryFrom (transformers.rs:953) shares the
+// Authorize response shape and its redirect-dependent missing-status default
+// (`Progress` with redirection data, else `Pending`); the tuple-source shape does not
+// compile (see Authorize's note above).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -967,8 +1002,10 @@ domain_types::impl_flow_status_mapping! {
     }
 }
 
-// IncrementalAuthorization — same transaction-status source; the callback response only
-// reports the updated authorization, so `OnHold` → `Authorized` is the success terminal.
+// NOTE: no extractors — the IncrementalAuthorization TryFrom (transformers.rs:2725)
+// does not set `PaymentFlowData::status` at all on the success path (it reports an
+// `AuthorizationStatus` inside `IncrementalAuthorizationResponse`, and leaves the
+// attempt status untouched on failure), so there is no payment status to factor.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -996,6 +1033,16 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    novalnet::NovalnetTransactionStatus,
     success:   Confirmed => Success,
     failure:   Failure   => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: NovalnetRefundResponse,
+        source:   |response| response
+            .transaction
+            .as_ref()
+            .map(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending),
+        context:  |_request, _response| (),
+    },
     {
         Success     => Success,
         Pending     => Pending,
@@ -1015,6 +1062,16 @@ domain_types::impl_refund_flow_status_mapping! {
     source:    novalnet::NovalnetTransactionStatus,
     success:   Confirmed => Success,
     failure:   Failure   => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: NovalnetRefundSyncResponse,
+        source:   |response| response
+            .transaction
+            .as_ref()
+            .map(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending),
+        context:  |_request, _response| (),
+    },
     {
         Success     => Success,
         Pending     => Pending,
