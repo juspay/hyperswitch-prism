@@ -3762,6 +3762,7 @@ pub struct SetupRecurringRequest {
     /// authorization type on manual capture (e.g. Adyen's
     /// `additionalData.authorisationType`/`manualCapture`) need the real value.
     pub capture_method: Option<grpc_payment_types::CaptureMethod>,
+    pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
 }
 
 /// ============================================================================
@@ -3961,6 +3962,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             capture_method: req
                 .capture_method
                 .and_then(|v| grpc_payment_types::CaptureMethod::try_from(v).ok()),
+            split_payments: req.split_payments,
         }
     }
 }
@@ -4016,6 +4018,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             additional_connector_details: None,
             test_mode: req.test_mode,
             capture_method: None,
+            split_payments: None,
         }
     }
 }
@@ -5190,7 +5193,11 @@ impl<
             locale: value.locale.clone(),
             mit_category: value.mit_category,
             connector_testing_data,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .clone()
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             authentication_data: value
                 .authentication_data
                 .clone()
@@ -10936,6 +10943,29 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             response_headers,
             raw_connector_request: None,
             typed_connector_request: None,
+            additional_details: value.additional_details.map(|details| {
+                grpc_api_types::payments::DisputeAdditionalDetails {
+                    network_details: details.network_details.map(|network| match network {
+                        connector_types::DisputeNetworkDetails::Visa {
+                            rapid_dispute_resolution,
+                        } => grpc_api_types::payments::DisputeNetworkDetails {
+                            network: Some(
+                                grpc_api_types::payments::dispute_network_details::Network::Visa(
+                                    grpc_api_types::payments::VisaDisputeDetails {
+                                        rapid_dispute_resolution: rapid_dispute_resolution.map(
+                                            |rdr| {
+                                                grpc_api_types::payments::RapidDisputeResolution {
+                                                    applied: rdr.applied,
+                                                }
+                                            },
+                                        ),
+                                    },
+                                ),
+                            ),
+                        },
+                    }),
+                }
+            }),
         })
     }
 }
@@ -12912,7 +12942,11 @@ impl<
                     .map(common_utils::pii::SecretSerdeValue::new)
             }),
             mit_category,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .clone()
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             authentication_data: value
                 .authentication_data
                 .clone()
@@ -14613,6 +14647,11 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                     payment_purpose: w.payment_purpose,
                 }
             }),
+            stripe: value
+                .stripe
+                .map(|s| connector_types::StripeAdditionalInformation {
+                    error_on_requires_action: s.error_on_requires_action,
+                }),
         }
     }
 }
@@ -20783,6 +20822,9 @@ pub fn tokenized_setup_recurring_to_base(
     PaymentServiceSetupRecurringRequest {
         merchant_recurring_payment_id: v.merchant_recurring_payment_id,
         amount: v.amount,
+        // Neither the token nor the proxy SetupRecurring contract carries split
+        // payments; only the full request does.
+        split_payments: None,
         payment_method: Some(grpc_payment_types::PaymentMethod {
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
@@ -21013,6 +21055,9 @@ pub fn proxied_setup_recurring_to_base(
     Ok(PaymentServiceSetupRecurringRequest {
         merchant_recurring_payment_id: v.merchant_recurring_payment_id,
         amount: v.amount,
+        // Neither the token nor the proxy SetupRecurring contract carries split
+        // payments; only the full request does.
+        split_payments: None,
         payment_method: Some(grpc_payment_types::PaymentMethod {
             payment_method: Some(
                 grpc_payment_types::payment_method::PaymentMethod::CardProxy(card),
