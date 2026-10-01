@@ -18,8 +18,8 @@ RUN apt-get update \
        libclang-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=tools /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/sccache /usr/local/cargo/bin/
-RUN rustc --version && cargo --version
+RUN cargo install cargo-chef --version ^0.1 \
+    && cargo install sccache
 
 FROM public.ecr.aws/docker/library/rust:1.97-slim-bookworm AS base
 
@@ -40,8 +40,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install cargo-chef and sccache for dependency caching
-RUN cargo install cargo-chef --version ^0.1 \
-    && cargo install sccache
+COPY --from=tools /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/sccache /usr/local/cargo/bin/
+RUN rustc --version && cargo --version
 
 ########################################
 # 2. Planner stage (cargo-chef)
