@@ -10,31 +10,31 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "ApplePay": {
         "status": "supported",
@@ -132,55 +132,55 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Card": {
         "status": "supported",
@@ -217,24 +217,24 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -242,11 +242,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -254,35 +254,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Givex": {
         "status": "not_implemented",
@@ -290,7 +290,7 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "GooglePay": {
         "status": "supported",
@@ -387,75 +387,75 @@
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -463,43 +463,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -507,35 +507,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -547,115 +547,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. rapyd Authorize implements card, Google Pay, Apple Pay and payment-method tokens only"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. rapyd Authorize accepts Google Pay and Apple Pay wallets only"
       }
     },
     "capture": {
@@ -680,7 +680,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"receipt_email\":null,\"statement_descriptor\":null}"
+          "body": "{\"amount\":\"10.00\",\"receipt_email\":null,\"statement_descriptor\":null,\"merchant_reference_id\":\"probe_capture_001\"}"
         }
       }
     },
@@ -800,7 +800,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+        }
       }
     },
     "incremental_authorization": {
@@ -811,7 +826,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -866,14 +895,55 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "name": "John Doe",
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"0\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+        }
       }
     },
     "recurring_charge": {
@@ -951,7 +1021,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\"}"
+          "body": "{\"payment\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"merchant_reference_id\":\"probe_refund_001\",\"reason\":\"customer_request\"}"
         }
       }
     },
@@ -986,8 +1056,52 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "name": "John Doe",
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"0\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+        }
       }
     },
     "token_authorize": {
@@ -1024,7 +1138,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method for rapyd SetupMandate"
+        "error": "This feature is not implemented: payment_method for rapyd SetupMandate. rapyd SetupMandate saves cards only (save_payment_method on a card payment)"
       }
     },
     "verify_redirect": {
