@@ -39,7 +39,7 @@ utoipa = { version = "4.2.0", features = [
     "preserve_order",
     "preserve_path_order",
 ] }
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "macros"] }
 url = { version = "2.5.4", features = ["serde"] }
 http = "1.2.0"
 actix-web = { version = "4.11.0", optional = true }

@@ -1506,62 +1506,108 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
         value: grpc_api_types::payouts::PayoutVendorAccountDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(payouts::payouts_types::PayoutVendorAccountDetails {
-            vendor_details: value.vendor_details.map(|vd| {
-                payouts::payouts_types::PayoutVendorDetails {
-                    account_type: vd.account_type.and_then(payout_account_type_from_proto),
-                    vendor_type: vd.vendor_type.and_then(bank_holder_type_from_proto),
-                    vendor_category_code: vd.vendor_category_code,
-                    vendor_url: vd.vendor_url,
-                    vendor_name: vd.vendor_name,
-                    statement_descriptor: vd.statement_descriptor,
-                    owners_provided: vd.owners_provided,
-                    card_payments_enabled: vd.card_payments_enabled,
-                    transfers_enabled: vd.transfers_enabled,
-                }
-            }),
-            individual_details: value.individual_details.map(|id| {
-                payouts::payouts_types::PayoutIndividualDetails {
-                    first_name: id.first_name,
-                    last_name: id.last_name,
-                    phone: id.phone,
-                    ssn_last_4: id.ssn_last_4,
-                    id_number: id.id_number,
-                    date_of_birth: id.date_of_birth,
-                    tos_acceptance_date: id.tos_acceptance_date,
-                    tos_acceptance_ip: id.tos_acceptance_ip,
-                    external_account_account_holder_type: id
-                        .external_account_account_holder_type
-                        .and_then(bank_holder_type_from_proto),
-                }
-            }),
+            vendor_details: value
+                .vendor_details
+                .map(|vd| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(
+                        payouts::payouts_types::PayoutVendorDetails {
+                            account_type: payout_account_type_from_proto(vd.account_type)?,
+                            vendor_type: bank_holder_type_from_proto(
+                                vd.vendor_type,
+                                "vendor_type",
+                            )?,
+                            vendor_category_code: vd.vendor_category_code,
+                            vendor_url: vd.vendor_url,
+                            vendor_name: vd.vendor_name,
+                            statement_descriptor: vd.statement_descriptor,
+                            owners_provided: vd.owners_provided,
+                            card_payments_enabled: vd.card_payments_enabled,
+                            transfers_enabled: vd.transfers_enabled,
+                        },
+                    )
+                })
+                .transpose()?,
+            individual_details: value
+                .individual_details
+                .map(|id| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(
+                        payouts::payouts_types::PayoutIndividualDetails {
+                            first_name: id.first_name,
+                            last_name: id.last_name,
+                            phone: id.phone,
+                            ssn_last_4: id.ssn_last_4,
+                            id_number: id.id_number,
+                            date_of_birth: id.date_of_birth,
+                            tos_acceptance_date: id.tos_acceptance_date,
+                            tos_acceptance_ip: id.tos_acceptance_ip,
+                            external_account_account_holder_type: bank_holder_type_from_proto(
+                                id.external_account_account_holder_type,
+                                "external_account_account_holder_type",
+                            )?,
+                        },
+                    )
+                })
+                .transpose()?,
         })
     }
 }
 
-fn payout_account_type_from_proto(value: i32) -> Option<payouts::payouts_types::PayoutAccountType> {
-    match grpc_api_types::payouts::payout_enums::PayoutAccountType::try_from(value) {
-        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Custom) => {
-            Some(payouts::payouts_types::PayoutAccountType::Custom)
+fn payout_account_type_from_proto(
+    value: Option<i32>,
+) -> Result<Option<payouts::payouts_types::PayoutAccountType>, error_stack::Report<IntegrationError>>
+{
+    match value {
+        None => Ok(None),
+        Some(value) => {
+            match grpc_api_types::payouts::payout_enums::PayoutAccountType::try_from(value) {
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Custom) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Custom))
+                }
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Express) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Express))
+                }
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Standard) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Standard))
+                }
+                Ok(_) => Ok(None),
+                Err(_) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "account_type",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some("Unknown account type".to_string()),
+                        suggested_action: Some(
+                            "Send the account type as custom, express or standard".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })),
+            }
         }
-        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Express) => {
-            Some(payouts::payouts_types::PayoutAccountType::Express)
-        }
-        Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Standard) => {
-            Some(payouts::payouts_types::PayoutAccountType::Standard)
-        }
-        _ => None,
     }
 }
 
-fn bank_holder_type_from_proto(value: i32) -> Option<common_enums::BankHolderType> {
-    match grpc_api_types::payouts::BankHolderType::try_from(value) {
-        Ok(grpc_api_types::payouts::BankHolderType::Business) => {
-            Some(common_enums::BankHolderType::Business)
-        }
-        Ok(grpc_api_types::payouts::BankHolderType::Personal) => {
-            Some(common_enums::BankHolderType::Personal)
-        }
-        _ => None,
+fn bank_holder_type_from_proto(
+    value: Option<i32>,
+    field_name: &'static str,
+) -> Result<Option<common_enums::BankHolderType>, error_stack::Report<IntegrationError>> {
+    match value {
+        None => Ok(None),
+        Some(value) => match grpc_api_types::payouts::BankHolderType::try_from(value) {
+            Ok(grpc_api_types::payouts::BankHolderType::Business) => {
+                Ok(Some(common_enums::BankHolderType::Business))
+            }
+            Ok(grpc_api_types::payouts::BankHolderType::Personal) => {
+                Ok(Some(common_enums::BankHolderType::Personal))
+            }
+            Ok(_) => Ok(None),
+            Err(_) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(format!("Unknown {field_name}")),
+                    suggested_action: Some("Send the field as personal or business".to_string()),
+                    doc_url: None,
+                },
+            })),
+        },
     }
 }
 
@@ -1953,7 +1999,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
-            connector_payout_id: value.connector_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,

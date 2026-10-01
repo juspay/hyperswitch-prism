@@ -513,14 +513,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PayoutEnrollDisburseAccount, PayoutFlowData, PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse>,
         ) -> CustomResult<String, IntegrationError> {
             // Create, Transfer and Get read the connected-account id from
-            // `customer.connector_customer_id`; fall back to `connector_payout_id`
-            // for callers that only send it there.
+            // `customer.connector_customer_id`, and so does this flow.
             let account_id = req
                 .request
                 .customer
                 .as_ref()
                 .and_then(|customer| customer.connector_customer_id.clone())
-                .or_else(|| req.request.connector_payout_id.clone())
                 .ok_or_else(|| {
                     IntegrationError::MissingConnectorTransactionID {
                         context: IntegrationErrorContext {

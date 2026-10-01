@@ -543,14 +543,12 @@ impl PayoutCreateRecipientRequest {
         else {
             return Ok(None);
         };
-        let mut parts = date_of_birth.peek().split('-');
-        match (parts.next(), parts.next(), parts.next()) {
-            (Some(year), Some(month), Some(day)) => Ok(Some((
-                Secret::new(day.to_string()),
-                Secret::new(month.to_string()),
-                Secret::new(year.to_string()),
-            ))),
-            _ => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+        let date = time::Date::parse(
+            date_of_birth.peek(),
+            &time::macros::format_description!("[year]-[month]-[day]"),
+        )
+        .map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "date_of_birth",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -559,14 +557,13 @@ impl PayoutCreateRecipientRequest {
                     suggested_action: Some("Send the date of birth as yyyy-MM-dd".to_string()),
                     doc_url: None,
                 },
-            })),
-        }
-    }
-
-    pub fn get_date_of_birth(&self) -> Result<Secret<String>, Error> {
-        self.individual_details()
-            .and_then(|i| i.date_of_birth.clone())
-            .ok_or_else(missing_field_err("date_of_birth"))
+            })
+        })?;
+        Ok(Some((
+            Secret::new(format!("{:02}", date.day())),
+            Secret::new(format!("{:02}", u8::from(date.month()))),
+            Secret::new(date.year().to_string()),
+        )))
     }
 
     pub fn get_account_type(&self) -> Option<PayoutAccountType> {
@@ -703,7 +700,6 @@ pub struct PayoutCreateRecipientResponse {
 #[derive(Debug, Clone)]
 pub struct PayoutEnrollDisburseAccountRequest {
     pub merchant_payout_id: Option<String>,
-    pub connector_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     /// Currency in which the payout will be received. Optional because callers
