@@ -7910,12 +7910,14 @@ pub(crate) fn get_dispute_stage_and_status(
         WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeOpened))
         }
-        WebhookEventCode::PrearbitrationAccepted => {
-            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeAccepted))
-        }
-        WebhookEventCode::PrearbitrationDeclined => {
-            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeChallenged))
-        }
+        WebhookEventCode::PrearbitrationAccepted => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeAccepted,
+        )),
+        WebhookEventCode::PrearbitrationDeclined => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeChallenged,
+        )),
         WebhookEventCode::PrearbitrationIssuerWithdrawn
         | WebhookEventCode::SchemeArbitrationWon => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
@@ -7925,12 +7927,12 @@ pub(crate) fn get_dispute_stage_and_status(
         }
         // Dispute stage/status must only be resolved for dispute events;
         // refuse to guess for anything else.
-        _ => Err(error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(
-            format!(
+        _ => Err(
+            error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(format!(
                 "Received non-dispute Adyen webhook event code {code:?}; \
                  cannot resolve dispute stage and status"
-            ),
-        )),
+            )),
+        ),
     }
 }
 
