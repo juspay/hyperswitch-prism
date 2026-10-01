@@ -539,6 +539,8 @@ enum WebhookEventType {
   PAYMENT_INTENT_EXPIRED = 11;              // Payment intent expired
   PAYMENT_ACTION_REQUIRED = 12; // Payment requires additional action
   PAYMENT_ASSOCIATED_DATA_UPDATE = 43; // Associated data events. Data about a payment shared out of band, typically after the payment has reached a terminal state. Carries no status change.
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_SUCCESS = 44; // Extended authorization success
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_FAILURE = 45; // Extended authorization failure
 
   SOURCE_CHARGEABLE = 13;          // Source is chargeable
   SOURCE_TRANSACTION_CREATED = 14; // Source transaction created
@@ -547,6 +549,7 @@ enum WebhookEventType {
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
   WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
+  WEBHOOK_REFUND_REVIEW = 46; // Refund requires review
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
