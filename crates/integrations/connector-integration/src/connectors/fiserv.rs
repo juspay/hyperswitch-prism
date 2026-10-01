@@ -66,26 +66,158 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiserv<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Authorize,
+    source:    transformers::FiservPaymentStatus,
+    success:   Authorized  => Authorized,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: FiservPaymentsResponse,
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Succeeded   => Charged,
+        Captured    => Charged,
+        Declined    => Failure,
+        Voided      => Voided,
+        Processing  => Authorizing,
+        Created     => AuthenticationPending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiserv<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      PSync,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Charged,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: FiservSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized  => Authorized,
+        Captured    => Charged,
+        Declined    => Failure,
+        Voided      => Voided,
+        Processing  => Authorizing,
+        Created     => AuthenticationPending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiserv<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Void,
+    source:    transformers::FiservPaymentStatus,
+    success:   Voided      => Voided,
+    failure:   Failed      => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: FiservVoidResponse,
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized  => VoidInitiated,
+        Succeeded   => VoidFailed,
+        Captured    => VoidFailed,
+        Declined    => Failure,
+        Processing  => Pending,
+        Created     => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiserv<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      RSync,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FiservRefundSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Captured    => Success,
+        Authorized  => Success,
+        Declined    => Failure,
+        Voided      => Pending,
+        Processing  => Pending,
+        Created     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiserv<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Refund,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FiservRefundResponse,
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Captured    => Success,
+        Authorized  => Success,
+        Declined    => Failure,
+        Voided      => Pending,
+        Processing  => Pending,
+        Created     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiserv<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Capture,
+    source:    transformers::FiservPaymentStatus,
+    success:   Captured    => Charged,
+    failure:   Failed      => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: FiservCaptureResponse,
+        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized  => Pending,
+        Succeeded   => Charged,
+        Declined    => CaptureFailed,
+        Voided      => CaptureFailed,
+        Processing  => Pending,
+        Created     => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Fiserv<T>

@@ -51,21 +51,126 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Givepayments<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Givepayments<T>,
+    flow:      Authorize,
+    source:    transformers::GivepaymentsPaymentProcessingState,
+    success:   Captured   => Charged,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GivepaymentsPaymentResponseData,
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created    => Pending,
+        Authorized => Pending,
+        Voided     => Voided,
+        Settled    => Charged,
+        Declined   => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Givepayments<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Givepayments<T>,
+    flow:      PSync,
+    source:    transformers::GivepaymentsPaymentProcessingState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GivepaymentsPaymentSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created    => Pending,
+        Authorized => Pending,
+        Captured   => Charged,
+        Voided     => Voided,
+        Declined   => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Givepayments<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Givepayments<T>,
+    flow:      RSync,
+    source:    transformers::GivepaymentsRefundProcessingState,
+    success:   Approved   => Success,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: GivepaymentsRefundSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created  => Pending,
+        Pending  => Pending,
+        Declined => Failure,
+        Canceled => Failure,
+        Settled  => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Givepayments<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Givepayments<T>,
+    flow:      Refund,
+    source:    transformers::GivepaymentsRefundProcessingState,
+    success:   Approved   => Success,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GivepaymentsRefundResponseData,
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created  => Pending,
+        Pending  => Pending,
+        Declined => Failure,
+        Canceled => Failure,
+        Settled  => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Givepayments<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Givepayments<T>,
+    flow:      RepeatPayment,
+    source:    transformers::GivepaymentsPaymentProcessingState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: GivepaymentsRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response| Ok(response.processing_state.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created    => Pending,
+        Authorized => Pending,
+        Captured   => Charged,
+        Voided     => Failure,
+        Declined   => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Givepayments<T>

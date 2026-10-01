@@ -107,11 +107,50 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Loonio<T>,
+    flow:      Authorize,
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
+        response: LoonioAuthorizeResponse,
+    },
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Loonio<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Loonio<T>,
+    flow:      PSync,
+    source:    transformers::LoonioTransactionStatus,
+    success:   Settled      => Charged,
+    failure:   Failed       => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: LoonioPaymentResponseData,
+        source: |_resource_common_data, _request, response| Ok(match response {
+            LoonioPaymentResponseData::Sync(sync) => sync.state,
+            LoonioPaymentResponseData::Webhook(_) => transformers::LoonioTransactionStatus::Pending,
+        }),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Created             => AuthenticationPending,
+        Prepared            => Pending,
+        Pending             => Pending,
+        Available           => Charged,
+        Abandoned           => Failure,
+        Rejected            => Failure,
+        Rollback            => Voided,
+        Returned            => Failure,
+        Nsf                 => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Loonio<T>
 {

@@ -57,21 +57,103 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperpg<T>,
+    flow:      Authorize,
+    source:    transformers::HyperpgPaymentStatus,
+    success:   Charged               => Charged,
+    failure:   Failed                => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: HyperpgAuthorizeResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        New                          => Pending,
+        Authorizing                  => Pending,
+        Pending                      => Pending,
+        PendingVbv                   => Pending,
+        Cancelled                    => Voided,
+        AuthorizationFailed          => AuthorizationFailed,
+        AuthenticationFailed         => AuthenticationFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Hyperpg<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperpg<T>,
+    flow:      PSync,
+    source:    transformers::HyperpgPaymentStatus,
+    success:   Charged               => Charged,
+    failure:   Failed                => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: HyperpgSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        New                          => Pending,
+        Authorizing                  => Pending,
+        Pending                      => Pending,
+        PendingVbv                   => Pending,
+        Cancelled                    => Voided,
+        AuthorizationFailed          => AuthorizationFailed,
+        AuthenticationFailed         => AuthenticationFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Hyperpg<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperpg<T>,
+    flow:      Refund,
+    source:    transformers::HyperpgRefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    extractors: {
+        request: RefundsData,
+        response: HyperpgRefundResponse,
+        source: |_resource_common_data, _request, _response| Ok(transformers::HyperpgRefundStatus::Pending),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Pending => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Hyperpg<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperpg<T>,
+    flow: RSync,
+    source: Option<transformers::HyperpgRefundStatus>,
+    context: common_enums::RefundStatus,
+    params: [status, previous_status],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: HyperpgRefundSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.refunds.as_ref().and_then(|refunds| refunds.first()).map(|refund| refund.status.clone())),
+        context: |_resource_common_data, request, _response | request.refund_status,
+    },
+    {
+        status.as_ref().map(common_enums::RefundStatus::from).unwrap_or(previous_status)
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Hyperpg<T>
 {

@@ -646,7 +646,7 @@ macros::macro_connector_implementation!(
 // `MappingContext::default()` = Preauth, so `assert_terminal_mapping!` tests the
 // manual-capture (Authorized) path.
 
-domain_types::impl_flow_status_mapping_ctx! {
+domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Nexinets<T>,
     flow:            Authorize,
@@ -655,11 +655,8 @@ domain_types::impl_flow_status_mapping_ctx! {
 
     params:          [status, ctx],
 
-    success_status:  Success,
-    success_targets: [Authorized, Charged],
-
-    failure_status:  Declined,
-    failure_target:  AuthorizationFailed,
+    success: Success => [Authorized, Charged],
+    failure: Declined => AuthorizationFailed,
 
     {
         use common_enums::AttemptStatus;

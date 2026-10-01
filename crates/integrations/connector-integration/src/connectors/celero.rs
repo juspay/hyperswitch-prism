@@ -52,21 +52,113 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Authorize,
+    source:    celero::CeleroTransactionStatus,
+    success:   Settled           => Charged,
+    failure:   Declined          => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: CeleroPaymentsResponse,
+        source: |_resource_common_data, _request, response| Ok(match response.status {
+            celero::CeleroResponseStatus::Success => response.data.as_ref().map_or(
+                celero::CeleroTransactionStatus::Error,
+                |data| match data.response {
+                    celero::CeleroPaymentMethodResponse::Card(ref card) => card.status,
+                },
+            ),
+            celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
+        }),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Approved          => Authorized,
+        Error             => Failure,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Voided            => Voided,
+        Reversed          => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      PSync,
+    source:    celero::CeleroTransactionStatus,
+    success:   Settled           => Charged,
+    failure:   Declined          => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CeleroSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(match response.status {
+            celero::CeleroResponseStatus::Success => response
+                .data
+                .first()
+                .map_or(celero::CeleroTransactionStatus::Error, |transaction| {
+                    transaction.status
+                }),
+            celero::CeleroResponseStatus::Error => celero::CeleroTransactionStatus::Error,
+        }),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Approved          => Authorized,
+        Error             => Failure,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Voided            => Voided,
+        Reversed          => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Void,
+    source:    celero::CeleroResponseStatus,
+    success:   Success           => Voided,
+    failure:   Error             => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CeleroVoidResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Capture,
+    source:    celero::CeleroResponseStatus,
+    success:   Success           => Charged,
+    failure:   Error             => Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CeleroCaptureResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Celero<T>
 {
@@ -79,11 +171,41 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Refund,
+    source:    celero::CeleroResponseStatus,
+    success:   Success => Success,
+    failure:   Error   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: CeleroRefundResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Celero<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      RSync,
+    source:    celero::CeleroResponseStatus,
+    success:   Success => Success,
+    failure:   Error   => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: CeleroRefundSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Celero<T>
 {

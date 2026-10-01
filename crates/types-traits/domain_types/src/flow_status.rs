@@ -55,6 +55,65 @@ pub const fn const_contains(slice: &[AttemptStatus], target: AttemptStatus) -> b
     false
 }
 
+/// Connectors whose modification endpoints acknowledge async processing and
+/// report the terminal outcome via webhook or sync.
+pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &["adyen"];
+
+/// Live connectors whose transformer-produced status remains the runtime source
+/// of truth while the status framework runs in shadow mode for mismatch logging.
+pub const LIVE_STATUS_TRANSFORMER_CONNECTORS: &[&str] = &[
+    "stripe",
+    "adyen",
+    "cybersource",
+    "paypal",
+    "authorizedotnet",
+];
+
+pub fn is_live_status_transformer_connector(connector: &str) -> bool {
+    LIVE_STATUS_TRANSFORMER_CONNECTORS
+        .iter()
+        .any(|live_connector| live_connector.eq_ignore_ascii_case(connector))
+}
+
+/// `const`-compatible string slice membership test.
+pub const fn const_contains_str(slice: &[&str], target: &str) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if str_eq(slice[i], target) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+const fn str_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < left.len() {
+        if left[i] != right[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+pub const fn const_contains_refund_status(slice: &[RefundStatus], target: RefundStatus) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if slice[i] as u32 == target as u32 {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
 /// `const`-compatible "every element of `subset` is in `superset`" check.
 /// Used by `assert_flow_rules!` to verify terminal sets are subsets of ALLOWED.
 pub const fn const_all_in(subset: &[AttemptStatus], superset: &[AttemptStatus]) -> bool {
@@ -205,6 +264,82 @@ impl FlowStatusRules for connector_flow::RepeatPayment {
     ];
 }
 
+impl FlowStatusRules for connector_flow::CreateOrder {
+    const NAME: &'static str = "CreateOrder";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Charged, AttemptStatus::Authorized];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Failure, AttemptStatus::AuthenticationFailed];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::Started,
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::PreAuthenticate {
+    const NAME: &'static str = "PreAuthenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationSuccessful];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::Authenticate {
+    const NAME: &'static str = "Authenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::PostAuthenticate {
+    const NAME: &'static str = "PostAuthenticate";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::AuthenticationFailed, AttemptStatus::Failure];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Authorized,
+        AttemptStatus::Charged,
+        AttemptStatus::Voided,
+        AttemptStatus::Pending,
+        AttemptStatus::Failure,
+    ];
+}
+
 // PSync mirrors whatever state the payment is in — intentionally broad.
 impl FlowStatusRules for connector_flow::PSync {
     const NAME: &'static str = "PSync";
@@ -317,6 +452,10 @@ assert_flow_rules!(connector_flow::Void);
 assert_flow_rules!(connector_flow::VoidPC);
 assert_flow_rules!(connector_flow::SetupMandate);
 assert_flow_rules!(connector_flow::RepeatPayment);
+assert_flow_rules!(connector_flow::CreateOrder);
+assert_flow_rules!(connector_flow::PreAuthenticate);
+assert_flow_rules!(connector_flow::Authenticate);
+assert_flow_rules!(connector_flow::PostAuthenticate);
 assert_flow_rules!(connector_flow::PSync);
 assert_flow_rules!(connector_flow::IncrementalAuthorization);
 
@@ -490,6 +629,28 @@ impl PayoutFlowStatusRules for connector_flow::PayoutEligibility {
 /// Until then, connectors add impls voluntarily flow by flow.
 ///
 /// Implemented by `impl_flow_status_mapping!` (in `domain_types::status_mapping`).
+/// Per-connector, per-refund-flow terminal mapping.
+///
+/// Parallel to [`ConnectorTerminalMapping`] for payment flows.
+/// Implement via `impl_refund_flow_status_mapping!`.
+pub trait ConnectorRefundTerminalMapping<Flow: RefundFlowStatusRules> {
+    type ConnectorStatus;
+
+    /// Extra context for refund mappings that depend on more than the connector
+    /// status alone (e.g. a response-code / trans-type pair). Set to `()` for the
+    /// common context-free case.
+    type MappingContext;
+
+    fn success_connector_status() -> Self::ConnectorStatus;
+    fn failure_connector_status() -> Self::ConnectorStatus;
+
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
+
+    fn map_refund_status(status: Self::ConnectorStatus, ctx: Self::MappingContext) -> RefundStatus;
+}
+
 pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// The connector-native status type for this flow (e.g. `StripePaymentStatus`).
     type ConnectorStatus;
@@ -510,6 +671,10 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// `TERMINAL_FAILURE_SET`.  Verified at test time by `assert_terminal_mapping!`.
     fn failure_connector_status() -> Self::ConnectorStatus;
 
+    fn failure_connector_sample() -> Option<Self::ConnectorStatus> {
+        Some(Self::failure_connector_status())
+    }
+
     /// The per-flow status mapping function.  Replaces the shared
     /// `From<ConnectorStatus> for AttemptStatus` for this flow.
     ///
@@ -520,4 +685,41 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
         status: Self::ConnectorStatus,
         ctx: Self::MappingContext,
     ) -> AttemptStatus;
+}
+
+/// Runtime half of a connector's flow-status declaration.
+///
+/// The compile-time mapping traits above describe how a connector-native status
+/// maps into the UCS status domain. This trait describes how to obtain that
+/// connector-native status and its mapping context from the request and parsed
+/// connector response. The flow-status macros implement both traits from one
+/// declaration when an `extractors` block is present.
+pub trait ConnectorRuntimeStatusMapping<Flow, Request, Response> {
+    /// `AttemptStatus` for payment flows and `RefundStatus` for refund flows.
+    type MappedStatus;
+
+    fn map_runtime_status<CommonData>(
+        common_data: &CommonData,
+        request: &Request,
+        response: &Response,
+    ) -> Result<Self::MappedStatus, crate::ConnectorError>
+    where
+        CommonData: FlowStatusReader<Self::MappedStatus>;
+}
+
+/// Read-only companion to [`FlowStatusSetter`]. Runtime extractors normally do
+/// not need the current status, but a few connector mappings preserve the
+/// previous value for specific gateway responses.
+pub trait FlowStatusReader<Status> {
+    fn current_mapped_flow_status(&self) -> Status;
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        None
+    }
+}
+
+/// Applies a mapped status to the flow's common data after response
+/// transformation. Implementations validate the flow allow-list before writing.
+pub trait FlowStatusSetter<Flow, Status> {
+    fn set_mapped_flow_status(&mut self, status: Status) -> Result<(), crate::ConnectorError>;
 }

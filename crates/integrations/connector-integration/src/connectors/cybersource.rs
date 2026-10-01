@@ -87,29 +87,264 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cybersource<T>,
+    flow:            Authorize,
+    source:          cybersource::CybersourcePaymentStatus,
+    context:         bool,
+    params:          [status, capture],
+    success: Authorized => [Authorized, Charged],
+    failure: Failed => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: CybersourcePaymentsResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
+    },
+    {
+        match (status, capture) {
+            (cybersource::CybersourcePaymentStatus::Authorized, true) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Authorized, false) => common_enums::AttemptStatus::Authorized,
+            (cybersource::CybersourcePaymentStatus::Succeeded, _) | (cybersource::CybersourcePaymentStatus::Transmitted, _) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Voided, _) | (cybersource::CybersourcePaymentStatus::Reversed, _) | (cybersource::CybersourcePaymentStatus::Cancelled, _) => common_enums::AttemptStatus::Voided,
+            (cybersource::CybersourcePaymentStatus::Failed, _) | (cybersource::CybersourcePaymentStatus::Declined, _) | (cybersource::CybersourcePaymentStatus::AuthorizedRiskDeclined, _) | (cybersource::CybersourcePaymentStatus::Rejected, _) | (cybersource::CybersourcePaymentStatus::InvalidRequest, _) | (cybersource::CybersourcePaymentStatus::ServerError, _) => common_enums::AttemptStatus::Failure,
+            (cybersource::CybersourcePaymentStatus::PendingAuthentication, _) => common_enums::AttemptStatus::AuthenticationPending,
+            (cybersource::CybersourcePaymentStatus::PendingReview, _) | (cybersource::CybersourcePaymentStatus::StatusNotReceived, _) | (cybersource::CybersourcePaymentStatus::Challenge, _) | (cybersource::CybersourcePaymentStatus::Accepted, _) | (cybersource::CybersourcePaymentStatus::Pending, _) | (cybersource::CybersourcePaymentStatus::AuthorizedPendingReview, _) => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Cybersource<T>
 {
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      PreAuthenticate,
+    statuses:  [AuthenticationPending, Failure],
+    runtime: {
+        request:  PaymentsPreAuthenticateData<T>,
+        response: CybersourceAuthSetupResponse,
+        status:   |_request, response| match response {
+            CybersourceAuthSetupResponse::ClientAuthSetupInfo(_) => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            CybersourceAuthSetupResponse::ErrorInformation(_) => {
+                common_enums::AttemptStatus::Failure
+            }
+        },
+    },
+}
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      Authenticate,
+    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request:  PaymentsAuthenticateData<T>,
+        response: CybersourceAuthenticateResponse,
+        status:   |_request, response| cybersource::authenticate_status(response),
+    },
+}
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      PostAuthenticate,
+    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    runtime: {
+        request:  PaymentsPostAuthenticateData<T>,
+        response: CybersourcePostAuthenticateResponse,
+        status:   |_request, response| cybersource::authenticate_status(response),
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cybersource<T>,
+    flow:            PSync,
+    source:          cybersource::CybersourcePaymentStatus,
+    context:         bool,
+    params:          [status, capture],
+    success: Transmitted => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CybersourceTransactionResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
+    },
+    {
+        match (status, capture) {
+            (cybersource::CybersourcePaymentStatus::Authorized, true) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Authorized, false) => common_enums::AttemptStatus::Authorized,
+            (cybersource::CybersourcePaymentStatus::Succeeded, _) | (cybersource::CybersourcePaymentStatus::Transmitted, _) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Voided, _) | (cybersource::CybersourcePaymentStatus::Reversed, _) | (cybersource::CybersourcePaymentStatus::Cancelled, _) => common_enums::AttemptStatus::Voided,
+            (cybersource::CybersourcePaymentStatus::Failed, _) | (cybersource::CybersourcePaymentStatus::Declined, _) | (cybersource::CybersourcePaymentStatus::AuthorizedRiskDeclined, _) | (cybersource::CybersourcePaymentStatus::Rejected, _) | (cybersource::CybersourcePaymentStatus::InvalidRequest, _) | (cybersource::CybersourcePaymentStatus::ServerError, _) => common_enums::AttemptStatus::Failure,
+            (cybersource::CybersourcePaymentStatus::PendingAuthentication, _) => common_enums::AttemptStatus::AuthenticationPending,
+            (cybersource::CybersourcePaymentStatus::PendingReview, _) | (cybersource::CybersourcePaymentStatus::StatusNotReceived, _) | (cybersource::CybersourcePaymentStatus::Challenge, _) | (cybersource::CybersourcePaymentStatus::Accepted, _) | (cybersource::CybersourcePaymentStatus::Pending, _) | (cybersource::CybersourcePaymentStatus::AuthorizedPendingReview, _) => common_enums::AttemptStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cybersource<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      Void,
+    source:    cybersource::CybersourcePaymentStatus,
+    success:   Voided      => Voided,
+    failure:   Failed      => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CybersourceVoidResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized             => VoidInitiated,
+        Succeeded              => VoidFailed,
+        Transmitted            => VoidFailed,
+        Reversed               => Voided,
+        Cancelled              => Voided,
+        Pending                => Pending,
+        Declined               => Failure,
+        Rejected               => Failure,
+        Challenge              => Pending,
+        AuthorizedPendingReview => Pending,
+        AuthorizedRiskDeclined => Failure,
+        InvalidRequest         => Failure,
+        ServerError            => Failure,
+        PendingAuthentication  => Pending,
+        PendingReview          => Pending,
+        Accepted               => Pending,
+        StatusNotReceived      => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Cybersource<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      VoidPC,
+    source:    cybersource::CybersourcePaymentStatus,
+    success:   Voided      => VoidedPostCapture,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: PaymentsCancelPostCaptureData,
+        response: CybersourceVoidPCResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized             => Pending,
+        Succeeded              => VoidPostCaptureInitiated,
+        Transmitted            => VoidPostCaptureInitiated,
+        Reversed               => VoidedPostCapture,
+        Cancelled              => VoidedPostCapture,
+        Pending                => Pending,
+        Declined               => Failure,
+        Rejected               => Failure,
+        Challenge              => Pending,
+        AuthorizedPendingReview => Pending,
+        AuthorizedRiskDeclined => Failure,
+        InvalidRequest         => Failure,
+        ServerError            => Failure,
+        PendingAuthentication  => Pending,
+        PendingReview          => Pending,
+        Accepted               => Pending,
+        StatusNotReceived      => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Cybersource<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      RSync,
+    source:    cybersource::CybersourceRefundStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: CybersourceRsyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Transmitted => Success,
+        Pending     => Pending,
+        Voided      => Failure,
+        Cancelled   => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cybersource<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      Refund,
+    source:    cybersource::CybersourceRefundStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: RefundsData,
+        response: CybersourceRefundResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Transmitted => Success,
+        Pending     => Pending,
+        Voided      => Failure,
+        Cancelled   => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Cybersource<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      Capture,
+    source:    cybersource::CybersourcePaymentStatus,
+    success:   Transmitted => Charged,
+    failure:   Failed      => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CybersourceCaptureResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized             => Pending,
+        Succeeded              => Charged,
+        Voided                 => CaptureFailed,
+        Reversed               => CaptureFailed,
+        Cancelled              => CaptureFailed,
+        Pending                => Pending,
+        Declined               => CaptureFailed,
+        Rejected               => CaptureFailed,
+        Challenge              => Pending,
+        AuthorizedPendingReview => Pending,
+        AuthorizedRiskDeclined => CaptureFailed,
+        InvalidRequest         => CaptureFailed,
+        ServerError            => CaptureFailed,
+        PendingAuthentication  => Pending,
+        PendingReview          => Pending,
+        Accepted               => Pending,
+        StatusNotReceived      => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Cybersource<T>
@@ -154,13 +389,90 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      SetupMandate,
+    source:    cybersource::CybersourcePaymentStatus,
+    success:   Succeeded   => Charged,
+    failure:   Failed      => Failure,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: CybersourceSetupMandateResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        Authorized             => Charged,
+        Transmitted            => Charged,
+        Voided                 => Failure,
+        Reversed               => Failure,
+        Cancelled              => Failure,
+        Pending                => Pending,
+        Declined               => Failure,
+        Rejected               => Failure,
+        Challenge              => Pending,
+        AuthorizedPendingReview => Pending,
+        AuthorizedRiskDeclined => Failure,
+        InvalidRequest         => Failure,
+        ServerError            => Failure,
+        PendingAuthentication  => AuthenticationPending,
+        PendingReview          => Pending,
+        Accepted               => Pending,
+        StatusNotReceived      => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Cybersource<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cybersource<T>,
+    flow:            RepeatPayment,
+    source:          cybersource::CybersourcePaymentStatus,
+    context:         bool,
+    params:          [status, capture],
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: CybersourceRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
+        context: |_resource_common_data, request, _response | request.is_auto_capture(),
+    },
+    {
+        match (status, capture) {
+            (cybersource::CybersourcePaymentStatus::Authorized, true) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Authorized, false) => common_enums::AttemptStatus::Authorized,
+            (cybersource::CybersourcePaymentStatus::Succeeded, _) | (cybersource::CybersourcePaymentStatus::Transmitted, _) => common_enums::AttemptStatus::Charged,
+            (cybersource::CybersourcePaymentStatus::Voided, _) | (cybersource::CybersourcePaymentStatus::Reversed, _) | (cybersource::CybersourcePaymentStatus::Cancelled, _) => common_enums::AttemptStatus::Failure,
+            (cybersource::CybersourcePaymentStatus::Pending, _) | (cybersource::CybersourcePaymentStatus::Challenge, _) | (cybersource::CybersourcePaymentStatus::AuthorizedPendingReview, _) | (cybersource::CybersourcePaymentStatus::PendingReview, _) | (cybersource::CybersourcePaymentStatus::Accepted, _) | (cybersource::CybersourcePaymentStatus::StatusNotReceived, _) => common_enums::AttemptStatus::Pending,
+            (cybersource::CybersourcePaymentStatus::Declined, _) | (cybersource::CybersourcePaymentStatus::Rejected, _) | (cybersource::CybersourcePaymentStatus::AuthorizedRiskDeclined, _) | (cybersource::CybersourcePaymentStatus::InvalidRequest, _) | (cybersource::CybersourcePaymentStatus::ServerError, _) | (cybersource::CybersourcePaymentStatus::Failed, _) => common_enums::AttemptStatus::Failure,
+            (cybersource::CybersourcePaymentStatus::PendingAuthentication, _) => common_enums::AttemptStatus::AuthenticationPending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Cybersource<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cybersource<T>,
+    flow:      IncrementalAuthorization,
+    source:    cybersource::CybersourceIncrementalAuthorizationStatus,
+    success:   Authorized          => Authorized,
+    failure:   Declined            => AuthorizationFailed,
+    extractors: {
+        request:  PaymentsIncrementalAuthorizationData,
+        response: CybersourcePaymentsIncrementalAuthorizationResponse,
+        source:   |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        AuthorizedPendingReview => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Cybersource<T>

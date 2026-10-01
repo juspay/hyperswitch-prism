@@ -1427,6 +1427,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Context bundle for the Authorize flow status macro.
+/// Mirrors the three inputs that `map_attempt_status` uses beyond the status code itself.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IlixiumAuthorizeCtx {
+    pub operation_type: Option<IlixiumOperationType>,
+    pub has_three_ds_url: bool,
+    pub is_auto_capture: bool,
+}
+
 /// Request-level outcome. **Every** business failure is returned as HTTP 200 with one of these
 /// codes, so this — never the HTTP status — is what the connector branches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -1806,6 +1815,13 @@ fn map_attempt_status(
     }
 }
 
+pub fn pre_authenticate_status<T: PaymentMethodDataTypes>(
+    request: &PaymentsPreAuthenticateData<T>,
+    response: &IlixiumPreAuthenticateResponse,
+) -> AttemptStatus {
+    map_attempt_status(response, request.is_auto_capture().unwrap_or(true))
+}
+
 /// Maps a `/direct/capture` response onto a UCS attempt status.
 ///
 /// Kept separate from [`map_attempt_status`] because the same `status.code` means something
@@ -1817,7 +1833,7 @@ fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Charged,
         IlixiumStatusCode::Pending => AttemptStatus::CaptureInitiated,
-        IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
+        IlixiumStatusCode::Cancelled => AttemptStatus::CaptureFailed,
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::CaptureFailed
         }
@@ -2960,6 +2976,27 @@ impl IlixiumHistoryResponse {
                     .then_with(|| left_index.cmp(right_index))
             })
             .map(|(_, operation)| operation)
+    }
+
+    pub fn payment_sync_flow_status(
+        &self,
+        merchant_ref: &str,
+        current_status: AttemptStatus,
+        requested_auto_capture: bool,
+    ) -> AttemptStatus {
+        if self.status.code != IlixiumHistoryStatusCode::Success {
+            return current_status;
+        }
+
+        let Some(operation) = self.latest_payment_operation(merchant_ref) else {
+            return current_status;
+        };
+
+        let Some(operation_status) = operation.status.as_ref() else {
+            return current_status;
+        };
+
+        map_history_sync_status(operation, operation_status, requested_auto_capture)
     }
 }
 

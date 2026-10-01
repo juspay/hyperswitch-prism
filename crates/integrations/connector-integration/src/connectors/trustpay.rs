@@ -74,18 +74,122 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpay<T>
 {
 }
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      CreateOrder,
+    status:    AuthenticationPending,
+    runtime: {
+        request:  PaymentCreateOrderData,
+        response: TrustpayCreateIntentResponse,
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Trustpay<T>,
+    flow:           Authorize,
+    source:         transformers::TrustpayAuthorizeStatus,
+    context:        common_enums::AttemptStatus,
+    params:         [status, previous_attempt_status],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustpayPaymentsResponse,
+        source: |_resource_common_data, _request, response| Ok(trustpay::authorize_flow_status(response)),
+        context: |resource_common_data, _request, _response| {
+            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                resource_common_data,
+            )
+        },
+    },
+    {
+        status.attempt_status(previous_attempt_status)
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Trustpay<T>,
+    flow:           PSync,
+    source:         transformers::TrustpayAuthorizeStatus,
+    context:        common_enums::AttemptStatus,
+    params:         [status, previous_attempt_status],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TrustpayPaymentsSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(trustpay::authorize_flow_status(response)),
+        context: |resource_common_data, _request, _response| {
+            domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                resource_common_data,
+            )
+        },
+    },
+    {
+        status.attempt_status(previous_attempt_status)
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Trustpay<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Trustpay<T>,
+    flow:           RSync,
+    source:         common_enums::RefundStatus,
+    context:        (),
+    params:         [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_resource_common_data, _request, response| {
+            trustpay::refund_flow_status(response)
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        status
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Trustpay<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Trustpay<T>,
+    flow:           Refund,
+    source:         common_enums::RefundStatus,
+    context:        (),
+    params:         [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |_resource_common_data, _request, response| {
+            trustpay::refund_flow_status(response)
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        status
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Trustpay<T>
 {
@@ -107,9 +211,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      SetupMandate,
+    source:    transformers::TrustpayCardPaymentStatus,
+    success:   Charged              => Charged,
+    failure:   Failed               => Failure,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: TrustpaySetupMandateResponse,
+        source: |_resource_common_data, _request, response| Ok({
+            trustpay::card_payment_flow_status(
+                response.payment_status.clone(),
+                response.redirect_url.clone(),
+            )
+        }),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        AuthenticationPending => AuthenticationPending,
+        Pending               => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Trustpay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      RepeatPayment,
+    source:    transformers::TrustpayCardPaymentStatus,
+    success:   Charged              => Charged,
+    failure:   Failed               => Failure,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: TrustpayRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response| Ok({
+            trustpay::card_payment_flow_status(
+                response.payment_status.clone(),
+                response.redirect_url.clone(),
+            )
+        }),
+        context: |_resource_common_data, _request, _response | (),
+    },
+    {
+        AuthenticationPending => AuthenticationPending,
+        Pending               => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Trustpay<T>

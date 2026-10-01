@@ -76,6 +76,30 @@ pub enum SaleStatus {
     Chargeback,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub enum PaymeVoidFlowStatus {
+    Voided,
+    Pending,
+    Failed,
+    #[default]
+    DefaultVoided,
+}
+
+impl PaymePaymentResponse {
+    pub fn void_flow_status(&self) -> PaymeVoidFlowStatus {
+        if self.status_code != 0 || self.payme_status != "success" {
+            return PaymeVoidFlowStatus::Failed;
+        }
+
+        match self.payme_sale_status.as_deref() {
+            Some("voided") => PaymeVoidFlowStatus::Voided,
+            Some("pending") => PaymeVoidFlowStatus::Pending,
+            Some("failed") => PaymeVoidFlowStatus::Failed,
+            _ => PaymeVoidFlowStatus::DefaultVoided,
+        }
+    }
+}
+
 impl From<SaleStatus> for AttemptStatus {
     fn from(item: SaleStatus) -> Self {
         match item {

@@ -3202,6 +3202,14 @@ pub struct CybersourcePaymentsResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
+impl CybersourcePaymentsResponse {
+    pub fn flow_status(&self) -> CybersourcePaymentStatus {
+        self.status
+            .clone()
+            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceErrorInformationResponse {
@@ -3854,6 +3862,19 @@ pub enum CybersourceAuthenticateResponse {
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
 }
 
+pub fn authenticate_status(
+    response: &CybersourceAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            common_enums::AttemptStatus::from(info_response.status)
+        }
+        CybersourceAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+}
+
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<CybersourceAuthenticateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
@@ -4283,6 +4304,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Clone, Copy)]
 pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,
@@ -4551,6 +4573,15 @@ pub struct CybersourceTransactionResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
+impl CybersourceTransactionResponse {
+    pub fn flow_status(&self) -> CybersourcePaymentStatus {
+        self.application_information
+            .status
+            .clone()
+            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
@@ -4718,6 +4749,12 @@ pub struct CybersourceRefundResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
+impl CybersourceRefundResponse {
+    pub fn flow_status(&self) -> CybersourceRefundStatus {
+        self.status.clone()
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<CybersourceRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -4763,6 +4800,15 @@ pub struct CybersourceRsyncResponse {
     id: String,
     application_information: Option<RsyncApplicationInformation>,
     error_information: Option<CybersourceErrorInformation>,
+}
+
+impl CybersourceRsyncResponse {
+    pub fn flow_status(&self) -> CybersourceRefundStatus {
+        self.application_information
+            .as_ref()
+            .and_then(|info| info.status.clone())
+            .unwrap_or(CybersourceRefundStatus::Pending)
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<CybersourceRsyncResponse, Self>>
