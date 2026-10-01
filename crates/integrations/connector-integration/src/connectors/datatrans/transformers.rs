@@ -1319,10 +1319,11 @@ pub enum DatatransPaymentStatus {
 /// snake_case values. The type is required to interpret `status` correctly, because
 /// the same status means different things across transaction kinds (see
 /// [`sync_attempt_status`]).
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DatatransTransactionType {
     /// Standard Authorize/Capture payment transaction.
+    #[default]
     Payment,
     /// Refund/credit transaction. Not an attempt-status carrier — refunds are tracked
     /// via `RefundStatus`/RSync, so for `AttemptStatus` this maps to `Failure`

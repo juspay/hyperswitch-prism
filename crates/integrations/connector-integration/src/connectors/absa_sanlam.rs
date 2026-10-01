@@ -52,6 +52,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for AbsaSanlam<T>
 {
 }
+
+// NOTE: no flow-status mapping for Authorize. The enqueue response carries a
+// real connector status, but it has no terminal success state:
+// `Queued | Unknown -> Pending`, `Rejected -> Failure`. Modeling `Queued` as a
+// terminal success would not match the transformer.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for AbsaSanlam<T>
 {

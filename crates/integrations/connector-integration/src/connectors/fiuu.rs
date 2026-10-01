@@ -62,25 +62,156 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiuu<T>
 {
 }
+// BLOCKED: Authorize's response is mixed. QR and redirect branches hardcode
+// AuthenticationPending, recurring uses a different status type, Error preserves
+// the previous common status, and only NonThreeDS uses FiuuAuthorizeStatus.
+// An exact runtime mapping needs FlowStatusReader for the Error branch.
+#[cfg(any())]
+// Mirrors the non-3DS leg of the Authorize TryFrom
+// (`RequestData::NonThreeDS` in `TryFrom<ResponseRouterData<FiuuPaymentsResponse, ..>>`):
+// the raw `stat_code` string — typed as `FiuuAuthorizeStatus` — maps
+// "00" → Charged/Authorized by the request's capture method (ctx), "11" →
+// Failure, "22" → Pending. The redirect/QR legs force `AuthenticationPending`
+// and the recurring leg uses `FiuuRecurringStautus`; neither is covered by
+// this declaration.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiuu<T>,
+    flow:            Authorize,
+    source:          fiuu::FiuuAuthorizeStatus,
+    context:         fiuu::FiuuCaptureMethodCtx,
+    params:          [status, ctx],
+    success: Approved => [Charged, Authorized],
+    failure: Failed => Failure,
+    {
+        match status {
+            fiuu::FiuuAuthorizeStatus::Approved => match ctx {
+                fiuu::FiuuCaptureMethodCtx::Auto => common_enums::AttemptStatus::Charged,
+                fiuu::FiuuCaptureMethodCtx::Manual => common_enums::AttemptStatus::Authorized,
+            },
+            fiuu::FiuuAuthorizeStatus::Failed => common_enums::AttemptStatus::Failure,
+            fiuu::FiuuAuthorizeStatus::Pending => common_enums::AttemptStatus::Pending,
+            // Unrecognised stat_code — the TryFrom rejects these as an
+            // unexpected-response error, which surfaces downstream as Failure.
+            fiuu::FiuuAuthorizeStatus::Other => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiuu<T>
 {
 }
+// NOTE: no impl_flow_status_mapping! for PSync.  `TryFrom<FiuuSyncStatus>` takes a
+// struct (`stat_code` + `stat_name`) rather than an enum, and the full mapping is a
+// tuple match across both fields — not expressible as a single-variant `success:` /
+// `failure:` declaration.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiuu<T>
 {
+}
+// Mirrors the Cancel TryFrom (`TryFrom<ResponseRouterData<FiuuPaymentCancelResponse,
+// ..>>`): the raw `stat_code` — typed as `FiuuVoidStatus` — maps "00" → Voided,
+// the listed failure codes → VoidFailed, and any unexpected code to an error
+// (surfacing as failure).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow:      Void,
+    source:    fiuu::FiuuVoidStatus,
+    success:   Voided => Voided,
+    failure:   Failed => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: FiuuPaymentCancelResponse,
+        source: |response| fiuu::FiuuVoidStatus::from_stat_code(&response.stat_code),
+        context: |_request, _response| (),
+    },
+    {
+        Other => VoidFailed
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiuu<T>
 {
 }
+// BLOCKED: RSync has Success, Error, and Webhook response branches. Error
+// preserves the previous refund status; Success can also produce RefundStatus::Unknown,
+// which is outside RSync::ALLOWED. The inline extractor cannot preserve common data.
+#[cfg(any())]
+// Mirrors `From<fiuu::RefundStatus> for RefundStatus` (transformers.rs:2749) as
+// used by the RSync TryFrom: Success → Success, Rejected → Failure, Pending /
+// BLOCKED: RSync maps `Unknown` to RefundStatus::Unknown and its Error response
+// branch preserves the existing common status. `Unknown` is outside the flow's
+// allowed set, and coercing it to Pending would change production behavior.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Fiuu<T>,
+    flow:           RSync,
+    source:         fiuu::RefundStatus,
+    context:        (),
+    params:         [status, ctx],
+    success: Success => Success,
+    failure: Rejected => Failure,
+    {
+        let _ = ctx;
+        match status {
+            fiuu::RefundStatus::Success => common_enums::RefundStatus::Success,
+            fiuu::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
+            // Pending/Processing are in-flight; Unknown is not a real terminal
+            // for a sync poll — treat as still-pending (see NOTE above).
+            fiuu::RefundStatus::Pending
+            | fiuu::RefundStatus::Processing
+            | fiuu::RefundStatus::Unknown => common_enums::RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiuu<T>
 {
 }
+// BLOCKED: Refund's Error response branch preserves the existing common status,
+// while the Success branch maps its status code. Exact runtime extraction needs
+// FlowStatusReader and cannot be expressed by the inline extractor alone.
+#[cfg(any())]
+// Mirrors the Refund TryFrom (`TryFrom<ResponseRouterData<FiuuRefundResponse,
+// ..>>`): the raw `status` string of `FiuuRefundSuccessResponse` — typed as
+// `FiuuRefundStatus` — maps "00" → Success, "11" → Failure, "22" → Pending;
+// unexpected codes are rejected as an error (surfacing as failure).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow:      Refund,
+    source:    fiuu::FiuuRefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+        Other   => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiuu<T>
 {
+}
+// BLOCKED: Capture maps known failure codes to AttemptStatus::Failure, while the
+// declaration below used CaptureFailed. Unknown codes return a transformer error.
+// Keeping the declaration active would change production status behavior.
+#[cfg(any())]
+// Mirrors the Capture TryFrom (`TryFrom<ResponseRouterData<PaymentCaptureResponse,
+// ..>>`): the raw `stat_code` — typed as `FiuuCaptureStatus` — maps "00" →
+// Charged, "22" → Pending, the listed failure codes → Failure; unexpected
+// codes are rejected as an error (surfacing as failure).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow:      Capture,
+    source:    fiuu::FiuuCaptureStatus,
+    success:   Success => Charged,
+    failure:   Other   => CaptureFailed,
+    {
+        Pending => Pending
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Fiuu<T>
@@ -102,10 +233,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Fiuu<T>
 {
 }
+// NOTE: no impl_flow_status_mapping! for RepeatPayment.  RepeatPayment reuses the
+// shared `FiuuPaymentsResponse` TryFrom: its status comes from either the string
+// `stat_code` leg (auto_capture disambiguated) or `FiuuRecurringStautus` — no
+// single `source:` enum covers both branches.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Fiuu<T>
 {
 }
+// NOTE: no impl_flow_status_mapping! for SetupMandate.  SetupMandate shares the
+// Authorize TryFrom (`FiuuPaymentsResponse`) — status is computed from the raw
+// string `stat_code` leg plus `is_auto_capture()`, not a typed enum.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Fiuu<T>
 {

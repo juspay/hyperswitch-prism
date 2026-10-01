@@ -63,16 +63,97 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authorize,
+    status: Pending,
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: FlywireConfirmResponse,
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Flywire<T>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authenticate,
+    status: Pending,
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: FlywireCheckoutSessionResponse,
+    },
+}
+
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Mirrors `FlywirePaymentStatus::to_attempt_status`.  `Guaranteed`/`Delivered`
+// are the settled terminals; `Reversed` (a post-hoc clawback) surfaces as
+// AutoRefunded, which PSync's broad ALLOWED set accepts.
+// Deviation: `to_attempt_status` maps `Cancelled | Failed | Expired` to
+// `AttemptStatus::Failure`; Failure ∈ PSync::TERMINAL_FAILURE_SET, so no change.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow:      PSync,
+    source:    flywire::FlywirePaymentStatus,
+    success:   Guaranteed => Charged,
+    failure:   Failed     => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: FlywirePSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Delivered   => Charged,
+        Authorized  => Authorized,
+        Adjusted    => Authorized,
+        Cancelled   => Failure,
+        Expired     => Failure,
+        Reversed    => AutoRefunded,
+        Initiated   => Pending,
+        Processed   => Pending,
+        Pending     => Pending,
+        Unknown     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Flywire<T>
 {
 }
 
+// Mirrors `FlywireRefundStatus::to_refund_status`: finished/completed/approved
+// is a settled refund; rejected/cancelled/failed/returned is a terminal failure;
+// initiated/pending/received (and an unannounced status) are still in flight.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow:      Refund,
+    source:    flywire::FlywireRefundStatus,
+    success:   Finished => Success,
+    failure:   Failed   => Failure,
+    extractors: {
+        request: RefundsData,
+        response: FlywireRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Completed => Success,
+        Approved  => Success,
+        Rejected  => Failure,
+        Cancelled => Failure,
+        Returned  => Failure,
+        Initiated => Pending,
+        Pending   => Pending,
+        Received  => Pending,
+        Unknown   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Flywire<T>
 {
@@ -83,6 +164,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// RSync deserializes FlywireRefundResponse, like Refund.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: RSync,
+    source: flywire::FlywireRefundStatus,
+    success: Finished => Success,
+    failure: Failed => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: FlywireRSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Completed => Success,
+        Approved => Success,
+        Rejected => Failure,
+        Cancelled => Failure,
+        Returned => Failure,
+        Initiated => Pending,
+        Pending => Pending,
+        Received => Pending,
+        Unknown => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Flywire<T>
 {
