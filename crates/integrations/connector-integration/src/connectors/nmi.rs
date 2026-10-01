@@ -33,7 +33,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    NmiCaptureRequest, NmiPaymentsRequest, NmiRefundRequest, NmiRefundSyncRequest,
+    self as nmi, NmiCaptureRequest, NmiPaymentsRequest, NmiRefundRequest, NmiRefundSyncRequest,
     NmiRepeatPaymentRequest, NmiRepeatPaymentResponse, NmiSetupMandateRequest,
     NmiSetupMandateResponse, NmiSyncRequest, NmiVaultRequest, NmiVaultResponse, NmiVoidRequest,
     StandardResponse, SyncResponse,
@@ -821,6 +821,258 @@ macros::macro_connector_implementation!(
 );
 
 // ===== EMPTY CONNECTOR INTEGRATIONS =====
+
+// ===== FLOW STATUS MAPPINGS =====
+
+/// Context passed by the Authorize runtime extractor: the TryFrom splits the
+/// `Approved` verdict by capture method (`request.is_auto_capture()`), which
+/// the `NmiPaymentVerdict` source enum cannot encode on its own for Authorize
+/// (`ApprovedSale`/`ApprovedAuth` exist as variants but the sample-sample
+/// mapping keeps `Other`/extracted fallback free of the request-dependent
+/// split).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NmiVerdictPatch {
+    None,
+    SetApprovedSale,
+    SetApprovedAuth,
+}
+
+// Authorize — mirrors the two-gate status logic of the Authorize TryFrom
+// (transformers.rs:725): `Response::Approved` → `Charged` (auto-capture) / `Authorized`
+// (manual), `Declined`/`Error` → `AuthorizationFailed`. The capture-method split is
+// request-derived, so the decision lattice is typed as `NmiPaymentVerdict` and matched
+// exhaustively here (`Other` = unreachable request/response combination).
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nmi<T>,
+    flow:            Authorize,
+    source:          nmi::NmiPaymentVerdict,
+    context:         NmiVerdictPatch,
+    params:          [verdict, ctx],
+    success: ApprovedSale => [Charged, Authorized],
+    failure: DeclinedOrError => AuthorizationFailed,
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: StandardResponse,
+        source: |response| match response.response {
+            nmi::Response::Approved => nmi::NmiPaymentVerdict::Other,
+            nmi::Response::Declined | nmi::Response::Error => nmi::NmiPaymentVerdict::DeclinedOrError,
+        },
+        context: |request, response| match (response.response.clone(), request.is_auto_capture()) {
+            (nmi::Response::Approved, true) => NmiVerdictPatch::SetApprovedSale,
+            (nmi::Response::Approved, false) => NmiVerdictPatch::SetApprovedAuth,
+            (nmi::Response::Declined | nmi::Response::Error, _) => NmiVerdictPatch::None,
+        },
+    },
+    {
+        // The Authorize TryFrom splits Approved by capture method; `verdict`
+        // arrives as `Other` from the source extractor and is patched by ctx.
+        let verdict = match ctx {
+            NmiVerdictPatch::SetApprovedSale => nmi::NmiPaymentVerdict::ApprovedSale,
+            NmiVerdictPatch::SetApprovedAuth => nmi::NmiPaymentVerdict::ApprovedAuth,
+            NmiVerdictPatch::None => verdict,
+        };
+        use common_enums::AttemptStatus;
+        match verdict {
+            nmi::NmiPaymentVerdict::NotFound | nmi::NmiPaymentVerdict::Other => {
+                AttemptStatus::Pending
+            }
+            nmi::NmiPaymentVerdict::ApprovedSale => AttemptStatus::Charged,
+            nmi::NmiPaymentVerdict::ApprovedAuth => AttemptStatus::Authorized,
+            nmi::NmiPaymentVerdict::DeclinedOrError => AttemptStatus::AuthorizationFailed,
+        }
+    }
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:855): a found transaction maps
+// `condition` through `NmiStatus`, and an empty query response maps to
+// `Unspecified` ("NMI has no record of this order"). The `Option<NmiStatus>` context is
+// `None` exactly for the empty-response case.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nmi<T>,
+    flow:            PSync,
+    source:          nmi::NmiStatus,
+    context:         Option<nmi::NmiStatus>,
+    params:          [status, found],
+    success: Complete => [Charged, Authorized, Voided],
+    failure: Failed => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: SyncResponse,
+        source: |response| {
+            response
+                .transaction
+                .last()
+                .map(|txn| nmi::NmiStatus::from(txn.condition.clone()))
+                .unwrap_or(nmi::NmiStatus::Unknown)
+        },
+        context: |_request, response| {
+            response
+                .transaction
+                .last()
+                .map(|txn| nmi::NmiStatus::from(txn.condition.clone()))
+        },
+    },
+    {
+        use common_enums::AttemptStatus;
+        if found.is_none() {
+            return AttemptStatus::Unspecified;
+        }
+        match status {
+            nmi::NmiStatus::Abandoned => AttemptStatus::AuthenticationFailed,
+            nmi::NmiStatus::Cancelled => AttemptStatus::Voided,
+            nmi::NmiStatus::Pending => AttemptStatus::Authorized,
+            nmi::NmiStatus::Pendingsettlement | nmi::NmiStatus::Complete => AttemptStatus::Charged,
+            nmi::NmiStatus::InProgress => AttemptStatus::AuthenticationPending,
+            nmi::NmiStatus::Failed | nmi::NmiStatus::Unknown => AttemptStatus::Failure,
+        }
+    }
+}
+
+// Capture — mirrors the Capture TryFrom (transformers.rs:994): `Approved` → `Charged`,
+// `Declined`/`Error` → `Failure`. Deprecations vs the TryFrom: none — `TryFrom` maps the
+// raw decline to `Failure` (`Capture::TERMINAL_FAILURE_SET` accepts both).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      Capture,
+    source:    nmi::Response,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: StandardResponse,
+        source: |response| response.response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Error => Failure,
+    }
+}
+
+// Void — mirrors the Void TryFrom (transformers.rs:1295): `Approved` → `Voided`,
+// `Declined`/`Error` → `VoidFailed`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      Void,
+    source:    nmi::Response,
+    success:   Approved => Voided,
+    failure:   Declined => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: StandardResponse,
+        source: |response| response.response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Error => VoidFailed,
+    }
+}
+
+// Refund — mirrors the Refund TryFrom (transformers.rs:1112): `Approved` → `Success`,
+// `Declined`/`Error` → `Failure`.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      Refund,
+    source:    nmi::Response,
+    success:   Approved => Success,
+    failure:   Declined => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: StandardResponse,
+        source: |response| response.response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Error => Failure,
+    }
+}
+
+// RSync — mirrors the RSync TryFrom (transformers.rs:1182): the matched transaction's
+// `condition` maps through `From<NmiStatus> for RefundStatus`. A query with no record is
+// hard `ResponseDeserializationFailed`, so every variant here stands for a found record.
+// `Abandoned`/`Cancelled`/`Failed`/`Unknown` → `Failure` mirrors the shared impl exactly.
+//
+// NOTE: no extractors for RSync. The TryFrom selects the transaction by matching
+// `response.transaction[*].order_id` against `request.connector_refund_id`
+// (falling back to the last record) — a request-dependent list lookup that a
+// `source: |response| ...` closure cannot express; and an empty list errors out
+// instead of mapping, so there is no response-only source value in general.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      RSync,
+    source:    nmi::NmiStatus,
+    success:   Complete => Success,
+    failure:   Failed   => Failure,
+    {
+        Pendingsettlement => Success,
+        Pending           => Pending,
+        InProgress        => Pending,
+        Abandoned         => Failure,
+        Cancelled         => Failure,
+        Unknown           => Failure,
+    }
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, Failure],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: NmiPreAuthenticateResponse,
+        status: |_request, response| match response.response {
+            nmi::Response::Approved => common_enums::AttemptStatus::AuthenticationPending,
+            nmi::Response::Declined | nmi::Response::Error => common_enums::AttemptStatus::Failure,
+        },
+    },
+}
+
+// SetupMandate — mirrors the SetupMandate TryFrom (transformers.rs:1793): `Approved` →
+// `Charged` (the vault write is a zero-amount sale; there is no separate "registered"
+// status), `Declined`/`Error` → `Failure`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      SetupMandate,
+    source:    nmi::Response,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: NmiSetupMandateResponse,
+        source: |response| response.response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Error => Failure,
+    }
+}
+
+// RepeatPayment — mirrors the RepeatPayment TryFrom (transformers.rs:2026): `Approved` →
+// `Charged`, `Declined`/`Error` → `Failure` (MIT is always a sale).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow:      RepeatPayment,
+    source:    nmi::Response,
+    success:   Approved => Charged,
+    failure:   Declined => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: NmiRepeatPaymentResponse,
+        source: |response| response.response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        Error => Failure,
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Nmi,

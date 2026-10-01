@@ -381,6 +381,53 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
+// Flow declarations mirror the production transformer mappings, including
+// context-dependent and nonterminal outcomes.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperswitch<T>,
+    flow: domain_types::connector_flow::PSync,
+    source: hyperswitch::HyperswitchIntentStatus,
+    context: bool,
+    params: [status, ctx],
+    success: Succeeded => [Authorized, Charged, PartialCharged, Voided],
+    failure: Failed => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: HyperswitchPSyncResponse,
+        source:   |response| response.status.clone(),
+        context:  |request, _response| {
+            !matches!(
+                request.capture_method,
+                Some(common_enums::CaptureMethod::Manual)
+            )
+        },
+    },
+    {
+        hyperswitch::map_intent_status(&status, ctx)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hyperswitch<T>,
+    flow: domain_types::connector_flow::RepeatPayment,
+    source: hyperswitch::HyperswitchIntentStatus,
+    context: bool,
+    params: [status, ctx],
+    success: Succeeded => [Charged, PartialCharged],
+    failure: Failed => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: HyperswitchRepeatPaymentResponse,
+        source:   |response| response.status.clone(),
+        context:  |request, _response| request.is_auto_capture(),
+    },
+    {
+        hyperswitch::map_intent_status(&status, ctx)
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Hyperswitch,
     generic_type: T,

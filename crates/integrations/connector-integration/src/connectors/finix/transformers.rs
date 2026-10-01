@@ -415,7 +415,7 @@ pub struct FinixLink {
     pub href: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixPaymentStatus {
     Succeeded,
@@ -548,6 +548,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             statement_descriptor,
         })
+    }
+}
+
+/// The `AU*`/`TR*` id-prefix split the payment TryFrom impls (`Authorize`, `PSync`,
+/// `RepeatPayment`) key their `FinixId`-vs-`FinixPaymentStatus` matrix on.
+/// Extracted as its own type so the `impl_flow_status_mapping!` context is
+/// the same semantically-true discriminant the TryFrom impls match on — the
+/// `Author` (authorization, `AU*`) vs `Transfer` (capture/debit, `TR*`)
+/// distinction — rather than the raw id string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FinixIdKind {
+    /// `AU*` — an authorization (pre-auth). `Succeeded` maps to `Authorized`.
+    #[default]
+    Authorization,
+    /// `TR*` — a transfer (funds movement). `Succeeded` maps to `Charged`.
+    Transfer,
+}
+
+impl From<&FinixId> for FinixIdKind {
+    fn from(id: &FinixId) -> Self {
+        match id {
+            FinixId::Auth(_) => Self::Authorization,
+            FinixId::Transfer(_) => Self::Transfer,
+        }
     }
 }
 

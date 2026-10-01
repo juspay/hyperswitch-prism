@@ -351,8 +351,8 @@ impl TryFrom<&enums::BankNames> for NexinetsBIC {
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
-    transaction_type: NexinetsTransactionType,
-    transactions: Vec<NexinetsTransaction>,
+    pub transaction_type: NexinetsTransactionType,
+    pub transactions: Vec<NexinetsTransaction>,
     payment_instrument: PaymentInstrument,
     redirect_url: Option<Url>,
 }
@@ -631,7 +631,7 @@ pub struct NexinetsRefundResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Success,

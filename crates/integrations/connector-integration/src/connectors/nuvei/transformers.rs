@@ -79,8 +79,8 @@ impl NuveiAuthType {
         format!("{:x}", hasher.finalize())
     }
 
-    pub fn get_timestamp(
-    ) -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
+    pub fn get_timestamp()
+    -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
         // Generate timestamp in YYYYMMDDHHmmss format using common_utils date_time
         common_utils::date_time::DateTime::from(common_utils::date_time::now())
     }
@@ -507,6 +507,42 @@ pub enum TransactionType {
     #[default]
     Sale,
 }
+
+// ── Status-mapping context types (flow-status macros) ───────────────────────
+
+/// The `transaction_type` field on a `getTransactionDetails` response
+/// (`NuveiTransactionDetails::transaction_type`, a `String` on the wire), folded to a
+/// typed form. `Auth` = authorized only; `Sale`/`Settle` = captured; anything else
+/// (including a missing field) follows the PSync fallback of treating the payment as
+/// captured.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NuveiSyncTransactionType {
+    Auth,
+    Sale,
+    Settle,
+    Other,
+}
+
+impl NuveiSyncTransactionType {
+    pub fn from_wire(s: Option<&str>) -> Self {
+        match s {
+            Some("Auth") => Self::Auth,
+            Some("Sale") => Self::Sale,
+            Some("Settle") => Self::Settle,
+            _ => Self::Other,
+        }
+    }
+}
+
+/// PSync mapping context: `(transaction_details is present, response-level status,
+/// folded transaction_type)`. A `false` first slot encodes the TryFrom's `?`-error on a
+/// missing `transaction_details` object — the sync errored before status mapping.
+pub type NuveiPSyncMappingCtx = (bool, NuveiPaymentStatus, NuveiSyncTransactionType);
+
+/// Capture / Refund / RSync mapping context: `(transaction_status is present,
+/// response-level status is Success)`. `Approved`-status outcomes are only reachable
+/// with `true` in the first slot.
+pub type NuveiResponseMappingCtx = (bool, NuveiPaymentStatus);
 
 impl TransactionType {
     fn get_from_capture_method(
@@ -974,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 }
             }
@@ -1038,7 +1074,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 }
             }
@@ -1062,7 +1098,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector: "nuvei",
                             context: Default::default(),
                         }
-                        .into())
+                        .into());
                     }
                 };
 
@@ -1093,7 +1129,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Payment method not supported by Nuvei in this transformer".to_string(),
                     Default::default(),
                 )
-                .into())
+                .into());
             }
         };
 
@@ -2651,7 +2687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector: "nuvei",
                     context: Default::default(),
                 }
-                .into())
+                .into());
             }
         };
 

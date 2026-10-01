@@ -498,7 +498,6 @@ domain_types::impl_flow_status_mapping! {
         } else {
             citigate::CitigatePostAuthStatus::NotReceived
         },
-        context: |_request, _response| (),
     },
     {}
 }
@@ -525,7 +524,6 @@ domain_types::impl_flow_status_mapping! {
         } else {
             citigate::CitigatePostAuthStatus::NotReceived
         },
-        context: |_request, _response| (),
     },
     {}
 }
@@ -536,10 +534,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Mirrors the refined `CitigatePaymentsResponse::refund_status`. The refund
 // endpoint answers with the bare `ResponseCode`, so the Approved/NotReceived
-// pair is all there is — but the `_ctx` form is used because the body must
-// reproduce the doc-driven transient-code refinement (issuer/acquirer errors →
-// Pending for retry) under a fail-safe wildcard (`_ => Failure`). The `()`
-// context is unused; the match is on the code only.
+// pair is all there is.
 // BLOCKED: Refund maps five documented transient response codes to Pending and
 // other failures to Failure. CitigatePostAuthStatus collapses all non-zero codes,
 // so this declaration cannot preserve that distinction.
@@ -548,12 +543,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Citigate<T>,
     flow:           Refund,
     source:         citigate::CitigatePostAuthStatus,
-    context:        (),
-    params:         [status, ctx],
+    params:         [status],
     success: Approved => Success,
     failure: NotReceived => Failure,
     {
-        ctx;
         match status {
             citigate::CitigatePostAuthStatus::Approved => common_enums::RefundStatus::Success,
             citigate::CitigatePostAuthStatus::NotReceived => common_enums::RefundStatus::Failure,

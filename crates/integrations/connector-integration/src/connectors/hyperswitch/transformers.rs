@@ -203,7 +203,7 @@ pub struct HyperswitchPaymentsResponse {
 pub type HyperswitchPSyncResponse = HyperswitchPaymentsResponse;
 pub type HyperswitchRepeatPaymentResponse = HyperswitchPaymentsResponse;
 
-fn map_intent_status(
+pub(super) fn map_intent_status(
     status: &HyperswitchIntentStatus,
     _is_auto_capture: bool,
 ) -> common_enums::AttemptStatus {

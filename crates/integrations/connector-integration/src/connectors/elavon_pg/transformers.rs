@@ -1543,7 +1543,7 @@ impl TryFrom<ResponseRouterData<ElavonPgPsyncResponse, Self>>
 /// the response — which keeps Authorize and PSync (which has no request-side capture
 /// method of the connector's own) on exactly the same code path. The request-side
 /// value is only a fallback, and taking it is warned about.
-fn resolve_auto_capture(
+pub(crate) fn resolve_auto_capture(
     response_do_capture: Option<bool>,
     request_is_auto_capture: bool,
     transaction_id: &str,

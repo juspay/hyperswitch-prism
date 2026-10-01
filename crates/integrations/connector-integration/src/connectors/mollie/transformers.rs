@@ -672,7 +672,7 @@ pub struct MollieRefundRequest {
 }
 
 // Mollie Refund Status enum
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum MollieRefundStatus {
     Queued,

@@ -879,7 +879,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisAuthorizeResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
 }
@@ -938,7 +938,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
 }
@@ -1010,9 +1010,25 @@ impl<F, T> TryFrom<ResponseRouterData<MonerisPaymentsResponse, Self>>
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisCaptureResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
+}
+
+pub(super) fn capture_attempt_status(
+    status: MonerisPaymentStatus,
+    captured: common_utils::types::MinorUnit,
+    capturable: Option<common_utils::types::MinorUnit>,
+) -> common_enums::AttemptStatus {
+    match status {
+        MonerisPaymentStatus::Succeeded => match capturable {
+            Some(authorized) if captured < authorized => {
+                common_enums::AttemptStatus::PartialCharged
+            }
+            _ => common_enums::AttemptStatus::Charged,
+        },
+        other => common_enums::AttemptStatus::from(other),
+    }
 }
 
 impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
@@ -1022,22 +1038,13 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MonerisCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = match item.response.payment_status {
-            MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.minor_amount_to_capture;
-                match item
-                    .router_data
-                    .resource_common_data
-                    .minor_amount_capturable
-                {
-                    Some(authorized) if captured < authorized => {
-                        common_enums::AttemptStatus::PartialCharged
-                    }
-                    _ => common_enums::AttemptStatus::Charged,
-                }
-            }
-            other => common_enums::AttemptStatus::from(other),
-        };
+        let status = capture_attempt_status(
+            item.response.payment_status,
+            item.router_data.request.minor_amount_to_capture,
+            item.router_data
+                .resource_common_data
+                .minor_amount_capturable,
+        );
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
@@ -1321,7 +1328,7 @@ impl From<MonerisRefundStatus> for RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundResponse {
     refund_id: String,
-    refund_status: MonerisRefundStatus,
+    pub refund_status: MonerisRefundStatus,
 }
 
 impl TryFrom<ResponseRouterData<MonerisRefundResponse, Self>>
