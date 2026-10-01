@@ -1,0 +1,454 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "mid": "",
+            "paid": true,
+            "order": null,
+            "amount": 1,
+            "escrow": null,
+            "status": "CLO",
+            "address": null,
+            "dispute": null,
+            "fx_rate": 1,
+            "invoice": "",
+            "outcome": null,
+            "paid_at": 1711008868,
+            "refunds": null,
+            "captured": true,
+            "ewallets": [
+              {
+                "amount": 1,
+                "percent": 100,
+                "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+                "refunded_amount": 0
+              }
+            ],
+            "metadata": {},
+            "refunded": false,
+            "auth_code": null,
+            "flow_type": "",
+            "created_at": 1711008868,
+            "error_code": "",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "expiration": 1711613668,
+            "fixed_side": "",
+            "is_partial": false,
+            "description": "",
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "failure_code": "",
+            "instructions": [],
+            "payment_fees": null,
+            "redirect_url": "",
+            "visual_codes": {},
+            "cancel_reason": null,
+            "currency_code": "EUR",
+            "group_payment": "",
+            "receipt_email": "",
+            "textual_codes": {},
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "receipt_number": "",
+            "transaction_id": "",
+            "failure_message": "",
+            "initiation_type": "customer_present",
+            "original_amount": 1,
+            "refunded_amount": 0,
+            "error_payment_url": "https://error.rapyd.net",
+            "payment_method_data": {
+              "id": "card_0d83436af31300bf263dd5ef379b8230",
+              "name": "John Doe",
+              "type": "gb_visa_card",
+              "image": "",
+              "last4": "1111",
+              "category": "card",
+              "metadata": null,
+              "acs_check": "unchecked",
+              "cvv_check": "unchecked",
+              "bin_details": {
+                "type": "DEBIT",
+                "brand": "VISA",
+                "level": "CREDIT",
+                "issuer": "JPMORGAN CHASE BANK, N.A.",
+                "country": "US",
+                "bin_number": "411111"
+              },
+              "next_action": "not_applicable",
+              "webhook_url": "",
+              "expiration_year": "25",
+              "expiration_month": "05",
+              "fingerprint_token": "ocfp_e599f990674473ce6283b245e9ad2467",
+              "supporting_documentation": "",
+              "payment_account_reference": "V0010013018036782991622965076"
+            },
+            "payment_method_type": "gb_visa_card",
+            "save_payment_method": true,
+            "complete_payment_url": "https://complete.rapyd.net",
+            "remitter_information": {},
+            "statement_descriptor": "Doc Team",
+            "merchant_reference_id": "",
+            "payment_method_options": {},
+            "merchant_requested_amount": null,
+            "merchant_requested_currency": null,
+            "payment_method_type_category": "card",
+            "merchant_advice_code": null,
+            "merchant_advice_message": null,
+            "merchant_ewallet": null,
+            "transaction_link_id": null
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_completed"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_6d0b1efc39424f33556a300434cccc74",
+          "type": "PAYMENT_FAILED",
+          "data": {
+            "id": "payment_02e5ecc4b7e0395148e8eba68ad63120",
+            "mid": "mid_5c5d6187ccd4dd5c16142459e8911350",
+            "paid": false,
+            "amount": 0,
+            "status": "ERR",
+            "currency_code": "ISK",
+            "customer_token": "cus_ad212a1b326bb00dd6a663b44e574ad3",
+            "payment_method_type": "gb_mastercard_card",
+            "failure_code": "65",
+            "failure_message": "Authentication Required or Activity Limit Exceeded",
+            "error_code": "ERROR_PROCESSING_CARD - [65]",
+            "created_at": 1736262161,
+            "authentication_result": {
+              "eci": "07",
+              "result": "N",
+              "version": "2.2.0",
+              "cardholder_info": "The purchase connot be completed at this time. For additional information please contact your card issuer."
+            }
+          },
+          "trigger_operation_id": "9846cf13-6983-4888-88d4-c0b378dec372",
+          "status": "NEW",
+          "created_at": 1736262296,
+          "extended_timestamp": 1736262296981
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "c73cd65e-988c-473a-8d03-06a15d52a3e7",
+          "token": "wh_1abe7fd19f96fe553fc613a1f3ff20ca",
+          "organization_id": "df301b60-8a9d-4a5a-a315-39b699230cb1",
+          "org_pk": 0,
+          "type": "REFUND_COMPLETED",
+          "data": {
+            "id": "refund_102ae6d1286b07ce8b3768b93eab9a24",
+            "amount": 87.36,
+            "payment": "payment_ccc04715a1021b821025b8d8c0a0eed8",
+            "currency": "ILS",
+            "failure_reason": "",
+            "failure_code": "",
+            "metadata": {},
+            "reason": "Direct Refund",
+            "status": "Completed",
+            "receipt_number": 0,
+            "created_at": 1768959,
+            "updated_at": 1768960,
+            "merchant_ewallet": null,
+            "merchant_reference_id": "030016",
+            "payment_created_at": 1768958,
+            "payment_method_type": "il_mastercard_card",
+            "ewallets": [
+              {
+                "ewallet": "ewallet_cd59fae56ce5b9564ecb52d7f9eb0c37",
+                "amount": 87.36
+              }
+            ],
+            "proportional_refund": true,
+            "merchant_debited_amount": null,
+            "merchant_debited_currency": null,
+            "fx_rate": null,
+            "fixed_side": null
+          },
+          "attempts": [],
+          "trigger_operation_id": "3567b315-a73c-4415-8206-c598d70ac665",
+          "first_attempt_at": 0,
+          "last_attempt_at": 0,
+          "status": "",
+          "created_at": 0,
+          "next_attempt_at": 0,
+          "uri": ""
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_refund_completed"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "signature": "invalid",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "host": "merchant.example.com"
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "mid": "",
+            "paid": true,
+            "order": null,
+            "amount": 1,
+            "escrow": null,
+            "status": "CLO",
+            "address": null,
+            "dispute": null,
+            "fx_rate": 1,
+            "invoice": "",
+            "outcome": null,
+            "paid_at": 1711008868,
+            "refunds": null,
+            "captured": true,
+            "ewallets": [
+              {
+                "amount": 1,
+                "percent": 100,
+                "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+                "refunded_amount": 0
+              }
+            ],
+            "metadata": {},
+            "refunded": false,
+            "auth_code": null,
+            "flow_type": "",
+            "created_at": 1711008868,
+            "error_code": "",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "expiration": 1711613668,
+            "fixed_side": "",
+            "is_partial": false,
+            "description": "",
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "failure_code": "",
+            "instructions": [],
+            "payment_fees": null,
+            "redirect_url": "",
+            "visual_codes": {},
+            "cancel_reason": null,
+            "currency_code": "EUR",
+            "group_payment": "",
+            "receipt_email": "",
+            "textual_codes": {},
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "receipt_number": "",
+            "transaction_id": "",
+            "failure_message": "",
+            "initiation_type": "customer_present",
+            "original_amount": 1,
+            "refunded_amount": 0,
+            "error_payment_url": "https://error.rapyd.net",
+            "payment_method_data": {
+              "id": "card_0d83436af31300bf263dd5ef379b8230",
+              "name": "John Doe",
+              "type": "gb_visa_card",
+              "image": "",
+              "last4": "1111",
+              "category": "card",
+              "metadata": null,
+              "acs_check": "unchecked",
+              "cvv_check": "unchecked",
+              "bin_details": {
+                "type": "DEBIT",
+                "brand": "VISA",
+                "level": "CREDIT",
+                "issuer": "JPMORGAN CHASE BANK, N.A.",
+                "country": "US",
+                "bin_number": "411111"
+              },
+              "next_action": "not_applicable",
+              "webhook_url": "",
+              "expiration_year": "25",
+              "expiration_month": "05",
+              "fingerprint_token": "ocfp_e599f990674473ce6283b245e9ad2467",
+              "supporting_documentation": "",
+              "payment_account_reference": "V0010013018036782991622965076"
+            },
+            "payment_method_type": "gb_visa_card",
+            "save_payment_method": true,
+            "complete_payment_url": "https://complete.rapyd.net",
+            "remitter_information": {},
+            "statement_descriptor": "Doc Team",
+            "merchant_reference_id": "",
+            "payment_method_options": {},
+            "merchant_requested_amount": null,
+            "merchant_requested_currency": null,
+            "payment_method_type_category": "card",
+            "merchant_advice_code": null,
+            "merchant_advice_message": null,
+            "merchant_ewallet": null,
+            "transaction_link_id": null
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_invalid_signature"
+    }
+  },
+  "rapyd_payment_captured": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_609cc7ca6980c574dfad9ede4edceaff",
+          "type": "PAYMENT_CAPTURED",
+          "data": {
+            "id": "payment_3057b4bfb673b3830eff6d7e996c9512",
+            "paid": true,
+            "amount": 10.74,
+            "status": "CLO",
+            "captured": true,
+            "currency_code": "USD",
+            "next_action": "not_applicable",
+            "transaction_id": "",
+            "failure_code": "",
+            "failure_message": "",
+            "merchant_reference_id": ""
+          },
+          "trigger_operation_id": "2cbd47c3-4110-4037-966b-f0392dd65e0d",
+          "status": "NEW",
+          "created_at": 1640088346
+        }
+      },
+      "merchant_event_id": "rapyd_payment_captured"
+    }
+  },
+  "rapyd_refund_rejected": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "14f48d8e-364e-42de-85e8-3bc8f12c4955",
+          "token": "wh_fa09cfc608c98b4cee61b5e061089d99",
+          "type": "PAYMENT_REFUND_REJECTED",
+          "data": {
+            "id": "refund_3dcc1b83b83b49ee732e7fe62368ed9a",
+            "amount": 8.6,
+            "payment": "payment_1b31ec2b184d9f098b128caa65c4d837",
+            "currency": "USD",
+            "failure_reason": "",
+            "failure_code": "",
+            "status": "Rejected",
+            "merchant_reference_id": ""
+          },
+          "trigger_operation_id": "8d1fb194-a393-4bda-aead-78f69473cf8a",
+          "status": "",
+          "created_at": 0
+        }
+      },
+      "merchant_event_id": "rapyd_refund_rejected"
+    }
+  },
+  "rapyd_dispute_created": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_7a14ef258b3cd91f04e7d52803a6de22",
+          "type": "PAYMENT_DISPUTE_CREATED",
+          "data": {
+            "id": "c82f4a17-3e5d-41bc-b07a-99d134258ef1",
+            "token": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4",
+            "amount": 10,
+            "status": "ACT",
+            "currency": "USD",
+            "due_date": 1651726898,
+            "created_at": 1650949298,
+            "updated_at": 1650949298,
+            "pre_dispute": false,
+            "original_transaction_id": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263",
+            "dispute_reason_description": "Authorization Errors"
+          },
+          "status": "NEW",
+          "created_at": 1650949298,
+          "trigger_operation_id": "f1c3b82e-7041-49da-b358-16e4dc902f81"
+        }
+      },
+      "merchant_event_id": "rapyd_dispute_created"
+    }
+  },
+  "rapyd_dispute_updated_review": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_b5d92e3f11a874cc0e2f81d94703b648",
+          "type": "PAYMENT_DISPUTE_UPDATED",
+          "data": {
+            "id": "c82f4a17-3e5d-41bc-b07a-99d134258ef1",
+            "token": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4",
+            "amount": 10,
+            "status": "RVW",
+            "currency": "USD",
+            "due_date": 1651726898,
+            "created_at": 1650949298,
+            "updated_at": 1650949298,
+            "pre_dispute": false,
+            "original_transaction_id": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263",
+            "dispute_reason_description": "Authorization Errors"
+          },
+          "status": "NEW",
+          "created_at": 1650949298,
+          "trigger_operation_id": "f1c3b82e-7041-49da-b358-16e4dc902f81"
+        }
+      },
+      "merchant_event_id": "rapyd_dispute_updated_review"
+    }
+  },
+  "rapyd_payment_succeeded_ignored": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "wh_sample000000000000000000000001",
+          "type": "PAYMENT_SUCCEEDED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "amount": 1,
+            "status": "ACT",
+            "next_action": "3d_verification",
+            "paid": false,
+            "captured": false
+          },
+          "trigger_operation_id": "00000000-0000-0000-0000-000000000000",
+          "status": "NEW",
+          "created_at": 1711008868
+        }
+      },
+      "merchant_event_id": "rapyd_payment_succeeded_ignored"
+    }
+  }
+}

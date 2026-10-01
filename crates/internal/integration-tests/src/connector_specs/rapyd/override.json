@@ -3,5 +3,71 @@
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
     }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      },
+      "assert": {}
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "grpc_req": {},
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    },
+    "payment_failed": {
+      "grpc_req": {},
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    },
+    "refund_succeeded": {
+      "grpc_req": {},
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    }
   }
 }
