@@ -19,6 +19,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.01.0
+
+### Features
+
+- **vault:** Thread optional egress proxy_url into HyperswitchVault injector calls ([#1995](https://github.com/juspay/connector-service/pull/1995)) ([`5cfd8c2`](https://github.com/juspay/connector-service/commit/5cfd8c24b2aaae5f150f4f9d27008c281c2fe2ae))
+
+### Bug Fixes
+
+- **adyen:** Align webhook parsing with hyperswitch ([#2380](https://github.com/juspay/connector-service/pull/2380)) ([`adfc349`](https://github.com/juspay/connector-service/commit/adfc349a588c114579629d34df62b0bb16eaa578))
+
+### Miscellaneous Tasks
+
+- **grace:** Add deja-art label only on READY GRACE PRs ([#2426](https://github.com/juspay/connector-service/pull/2426)) ([`ba433f3`](https://github.com/juspay/connector-service/commit/ba433f3f90d077dab2de87ed724d2e081d9aec62))
+
+### Build System / Dependencies
+
+- Fix the arm64 GHCR image build (codegen units, scoped chef cook, tag-only publish) ([#2360](https://github.com/juspay/connector-service/pull/2360)) ([`c4e7fb1`](https://github.com/juspay/connector-service/commit/c4e7fb19c1e6cb1e0411fd4d492e40e92f9a5c9d))
+
+**Full Changelog:** [`2026.09.30.2...2026.10.01.0`](https://github.com/juspay/connector-service/compare/2026.09.30.2...2026.10.01.0)
+
+- - -
+
 ## 2026.09.30.2
 
 ### Features
