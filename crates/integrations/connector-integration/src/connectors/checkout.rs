@@ -367,6 +367,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: body.data.payment_id,
             dispute_message: None,
             connector_reason_code: body.data.reason_code,
+            additional_details: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,

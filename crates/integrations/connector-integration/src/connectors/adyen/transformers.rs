@@ -875,6 +875,24 @@ pub enum AdyenShopperInteraction {
     Pos,
 }
 
+fn shopper_interaction(
+    off_session: Option<bool>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> AdyenShopperInteraction {
+    match off_session {
+        Some(true) => AdyenShopperInteraction::ContinuedAuthentication,
+        _ => match payment_channel {
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                | common_enums::PaymentChannel::TelephoneOrder,
+            ) => AdyenShopperInteraction::Moto,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => {
+                AdyenShopperInteraction::Ecommerce
+            }
+        },
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     From<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for AdyenShopperInteraction
@@ -887,10 +905,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -6947,10 +6962,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
