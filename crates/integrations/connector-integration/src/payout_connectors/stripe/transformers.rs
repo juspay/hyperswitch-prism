@@ -96,9 +96,7 @@ const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutCreateRequest {
     pub amount: MinorUnit,
-
     pub currency: common_enums::Currency,
-
     pub destination: String,
     pub transfer_group: Option<String>,
 }
@@ -196,7 +194,6 @@ impl TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutFulfillRequest {
     pub amount: MinorUnit,
-
     pub currency: common_enums::Currency,
 }
 
@@ -237,7 +234,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectPayoutFulfillResponse {
     pub id: String,
-
     pub status: StripeConnectPayoutStatus,
 }
 
@@ -273,7 +269,6 @@ pub struct StripeConnectReversalRequest;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectReversalResponse {
     pub id: String,
-
     pub source_refund: Option<String>,
 }
 
@@ -327,7 +322,6 @@ impl TryFrom<ResponseRouterData<StripeConnectReversalResponse, Self>>
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectPayoutRetrieveResponse {
     pub id: String,
-
     pub status: StripeConnectPayoutStatus,
 }
 
@@ -359,9 +353,7 @@ impl TryFrom<ResponseRouterData<StripeConnectPayoutRetrieveResponse, Self>>
 pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "type")]
     pub account_type: String,
-
     pub country: Option<common_enums::CountryAlpha2>,
-
     pub email: Option<common_utils::pii::Email>,
 
     #[serde(rename = "capabilities[card_payments][requested]")]
@@ -375,7 +367,6 @@ pub struct StripeConnectRecipientCreateRequest {
 
     #[serde(rename = "tos_acceptance[ip]")]
     pub tos_acceptance_ip: Option<Secret<String>>,
-
     pub business_type: String,
 
     #[serde(rename = "business_profile[mcc]")]
@@ -535,19 +526,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // OSS takes the business type from the vendor details. Fall back to the
         // recipient type so callers that only send `recipient_type` keep working.
-        let is_company = match request.get_vendor_type() {
-            Some(common_enums::BankHolderType::Business) => true,
-            Some(common_enums::BankHolderType::Personal) => false,
-            None => request.is_company(),
-        };
-        // Derive the wire value from the same source so the `company[…]` group
+        // The wire value comes from the same match so the `company[…]` group
         // cannot contradict `vendor_type`.
-        let business_type = if is_company {
-            STRIPE_ACCOUNT_TYPE_COMPANY
-        } else {
-            STRIPE_ACCOUNT_TYPE_INDIVIDUAL
-        }
-        .to_string();
+        let (is_company, business_type) = match request.get_vendor_type() {
+            Some(common_enums::BankHolderType::Business) => {
+                (true, STRIPE_ACCOUNT_TYPE_COMPANY.to_string())
+            }
+            Some(common_enums::BankHolderType::Personal) => {
+                (false, STRIPE_ACCOUNT_TYPE_INDIVIDUAL.to_string())
+            }
+            None => {
+                // `is_company` is a bool, so an if/else is used here; clippy's
+                // match_bool lint is denied in CI.
+                let is_company = request.is_company();
+                let business_type = if is_company {
+                    STRIPE_ACCOUNT_TYPE_COMPANY
+                } else {
+                    STRIPE_ACCOUNT_TYPE_INDIVIDUAL
+                }
+                .to_string();
+                (is_company, business_type)
+            }
+        };
 
         let account_type = match request.get_account_type() {
             Some(PayoutAccountType::Custom) => "custom",
@@ -858,14 +858,9 @@ pub struct StripeConnectErrorResponse {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectError {
     pub code: Option<String>,
-
     pub message: String,
-
     pub decline_code: Option<String>,
-
     pub advice_code: Option<String>,
-
     pub network_advice_code: Option<String>,
-
     pub network_decline_code: Option<String>,
 }

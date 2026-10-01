@@ -449,11 +449,8 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
-
     pub address: Option<PayoutAddress>,
-
     pub customer: Option<PayoutCustomer>,
-
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
 
@@ -706,9 +703,7 @@ pub struct PayoutEnrollDisburseAccountRequest {
     /// may only send the amount currency.
     pub destination_currency: Option<common_enums::Currency>,
     pub payout_method_data: Option<PayoutMethodData>,
-
     pub customer: Option<PayoutCustomer>,
-
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
 
