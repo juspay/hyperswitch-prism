@@ -133,6 +133,115 @@ fn map_reqwest_error(error: reqwest::Error) -> Report<ApiClientError> {
 /// side — hyper wrote the request and got EOF while reading the response.
 /// It typically occurs when hyper's connection pool selects a stale idle
 /// connection that the remote server is concurrently closing.
+/// Count of this host's TCP sockets grouped by connection state.
+///
+/// `ESTABLISHED` sockets with no in-flight request are exactly the pool's idle
+/// keep-alive population; `CLOSE_WAIT` sockets are peers that already sent a
+/// FIN which the pool hasn't reaped yet — the armed stale-connection landmines.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct TcpSocketSnapshot {
+    established: u64,
+    close_wait: u64,
+    time_wait: u64,
+    fin_wait: u64,
+    other: u64,
+}
+
+impl TcpSocketSnapshot {
+    fn record(&mut self, state: &str) {
+        match state {
+            "01" => self.established += 1,         // ESTABLISHED
+            "04" | "05" => self.fin_wait += 1,     // FIN_WAIT1/2
+            "06" => self.time_wait += 1,           // TIME_WAIT
+            "08" => self.close_wait += 1,          // CLOSE_WAIT
+            "02" | "03" | "09" => self.other += 1, // SYN_SENT/SYN_RECV/LAST_ACK
+            _ => {}                                // skip CLOSE / CLOSING
+        }
+    }
+}
+
+/// Best-effort snapshot of this host's TCP sockets from `/proc/net/tcp{,6}`.
+///
+/// Returns `(filtered, total)`: `filtered` counts only sockets whose REMOTE
+/// port matches `remote_port` (outbound sockets toward the connector/proxy
+/// endpoint — close as we can get to "pool connections for this host"), `total`
+/// counts every realized outbound socket. `None` if the table is unreadable.
+#[cfg(target_os = "linux")]
+fn tcp_socket_snapshot(remote_port: Option<u16>) -> Option<(TcpSocketSnapshot, TcpSocketSnapshot)> {
+    let mut filtered = TcpSocketSnapshot::default();
+    let mut total = TcpSocketSnapshot::default();
+    let mut read_any = false;
+
+    for path in ["/proc/net/tcp", "/proc/net/tcp6"] {
+        let Ok(contents) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        read_any = true;
+        for line in contents.lines().skip(1) {
+            // Format: sl local_address rem_address st ...
+            let mut fields = line.split_whitespace();
+            let _sl = fields.next();
+            let _local = fields.next();
+            let (Some(remote), Some(state)) = (fields.next(), fields.next()) else {
+                continue;
+            };
+            if state == "0A" {
+                // LISTEN: inbound, never part of a client pool
+                continue;
+            }
+            total.record(state);
+
+            let port_matches = remote
+                .rsplit(':')
+                .next()
+                .and_then(|port| u16::from_str_radix(port, 16).ok())
+                .is_some_and(|port| remote_port.is_none_or(|want| port == want));
+            if port_matches {
+                filtered.record(state);
+            }
+        }
+    }
+
+    read_any.then_some((filtered, total))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn tcp_socket_snapshot(
+    _remote_port: Option<u16>,
+) -> Option<(TcpSocketSnapshot, TcpSocketSnapshot)> {
+    None
+}
+
+/// Logs this host's idle/dead TCP socket counts for the connector's port at
+/// the moment a retry fired — `filtered_*` ≈ outbound sockets toward this
+/// connector's endpoint, `total_*` = the whole host. `CLOSE_WAIT` counts how
+/// many pooled connections the upstream had already FINed (armed landmines).
+pub(crate) fn log_tcp_socket_snapshot(connector: &str, remote_port: Option<u16>) {
+    match tcp_socket_snapshot(remote_port) {
+        Some((filtered, total)) => {
+            tracing::info!(
+                connector,
+                remote_port,
+                filtered_established = filtered.established,
+                filtered_close_wait = filtered.close_wait,
+                filtered_time_wait = filtered.time_wait,
+                filtered_fin_wait = filtered.fin_wait,
+                total_established = total.established,
+                total_close_wait = total.close_wait,
+                total_time_wait = total.time_wait,
+                total_fin_wait = total.fin_wait,
+                "TCP socket snapshot at auto-retry (stale pooled-connection race)"
+            );
+        }
+        None => {
+            tracing::info!(
+                connector,
+                "TCP socket snapshot unavailable (cannot read /proc/net/tcp*)"
+            );
+        }
+    }
+}
+
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
@@ -275,6 +384,17 @@ mod tests {
             !debug.contains("refused") && !debug.contains("http://"),
             "raw error text/URL must never flow into the report: {debug}"
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn tcp_socket_snapshot_reads_proc_table() {
+        let (filtered, total) =
+            tcp_socket_snapshot(Some(443)).expect("/proc/net/tcp should be readable on linux");
+        assert!(filtered.established <= total.established);
+        assert!(filtered.close_wait <= total.close_wait);
+        let unfiltered = tcp_socket_snapshot(None).expect("unfiltered snapshot");
+        assert_eq!(unfiltered.1, total);
     }
 
     #[tokio::test]
