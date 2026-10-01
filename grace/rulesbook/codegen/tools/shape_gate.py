@@ -98,38 +98,6 @@ def load_source(connector, src_dir):
     return found
 
 
-def _body(src, kind, name):
-    """Brace-matched body of `<kind> <name> { ... }`, or None.
-
-    Brace-matched rather than `[^}]*` so a variant or field carrying a braced
-    payload does not truncate the body.
-    """
-    m = re.search(r"\b" + kind + r"\s+" + re.escape(name) + r"\b[^{]*\{", src)
-    if not m:
-        return None
-    depth, i = 1, m.end()
-    while i < len(src) and depth:
-        depth += {"{": 1, "}": -1}.get(src[i], 0)
-        i += 1
-    return src[m.end():i - 1]
-
-
-def emitted_options(sources):
-    """Wire names of the payment_method_options fields the connector can emit."""
-    names = set()
-    for src in sources.values():
-        body = _body(src, "struct", "PaymentMethodOptions")
-        if body is None:
-            continue
-        # A serde rename wins; otherwise the field name is the wire name.
-        for chunk in re.split(r",\s*(?=(?:#\[|pub\b))", body):
-            ren = re.search(r'rename\s*=\s*"([^"]+)"', chunk)
-            fld = re.search(r"\bpub\s+([a-z_][a-z0-9_]*)\s*:", chunk)
-            if ren:
-                names.add(ren.group(1))
-            elif fld:
-                names.add(fld.group(1))
-    return names
 
 
 def _variants(body):
@@ -158,17 +126,63 @@ def _variants(body):
     return names
 
 
-def emittable_types(sources):
-    """Wire names of the payment_method.type values the connector can emit."""
-    enum_names, types = set(), set()
-    for src in sources.values():
-        enum_names |= set(re.findall(r"\bpm_type\s*:\s*([A-Za-z_][A-Za-z0-9_]*)", src))
-    for src in sources.values():
-        for enum in enum_names:
-            body = _body(src, "enum", enum)
-            if body is not None:
-                types |= _variants(body)
-    return types
+def _wire_fields(body):
+    """Wire names of a struct's fields: a serde rename wins, else the field name."""
+    names = set()
+    for chunk in re.split(r",\s*(?=(?:#\[|pub\b))", body):
+        ren = re.search(r'rename\s*=\s*"([^"]+)"', chunk)
+        fld = re.search(r"\bpub\s+([a-z_][a-z0-9_]*)\s*:", chunk)
+        if ren:
+            names.add(ren.group(1))
+        elif fld:
+            names.add(fld.group(1))
+    return names
+
+
+def _blocks(src, kind):
+    """(name, body) for every `<kind> <name> { ... }` in src, brace-matched."""
+    for m in re.finditer(r"\b" + kind + r"\s+([A-Z][A-Za-z0-9_]*)\b[^{;]*\{", src):
+        depth, i = 1, m.end()
+        while i < len(src) and depth:
+            depth += {"{": 1, "}": -1}.get(src[i], 0)
+            i += 1
+        yield m.group(1), src[m.end():i - 1]
+
+
+def emittable_types(sources, type_keys):
+    """Wire names of the payment_method.type values the connector can emit.
+
+    Self-locating: the capability table's keys ARE the connector's wire type names,
+    so the relevant enum is the one whose snake_cased variants intersect them. This
+    is why the gate needs no per-connector struct names -- hardcoding `pm_type` and
+    `RapydPaymentMethodType` made it a one-connector gate that passed vacuously
+    everywhere else.
+    """
+    types, where = set(), set()
+    for path, src in sources.items():
+        for name, body in _blocks(src, "enum"):
+            variants = _variants(body)
+            if variants & set(type_keys):
+                types |= variants
+                where.add("%s::%s" % (os.path.basename(path), name))
+    return types, sorted(where)
+
+
+def emitted_options(sources, vocab):
+    """Wire names of the option fields the connector can emit.
+
+    Self-locating in the same way: the struct to inspect is the one whose serde wire
+    names intersect the vocabulary the capability table describes (its allowed fields
+    plus any field it records as observed-rejected).
+    """
+    names, where = set(), set()
+    for path, src in sources.items():
+        for name, body in _blocks(src, "struct"):
+            fields = _wire_fields(body)
+            if fields & set(vocab):
+                names |= fields
+                where.add("%s::%s" % (os.path.basename(path), name))
+    return names, sorted(where)
 
 
 def check(table, types, options):
@@ -230,22 +244,52 @@ def main():
         print(json.dumps(report, indent=1))
         return 2
 
-    options, types = emitted_options(sources), emittable_types(sources)
+    # Vocabulary the table describes: what it permits, plus anything it records as
+    # observed-rejected. Both halves matter -- a field is only checkable if the gate
+    # can recognise it in the source.
+    vocab = set()
+    for row in table.values():
+        vocab |= set(row.get("payment_method_options") or [])
+        vocab |= {r.get("field") for r in (row.get("observed_rejections") or []) if r.get("field")}
+
+    types, type_where = emittable_types(sources, table.keys())
+    options, opt_where = emitted_options(sources, vocab)
+
+    # Could not anchor: report it rather than passing vacuously. A gate that silently
+    # finds nothing to check is indistinguishable from a gate that is working.
+    if not types:
+        report["unparsed"].append({
+            "what": "payment_method.type enum",
+            "why": "no enum in %s has variants matching the table's type keys (%s)"
+                   % (args.connector, ", ".join(sorted(table)[:5]) or "none")})
+        report["needs_human"].append(
+            "SHP-03: could not locate the type enum; the table's keys must be the "
+            "connector's wire type names, or the table names types this connector "
+            "cannot emit")
+        report["pass"] = False
+        print(json.dumps(report, indent=1))
+        return 2
+
     violations, unprobed = check(table, types, options)
 
     report["checks"].append({
         "id": "SHP-01", "name": "emitted_field_in_probed_domain", "pass": not violations,
         "evidence": violations,
-        "message": "%d emitted payment_method_options x %d emittable payment_method.type"
-                   % (len(options), len(types))})
+        "message": "%d emitted option field(s) %s x %d emittable type(s) %s"
+                   % (len(options), opt_where or "[none located]",
+                      len(types), type_where)})
     report["checks"].append({
         "id": "SHP-02", "name": "emittable_type_probed", "pass": True,
         "evidence": [{"pm_type": t} for t in unprobed],
         "message": "%d emittable type(s) have no probed row" % len(unprobed)})
-    for t in unprobed:
+    # One line, not one per type: a connector can emit dozens of types (adyen emits 67)
+    # and a needs_human[] of that length is noise. The full list stays in the evidence.
+    if unprobed:
         report["needs_human"].append(
-            "SHP-02: %s is emittable but unprobed; probe it or carry "
-            "warrant: doc:<url> AND precedent:<path>" % t)
+            "SHP-02: %d of %d emittable type(s) have no probed row (%s%s); probe them or "
+            "carry warrant: doc:<url> AND precedent:<path>. Unprobed is not permitted -- "
+            "it is unknown." % (len(unprobed), len(types), ", ".join(unprobed[:5]),
+                                ", ..." if len(unprobed) > 5 else ""))
     report["pass"] = all(c["pass"] for c in report["checks"]) and not report["unparsed"]
 
     blob = json.dumps(report, indent=1)
@@ -285,18 +329,29 @@ def selftest():
     v, un = check(table, {"gb_visa_card"}, {"3d_version", "cavv"})
     assert (v, un) == ([], ["gb_visa_card"]), (v, un)
 
-    # Parsing: a type named only in a doc comment is not emittable.
+    # Self-location, and the regression that motivated it: the anchors are found via
+    # the table's own vocabulary, not via hardcoded rapyd identifiers. A type named
+    # only in a doc comment is not emittable.
     src = {"x.rs": strip_comments(
         '/// uses `in_amex_card` as a placeholder\n'
-        'pub struct PaymentMethodOptions { #[serde(rename = "3d_required")] pub three_ds: bool,\n'
+        'pub struct Anything { #[serde(rename = "3d_required")] pub three_ds: bool,\n'
         '  pub avs_required: bool }\n'
-        'struct PaymentMethod { pub pm_type: RapydPaymentMethodType }\n'
-        'enum RapydPaymentMethodType { InAmexCard, InCreditVisaCard }\n')}
-    assert emitted_options(src) == {"3d_required", "avs_required"}, emitted_options(src)
-    assert emittable_types(src) == {"in_amex_card", "in_credit_visa_card"}, emittable_types(src)
+        'enum WhateverItIsCalled { InAmexCard, InCreditVisaCard }\n')}
+    vocab = {"3d_required", "tavv", "expiration_action"}
+    opts, ow = emitted_options(src, vocab)
+    tys, tw = emittable_types(src, table.keys())
+    assert opts == {"3d_required", "avs_required"}, opts
+    assert tys == {"in_amex_card", "in_credit_visa_card"}, tys
+    assert ow and tw, (ow, tw)
+
+    # A connector that shares no vocabulary with the table anchors nothing. main()
+    # turns this into SHP-03 + exit 2; it must never read as a silent pass.
+    other = {"y.rs": "pub struct Req { pub amount: i64 }\nenum Foo { Bar, Baz }\n"}
+    assert emittable_types(other, table.keys())[0] == set()
+    assert emitted_options(other, vocab)[0] == set()
 
     print("shape_gate selftest OK: both rapyd-854c2a schema cascades caught, "
-          "green shapes pass, unprobed types abstain, comment mentions ignored")
+          "green shapes pass, unprobed types abstain, anchors self-located, comments ignored")
     return 0
 
 
