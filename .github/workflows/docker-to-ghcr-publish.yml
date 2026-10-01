@@ -2,16 +2,29 @@ name: Docker Build and Push to GHCR
 
 on:
   workflow_dispatch:
-  
-  # Automatically run when nightly (CalVer), hotfix, or stable (SemVer) tags
-  # are created, e.g. 2025.12.03.0, 2025.12.03.0-hotfix1, v1.2.3. In GitHub
-  # filter patterns `+` means "one or more of the preceding character", so
-  # these admit digits and dots only.
-  push:
-    tags:
-      - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+"
-      - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+-hotfix[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+"
+
+  # The tag trigger is intentionally disabled.
+  #
+  # Release images are built by the `build-connector-service` Jenkins pipeline,
+  # which compiles both architectures on the native amd64 and arm64 BuildKit
+  # nodes and publishes the result. Leaving this trigger enabled would build the
+  # same tag a second time here and race that pipeline for the published tag.
+  #
+  # The arm64 job in this workflow has not produced an image since 2026.09.08.0:
+  # `cargo build` with the `release` profile (`lto`, `codegen-units = 1`) exceeds
+  # the memory available on the GitHub-hosted arm64 runner and fails with
+  # `ResourceExhausted: cannot allocate memory`. Because `create-manifest` needs
+  # both matrix legs, every tag since then has only a `-linux-amd64` image and no
+  # multi-arch index, and `latest` still resolves to the 2026.09.07.2 digest.
+  #
+  # The workflow is kept, and `workflow_dispatch` still works, so a one-off image
+  # can be published from a branch without going through a release.
+  #
+  # push:
+  #   tags:
+  #     - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+"
+  #     - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+-hotfix[0-9]+"
+  #     - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   # Tag names are attacker-controllable text that becomes the published image
