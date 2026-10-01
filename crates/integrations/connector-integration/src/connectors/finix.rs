@@ -370,7 +370,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Mirrors the PSync TryFrom's `(FinixId, FinixPaymentStatus)` matrix
 // (transformers.rs:729) — same id-prefix split as Authorize, but the
-// catch-alls are the sync-side honest reads: Failed → Failure, Canceled →
+// catch-all branches are the sync-side honest reads: Failed → Failure, Canceled →
 // Voided, Unknown → Pending (rather than Authorize's `_ ⇒
 // AuthorizationFailed`/`Failure` per-branch failure leg).
 domain_types::impl_flow_status_mapping! {

@@ -952,18 +952,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::Authorize,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => [Authorized, Charged],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: FiservcommercehubAuthorizeResponse,
         source:   |response| response.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
@@ -977,12 +974,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::PSync,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => [Authorized, Charged, Voided],
     failure: Declined => Failure,
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
@@ -992,18 +987,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::Capture,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => [Charged],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentsCaptureData,
         response: FiservcommercehubCaptureResponse,
         source:   |response| response.0.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
@@ -1013,18 +1005,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::Void,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Cancelled => [Voided],
     failure: Declined => Failure,
     extractors: {
         request:  PaymentVoidData,
         response: FiservcommercehubVoidResponse,
         source:   |response| response.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
@@ -1034,18 +1023,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::RepeatPayment,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => [Charged],
     failure: Declined => Failure,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: FiservcommercehubRepeatResponse,
         source:   |response| response.0.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::AttemptStatus::from(&status)
     }
 }
@@ -1055,18 +1041,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::SetupMandate,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => [Charged],
     failure: Declined => Failure,
     extractors: {
         request:  SetupMandateRequestData<T>,
         response: FiservcommercehubSetupMandateResponse,
         source:   |response| response.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         match status {
             fiservcommercehub::FiservcommercehubTransactionState::Authorized => {
                 common_enums::AttemptStatus::Charged
@@ -1081,18 +1064,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::Refund,
     source: fiservcommercehub::FiservcommercehubRefundState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => Success,
     failure: Declined => Failure,
     extractors: {
         request:  RefundsData,
         response: FiservcommercehubRefundResponse,
         source:   |response| response.gateway_response.transaction_state.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         common_enums::RefundStatus::from(&status)
     }
 }
@@ -1106,12 +1086,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Fiservcommercehub<T>,
     flow: domain_types::connector_flow::RSync,
     source: fiservcommercehub::FiservcommercehubRefundState,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: Approved => Success,
     failure: Declined => Failure,
     {
-        let _ = ctx;
         common_enums::RefundStatus::from(&status)
     }
 }

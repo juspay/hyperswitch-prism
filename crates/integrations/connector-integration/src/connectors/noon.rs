@@ -799,7 +799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // ===== FLOW STATUS MAPPINGS =====
 
 // Authorize — mirrors `get_payment_status` (transformers.rs:570) which all payment
-// TryFroms funnel through. All targets are in `Authorize::ALLOWED`.
+// TryFrom impls funnel through. All targets are in `Authorize::ALLOWED`.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Noon<T>,
@@ -915,7 +915,7 @@ domain_types::impl_flow_status_mapping! {
 
 // Void — void response also shares `get_payment_status` via the generic impl.
 // Adjusted to `Void::ALLOWED`: `Reversed` (the actual voided wire state) is the success
-// terminal; `CaptureInitiated`-shaped pendings map to `VoidInitiated`; `Failed`/`Rejected`
+// terminal; `CaptureInitiated`-shaped pending states map to `VoidInitiated`; `Failed`/`Rejected`
 // and impossible-for-void states (`Captured`, `PartiallyRefunded`, …) map to `VoidFailed`.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],

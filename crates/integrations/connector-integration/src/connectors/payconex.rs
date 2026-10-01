@@ -49,18 +49,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Payconex<T>,
     flow: Capture,
     source: bool,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Charged, PartialCharged],
     failure: none,
     extractors: {
         request:  PaymentsCaptureData,
         response: PayconexCaptureResponse,
         source:   |response| response.transaction_approved,
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         if status {
             common_enums::AttemptStatus::Charged
         } else {
@@ -75,18 +72,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Payconex<T>,
     flow: Void,
     source: bool,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Voided],
     failure: none,
     extractors: {
         request:  PaymentVoidData,
         response: PayconexVoidResponse,
         source:   |response| response.transaction_approved,
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         if status {
             common_enums::AttemptStatus::Voided
         } else {
@@ -100,18 +94,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payconex<T>,
     flow: Refund,
     source: bool,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request:  RefundsData,
         response: PayconexRefundResponse,
         source:   |response| response.transaction_approved,
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         transformers::map_refund_status(true, status)
     }
 }
@@ -121,18 +112,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payconex<T>,
     flow: RSync,
     source: (bool, bool),
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request:  RefundSyncData,
         response: PayconexRefundSyncResponse,
         source:   |response| (response.found, response.transaction_approved),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         transformers::map_refund_status(status.0, status.1)
     }
 }

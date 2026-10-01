@@ -89,18 +89,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Authorize,
     source: transformers::PaydotcomPaymentsResponse,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Authorized, Charged],
     failure: none,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PaydotcomAuthorizeResponse,
         source:   |response| response.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         status.attempt_status()
     }
 }
@@ -134,18 +131,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: PSync,
     source: transformers::PaydotcomPaymentsResponse,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
     extractors: {
         request:  PaymentsSyncData,
         response: PaydotcomPSyncResponse,
         source:   |response| response.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         status.attempt_status()
     }
 }
@@ -155,18 +149,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Void,
     source: transformers::PaydotcomPaymentsResponse,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Voided],
     failure: none,
     extractors: {
         request:  PaymentVoidData,
         response: PaydotcomVoidResponse,
         source:   |response| response.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         status.attempt_status()
     }
 }
@@ -177,18 +168,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: SetupMandate,
     source: transformers::PaydotcomPaymentsResponse,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Charged],
     failure: none,
     extractors: {
         request:  SetupMandateRequestData<T>,
         response: PaydotcomSetupMandateResponse,
         source:   |response| response.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         status.attempt_status()
     }
 }
@@ -198,18 +186,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: RepeatPayment,
     source: transformers::PaydotcomPaymentsResponse,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Charged],
     failure: none,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: PaydotcomRepeatPaymentResponse,
         source:   |response| response.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         status.attempt_status()
     }
 }
@@ -255,7 +240,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundsData,
         response: PaydotcomRefundResponse,
         source:   |response| response.status,
-        context:  |_request, _response| (),
     },
     { Pending => Pending }
 }
@@ -271,7 +255,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundSyncData,
         response: PaydotcomRefundSyncResponse,
         source:   |response| response.status,
-        context:  |_request, _response| (),
     },
     { Pending => Pending }
 }

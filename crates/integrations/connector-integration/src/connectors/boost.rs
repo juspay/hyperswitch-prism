@@ -454,15 +454,13 @@ domain_types::impl_flow_status_mapping! {
     connector:       Boost<T>,
     flow:            PSync,
     source:          boost::BoostPaymentStatus,
-    context:         (),
-    params:          [status, _ctx],
+    params:          [status],
     success: Succeeded => [Charged],
     failure: Failed => Failure,
     extractors: {
         request:  PaymentsSyncData,
         response: BoostPaymentSyncResponse,
         source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
     },
     {
         use boost::BoostPaymentStatus;
@@ -536,7 +534,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundsData,
         response: BoostReversalResponse,
         source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
     },
     {
         Pending         => Pending,
@@ -593,7 +590,6 @@ domain_types::impl_refund_flow_status_mapping! {
         request:  RefundSyncData,
         response: BoostReversalSyncResponse,
         source:   |response| response.status.clone(),
-        context:  |_request, _response| (),
     },
     {
         Pending         => Pending,

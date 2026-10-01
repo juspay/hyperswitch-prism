@@ -615,18 +615,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Elavon<T>,
     flow: domain_types::connector_flow::Refund,
     source: elavon::ElavonResult,
-    context: (),
-    params: [status, ctx],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request:  RefundsData,
         response: ElavonRefundResponse,
         source:   |response| response.result.clone(),
-        context:  |_request, _response| (),
     },
     {
-        let _ = ctx;
         match status {
             elavon::ElavonResult::Success(payload) => {
                 match payload.ssl_transaction_type.as_deref() {
