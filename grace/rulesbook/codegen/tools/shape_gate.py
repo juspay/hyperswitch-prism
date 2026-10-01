@@ -46,6 +46,16 @@ import os
 import re
 import sys
 
+MANUAL = (
+    "Do the check by hand and record it: for every option field this unit emits and "
+    "every wire payment-method type it can be emitted alongside, append one row to "
+    "`shape_receipts` as {field, pm_type, verdict, receipt}. verdict is accepted / "
+    "rejected / unknown. receipt is probe:<path> (a capability response or "
+    "differential probe you ran), precedent:<path> (the same field+type pair in "
+    "another connector's committed code), or doc:<url>. doc: alone never warrants "
+    "`accepted`. Do not emit a field on a type whose verdict is unknown or rejected."
+)
+
 REF_DIR = "grace/rulesbook/codegen/references"
 SRC_DIR = "crates/integrations/connector-integration/src/connectors"
 
@@ -277,10 +287,12 @@ def main():
               "unparsed": [], "needs_human": []}
 
     if not os.path.isfile(cap_path):
+        report["verdict"] = "manual"
         report["checks"].append({
-            "id": "SHP-00", "name": "not_applicable", "pass": True, "evidence": [],
-            "message": "no capability table at %s; probe the connector to enable this gate"
-                       % cap_path})
+            "id": "SHP-00", "name": "no_capability_table", "pass": True, "evidence": [],
+            "message": "no capability table at %s; nothing was checked -- do the manual "
+                       "check and record a receipt per asserted field" % cap_path})
+        report["needs_human"].append(MANUAL)
         blob = json.dumps(report, indent=1)
         print(blob)
         return 0
@@ -312,15 +324,27 @@ def main():
             "what": "payment_method.type enum",
             "why": "no enum in %s has variants matching the table's type keys (%s)"
                    % (args.connector, ", ".join(sorted(table)[:5]) or "none")})
+        report["verdict"] = "manual"
         report["needs_human"].append(
             "SHP-03: could not locate the type enum; the table's keys must be the "
             "connector's wire type names, or the table names types this connector "
-            "cannot emit")
+            "cannot emit. " + MANUAL)
         report["pass"] = False
         print(json.dumps(report, indent=1))
         return 2
 
     violations, unprobed = check(table, types, options)
+    # Zero located option fields means the comparison was vacuous. Say so: a gate that
+    # found nothing to check must not be indistinguishable from one that verified.
+    report["verdict"] = "checked" if options else "manual"
+    if not options:
+        report["needs_human"].append(
+            "SHP-04: located %d emittable type(s) but no option field matching the "
+            "table's vocabulary, so nothing was compared. " % len(types) + MANUAL)
+        report["checks"].append({
+            "id": "SHP-04", "name": "nothing_compared", "pass": True, "evidence": [],
+            "message": "no emitted option field matched the table vocabulary (%s)"
+                       % ", ".join(sorted(vocab)[:6])})
 
     report["checks"].append({
         "id": "SHP-01", "name": "emitted_field_in_probed_domain", "pass": not violations,
