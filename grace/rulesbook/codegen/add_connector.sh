@@ -26,7 +26,11 @@ readonly SCRIPT_VERSION="2.0.0"
 readonly SCRIPT_NAME="Hyperswitch Connector Generator"
 
 # Paths configuration
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# readlink -f resolves BASH_SOURCE[0] through symlinks first: this script is also invoked via
+# .skills/new-connector/scripts/add_connector.sh (a symlink to this file), and without resolving
+# it first, dirname would return the symlink's own directory instead of this one, silently
+# pointing TEMPLATE_DIR at a different (and possibly stale) directory depending on invocation path.
+readonly SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 readonly ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 readonly TEMPLATE_DIR="$SCRIPT_DIR/template-generation"
 readonly CRATES_TRAITS="$ROOT_DIR/crates/types-traits"
