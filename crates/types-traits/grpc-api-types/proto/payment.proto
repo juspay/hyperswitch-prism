@@ -1044,8 +1044,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
-  PAYMAYA = 115;
-  GRAB_PAY = 116;
+  PAYMAYA = 115 [deprecated = true]; // Use MAYA_WALLET.
+  GRAB_PAY = 116 [deprecated = true]; // Use GRABPAY_WALLET.
   // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
   // taken by the Connector enum in this same proto package, and protobuf requires
   // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
@@ -1074,9 +1074,13 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
-  PAY_HERE = 137;
-  TAMARA_REDIRECT = 138;
+  PAY_HERE = 137 [deprecated = true]; // Use PAYHERE_WALLET.
+  TAMARA_REDIRECT = 138 [deprecated = true]; // Use TAMARA_BNPL.
   TED = 139;
+  MAYA_WALLET = 140;
+  GRABPAY_WALLET = 141;
+  PAYHERE_WALLET = 142;
+  TAMARA_BNPL = 143;
 }
 
 // Product type enumeration

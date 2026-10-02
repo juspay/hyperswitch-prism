@@ -2937,8 +2937,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::AliPayHk)
             }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
-            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
-            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(PaymentMethodType::Payhere),
+            grpc_api_types::payments::PaymentMethodType::GrabPay
+            | grpc_api_types::payments::PaymentMethodType::GrabpayWallet => {
+                Ok(PaymentMethodType::Grabpay)
+            }
+            grpc_api_types::payments::PaymentMethodType::PayHere
+            | grpc_api_types::payments::PaymentMethodType::PayhereWallet => {
+                Ok(PaymentMethodType::Payhere)
+            }
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -2989,11 +2995,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
-            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(PaymentMethodType::Paymaya),
+            grpc_api_types::payments::PaymentMethodType::Paymaya
+            | grpc_api_types::payments::PaymentMethodType::MayaWallet => {
+                Ok(PaymentMethodType::Paymaya)
+            }
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
-            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => {
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect
+            | grpc_api_types::payments::PaymentMethodType::TamaraBnpl => {
                 Ok(PaymentMethodType::Tamara)
             }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
@@ -9469,12 +9479,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Paymaya
+            | grpc_api_types::payments::PaymentMethodType::MayaWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::GrabPay
+            | grpc_api_types::payments::PaymentMethodType::GrabpayWallet => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PayHere
+            | grpc_api_types::payments::PaymentMethodType::PayhereWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
@@ -9484,7 +9497,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
-            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect
+            | grpc_api_types::payments::PaymentMethodType::TamaraBnpl => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
