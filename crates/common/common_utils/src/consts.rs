@@ -83,6 +83,9 @@ pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
 pub const X_REFERENCE_ID: &str = "x-reference-id";
 /// Header key for resource identification
 pub const X_RESOURCE_ID: &str = "x-resource-id";
+/// Header key for Hyperswitch's resolved `payments.accept_payment_amount_mismatch` config.
+/// Only the exact value `"true"` opts in; missing or any other value means `false`.
+pub const X_ACCEPT_AMOUNT_MISMATCH: &str = "x-accept-amount-mismatch";
 
 pub const X_SOURCE_NAME: &str = "x-source";
 

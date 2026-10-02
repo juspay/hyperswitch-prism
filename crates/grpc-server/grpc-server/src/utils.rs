@@ -1112,6 +1112,12 @@ macro_rules! implement_connector_operation {
         generate_response_fn: $generate_response_fn:path,
         connector_data_types: [$($connector_data_type:ty),+ $(,)?],
         all_keys_required: $all_keys_required:expr
+        // Optional: run once, right after `request_data_constructor`, as
+        // `(&mut request, &masked_metadata)`, to copy a gRPC metadata header onto a field
+        // on the request struct (e.g. `x-accept-amount-mismatch` onto
+        // `PaymentsCaptureData::accept_amount_mismatch` — that constructor itself never
+        // sees metadata). Omitted by every other invocation, so it costs them nothing.
+        $(, apply_metadata_header: $apply_metadata_header:expr)?
     ) => {
         async fn $fn_name(
             &self,
@@ -1172,8 +1178,10 @@ macro_rules! implement_connector_operation {
             })?;
 
             // Create connector request data
-            let specific_request_data = $request_data_constructor(payload.clone())
+            #[allow(unused_mut)]
+            let mut specific_request_data = $request_data_constructor(payload.clone())
                 .to_grpc_error()?;
+            $( $apply_metadata_header(&mut specific_request_data, &masked_metadata); )?
 
             // Resolve effective connector URLs — applies superposition (x-environment) first,
             // then any caller-supplied base_url override from x-connector-config on top.

@@ -2553,6 +2553,22 @@ fn derive_amount_capturable(
         .transpose()
 }
 
+/// TSYS only ever echoes an amount back (`<processedAmount>`/`<transactionAmount>`) for a
+/// settled Sale/partial-approval or an authorized/partially-authorized response — never for
+/// anything else. Resolves what to put in the integrity object in that priority order: the
+/// settled captured amount, then the still-capturable authorized amount, then whatever was
+/// originally requested (catches prism/UCS-side tampering between request build and response
+/// handling, not connector-side drift — same rationale as flywire).
+fn resolve_reported_amount(
+    minor_amount_captured: Option<MinorUnit>,
+    minor_amount_capturable: Option<MinorUnit>,
+    requested: MinorUnit,
+) -> MinorUnit {
+    minor_amount_captured
+        .or(minor_amount_capturable)
+        .unwrap_or(requested)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<TsysTransitAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
@@ -2647,16 +2663,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
-            // TSYS never echoes currency and only echoes an amount
-            // (<processedAmount>) for a settled Sale/partial-approval; for an
-            // auth-only response we fall back to the request's own amount, same
-            // rationale as flywire: catches prism/UCS-side tampering between
-            // request build and response handling, not connector-side drift.
+            // TSYS never echoes currency; see `resolve_reported_amount` for the amount fallback.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: minor_amount_captured
-                        .or(minor_amount_capturable)
-                        .unwrap_or(router_data.request.amount),
+                    amount: resolve_reported_amount(
+                        minor_amount_captured,
+                        minor_amount_capturable,
+                        router_data.request.amount,
+                    ),
                     currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -2856,9 +2870,11 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 response: Ok(payments_response_data),
                 request: PaymentsSyncData {
                     integrity_object: Some(PaymentSynIntegrityObject {
-                        amount: minor_amount_captured
-                            .or(minor_amount_capturable)
-                            .unwrap_or(router_data.request.amount),
+                        amount: resolve_reported_amount(
+                            minor_amount_captured,
+                            minor_amount_capturable,
+                            router_data.request.amount,
+                        ),
                         currency: transaction_details
                             .currency_code
                             .unwrap_or(router_data.request.currency),
@@ -4124,6 +4140,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         additional_connector_details: None,
         customer: None,
         business_country: None,
+        accept_amount_mismatch: false,
     }
 }
 
@@ -4289,12 +4306,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
-            // TSYS echoes <processedAmount> only for a settled Sale/partial
-            // approval; fall back to the request's own amount otherwise, same
-            // rationale as Authorize above.
+            // TSYS never echoes currency; see `resolve_reported_amount` for the amount fallback.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: amount_captured.unwrap_or(router_data.request.amount),
+                    amount: resolve_reported_amount(
+                        minor_amount_captured,
+                        minor_amount_capturable,
+                        MinorUnit::new(router_data.request.amount),
+                    )
+                    .get_amount_as_i64(),
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),

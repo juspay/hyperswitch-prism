@@ -463,6 +463,67 @@ pub fn extract_merchant_id_from_metadata(
         })?)
 }
 
+/// Reads the `x-accept-amount-mismatch` header (Hyperswitch's resolved
+/// `payments.accept_payment_amount_mismatch` config for this merchant/payment-method-type).
+///
+/// Only the exact value `"true"` opts in; a missing header or any other value (including
+/// unparseable ones) is treated as `false`, so behaviour is unchanged when it's absent.
+pub fn extract_accept_amount_mismatch_from_metadata(metadata: &MaskedMetadata) -> bool {
+    metadata
+        .get_raw(consts::X_ACCEPT_AMOUNT_MISMATCH)
+        .as_deref()
+        == Some("true")
+}
+
+#[cfg(test)]
+mod accept_amount_mismatch_header_tests {
+    use common_utils::metadata::{HeaderMaskingConfig, MaskedMetadata};
+
+    use super::extract_accept_amount_mismatch_from_metadata;
+
+    fn metadata_with_header(value: Option<&str>) -> MaskedMetadata {
+        let mut map = tonic::metadata::MetadataMap::new();
+        if let Some(value) = value {
+            map.insert(
+                "x-accept-amount-mismatch",
+                value.parse().expect("valid header value"),
+            );
+        }
+        MaskedMetadata::new(map, HeaderMaskingConfig::default())
+    }
+
+    #[test]
+    fn header_absent_defaults_to_false() {
+        assert!(!extract_accept_amount_mismatch_from_metadata(
+            &metadata_with_header(None)
+        ));
+    }
+
+    #[test]
+    fn header_true_is_true() {
+        assert!(extract_accept_amount_mismatch_from_metadata(
+            &metadata_with_header(Some("true"))
+        ));
+    }
+
+    #[test]
+    fn header_false_is_false() {
+        assert!(!extract_accept_amount_mismatch_from_metadata(
+            &metadata_with_header(Some("false"))
+        ));
+    }
+
+    #[test]
+    fn unparseable_value_defaults_to_false() {
+        for value in ["TRUE", "1", "yes", ""] {
+            assert!(
+                !extract_accept_amount_mismatch_from_metadata(&metadata_with_header(Some(value))),
+                "expected {value:?} to be treated as false"
+            );
+        }
+    }
+}
+
 /// Convert US state names to their 2-letter abbreviations
 pub fn convert_us_state_to_code(state: &str) -> String {
     // If already 2 characters, assume it's already an abbreviation

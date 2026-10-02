@@ -755,9 +755,22 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_reference: Option<MandateReference>,
+    /// Resolved from the `x-accept-amount-mismatch` gRPC metadata header. Don't read this
+    /// directly — use `accept_amount_mismatch()`.
+    pub accept_amount_mismatch: bool,
 }
 
 impl PaymentsSyncData {
+    /// Whether an amount mismatch against the integrity object should be tolerated instead of
+    /// failing the integrity check, in either direction. A currency mismatch is never
+    /// tolerated.
+    pub fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        AmountMismatchTolerance {
+            allow_lower: AllowLowerAmount(self.accept_amount_mismatch),
+            allow_higher: AllowHigherAmount(self.accept_amount_mismatch),
+        }
+    }
+
     /// Returns true if payment should be automatically captured, false for manual capture.
     ///
     /// Maps capture methods to boolean intent:
@@ -1739,6 +1752,41 @@ impl PaymentsCancelPostCaptureData {
     }
 }
 
+/// Whether a connector-reported amount *lower* than what was requested should be tolerated
+/// instead of failing the integrity check (e.g. a manual authorization/capture that only
+/// partially went through).
+#[derive(Debug, Clone, Copy)]
+pub struct AllowLowerAmount(pub bool);
+
+/// Whether a connector-reported amount *higher* than what was requested should be tolerated
+/// instead of failing the integrity check (e.g. overcapture).
+#[derive(Debug, Clone, Copy)]
+pub struct AllowHigherAmount(pub bool);
+
+/// Per-request decision on whether an amount mismatch against the integrity object should be
+/// tolerated, tracked separately per direction since a lower and a higher amount can come from
+/// independent reasons (partial authorization vs. overcapture). Built by each request type's own
+/// `amount_mismatch_tolerance()`; a currency mismatch is never tolerated by either direction.
+#[derive(Debug, Clone, Copy)]
+pub struct AmountMismatchTolerance {
+    pub allow_lower: AllowLowerAmount,
+    pub allow_higher: AllowHigherAmount,
+}
+
+impl AmountMismatchTolerance {
+    /// Whether `reported` should be accepted given how it differs from `requested`. Equal
+    /// amounts are always permitted.
+    pub fn permits(&self, requested: MinorUnit, reported: MinorUnit) -> bool {
+        if reported < requested {
+            self.allow_lower.0
+        } else if reported > requested {
+            self.allow_higher.0
+        } else {
+            true
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub payment_method_data: PaymentMethodData<T>,
@@ -1805,6 +1853,11 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub payment_channel: Option<PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    /// Resolved from the `x-accept-amount-mismatch` gRPC metadata header (Hyperswitch's
+    /// per-merchant, per-payment-method-type `payments.accept_payment_amount_mismatch` config).
+    /// Don't read this directly — use `accept_amount_mismatch()`, which also folds in
+    /// `enable_overcapture`/`enable_partial_authorization`.
+    pub accept_amount_mismatch: bool,
     pub locale: Option<String>,
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
@@ -1834,6 +1887,22 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
+    /// Whether an amount mismatch against the integrity object should be tolerated instead of
+    /// failing the integrity check, tracked per direction: a lower amount is tolerated via
+    /// `x-accept-amount-mismatch` or `enable_partial_authorization`; a higher amount via
+    /// `x-accept-amount-mismatch` or `enable_overcapture`. A currency mismatch is never
+    /// tolerated by any of these.
+    pub fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        AmountMismatchTolerance {
+            allow_lower: AllowLowerAmount(
+                self.accept_amount_mismatch || self.enable_partial_authorization.unwrap_or(false),
+            ),
+            allow_higher: AllowHigherAmount(
+                self.accept_amount_mismatch || self.enable_overcapture.unwrap_or(false),
+            ),
+        }
+    }
+
     /// Returns true if payment should be automatically captured, false for manual capture.
     ///
     /// Maps capture methods to boolean intent:
@@ -3755,9 +3824,22 @@ pub struct PaymentsCaptureData {
     /// Unified split settlement (supersedes split_payments). Boxed to keep the
     /// enclosing request (and its RouterDataV2 clones) small on the async stack.
     pub split_settlement: Option<Box<SplitSettlement>>,
+    /// Resolved from the `x-accept-amount-mismatch` gRPC metadata header. Don't read this
+    /// directly — use `accept_amount_mismatch()`.
+    pub accept_amount_mismatch: bool,
 }
 
 impl PaymentsCaptureData {
+    /// Whether a captured-amount mismatch against the integrity object should be tolerated
+    /// instead of failing the integrity check, in either direction. A currency mismatch is
+    /// never tolerated.
+    pub fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        AmountMismatchTolerance {
+            allow_lower: AllowLowerAmount(self.accept_amount_mismatch),
+            allow_higher: AllowHigherAmount(self.accept_amount_mismatch),
+        }
+    }
+
     pub fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
@@ -3954,6 +4036,17 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
+    /// Whether an amount mismatch against the integrity object should be tolerated instead of
+    /// failing the integrity check. Repeat payments only ever authorize/charge less than
+    /// requested (`enable_partial_authorization`) — there's no overcapture concept here, and no
+    /// `x-accept-amount-mismatch` header for this flow. A currency mismatch is never tolerated.
+    pub fn amount_mismatch_tolerance(&self) -> AmountMismatchTolerance {
+        AmountMismatchTolerance {
+            allow_lower: AllowLowerAmount(self.enable_partial_authorization.unwrap_or(false)),
+            allow_higher: AllowHigherAmount(false),
+        }
+    }
+
     pub fn get_connector_testing_data(&self) -> Option<SecretSerdeValue> {
         self.connector_testing_data.clone()
     }

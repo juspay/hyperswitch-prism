@@ -115,6 +115,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -312,6 +313,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -495,6 +497,7 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,

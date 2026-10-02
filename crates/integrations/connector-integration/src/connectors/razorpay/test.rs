@@ -131,6 +131,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -349,6 +350,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -518,6 +520,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -709,6 +712,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -1102,6 +1106,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                accept_amount_mismatch: false,
                 split_settlement: None,
                 customer_document_details: None,
                 customer_date_of_birth: None,
@@ -1327,6 +1332,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                accept_amount_mismatch: false,
                 split_settlement: None,
                 customer_document_details: None,
                 customer_date_of_birth: None,
@@ -1827,6 +1833,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    accept_amount_mismatch: false,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
