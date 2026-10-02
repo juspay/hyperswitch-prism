@@ -633,6 +633,11 @@ aliases = ["redirect_response"]
 type = "secret_json"
 value = "{\"params\":\"probe_redirect_params\",\"payload\":{\"TransactionId\":\"probe_txn_123\"}}"
 
+["pre_authenticate.continue_redirection_url"]
+aliases = ["continue_redirection_url"]
+type = "string"
+value = "https://example.com/3ds-continue"
+
 ["authenticate.continue_redirection_url"]
 aliases = ["continue_redirection_url"]
 type = "string"
