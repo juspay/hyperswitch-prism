@@ -45,7 +45,7 @@ rand = "0.8.5"
 nanoid = "0.4.0"
 regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10" }
 josekit = "0.8.7"
 deja = { git = "https://github.com/juspay/deja", rev = "d587865d876a8e57a7c9a4d52f2293eb6fd8b97e", optional = true, default-features = false }
 
