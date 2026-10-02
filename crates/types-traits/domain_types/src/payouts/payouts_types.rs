@@ -144,6 +144,7 @@ pub struct PayoutTransferRequest {
     pub customer: Option<PayoutCustomer>,
     pub connector_eligibility_reference_id: Option<String>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
 }
 
 impl PayoutTransferRequest {

@@ -1435,6 +1435,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
                     ))
                 })
                 .transpose()?,
+            billing_descriptor: value.billing_descriptor.as_ref().map(|descriptor| {
+                crate::connector_types::BillingDescriptor::from((descriptor, None, None))
+            }),
         })
     }
 }
