@@ -10,7 +10,7 @@ use self::transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use common_enums as enums;
-use common_utils::{errors::CustomResult, events, ext_traits::BytesExt, types::StringMajorUnit};
+use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},

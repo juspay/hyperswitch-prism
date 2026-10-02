@@ -735,7 +735,7 @@ mod tests {
 #[cfg(test)]
 mod transformer_tests {
     use super::super::transformers::*;
-    use common_utils::MinorUnit;
+    use common_utils::{proto_boundary::MinorUnitProtoAccess, MinorUnit};
 
     macro_rules! ensure_eq {
         ($left:expr, $right:expr $(,)?) => {{

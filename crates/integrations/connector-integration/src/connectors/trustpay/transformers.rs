@@ -2586,7 +2586,7 @@ impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTrans
     fn from(value: GooglePayTransactionInfo) -> Self {
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
-                .unwrap_or_else(|_| MinorUnit::new(0));
+                .unwrap_or_else(|_| MinorUnit::default());
 
         Self {
             country_code: value.country_code,
@@ -2755,7 +2755,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(MinorUnit::new(0), router_data.request.currency)
+            .convert(MinorUnit::default(), router_data.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

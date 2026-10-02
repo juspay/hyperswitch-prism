@@ -3,7 +3,10 @@ use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
 use common_utils::{
     crypto::{self, GenerateDigest},
     pii::Email,
-    types::StringMinorUnit,
+    types::{
+        AmountConvertor, ConnectorMinorUnit, MinorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
@@ -735,10 +738,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} into Ilixium's \
+                        "Failed to convert minor_amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount.get_amount_as_i64(),
-                        request.currency
+                        request.minor_amount, request.currency
                     )),
                 },
             })?;
@@ -836,10 +838,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert amount {} {} into Ilixium's transaction.amount \
+                        "Failed to convert amount {:?} {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.amount.get_amount_as_i64(),
-                        currency
+                        request.amount, currency
                     )),
                 },
             })?;
@@ -1054,10 +1055,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
+                        "Failed to convert minor_amount_to_capture {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount_to_capture.get_amount_as_i64(),
-                        request.currency
+                        request.minor_amount_to_capture, request.currency
                     )),
                 },
             })?;
@@ -1189,10 +1189,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert void amount {} {} into Ilixium's \
+                        "Failed to convert void amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.get_amount_as_i64(),
-                        currency
+                        minor_amount, currency
                     )),
                 },
             })?;
@@ -1404,10 +1403,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} into Ilixium's \
+                        "Failed to convert minor_refund_amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_refund_amount.get_amount_as_i64(),
-                        request.currency
+                        request.minor_refund_amount, request.currency
                     )),
                 },
             })?;
@@ -2819,7 +2817,7 @@ impl IlixiumHistoryStatus {
 /// and no `cardResponse` either, hence no `authCode`, `iso8583code` or 3-D Secure field.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IlixiumHistoryTransaction {
-    pub amount: Option<String>,
+    pub amount: Option<StringMinorUnit>,
     pub currency: Option<String>,
     /// The only value that ties a report entry back to a UCS payment.
     #[serde(rename = "merchantRef")]
@@ -2887,12 +2885,20 @@ impl IlixiumHistoryOperation {
             .filter(|value| !value.is_empty())
     }
 
-    /// `transaction.amount` parsed from its minor-unit digit string (`^[\d]{1,12}$`).
-    fn minor_amount(&self) -> Option<i64> {
+    /// `transaction.amount`, converted into the same `ConnectorMinorUnit` shape the
+    /// refund side is compared against (`AmountConvertor::convert_back` then
+    /// `::convert` — currency plays no role in either hop for this pair, so this is
+    /// a plain type-level relabel, not a computation). No raw `i64` involved.
+    fn minor_amount(&self, currency: Currency) -> Option<ConnectorMinorUnit> {
         self.transaction
             .as_ref()
-            .and_then(|transaction| transaction.amount.as_deref())
-            .and_then(|amount| amount.parse::<i64>().ok())
+            .and_then(|transaction| transaction.amount.clone())
+            .and_then(|amount| {
+                StringMinorUnitForConnector
+                    .convert_back(amount, currency)
+                    .and_then(|minor_unit| MinorUnitForConnector.convert(minor_unit, currency))
+                    .ok()
+            })
     }
 }
 
@@ -3420,7 +3426,7 @@ impl IlixiumHistoryResponse {
         &self,
         merchant_ref: &str,
         connector_refund_id: &str,
-        minor_refund_amount: Option<i64>,
+        minor_refund_amount: Option<(ConnectorMinorUnit, Currency)>,
     ) -> Option<RefundOperationMatch<'_>> {
         let candidates: Vec<(usize, &IlixiumHistoryOperation)> = self
             .operation
@@ -3453,10 +3459,10 @@ impl IlixiumHistoryResponse {
         }
 
         let narrowed: Vec<(usize, &IlixiumHistoryOperation)> = match minor_refund_amount {
-            Some(amount) => {
+            Some((amount, currency)) => {
                 let matching: Vec<(usize, &IlixiumHistoryOperation)> = candidates
                     .iter()
-                    .filter(|(_, operation)| operation.minor_amount() == Some(amount))
+                    .filter(|(_, operation)| operation.minor_amount(currency) == Some(amount))
                     .copied()
                     .collect();
                 if matching.is_empty() {
@@ -3732,7 +3738,22 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
         let refund_amount = request
             .refund_money
             .as_ref()
-            .map(|money| money.amount.get_amount_as_i64());
+            .map(|money| {
+                money
+                    .convert(&MinorUnitForConnector)
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed {
+                        context: errors::ResponseTransformationErrorContext {
+                            http_status_code: Some(item.http_code),
+                            additional_context: Some(
+                                "Ilixium RSync: failed to convert refund_money for matching \
+                                 against POST /history/operations."
+                                    .to_string(),
+                            ),
+                        },
+                    })
+                    .map(|amount| (amount, money.currency()))
+            })
+            .transpose()?;
 
         let Some(matched) = response.match_refund_operation(
             &merchant_ref,

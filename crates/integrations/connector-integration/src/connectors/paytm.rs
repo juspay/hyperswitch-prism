@@ -5,7 +5,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::AttemptStatus;
-use common_utils::{errors::CustomResult, events, ext_traits::BytesExt, types::StringMajorUnit};
+use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::{Authorize, PSync, ServerSessionAuthenticationToken},
     connector_types::{

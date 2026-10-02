@@ -4,6 +4,7 @@
 //! It ensures that request and response data remain consistent across connector interactions
 //! by comparing critical fields like amounts, currencies, and transaction identifiers.
 use common_utils::errors::IntegrityCheckError;
+use common_utils::proto_boundary::MoneyProtoAccess;
 use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
@@ -630,8 +631,8 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -660,8 +661,8 @@ impl FlowIntegrity for CreateOrderIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -692,8 +693,8 @@ impl FlowIntegrity for SetupMandateIntegrityObject {
             (Some(req_amount), Some(res_amount)) if req_amount != res_amount => {
                 mismatched_fields.push(format_mismatch(
                     "amount",
-                    &req_amount.to_string(),
-                    &res_amount.to_string(),
+                    &format!("{:?}", req_amount),
+                    &format!("{:?}", res_amount),
                 ));
             }
             (None, Some(_)) | (Some(_), None) => {
@@ -727,8 +728,8 @@ impl FlowIntegrity for PaymentSynIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -805,8 +806,8 @@ impl FlowIntegrity for RefundIntegrityObject {
         if req_integrity_object.refund_amount != res_integrity_object.refund_amount {
             mismatched_fields.push(format_mismatch(
                 "refund_amount",
-                &req_integrity_object.refund_amount.to_string(),
-                &res_integrity_object.refund_amount.to_string(),
+                &format!("{:?}", req_integrity_object.refund_amount),
+                &format!("{:?}", res_integrity_object.refund_amount),
             ));
         }
 
@@ -835,8 +836,8 @@ impl FlowIntegrity for CaptureIntegrityObject {
         if req_integrity_object.amount_to_capture != res_integrity_object.amount_to_capture {
             mismatched_fields.push(format_mismatch(
                 "amount_to_capture",
-                &req_integrity_object.amount_to_capture.to_string(),
-                &res_integrity_object.amount_to_capture.to_string(),
+                &format!("{:?}", req_integrity_object.amount_to_capture),
+                &format!("{:?}", res_integrity_object.amount_to_capture),
             ));
         }
 
@@ -971,8 +972,8 @@ impl FlowIntegrity for RepeatPaymentIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1077,8 +1078,8 @@ impl FlowIntegrity for SessionTokenIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1141,8 +1142,8 @@ impl FlowIntegrity for PaymentMethodTokenIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1171,8 +1172,8 @@ impl FlowIntegrity for PreAuthenticateIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1201,8 +1202,8 @@ impl FlowIntegrity for AuthenticateIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1231,8 +1232,8 @@ impl FlowIntegrity for PostAuthenticateIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1349,8 +1350,8 @@ impl FlowIntegrity for PayoutCreateIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1468,8 +1469,8 @@ impl GetIntegrityObject<PayoutEligibilityIntegrityObject> for PayoutEligibilityR
 
     fn get_request_integrity_object(&self) -> PayoutEligibilityIntegrityObject {
         PayoutEligibilityIntegrityObject {
-            amount: self.amount.amount,
-            currency: self.amount.currency,
+            amount: self.amount.amount(),
+            currency: self.amount.currency(),
         }
     }
 }
@@ -1613,8 +1614,8 @@ impl FlowIntegrity for PayoutTransferIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1643,8 +1644,8 @@ impl FlowIntegrity for PayoutStageIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1673,8 +1674,8 @@ impl FlowIntegrity for PayoutCreateLinkIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1703,8 +1704,8 @@ impl FlowIntegrity for PayoutCreateRecipientIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1733,8 +1734,8 @@ impl FlowIntegrity for PayoutEnrollDisburseAccountIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1813,8 +1814,8 @@ impl FlowIntegrity for PayoutEligibilityIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1843,8 +1844,8 @@ impl FlowIntegrity for SurchargeCalculateIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 
@@ -1922,8 +1923,8 @@ impl FlowIntegrity for RechargeIntegrityObject {
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push(format_mismatch(
                 "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
+                &format!("{:?}", req_integrity_object.amount),
+                &format!("{:?}", res_integrity_object.amount),
             ));
         }
 

@@ -1,5 +1,5 @@
 use common_enums::AttemptStatus;
-use common_utils::types::{MinorUnit, StringMinorUnit};
+use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -927,7 +927,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_amount: item_data
                 .connector
                 .amount_converter
-                .convert(MinorUnit(item.request.refund_amount), item.request.currency)
+                .convert(item.request.minor_refund_amount, item.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1109,19 +1109,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card_data) => {
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
-                // TSYS requires a non-zero amount even for authorization; default
-                // to 1 minor unit if the request does not carry one.
-                let minor_amount = item
-                    .request
-                    .minor_amount
-                    .unwrap_or_else(|| MinorUnit::new(1));
-                let transaction_amount = item_data
-                    .connector
-                    .amount_converter
-                    .convert(minor_amount, item.request.currency)
-                    .change_context(IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
-                    })?;
+                // Default to 1 minor unit only when the request does not carry an amount.
+                let transaction_amount = match item.request.minor_amount {
+                    Some(amount) => item_data
+                        .connector
+                        .amount_converter
+                        .convert(amount, item.request.currency)
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
+                    None => item_data
+                        .connector
+                        .amount_converter
+                        .default_one(item.request.currency)
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
+                };
 
                 let auth_data = TsysPaymentAuthSaleRequest {
                     device_id: auth.device_id,

@@ -4,7 +4,7 @@ use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, types::FloatMajorUnit};
+use common_utils::{errors::CustomResult, events};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,

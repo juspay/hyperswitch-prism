@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use crate::{types::ResponseRouterData, with_error_response_body};
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{

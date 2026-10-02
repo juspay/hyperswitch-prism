@@ -163,7 +163,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let ship_to_address = get_shipping_address(&item.router_data.resource_common_data);
 
         let (authorization, sale) =
-            if item.router_data.request.is_auto_capture() && amount != MinorUnit::zero() {
+            if item.router_data.request.is_auto_capture() && amount != MinorUnit::default() {
                 let sale = Sale {
                     id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
                     report_group: report_group.clone(),

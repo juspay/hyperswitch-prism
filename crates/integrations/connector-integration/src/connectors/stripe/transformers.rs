@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -250,7 +250,7 @@ pub struct StripeBrowserInformation {
 pub struct PaymentIntentRequest<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
-    pub amount: MinorUnit, //amount in cents, hence passed as integer
+    pub amount: ConnectorMinorUnit, //amount in cents, hence passed as integer
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
@@ -298,7 +298,7 @@ pub struct PaymentIntentRequest<
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct IntentCharges {
-    pub application_fee_amount: Option<MinorUnit>,
+    pub application_fee_amount: Option<ConnectorMinorUnit>,
     #[serde(
         rename = "transfer_data[destination]",
         skip_serializing_if = "Option::is_none"
@@ -367,7 +367,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.get_amount_as_i64().to_string(),
+                        domain_types::utils::legacy_amount_as_i64(order_item.amount).to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -383,7 +383,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            tax_amount.get_amount_as_i64().to_string(),
+                            domain_types::utils::legacy_amount_as_i64(tax_amount).to_string(),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
@@ -395,7 +395,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     if let Some(line_discount) = order_item.unit_discount_amount {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            line_discount.get_amount_as_i64().to_string(),
+                            domain_types::utils::legacy_amount_as_i64(line_discount).to_string(),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {
@@ -583,7 +583,7 @@ pub struct CreateConnectorCustomerResponse {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ChargesRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub customer: Secret<String>,
     pub source: Secret<String>,
@@ -594,8 +594,8 @@ pub struct ChargesRequest {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
-    pub amount: MinorUnit,
-    pub amount_captured: MinorUnit,
+    pub amount: ConnectorMinorUnit,
+    pub amount_captured: ConnectorMinorUnit,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub source: StripeSourceResponse,
@@ -755,7 +755,7 @@ pub struct MultibancoCreditTransferSourceRequest {
     #[serde(flatten)]
     pub payment_method_data: MultibancoTransferData,
     pub currency: common_enums::Currency,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(rename = "redirect[return_url]")]
     pub return_url: Option<String>,
 }
@@ -2508,11 +2508,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
+                                .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
+                                .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
                             )),
@@ -2649,14 +2655,14 @@ impl From<BrowserInformation> for StripeBrowserInformation {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct StripeSplitPaymentRequest {
     pub charge_type: Option<common_enums::PaymentChargeType>,
-    pub application_fees: Option<MinorUnit>,
+    pub application_fees: Option<ConnectorMinorUnit>,
     pub transfer_account_id: Option<Secret<String>>,
     pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct PaymentIncrementalAuthRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -2704,11 +2710,11 @@ pub struct PaymentIntentResponse {
     // been observed on the wire) -- kept in parity so a response HS parses successfully doesn't
     // fail here.
     pub object: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
     // stripe gives amount_captured as 0 for payment intents instead of null
-    pub amount_received: Option<MinorUnit>,
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount_received: Option<ConnectorMinorUnit>,
+    pub amount_capturable: Option<ConnectorMinorUnit>,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<Secret<String>>,
@@ -2754,8 +2760,8 @@ pub struct MultibancoCreditTransferResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AchReceiverDetails {
-    pub amount_received: MinorUnit,
-    pub amount_charged: MinorUnit,
+    pub amount_received: ConnectorMinorUnit,
+    pub amount_charged: ConnectorMinorUnit,
 }
 
 #[serde_with::skip_serializing_none]
@@ -2775,8 +2781,8 @@ pub struct QrCodeNextInstructions {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaAndBacsReceiver {
-    pub amount_received: MinorUnit,
-    pub amount_remaining: MinorUnit,
+    pub amount_received: ConnectorMinorUnit,
+    pub amount_remaining: ConnectorMinorUnit,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -2814,7 +2820,7 @@ impl StripeChargeEnum {
         }
     }
 
-    pub fn get_maximum_capturable_amount(&self) -> Option<MinorUnit> {
+    pub fn get_maximum_capturable_amount(&self) -> Option<ConnectorMinorUnit> {
         match self {
             Self::ChargeObject(charge_object) => {
                 if let Some(payment_method_details) = charge_object.payment_method_details.as_ref()
@@ -2898,7 +2904,7 @@ pub struct StripeOvercaptureResponse {
     status: Option<StripeOvercaptureStatus>,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
     // stripe gives amount_captured as 0 for payment intents instead of null
-    maximum_amount_capturable: Option<MinorUnit>,
+    maximum_amount_capturable: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3255,14 +3261,36 @@ where
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
+        let currency =
+            common_enums::Currency::from_str(item.response.currency.to_uppercase().as_str())
+                .change_context(crate::utils::response_deserialization_fail(
+                    item.http_code,
+                    "stripe: invalid currency in payment response",
+                ))?;
+
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency))
+            .transpose()
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
+        let minor_amount_capturable = minor_amount_capturable
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency))
+            .transpose()
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: item.response.amount_received,
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
+                minor_amount_captured,
                 connector_response: connector_response_data,
                 minor_amount_capturable,
                 ..item.router_data.resource_common_data
@@ -3292,7 +3320,7 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
 
 pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     http_status: u16,
 ) -> CustomResult<Option<Value>, ConnectorError> {
     let next_action_response = next_action
@@ -3320,9 +3348,12 @@ pub fn get_connector_metadata(
                         let bank_transfer_instructions = SepaAndBacsBankTransferInstructions {
                             sepa_bank_instructions,
                             bacs_bank_instructions,
-                            receiver: SepaAndBacsReceiver {
-                                amount_received: amount - response.amount_remaining,
-                                amount_remaining: response.amount_remaining,
+                            receiver: {
+                                let received = amount - response.amount_remaining;
+                                SepaAndBacsReceiver {
+                                    amount_received: received,
+                                    amount_remaining: response.amount_remaining,
+                                }
                             },
                         };
 
@@ -3562,14 +3593,22 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
             currency: currency_enum,
         };
 
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|amount| StripeAmountConvertor::convert_back(amount, currency_enum))
+            .transpose()
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: item.response.amount_received,
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
+                minor_amount_captured,
                 connector_response: connector_response_data,
                 ..item.router_data.resource_common_data
             },
@@ -3819,7 +3858,7 @@ pub enum FinancialInformation {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeBankTransferDetails {
-    pub amount_remaining: MinorUnit,
+    pub amount_remaining: ConnectorMinorUnit,
     pub currency: String,
     pub financial_addresses: FinancialInformation,
     pub hosted_instructions_url: Option<String>,
@@ -3902,7 +3941,7 @@ pub struct BacsFinancialDetails {
 
 #[derive(Debug, Serialize)]
 pub struct RefundRequest {
-    pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
+    pub amount: Option<ConnectorMinorUnit>, //amount in cents, hence passed as integer
     pub payment_intent: String,
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
@@ -3913,7 +3952,7 @@ pub struct ChargeRefundRequest {
     pub charge: String,
     pub refund_application_fee: Option<bool>,
     pub reverse_transfer: Option<bool>,
-    pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
+    pub amount: Option<ConnectorMinorUnit>, //amount in cents, hence passed as integer
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
 }
@@ -3944,7 +3983,7 @@ impl From<RefundStatus> for common_enums::RefundStatus {
 pub struct RefundResponse {
     pub id: String,
     pub object: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub metadata: StripeMetadata,
     pub payment_intent: String,
@@ -4106,12 +4145,12 @@ pub struct StripeMandateOptions {
 #[derive(Debug, Serialize, Clone, Copy)]
 pub struct CaptureRequest {
     /// If amount_to_capture is None stripe captures the amount in the payment intent.
-    amount_to_capture: Option<MinorUnit>,
+    amount_to_capture: Option<ConnectorMinorUnit>,
 }
 
-impl TryFrom<MinorUnit> for CaptureRequest {
+impl TryFrom<ConnectorMinorUnit> for CaptureRequest {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(capture_amount: MinorUnit) -> Result<Self, Self::Error> {
+    fn try_from(capture_amount: ConnectorMinorUnit) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: Some(capture_amount),
         })
@@ -4181,7 +4220,7 @@ pub struct WebhookPaymentMethodDetails {
 pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(default, deserialize_with = "convert_uppercase")]
     pub currency: common_enums::Currency,
     pub payment_intent: Option<String>,
@@ -4680,13 +4719,19 @@ pub(crate) fn build_webhook_dispute_response(
 ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let event_object = &event.event_data.event_object;
 
-    let amount = event_object
+    let connector_amount = event_object
         .amount
         .ok_or_else(|| report!(WebhookError::WebhookMissingRequiredField { field: "amount" }))?;
 
+    let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        &common_utils::types::MinorUnitForConnector,
+        connector_amount,
+        event_object.currency,
+    )?;
+
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        amount,
+        minor_amount,
         event_object.currency,
     )?;
 
@@ -4941,14 +4986,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let split_payment_request = match item.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => Self {
-                charge_type: Some(stripe_split_payment.charge_type.clone()),
-                transfer_account_id: Some(Secret::new(
-                    stripe_split_payment.transfer_account_id.clone(),
-                )),
-                application_fees: stripe_split_payment.application_fees,
-                on_behalf_of: stripe_split_payment.on_behalf_of.clone(),
-            },
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                let fees = stripe_split_payment
+                    .application_fees
+                    .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
+                    .transpose()?;
+                Self {
+                    charge_type: Some(stripe_split_payment.charge_type.clone()),
+                    transfer_account_id: Some(Secret::new(
+                        stripe_split_payment.transfer_account_id.clone(),
+                    )),
+                    application_fees: fees,
+                    on_behalf_of: stripe_split_payment.on_behalf_of.clone(),
+                }
+            }
             Some(SplitPaymentsDetails::AdyenSplitPayment(_)) | None => Self::default(),
         };
 
@@ -5222,14 +5273,14 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F>
     TryFrom<(
         &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-        MinorUnit,
+        ConnectorMinorUnit,
     )> for RefundRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         (item, refund_amount): (
             &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-            MinorUnit,
+            ConnectorMinorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let payment_intent = item.request.connector_transaction_id.clone();
@@ -5251,7 +5302,10 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     fn try_from(
         item: &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let amount = item.request.minor_refund_amount;
+        let amount = StripeAmountConvertor::convert(
+            item.request.minor_refund_amount,
+            item.request.currency,
+        )?;
         match item.request.split_refunds.as_ref() {
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_refunds",
@@ -6161,11 +6215,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
+                                .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
+                                .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
                             )),
@@ -6461,7 +6521,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeClientAuthRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     #[serde(rename = "automatic_payment_methods[enabled]")]
     pub automatic_payment_methods_enabled: Option<bool>,

@@ -871,11 +871,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // (a pure "register the mandate" probe) we fall back to a zero-value
         // request in the requested currency. The connector still accepts the
         // call and returns a usable `extraP.token`.
-        let minor_amount = item
-            .router_data
-            .request
-            .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::new(0));
+        let minor_amount = item.router_data.request.minor_amount.unwrap_or_default();
         let amount = item
             .connector
             .amount_converter

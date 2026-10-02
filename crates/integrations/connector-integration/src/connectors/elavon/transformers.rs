@@ -244,7 +244,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             additional_context: Some(format!(
-                                "Failed to convert minor amount {} {} to major unit \
+                                "Failed to convert minor amount {:?} {} to major unit \
                                  for Elavon Authorize request",
                                 request_data.minor_amount, request_data.currency
                             )),
@@ -860,7 +860,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert capture amount {} {} to major unit for \
+                        "Failed to convert capture amount {:?} {} to major unit for \
                          Elavon Capture (cccomplete) request",
                         router_data.request.minor_amount_to_capture, router_data.request.currency
                     )),
@@ -1055,7 +1055,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert refund amount {} {} to major unit for \
+                        "Failed to convert refund amount {:?} {} to major unit for \
                          Elavon Refund (ccreturn) request",
                         request_data.minor_refund_amount, request_data.currency
                     )),
@@ -1572,7 +1572,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert repeat payment amount {} {} to major unit for \
+                        "Failed to convert repeat payment amount {:?} {} to major unit for \
                          Elavon RepeatPayment request",
                         request.minor_amount, request.currency
                     )),

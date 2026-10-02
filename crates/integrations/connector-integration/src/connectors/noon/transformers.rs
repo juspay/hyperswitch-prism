@@ -1,5 +1,7 @@
 use common_enums::enums::{self, AttemptStatus, CountryAlpha2};
-use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::Encode, pii, request::Method, types::StringMajorUnit, ConnectorAmountExt,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
@@ -476,9 +478,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1170,10 +1172,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data.connector.amount_converter.convert(
-            common_utils::types::MinorUnit::new(1),
-            data.router_data.request.currency,
-        );
+        // Noon requires a non-zero amount for setup mandate.
+        // The actual mandate amount comes from setup_mandate_details below.
+        // This nominal amount satisfies the API requirement, so a missing or
+        // explicitly zero request amount falls back to 1 minor unit.
+        let amount = match data.router_data.request.minor_amount {
+            Some(minor_amount) => data
+                .connector
+                .amount_converter
+                .convert(minor_amount, data.router_data.request.currency),
+            None => data
+                .connector
+                .amount_converter
+                .default_one(data.router_data.request.currency),
+        }
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
+        let amount =
+            if amount
+                .is_zero()
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?
+            {
+                data.connector
+                    .amount_converter
+                    .default_one(data.router_data.request.currency)
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?
+            } else {
+                amount
+            };
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {
@@ -1385,9 +1416,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1404,9 +1435,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let tokenize_c_c = subscription.is_some().then_some(true);
 
         let order = NoonOrder {
-            amount: amount.change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?,
+            amount,
             currency,
             channel,
             category,
