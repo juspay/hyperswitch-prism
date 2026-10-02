@@ -47,7 +47,7 @@ def _build_authenticate_request():
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(),
         ),
-        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
     )
 
 def _build_capture_request(connector_transaction_id: str):

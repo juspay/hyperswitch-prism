@@ -135,28 +135,99 @@ pub struct ThreeDSRequestor {
 }
 
 impl ThreeDSRequestor {
-    // TODO(emvco): the router additionally derived the challenge indicator from
-    // `psd2_sca_exemption_type` (TransactionRiskAnalysis -> No challenge / TRA).
-    // UCS `PaymentsAuthenticateData` does not currently expose an SCA exemption
-    // type, so that branch is not modeled here.
+    /// `challenge_indicator` / `authentication_indicator` come straight from the typed
+    /// request fields (EMVCo `threeDSRequestorChallengeInd` / `threeDSRequestorAuthenticationInd`).
+    /// When the caller sends no challenge preference the field is omitted so the DS/ACS decides.
     pub fn new(
         app_ip: Option<std::net::IpAddr>,
-        force_3ds_challenge: bool,
+        challenge_indicator: Option<ThreeDSRequestorChallengeIndicator>,
+        authentication_indicator: ThreeDSRequestorAuthenticationIndicator,
         message_version: &SemanticVersion,
     ) -> Self {
-        let three_ds_requestor_challenge_ind = if force_3ds_challenge {
-            Some(SingleOrListElement::get_version_checked(
-                message_version,
-                ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate,
-            ))
-        } else {
-            None
-        };
+        let three_ds_requestor_challenge_ind = challenge_indicator
+            .map(|indicator| SingleOrListElement::get_version_checked(message_version, indicator));
 
         Self {
-            three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,
+            three_ds_requestor_authentication_ind: authentication_indicator,
             three_ds_requestor_challenge_ind,
             app_ip,
+        }
+    }
+}
+
+impl From<domain_types::connector_types::ThreeDsRequestorChallengeIndicator>
+    for ThreeDSRequestorChallengeIndicator
+{
+    fn from(value: domain_types::connector_types::ThreeDsRequestorChallengeIndicator) -> Self {
+        use domain_types::connector_types::ThreeDsRequestorChallengeIndicator as D;
+        match value {
+            D::NoPreference => Self::NoPreference,
+            D::NoChallengeRequested => Self::NoChallengeRequested,
+            D::ChallengeRequested => Self::ChallengeRequested3DSRequestorPreference,
+            D::ChallengeMandated => Self::ChallengeRequestedMandate,
+            D::NoChallengeTransactionalRiskAnalysis => {
+                Self::NoChallengeRequestedTransactionalRiskAnalysis
+            }
+            D::NoChallengeDataShareOnly => Self::NoChallengeRequestedDataShareOnly,
+            D::NoChallengeScaAlreadyPerformed => {
+                Self::NoChallengeRequestedStrongConsumerAuthentication
+            }
+            D::NoChallengeWhitelistExemption => Self::NoChallengeRequestedWhitelistExemption,
+            D::ChallengeWhitelistPrompt => Self::ChallengeRequestedWhitelistPrompt,
+        }
+    }
+}
+
+impl From<domain_types::connector_types::ThreeDsRequestorAuthenticationIndicator>
+    for ThreeDSRequestorAuthenticationIndicator
+{
+    fn from(value: domain_types::connector_types::ThreeDsRequestorAuthenticationIndicator) -> Self {
+        use domain_types::connector_types::ThreeDsRequestorAuthenticationIndicator as D;
+        match value {
+            D::Payment => Self::Payment,
+            D::Recurring => Self::Recurring,
+            D::Installment => Self::Installment,
+            D::AddCard => Self::AddCard,
+            D::MaintainCard => Self::MaintainCard,
+            D::CardholderVerification => Self::CardholderVerification,
+            D::BillingAgreement => Self::BillingAgreement,
+        }
+    }
+}
+
+impl From<domain_types::connector_types::ThreeDsMessageCategory> for NetceteraMessageCategory {
+    fn from(value: domain_types::connector_types::ThreeDsMessageCategory) -> Self {
+        match value {
+            domain_types::connector_types::ThreeDsMessageCategory::PaymentAuthentication => {
+                Self::PaymentAuthentication
+            }
+            domain_types::connector_types::ThreeDsMessageCategory::NonPaymentAuthentication => {
+                Self::NonPaymentAuthentication
+            }
+        }
+    }
+}
+
+impl From<domain_types::connector_types::ThreeDsCompletionIndicator>
+    for ThreeDSMethodCompletionIndicator
+{
+    fn from(value: domain_types::connector_types::ThreeDsCompletionIndicator) -> Self {
+        match value {
+            domain_types::connector_types::ThreeDsCompletionIndicator::Success => Self::Y,
+            domain_types::connector_types::ThreeDsCompletionIndicator::Failure => Self::N,
+            domain_types::connector_types::ThreeDsCompletionIndicator::NotAvailable => Self::U,
+        }
+    }
+}
+
+impl From<domain_types::connector_types::DeviceChannel> for NetceteraDeviceChannel {
+    fn from(value: domain_types::connector_types::DeviceChannel) -> Self {
+        match value {
+            domain_types::connector_types::DeviceChannel::App => Self::AppBased,
+            domain_types::connector_types::DeviceChannel::Browser => Self::Browser,
+            domain_types::connector_types::DeviceChannel::ThreeRi => {
+                Self::ThreeDsRequestorInitiated
+            }
         }
     }
 }
@@ -337,6 +408,19 @@ pub struct AcquirerData {
     pub acquirer_country_code: Option<String>,
 }
 
+impl From<&domain_types::connector_types::AcquirerDetails> for AcquirerData {
+    fn from(value: &domain_types::connector_types::AcquirerDetails) -> Self {
+        Self {
+            acquirer_bin: value.acquirer_bin.clone(),
+            acquirer_merchant_id: value.acquirer_merchant_id.clone(),
+            // EMVCo acquirerCountryCode is ISO 3166-1 numeric.
+            acquirer_country_code: value
+                .acquirer_country_code
+                .map(|country| format!("{:03}", common_enums::CountryAlpha2::to_numeric(country))),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
@@ -354,98 +438,6 @@ pub struct MerchantData {
     /// Dynamic RRes (Results Response) notification URL — where Netcetera pushes the final challenge
     /// result when the pull mechanism is disabled. Serializes as `resultsResponseNotificationUrl`.
     pub results_response_notification_url: Option<url::Url>,
-}
-
-// ---------------------------------------------------------------------------
-// Per-merchant Netcetera config (NON-auth)
-// ---------------------------------------------------------------------------
-//
-// The acquirer / merchant 3DS fields below are NOT secrets and NOT auth
-// material; they originate from the merchant's Netcetera account configuration
-// (acquirer BIN, acquirer merchant id, MCC, 3DS requestor id/name, ...). They
-// ride the request on `PaymentFlowData.connector_feature_data` (a
-// `SecretSerdeValue`) and are deserialized into this struct by the Authenticate
-// transformer via `utils::to_connector_meta_from_secret`. This mirrors how
-// other UCS connectors read per-merchant non-auth config (e.g. axisbank /
-// nexinets reading `connector_feature_data`).
-//
-// ROUTER-SIDE CONTRACT (the router must populate `connector_feature_data` with
-// a JSON object of this exact shape for a real AReq; all fields optional):
-// ```json
-// {
-//   "acquirer_bin":           "<acquirer BIN>",
-//   "acquirer_merchant_id":   "<acquirer-assigned merchant id>",
-//   "acquirer_country_code":  "<ISO 3166-1 numeric, e.g. \"840\">",
-//   "merchant_configuration_id": "<Netcetera merchant configuration id>",
-//   "mcc":                    "<merchant category code>",
-//   "merchant_country_code":  "<ISO 3166-1 numeric>",
-//   "merchant_name":          "<merchant name>",
-//   "three_ds_requestor_id":  "<3DS requestor id>",
-//   "three_ds_requestor_name":"<3DS requestor name>"
-// }
-// ```
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub struct NetceteraMeta {
-    pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
-    pub acquirer_country_code: Option<String>,
-    pub merchant_configuration_id: Option<String>,
-    pub mcc: Option<String>,
-    pub merchant_country_code: Option<String>,
-    pub merchant_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    /// Per-merchant subdomain that replaces the `{{merchant_endpoint_prefix}}` template segment
-    /// in the configured Netcetera 3DS Server host (e.g. `flowbird` ->
-    /// `https://flowbird.3ds-server.<env>.netcetera-cloud-payment.ch`). Sourced from the
-    /// merchant's Netcetera MCA metadata (`endpoint_prefix`) and forwarded by the router on
-    /// `PaymentFlowData.connector_feature_data`.
-    pub endpoint_prefix: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
-    /// Dynamic Results Response (RRes) notification URL. When present it is forwarded in the AReq
-    /// merchant object as `resultsResponseNotificationUrl`, so Netcetera pushes the final challenge
-    /// result to this webhook (used when the merchant has the pull mechanism disabled). Sourced from
-    /// the netcetera MCA metadata; requires the Netcetera license to allow dynamic RRes URLs.
-    pub results_response_notification_url: Option<url::Url>,
-    /// Browser CRes return URL (AReq `notificationURL` / `threeDSRequestorURL`) — where the ACS
-    /// returns the browser after the challenge. Sourced from the netcetera MCA metadata; when
-    /// absent the caller's request return_url is used instead.
-    pub notification_url: Option<url::Url>,
-    /// Merchant-level 3DS challenge preference (EMVCo threeDSRequestorChallengeInd = 04 when true).
-    /// Sourced from the netcetera MCA metadata.
-    pub force_3ds_challenge: Option<bool>,
-}
-
-impl NetceteraMeta {
-    /// Build the EMVCo `acquirer` object from the per-merchant config.
-    pub fn to_acquirer_data(&self) -> AcquirerData {
-        AcquirerData {
-            acquirer_bin: self.acquirer_bin.clone(),
-            acquirer_merchant_id: self.acquirer_merchant_id.clone(),
-            acquirer_country_code: self.acquirer_country_code.clone(),
-        }
-    }
-
-    /// Build the EMVCo `merchant` object from the per-merchant config.
-    /// `notification_url` is sourced from the request (return/webhook URL), not
-    /// from the merchant config, so it is threaded in by the caller.
-    pub fn to_merchant_data(&self, notification_url: Option<url::Url>) -> MerchantData {
-        MerchantData {
-            merchant_configuration_id: self.merchant_configuration_id.clone(),
-            mcc: self.mcc.clone(),
-            merchant_country_code: self.merchant_country_code.clone(),
-            merchant_name: self.merchant_name.clone(),
-            // Browser CRes return URL: prefer the netcetera MCA metadata value, else the
-            // caller's request return_url.
-            notification_url: self.notification_url.clone().or(notification_url),
-            three_ds_requestor_id: self.three_ds_requestor_id.clone(),
-            three_ds_requestor_name: self.three_ds_requestor_name.clone(),
-            // Server-side RRes push target (pull mechanism disabled), sourced from the
-            // merchant's Netcetera MCA metadata (`results_response_notification_url`).
-            results_response_notification_url: self.results_response_notification_url.clone(),
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

@@ -275,6 +275,9 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         pre_authn_response.three_ds_server_trans_id.clone(),
                     ),
                     message_version: Some(maximum_supported_3ds_version),
+                    // `ds_trans_id` also carries the card-range directory server id for
+                    // callers that predate `directory_server_id`. Safe to keep; drop only
+                    // once no caller reads it here.
                     ds_trans_id: card_range
                         .as_ref()
                         .and_then(|range| range.directory_server_id.clone()),
@@ -288,6 +291,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
+                    acs_signed_content: None,
+                    acs_reference_number: None,
+                    directory_server_id: card_range
+                        .as_ref()
+                        .and_then(|range| range.directory_server_id.clone()),
+                    scheme_id: card_range.as_ref().map(|range| range.scheme_id.to_string()),
                 };
 
                 Ok(Self {
@@ -385,27 +394,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .and_then(|browser| browser.ip_address);
 
-        // Per-merchant NON-auth config (acquirer / merchant objects) sourced from the merchant's
-        // Netcetera account, riding the request on `connector_feature_data` and deserialized into
-        // `NetceteraMeta` (same mechanism axisbank / nexinets use). Absent => objects omitted and
-        // the 3DS Server falls back to its stored merchant config. See `NetceteraMeta` for the
-        // router-side contract.
-        let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
-            match common_data.connector_feature_data {
-                Some(_) => Some(crate::utils::to_connector_meta_from_secret(
-                    common_data.connector_feature_data.clone(),
-                )?),
-                None => None,
-            };
+        let MerchantSideObjects {
+            acquirer,
+            merchant,
+            three_ds_requestor_url,
+            challenge_indicator,
+        } = build_merchant_side(request, common_data, &item.router_data.connector_config);
+
+        let authentication_indicator = request
+            .three_ds_requestor_authentication_indicator
+            .map(netcetera_types::ThreeDSRequestorAuthenticationIndicator::from)
+            .unwrap_or(netcetera_types::ThreeDSRequestorAuthenticationIndicator::Payment);
 
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
-            // 3DS Requestor challenge preference, sourced from the merchant's Netcetera MCA
-            // metadata (`force_3ds_challenge`). When absent, no preference (DS/ACS decides).
-            netcetera_meta
-                .as_ref()
-                .and_then(|m| m.force_3ds_challenge)
-                .unwrap_or(false),
+            challenge_indicator,
+            authentication_indicator,
             message_version
                 .as_ref()
                 .unwrap_or(&SemanticVersion::new(2, 1, 0)),
@@ -484,39 +488,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             context: Default::default(),
         })?;
 
-        let acquirer = netcetera_meta
-            .as_ref()
-            .map(netcetera_types::NetceteraMeta::to_acquirer_data);
-        let merchant = netcetera_meta.as_ref().map(|meta| {
-            meta.to_merchant_data(
-                common_data
-                    .return_url
-                    .as_ref()
-                    .and_then(|u| url::Url::parse(u).ok()),
-            )
-        });
-
         Ok(Self {
             preferred_protocol_version: message_version,
             enforce_preferred_protocol_version: Some(is_app),
-            device_channel: if is_app {
-                netcetera_types::NetceteraDeviceChannel::AppBased
-            } else {
-                netcetera_types::NetceteraDeviceChannel::Browser
-            },
-            message_category: netcetera_types::NetceteraMessageCategory::PaymentAuthentication,
-            three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::U),
+            device_channel: request
+                .device_channel
+                .map(netcetera_types::NetceteraDeviceChannel::from)
+                .unwrap_or(netcetera_types::NetceteraDeviceChannel::Browser),
+            message_category: request
+                .message_category
+                .map(netcetera_types::NetceteraMessageCategory::from)
+                .unwrap_or(netcetera_types::NetceteraMessageCategory::PaymentAuthentication),
+            // threeDSCompInd from the typed field; "U" (3DS Method not available) when the
+            // caller does not report a DDC outcome.
+            three_ds_comp_ind: Some(
+                request
+                    .threeds_completion_indicator
+                    .clone()
+                    .map(netcetera_types::ThreeDSMethodCompletionIndicator::from)
+                    .unwrap_or(netcetera_types::ThreeDSMethodCompletionIndicator::U),
+            ),
             three_ds_requestor: Some(three_ds_requestor),
             three_ds_server_trans_id,
-            three_ds_requestor_url: netcetera_meta
-                .as_ref()
-                .and_then(|m| m.notification_url.clone())
-                .or_else(|| {
-                    common_data
-                        .return_url
-                        .as_ref()
-                        .and_then(|u| url::Url::parse(u).ok())
-                }),
+            three_ds_requestor_url,
             cardholder_account,
             cardholder: Some(cardholder),
             purchase,
@@ -526,6 +520,88 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             sdk_information,
             device_render_options,
         })
+    }
+}
+
+/// AReq objects assembled from the request, `ConnectorSpecificConfig` and the
+/// request URLs.
+pub(super) struct MerchantSideObjects {
+    pub(super) acquirer: Option<netcetera_types::AcquirerData>,
+    pub(super) merchant: Option<netcetera_types::MerchantData>,
+    /// EMVCo `threeDSRequestorURL` / merchant `notificationURL` (browser CRes return URL).
+    pub(super) three_ds_requestor_url: Option<url::Url>,
+    pub(super) challenge_indicator: Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
+}
+
+/// Values come from the typed request fields, `return_url`, `webhook_url` and
+/// `ConnectorSpecificConfig::Netcetera`.
+fn build_merchant_side<T: PaymentMethodDataTypes>(
+    request: &PaymentsAuthenticateData<T>,
+    common_data: &PaymentFlowData,
+    connector_config: &domain_types::router_data::ConnectorSpecificConfig,
+) -> MerchantSideObjects {
+    let (merchant_configuration_id, three_ds_requestor_id, three_ds_requestor_name) =
+        match connector_config {
+            domain_types::router_data::ConnectorSpecificConfig::Netcetera {
+                merchant_configuration_id,
+                three_ds_requestor_id,
+                three_ds_requestor_name,
+                ..
+            } => (
+                merchant_configuration_id.clone(),
+                three_ds_requestor_id.clone(),
+                three_ds_requestor_name.clone(),
+            ),
+            _ => (None, None, None),
+        };
+
+    let return_url = common_data
+        .return_url
+        .as_ref()
+        .and_then(|u| url::Url::parse(u).ok());
+    let results_response_notification_url = request
+        .webhook_url
+        .as_ref()
+        .and_then(|u| url::Url::parse(u).ok());
+
+    let merchant_details = request.merchant_details.as_ref();
+    let merchant_data = netcetera_types::MerchantData {
+        merchant_configuration_id,
+        mcc: merchant_details
+            .and_then(|m| m.merchant_category_code)
+            .map(|mcc| format!("{mcc:04}")),
+        // EMVCo merchantCountryCode is ISO 3166-1 numeric.
+        merchant_country_code: merchant_details
+            .and_then(|m| m.merchant_country_code)
+            .map(|country| format!("{:03}", common_enums::CountryAlpha2::to_numeric(country))),
+        merchant_name: merchant_details.and_then(|m| m.merchant_name.clone()),
+        notification_url: return_url.clone(),
+        three_ds_requestor_id,
+        three_ds_requestor_name,
+        results_response_notification_url,
+    };
+    // Omit the object entirely when nothing is set so the 3DS Server falls back to its stored
+    // merchant configuration.
+    let merchant = (merchant_data.merchant_configuration_id.is_some()
+        || merchant_data.mcc.is_some()
+        || merchant_data.merchant_country_code.is_some()
+        || merchant_data.merchant_name.is_some()
+        || merchant_data.notification_url.is_some()
+        || merchant_data.three_ds_requestor_id.is_some()
+        || merchant_data.three_ds_requestor_name.is_some()
+        || merchant_data.results_response_notification_url.is_some())
+    .then_some(merchant_data);
+
+    MerchantSideObjects {
+        acquirer: request
+            .acquirer_details
+            .as_ref()
+            .map(netcetera_types::AcquirerData::from),
+        merchant,
+        three_ds_requestor_url: return_url,
+        challenge_indicator: request
+            .three_ds_requestor_challenge_indicator
+            .map(netcetera_types::ThreeDSRequestorChallengeIndicator::from),
     }
 }
 
@@ -682,6 +758,13 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
+                    acs_signed_content: response.authentication_response.acs_signed_content.clone(),
+                    acs_reference_number: response
+                        .authentication_response
+                        .acs_reference_number
+                        .clone(),
+                    directory_server_id: None,
+                    scheme_id: None,
                 };
 
                 Ok(Self {
@@ -807,6 +890,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         };
 
         Ok(Self {
