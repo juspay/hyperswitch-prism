@@ -2098,6 +2098,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 connector_feature_data: None,
                 connector_response_reference_id: item.response.transaction_id.clone(),
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
