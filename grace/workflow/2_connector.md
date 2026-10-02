@@ -469,6 +469,21 @@ Any line → AMEND the owning unit with `required_change` "probe `<field>` on `<
 doc: receipt, or set verdict unknown and do not emit it". `doc:` can describe what an API supports; it
 cannot know what this merchant, this environment and this payment-method type accept today.
 
+A field plumbed into the contract with nothing upstream to populate it is the same defect wearing the
+opposite sign: it compiles, it smoke-tests, and e2e fails on an empty value. It must print nothing:
+
+```bash
+jq -r '(.shape_receipts // [])[]
+       | select(.verdict == "unpopulated" and ((.hs_change_id // "") == ""))
+       | "\(.field): added to the contract with no hs_changes_required[] entry -- e2e will fail silently"' \
+   "$R"/code/*.json
+```
+
+Any line → the unit plumbed a field through UCS and recorded no Hyperswitch dependency for it. AMEND it
+with `required_change` "add the `hs_changes_required[]` entry that populates `<field>`, or mark the flow
+blocked with `no merchant-side source`". This is the `hs_changes_required[]` failure the run's own
+analysis named — filled correctly, handed off into nothing — made mechanically detectable.
+
 Then record, diagnostically, whether anyone actually asked the connector:
 
 ```bash
