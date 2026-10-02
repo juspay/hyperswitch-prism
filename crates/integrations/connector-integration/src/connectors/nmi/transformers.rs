@@ -1996,12 +1996,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
             phone: common_data.get_optional_billing_phone_number(),
-            // Prefer the billing-address email (mirrors the hyperswitch reference
-            // NMI MIT path), falling back to the top-level `RepeatPaymentData.email`
-            // so the customer email is still sent when no billing email is present.
-            email: common_data
-                .get_optional_billing_email()
-                .or_else(|| router_data.request.email.clone()),
+            // Mirrors the hyperswitch reference NMI MIT path (get_billing_details()):
+            // billing-address email only, no fallback to the top-level request email.
+            email: common_data.get_optional_billing_email(),
             shipping_details: Some(NmiShippingDetails {
                 shipping_firstname: common_data.get_optional_shipping_first_name(),
                 shipping_lastname: common_data.get_optional_shipping_last_name(),
@@ -2011,11 +2008,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_state: common_data.get_optional_shipping_state(),
                 shipping_zip: common_data.get_optional_shipping_zip(),
                 shipping_country: common_data.get_optional_shipping_country(),
-                // Same precedence for the shipping email: shipping-address email
-                // first, then the top-level `RepeatPaymentData.email` fallback.
-                shipping_email: common_data
-                    .get_optional_shipping_email()
-                    .or_else(|| router_data.request.email.clone()),
+                // Mirrors the hyperswitch reference (get_shipping_details()): shipping-
+                // address email only, no fallback to the top-level request email.
+                shipping_email: common_data.get_optional_shipping_email(),
             }),
         })
     }
