@@ -17,11 +17,13 @@ use std::str::FromStr;
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
+    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
     "refund",
     "setup_recurring",
+    "void",
 ];
 
 #[allow(dead_code)]
@@ -74,13 +76,40 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         ), // Method for capturing the payment.
         address: Some(PaymentAddress {
             // Address Information.
+            shipping_address: Some(Address {
+                line1: Some(Secret::new("500 Elm St".to_string())), // Address Details.
+                city: Some(Secret::new("Dayton".to_string())),
+                state: Some(Secret::new("OH".to_string())),
+                zip_code: Some(Secret::new("45402".to_string())),
+                ..Default::default()
+            }),
             billing_address: Some(Address {
+                first_name: Some(Secret::new("Jane".to_string())), // Personal Information.
+                last_name: Some(Secret::new("Doe".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
+                city: Some(Secret::new("Cincinnati".to_string())),
+                state: Some(Secret::new("OH".to_string())),
+                zip_code: Some(Secret::new("45201".to_string())),
+                ..Default::default()
+            }),
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
+        return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
+        billing_descriptor: Some(BillingDescriptor {
+            // Statement Descriptor.
+            name: Some(Secret::new("ACME WIDGETS".to_string())), // Customer's billing name.
+            city: Some(Secret::new("CINCINNATI".to_string())),   // Customer's billing city.
+            ..Default::default()
+        }),
+        l2_l3_data: Some(L2L3Data {
+            // Level 2 / Level 3 data for enhanced payment processing.
+            order_info: Some(OrderInfo {
+                // Order-level information.
+                // order_details: [{"product_name": "Blue widget", "quantity": 3, "amount": 1250}]  // Line items for the order.
                 ..Default::default()
             }),
             ..Default::default()
         }),
-        auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
-        return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         ..Default::default()
     }
 }
@@ -95,6 +124,33 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
         ..Default::default()
+    }
+}
+
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -166,7 +222,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
     RecurringPaymentServiceChargeRequest {
         connector_recurring_payment_id: Some(MandateReference {
             // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123", "mandate_metadata": "{\"expiration_date\":\"3012\"}"}}
             ..Default::default()
         }),
         amount: Some(Money {
@@ -176,12 +232,13 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
-            payment_method: Some(payment_method::PaymentMethod::Token(
-                TokenPaymentMethodType {
-                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
-                    ..Default::default()
-                },
-            )),
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                ..Default::default()
+            })),
             ..Default::default()
         }),
         return_url: Some("https://example.com/recurring-return".to_string()),
@@ -243,6 +300,14 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
             accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
             ..Default::default()
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
+    PaymentServiceVoidRequest {
+        merchant_void_id: Some("probe_void_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
         ..Default::default()
     }
 }
@@ -365,6 +430,43 @@ pub async fn process_refund(
     Ok(format!("Refunded: {:?}", refund_response.status()))
 }
 
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+#[allow(dead_code)]
+pub async fn process_void_payment(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Step 1: Authorize — reserve funds on the payment method
+    let authorize_response = client
+        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
+        .await?;
+
+    match authorize_response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
+        }
+        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
+        _ => {}
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    let void_response = client
+        .void(
+            build_void_request(
+                authorize_response
+                    .connector_transaction_id
+                    .as_deref()
+                    .unwrap_or(""),
+            ),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+
+    Ok(format!("Voided: {:?}", void_response.status()))
+}
+
 // Flow: PaymentService.Authorize (Card)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -394,12 +496,22 @@ pub async fn process_capture(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .capture(
-            build_capture_request("probe_connector_txn_001"),
+            build_capture_request("0000000000000001"),
             &HashMap::new(),
             None,
         )
         .await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -459,6 +571,22 @@ pub async fn process_setup_recurring(
     ))
 }
 
+// Flow: PaymentService.Void
+#[allow(dead_code)]
+pub async fn process_void(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .void(
+            build_void_request("0000000000000001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -470,14 +598,17 @@ async fn main() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
         "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
+        "process_void_payment" => process_void_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
+        "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_authorize, process_capture, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_void", flow);
             return;
         }
     };
