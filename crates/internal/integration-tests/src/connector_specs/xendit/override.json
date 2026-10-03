@@ -31,7 +31,11 @@
       },
       "assert": {
         "status": {
-          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
         }
       }
     },
@@ -52,7 +56,11 @@
       },
       "assert": {
         "status": {
-          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
         }
       }
     },
@@ -73,7 +81,10 @@
       },
       "assert": {
         "status": {
-          "one_of": ["AUTHORIZED", "PENDING"]
+          "one_of": [
+            "AUTHORIZED",
+            "PENDING"
+          ]
         }
       }
     },
@@ -94,7 +105,10 @@
       },
       "assert": {
         "status": {
-          "one_of": ["AUTHORIZED", "PENDING"]
+          "one_of": [
+            "AUTHORIZED",
+            "PENDING"
+          ]
         }
       }
     },
@@ -133,11 +147,26 @@
           "billing_address": {
             "country_alpha2_code": "ID"
           }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000002503"
+            }
+          }
         }
       },
       "assert": {
         "status": {
-          "one_of": ["AUTHENTICATION_PENDING", "PENDING", "AUTHORIZED"]
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
         }
       }
     }
