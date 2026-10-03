@@ -276,6 +276,64 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     }
 }
 
+/// Placeholder written over webhook credentials in logged request bodies.
+const REDACTED_WEBHOOK_VALUE: &str = "*** alloc::string::String ***";
+
+/// Log-only redaction for EventService requests. `request_details.headers` (a plain
+/// `map<string, string>`) can carry a connector's webhook credential — e.g. a static
+/// callback-token header — and `webhook_secrets.secret` / `.additional_secret` are plain
+/// proto strings, so `masked_serialize` leaves all of them in clear. Every value under them is
+/// replaced in the logged JSON; the request handed to the connector is untouched.
+fn redact_webhook_secrets_for_log(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map.iter_mut() {
+                match key.as_str() {
+                    "request_details" => {
+                        if let Some(headers) =
+                            child.get_mut("headers").and_then(Value::as_object_mut)
+                        {
+                            for header_value in headers.values_mut() {
+                                *header_value = Value::String(REDACTED_WEBHOOK_VALUE.to_string());
+                            }
+                        }
+                        redact_webhook_secrets_for_log(child);
+                    }
+                    "webhook_secrets" => {
+                        if let Some(secrets) = child.as_object_mut() {
+                            for secret_key in ["secret", "additional_secret"] {
+                                if let Some(secret) = secrets.get_mut(secret_key) {
+                                    if !secret.is_null() {
+                                        *secret = Value::String(REDACTED_WEBHOOK_VALUE.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => redact_webhook_secrets_for_log(child),
+                }
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(redact_webhook_secrets_for_log),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+/// Masked request JSON for the gRPC event, with the same webhook redaction as the log line.
+fn masked_request_for_event<T: serde::Serialize>(request: &T) -> Option<MaskedSerdeValue> {
+    let mut masked_value = hyperswitch_masking::masked_serialize(request)
+        .inspect_err(|e| {
+            tracing::error!(
+                error_category = ?e.classify(),
+                context = "grpc_request",
+                "Failed to mask serialize data"
+            );
+        })
+        .ok()?;
+    redact_webhook_secrets_for_log(&mut masked_value);
+    MaskedSerdeValue::from_masked_optional(&masked_value, "grpc_request")
+}
+
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
@@ -294,7 +352,11 @@ where
     let current_span = tracing::Span::current();
     let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
         .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
-        .ok();
+        .ok()
+        .map(|mut masked_value| {
+            redact_webhook_secrets_for_log(&mut masked_value);
+            masked_value
+        });
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     match masked_body.as_ref() {
@@ -419,8 +481,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_request_for_event(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -489,8 +550,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_request_for_event(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 

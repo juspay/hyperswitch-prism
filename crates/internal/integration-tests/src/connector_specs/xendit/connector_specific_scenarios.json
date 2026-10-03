@@ -1,0 +1,1308 @@
+{
+  "PaymentService/Authorize": {
+    "xendit_refuse_external_3ds_data": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "authentication_data": {
+          "eci": "05",
+          "cavv": "AAIBBYNoEwAAACcKhAJkdQAAAAA=",
+          "threeds_server_transaction_id": "e537f539-d59f-4ebe-8d56-7fdc31a8e9b4",
+          "message_version": "2.1.0"
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "status": {
+          "must_not_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error.error_message": {
+          "contains": "external 3DS authentication data"
+        }
+      },
+      "display_name": "Xendit: external 3DS data is refused before any call"
+    },
+    "xendit_refuse_manual_multiple": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "MANUAL_MULTIPLE",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error.error_message": {
+          "contains": "Capture method not supported"
+        }
+      },
+      "display_name": "Xendit: ManualMultiple capture refused before any call"
+    },
+    "xendit_enriched_billing_descriptor": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "billing_descriptor": {
+          "statement_descriptor": "GRACE GOODS"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "authorized_money.minor_amount": {
+          "contains": "1500000"
+        },
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Xendit: billing address + statement descriptor reach channel_properties; AVS/CVN in payment_checks"
+    },
+    "xendit_decline_network_code": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1005100,
+          "currency": "IDR"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "EXPIRED_CARD"
+        },
+        "error.issuer_details.network_details.decline_code": {
+          "equals": "54"
+        },
+        "error.connector_details.message": {
+          "equals": "EXPIRED_CARD"
+        },
+        "error.issuer_details.network_details.error_message": {
+          "equals": "Expired card"
+        }
+      },
+      "display_name": "Xendit: a 2xx FAILED carries failure_code and the issuer network response code"
+    },
+    "xendit_off_session_without_acceptance_is_pay": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "ID",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "OFF_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "mandate_reference": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Xendit: setup_future_usage OFF_SESSION with no customer_acceptance is a one-time PAY: charged, no mandate (G-01)"
+    }
+  },
+  "PaymentService/Refund": {
+    "xendit_refund_reason_duplicate": {
+      "grpc_req": {
+        "merchant_refund_id": "auto_generate",
+        "connector_transaction_id": "auto_generate",
+        "payment_amount": 1500000,
+        "refund_amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "reason": "duplicate"
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "REFUND_SUCCESS"
+          ]
+        },
+        "connector_refund_id": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Xendit: Refund | documented reason DUPLICATE is forwarded"
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "xendit_setup_refuse_recurring_category": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "connector_customer_id": null,
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        },
+        "setup_future_usage": "OFF_SESSION",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "mit_category": "RECURRING_MIT"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "mandate_reference": {
+          "must_not_exist": true
+        },
+        "error.error_message": {
+          "contains": "RECURRING card_on_file_type"
+        }
+      },
+      "display_name": "Xendit: SetupRecurring with mit_category RECURRING is refused before any call"
+    }
+  },
+  "EventService/HandleEvent": {
+    "xendit_dispute_action_required": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "dispute.action_required",
+            "id": "mi-dspt-f44d259f-fd9d-4de9-80de-1eef3f1506b7",
+            "channel_code": "CARDS",
+            "card_brands": "VISA",
+            "status": "ACTION_REQUIRED",
+            "currency": "USD",
+            "amount": {
+              "initial": "1000.00",
+              "terminal": null
+            },
+            "created_at": "2026-03-01T19:50:51.724Z",
+            "updated_at": "2026-03-01T19:50:51.724Z",
+            "due_date": "2026-03-15T19:50:51.724Z",
+            "related_disputes": [],
+            "payment_id": "py-59a3cf39-2a7d-4733-a3e3-8177c78090f7",
+            "reference_id": "ref-123456"
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "WEBHOOK_DISPUTE_OPENED"
+          ]
+        },
+        "event_content.disputes_response.connector_dispute_id": {
+          "equals": "mi-dspt-f44d259f-fd9d-4de9-80de-1eef3f1506b7"
+        },
+        "event_content.disputes_response.dispute_amount.minor_amount": {
+          "contains": "100000"
+        }
+      },
+      "display_name": "Xendit: dispute.action_required webhook -> dispute opened"
+    },
+    "xendit_payment_authorization": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.authorization",
+            "business_id": "62440e322008e87fb29c1fd0",
+            "created": "2024-12-18T05:46:35.109Z",
+            "api_version": "v3",
+            "data": {
+              "type": "PAY",
+              "status": "AUTHORIZED",
+              "currency": "IDR",
+              "payment_id": "py-3f57d678-2448-4c9f-a433-8468d366fb5c",
+              "payment_request_id": "pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f",
+              "channel_code": "CARDS",
+              "capture_method": "MANUAL",
+              "request_amount": 10000,
+              "reference_id": "97ba0a32"
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "AUTHORIZED"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f"
+        }
+      },
+      "display_name": "Xendit: payment.authorization webhook -> authorization success"
+    },
+    "xendit_payment_verified": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.verified",
+            "business_id": "5f27a14axxxxx",
+            "created": "2026-07-30T10:05:22Z",
+            "data": {
+              "id": "pr-abc123xyz",
+              "reference_id": "verify_card_cust_789",
+              "type": "VERIFY_PAYMENT_METHOD",
+              "status": "VERIFIED",
+              "country": "SG",
+              "currency": "SGD",
+              "customer_id": "cust-abc123",
+              "channel_code": "CARDS",
+              "metadata": {},
+              "created": "2026-04-30T10:00:00Z",
+              "updated": "2026-04-30T10:05:22Z"
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "PENDING"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "pr-abc123xyz"
+        }
+      },
+      "display_name": "Xendit: payment.verified webhook without payment_token_id -> pending until PSync supplies the token"
+    },
+    "xendit_payment_capture_pay_and_save_token": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.capture",
+            "business_id": "66a1b2c3d4e5f60718293a4b",
+            "created": "2026-10-02T23:01:25.560Z",
+            "api_version": "v3",
+            "data": {
+              "payment_id": "py-rca5-0001",
+              "payment_request_id": "pr-rca5-0001",
+              "reference_id": "rca5_pas_0001",
+              "payment_token_id": "pt-rca5-0001",
+              "type": "PAY_AND_SAVE",
+              "country": "ID",
+              "currency": "IDR",
+              "request_amount": 15000,
+              "capture_method": "AUTOMATIC",
+              "channel_code": "CARDS",
+              "status": "SUCCEEDED",
+              "failure_code": null
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "pr-rca5-0001"
+        },
+        "event_content.payments_response.mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "equals": "pt-rca5-0001"
+        }
+      },
+      "display_name": "Xendit: PAY_AND_SAVE payment.capture webhook with payment_token_id -> charged with pt- mandate reference"
+    },
+    "xendit_payment_capture_pay_and_save_no_token": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.capture",
+            "business_id": "66a1b2c3d4e5f60718293a4b",
+            "created": "2026-10-02T23:01:25.560Z",
+            "api_version": "v3",
+            "data": {
+              "payment_id": "py-rca5-0001",
+              "payment_request_id": "pr-rca5-0001",
+              "reference_id": "rca5_pas_0001",
+              "type": "PAY_AND_SAVE",
+              "country": "ID",
+              "currency": "IDR",
+              "request_amount": 15000,
+              "capture_method": "AUTOMATIC",
+              "channel_code": "CARDS",
+              "status": "SUCCEEDED",
+              "failure_code": null
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "PENDING"
+          ]
+        },
+        "event_content.payments_response.mandate_reference": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Xendit: PAY_AND_SAVE payment.capture webhook without payment_token_id -> pending, no mandate reference"
+    },
+    "xendit_payment_verified_with_token": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.verified",
+            "business_id": "5f27a14axxxxx",
+            "created": "2026-07-30T10:05:22Z",
+            "data": {
+              "id": "pr-abc123xyz",
+              "reference_id": "verify_card_cust_789",
+              "type": "VERIFY_PAYMENT_METHOD",
+              "status": "VERIFIED",
+              "country": "SG",
+              "currency": "SGD",
+              "customer_id": "cust-abc123",
+              "channel_code": "CARDS",
+              "metadata": {},
+              "created": "2026-04-30T10:00:00Z",
+              "updated": "2026-04-30T10:05:22Z",
+              "payment_token_id": "pt-rca5-0002"
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "pr-abc123xyz"
+        },
+        "event_content.payments_response.mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "equals": "pt-rca5-0002"
+        }
+      },
+      "display_name": "Xendit: payment.verified webhook with payment_token_id -> charged with pt- mandate reference"
+    },
+    "xendit_payment_awaiting_capture_legacy": {
+      "grpc_req": {
+        "request_details": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "event": "payment.awaiting_capture",
+            "business_id": "62440e322008e87fb29c1fd0",
+            "created": "2026-10-03T00:00:00Z",
+            "data": {
+              "payment_request_id": "pr-rca5-g03",
+              "reference_id": "rca5_g03",
+              "status": "AWAITING_CAPTURE"
+            }
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "AUTHORIZED"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "pr-rca5-g03"
+        }
+      },
+      "display_name": "Xendit: legacy payment.awaiting_capture webhook -> authorization success, authorized"
+    }
+  }
+}

@@ -35,6 +35,7 @@ tema = "tema" # "banca-tema" — lowercase form in TrueLayer provider ids
 Institutionnels = "Institutionnels" # French "Arkéa Banque Entreprises et Institutionnels"
 Imagin = "Imagin" # "imaginBank" — CaixaBank mobile-only brand
 regio = "regio" # "Regio Bank" — Dutch bank
+sucessfully = "sucessfully" # xendit: Xendit's card network_response_code_descriptor wire string "Approved and completed sucessfully" (captured webhook sample)
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector
