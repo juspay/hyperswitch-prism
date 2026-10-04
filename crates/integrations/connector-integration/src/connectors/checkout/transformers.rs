@@ -174,10 +174,14 @@ pub struct MandateSource {
 }
 
 #[derive(Debug, Serialize)]
-pub struct CheckoutRawCardDetails {
+pub struct CheckoutRawCardDetails<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub number: cards::CardNumber,
+    /// A PAN or a vault alias, depending on the holder — the latter carries the injector's
+    /// substitution placeholder, so this cannot narrow to `cards::CardNumber`.
+    pub number: RawCardNumber<T>,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -192,7 +196,7 @@ pub enum PaymentSource<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardSource<T>),
-    RawCardForNTI(CheckoutRawCardDetails),
+    RawCardForNTI(CheckoutRawCardDetails<T>),
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
@@ -795,9 +799,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                         _ => Ok(Self::RawCardForNTI(CheckoutRawCardDetails {
                             source_type: CheckoutSourceTypes::Card,
-                            number: google_pay_decrypted_data
-                                .application_primary_account_number
-                                .clone(),
+                            number: RawCardNumber(T::inner_from_card_number(
+                                google_pay_decrypted_data
+                                    .application_primary_account_number
+                                    .clone(),
+                            )),
                             expiry_month,
                             expiry_year,
                             cvv: None,
@@ -1555,6 +1561,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
+                        // TEMP DEBUG — REMOVE BEFORE COMMIT.
+                        tracing::info!(
+                            step = "9_checkout_nti_arm",
+                            network_transaction_id = %network_transaction_id.network_transaction_id,
+                            card_number_is_placeholder =
+                                card_details.card_number.peek().contains("{{"),
+                            "TEMP_FLOW: checkout building RawCardForNTI with previous_payment_id"
+                        );
+
                         let (first_name, last_name) =
                             split_account_holder_name(card_details.card_holder_name.clone());
 

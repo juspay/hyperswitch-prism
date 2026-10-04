@@ -168,7 +168,7 @@ fn fetch_payment_instrument<
                     month: Secret::new(expiry_month),
                     year: Secret::new(expiry_year),
                 },
-                card_number: RawCardNumber(raw_card_details.card_number)
+                card_number: RawCardNumber(raw_card_details.card_number.try_card_number()?)
             }))
         }
         PaymentMethodData::MandatePayment => {

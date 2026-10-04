@@ -9,6 +9,20 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 /// This mirrors the `CardTokenData` helper used by the payment Authorize flow so the
 /// 3DS auth flows (pre/auth/post authenticate) build identical token data when the
 /// request carries a vault-aliased card proxy.
+/// The CVC-free counterpart of [`ProxyCardTokenData`], for an MIT against a card held in an
+/// external vault.
+///
+/// A merchant initiated transaction has no cardholder present, so no CVC is collected and none
+/// is templated into the connector request; the transaction authorizes on the network
+/// transaction ID instead. Including a `card_cvc` key here would leave a `{{$card_cvc}}`
+/// placeholder with nothing to substitute.
+#[derive(Debug, serde::Serialize)]
+struct ProxyCardNtiTokenData {
+    card_number: Secret<String>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+}
+
 #[derive(Debug, serde::Serialize)]
 struct ProxyCardTokenData {
     card_number: Secret<String>,
@@ -84,6 +98,62 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
                         })
                     })?,
             ),
+        };
+
+        let card_json = serde_json::to_value(card_data).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?;
+
+        Ok(Self(injector::TokenData {
+            specific_token_data: common_utils::SecretSerdeValue::new(card_json),
+        }))
+    }
+}
+
+impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>
+    for InjectorTokenData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        proxy_card_details: &grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let required = |value: Option<String>, field_name: &'static str| {
+            value
+                .filter(|value| !value.is_empty())
+                .map(Secret::new)
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name,
+                        context: Default::default(),
+                    })
+                })
+        };
+
+        let card_data = ProxyCardNtiTokenData {
+            card_number: required(
+                proxy_card_details
+                    .card_number
+                    .as_ref()
+                    .map(|card_number| card_number.peek().to_owned()),
+                "card_number",
+            )?,
+            card_exp_month: required(
+                proxy_card_details
+                    .card_exp_month
+                    .as_ref()
+                    .map(|exp_month| exp_month.clone().expose().to_string()),
+                "card_exp_month",
+            )?,
+            card_exp_year: required(
+                proxy_card_details
+                    .card_exp_year
+                    .as_ref()
+                    .map(|exp_year| exp_year.clone().expose().to_string()),
+                "card_exp_year",
+            )?,
         };
 
         let card_json = serde_json::to_value(card_data).change_context(
