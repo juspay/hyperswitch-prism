@@ -24,8 +24,7 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 //                           on transaction events, Stripe metadata.order_id).
 // connector_preprocessing_id: connector-assigned ID from a preprocessing/source step
 //                             (e.g. Stripe "src_xxx" for source.chargeable).
-// Exactly one connector-side identifier is expected to be present; merchant_transaction_id may
-// also be present when the connector echoes it.
+// Populate every identifier present in the connector payload; consumers own lookup precedence.
 message PaymentEventReference {
   optional string connector_transaction_id = 1;
   optional string merchant_transaction_id  = 2;
