@@ -1054,6 +1054,24 @@ macro_rules! implement_connector_operation {
                     )
                     .await?
                 }
+                // ── Vault-aliased card + NTI → not an MIT-capable flow ──────────────
+                // This pairing only means anything on the repeat-payment (MIT) flow, which
+                // dispatches it explicitly with injector token data. The flows built from this
+                // macro have no MIT semantics, so reject it rather than silently dropping the
+                // network transaction id.
+                Some(domain_types::types::PaymentMethodDataAction::CardProxyForNti(_)) => {
+                    Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                        domain_types::errors::IntegrationError::NotImplemented(
+                            concat!(
+                                $log_prefix,
+                                " does not support a vault-aliased card with a network transaction id"
+                            )
+                            .to_string(),
+                            Default::default(),
+                        ),
+                    )))?
+                }
+
                 // ── No payment method data → try secondary families (e.g. FRM) first,
                 // then the primary family at DefaultPCIHolder, in one resolution. Only
                 // a request with no payment method at all lands here, so a

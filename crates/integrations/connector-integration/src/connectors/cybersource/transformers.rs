@@ -5268,7 +5268,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-        &CardDetailsForNetworkTransactionId,
+        &CardDetailsForNetworkTransactionId<T>,
     )> for CybersourceRepeatPaymentRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -5283,7 +5283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 >,
                 T,
             >,
-            &CardDetailsForNetworkTransactionId,
+            &CardDetailsForNetworkTransactionId<T>,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item
@@ -5306,7 +5306,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_information =
             RepeatPaymentInformation::Cards(Box::new(CardWithNtiPaymentInformation {
                 card: CardWithNti {
-                    number: ccard.card_number.clone(),
+                    number: ccard.card_number.try_card_number()?,
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: None,

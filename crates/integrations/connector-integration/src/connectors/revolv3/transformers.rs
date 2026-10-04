@@ -1094,7 +1094,7 @@ pub struct Revolv3RepeatAuthorizeRequest<T: PaymentMethodDataTypes> {
 
 impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
     pub fn set_credit_card_data_for_ntid(
-        card: CardDetailsForNetworkTransactionId,
+        card: CardDetailsForNetworkTransactionId<T>,
         common_data: &PaymentFlowData,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let credit_card_data = NtidCreditCardPaymentMethodData {
@@ -1110,7 +1110,7 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
                     context: Default::default(),
                 })?,
             credit_card: Revolv3NtidCreditCardData {
-                payment_account_number: card.card_number.clone(),
+                payment_account_number: card.card_number.try_card_number()?,
                 expiration_date: card.get_expiry_date_as_mmyy()?,
             },
         };

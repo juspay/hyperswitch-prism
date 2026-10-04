@@ -2376,7 +2376,9 @@ impl<
 
                     Ok(Self::CardDetailsForNetworkTransactionId(
                         payment_method_data::CardDetailsForNetworkTransactionId {
-                            card_number,
+                            card_number: payment_method_data::RawCardNumber(
+                                T::inner_from_card_number(card_number),
+                            ),
                             card_exp_month: card_details_for_nti.card_exp_month.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration month".to_string()), ..Default::default() } })?,
                             card_exp_year: card_details_for_nti.card_exp_year.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration year".to_string()), ..Default::default() } })?,
                             card_issuer: card_details_for_nti.card_issuer,
@@ -3100,6 +3102,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
                     Ok(Some(PaymentMethodType::Card))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::ProxyCardDetailsForNetworkTransactionId(_) => {
+                    Ok(Some(PaymentMethodType::Card))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_) => {
                     Ok(Some(PaymentMethodType::Card))
                 }
@@ -3360,6 +3365,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
 pub enum PaymentMethodDataAction {
     Card(grpc_api_types::payments::CardDetails),
     CardProxy(grpc_api_types::payments::ProxyCardDetails),
+    /// A vault-aliased card for an MIT: alias + expiry, no CVC. Must run under
+    /// `VaultTokenHolder` with injector token data, like `CardProxy`.
+    CardProxyForNti(grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId),
     CardWithNoCvc(grpc_api_types::payments::CardDetailsWithNoCvc),
     Default,
 }
@@ -3371,6 +3379,9 @@ impl From<grpc_api_types::payments::payment_method::PaymentMethod> for PaymentMe
             grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(proxy_card) => {
                 Self::CardProxy(proxy_card)
             }
+            grpc_api_types::payments::payment_method::PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                proxy_card,
+            ) => Self::CardProxyForNti(proxy_card),
             grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(card) => {
                 Self::CardWithNoCvc(card)
             }
@@ -3427,6 +3438,12 @@ impl PaymentMethodDataAction {
             PaymentMethodDataAction::CardProxy(_) => {
                 Err(report!(IntegrationError::NotImplemented(
                     ("CardProxy not supported in this flow; use the proxy endpoint").into(),
+                    Default::default()
+                )))
+            }
+            PaymentMethodDataAction::CardProxyForNti(_) => {
+                Err(report!(IntegrationError::NotImplemented(
+                    ("CardProxyForNti not supported in this flow; use the proxy endpoint").into(),
                     Default::default()
                 )))
             }
@@ -3998,6 +4015,51 @@ impl ForeignTryFrom<grpc_api_types::payments::CardDetailsWithNoCvc>
             nick_name: card.nick_name.map(|name| name.into()),
             card_holder_name: card.card_holder_name,
             co_badged_card_data: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>
+    for payment_method_data::CardDetailsForNetworkTransactionId<VaultTokenHolder>
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        card: grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // The alias itself travels in the injector token data; what goes on the request is the
+        // substitution placeholder. Mirrors `Card<VaultTokenHolder>`.
+        //
+        // `card_number` is a vault alias, not a BIN, so the network cannot be derived from it —
+        // the caller must populate the proto field.
+        let card_network = card.card_network.and_then(|network| {
+            grpc_api_types::payments::CardNetwork::try_from(network)
+                .ok()
+                .and_then(|network| CardNetwork::foreign_try_from(network).ok())
+        });
+
+        let required = |value: Option<hyperswitch_masking::Secret<String>>,
+                        field_name: &'static str| {
+            value.ok_or(IntegrationError::MissingRequiredField {
+                field_name,
+                context: Default::default(),
+            })
+        };
+
+        Ok(payment_method_data::CardDetailsForNetworkTransactionId {
+            card_number: payment_method_data::RawCardNumber(
+                "{{$card_number}}".to_string().into(),
+            ),
+            // Expiry cannot stay a placeholder: connectors derive combined/truncated formats
+            // from it before the injector ever runs. It is plaintext on the wire anyway.
+            card_exp_month: required(card.card_exp_month, "card_exp_month")?,
+            card_exp_year: required(card.card_exp_year, "card_exp_year")?,
+            card_issuer: card.card_issuer,
+            card_network,
+            card_type: card.card_type,
+            card_issuing_country: card.card_issuing_country,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name,
+            card_holder_name: card.card_holder_name,
         })
     }
 }
@@ -6042,7 +6104,11 @@ impl
             typed_connector_response: None,
             connector_response_headers: None,
             connector_response: None,
-            vault_headers: None,
+            // A vault-aliased card on the repeat-payment flow needs the external vault
+            // metadata forwarded, exactly as the authorize conversion does: the injector
+            // resolves the outgoing proxy from this header, and without it the alias is
+            // sent to the connector unsubstituted.
+            vault_headers: extract_headers_from_metadata(metadata),
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,

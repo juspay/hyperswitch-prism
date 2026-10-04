@@ -1940,7 +1940,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
         PaymentMethodData::Card(card) => Some(card),
         _ => None,
     };
-    let nti_card_opt: Option<&CardDetailsForNetworkTransactionId> =
+    let nti_card_opt: Option<&CardDetailsForNetworkTransactionId<T>> =
         match &router_data.request.payment_method_data {
             PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => Some(nti),
             _ => None,
