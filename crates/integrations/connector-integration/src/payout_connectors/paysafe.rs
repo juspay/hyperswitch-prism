@@ -37,8 +37,6 @@ use interfaces::{
 use serde::Serialize;
 
 use super::super::connectors::macros;
-// Reuse the payment connector's auth and error types: paysafecard payouts share
-// the PaymentHUB context (Basic auth, same error body).
 use crate::connectors::paysafe::responses::PaysafeErrorResponse;
 use crate::connectors::paysafe::transformers::PaysafeAuthType;
 use crate::connectors::paysafe::BASE64_ENGINE;
@@ -89,8 +87,6 @@ macros::create_all_prerequisites!(
         }
     }
 );
-
-// ===== CONNECTOR COMMON =====
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for PaysafePayouts<T>
@@ -172,8 +168,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// ===== SERVER AUTHENTICATION (not used) =====
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ServerAuthentication
     for PaysafePayouts<T>
 {
@@ -222,8 +216,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Payo
 {
 }
 
-// ===== PAYOUT CREATE RECIPIENT (mint the payment handle) =====
-
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: PaysafePayouts,
@@ -265,8 +257,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-// ===== PAYOUT TRANSFER (fund the standalone credit) =====
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -326,8 +316,6 @@ macros::macro_connector_payout_implementation!(
     ]
 );
 
-// `PayoutEligibility` has no arm in `macro_connector_payout_implementation!`,
-// so its stub is still written out by hand.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutEligibilityV2
     for PaysafePayouts<T>
 {

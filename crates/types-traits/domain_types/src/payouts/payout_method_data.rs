@@ -64,11 +64,8 @@ pub enum GiftCardPayout {
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PaysafeCardPayout {
-    /// The consumer's gift-card account identifier at PaysafeCard
-    /// (the "my paysafecard" consumer id)
-    pub consumer_id: Option<Secret<String>>,
-    /// The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
-    pub date_of_birth: Option<Secret<String>>,
+    /// Paysafecard account ID, used to identify the consumer's account for payout.
+    pub paysafecard_account_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

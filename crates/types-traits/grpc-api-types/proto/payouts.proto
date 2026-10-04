@@ -249,11 +249,8 @@ message GiftCardPayoutData {
 }
 
 message PaysafeCardData {
-  // The consumer's gift-card account identifier
-  // (for PaysafeCard: the "my paysafecard" consumer id)
-  optional SecretString consumer_id = 1;
-  // The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
-  optional SecretString date_of_birth = 2;
+  // Paysafecard account ID, used to identify the consumer's account for payout.
+  optional SecretString paysafecard_account_id = 1;
 }
 
 // PayoutMethod represents a payout instrument used to process a payout

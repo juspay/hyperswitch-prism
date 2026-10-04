@@ -8,7 +8,7 @@ use crate::utils::{
 };
 use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use payouts::payouts_types::PayoutFlowData;
 
 impl
@@ -1178,12 +1178,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     ) => Ok(Self::GiftCard(
                         payouts::payout_method_data::GiftCardPayout::PaySafeCard(
                             payouts::payout_method_data::PaysafeCardPayout {
-                                consumer_id: paysafe_card.consumer_id.map(|c| {
-                                    ::hyperswitch_masking::Secret::new(c.peek().to_string())
-                                }),
-                                date_of_birth: paysafe_card.date_of_birth.map(|d| {
-                                    ::hyperswitch_masking::Secret::new(d.peek().to_string())
-                                }),
+                                paysafecard_account_id: paysafe_card.paysafecard_account_id,
                             },
                         ),
                     )),
@@ -1404,6 +1399,16 @@ fn convert_payouts_customer_to_domain(
         })
         .transpose()?;
 
+    let date_of_birth = customer
+        .date_of_birth
+        .map(|date_of_birth| {
+            Secret::<time::Date>::foreign_try_from((
+                date_of_birth.expose(),
+                "customer.date_of_birth",
+            ))
+        })
+        .transpose()?;
+
     Ok(payouts::payouts_types::PayoutCustomer {
         name: customer.name,
         email,
@@ -1411,6 +1416,7 @@ fn convert_payouts_customer_to_domain(
         connector_customer_id: customer.connector_customer_id,
         phone_number: customer.phone_number,
         phone_country_code: customer.phone_country_code,
+        date_of_birth,
     })
 }
 

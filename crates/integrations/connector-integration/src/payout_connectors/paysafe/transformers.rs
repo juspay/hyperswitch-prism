@@ -1,5 +1,7 @@
 use super::PaysafePayoutsRouterData;
+use crate::connectors::paysafe::transformers::PaysafeAuthType;
 use crate::types::ResponseRouterData;
+use common_utils::{pii::Email, MinorUnit};
 use domain_types::{
     connector_flow::{PayoutCreateRecipient, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -11,14 +13,13 @@ use domain_types::{
             PayoutTransferRequest, PayoutTransferResponse,
         },
     },
+    router_data::PaysafeAccountKind,
     router_data_v2::RouterDataV2,
 };
 use error_stack::Report;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-
-// ===== SHARED TYPES =====
 
 fn unsupported_payout_method_error(flow: &str, supported: &str) -> Report<IntegrationError> {
     IntegrationError::NotSupported {
@@ -47,8 +48,20 @@ fn missing_field(field_name: &'static str, flow: &str) -> Report<IntegrationErro
     .into()
 }
 
-/// Payout connector metadata threaded from `PayoutCreateRecipient` into
-/// `PayoutTransfer`: the payment-handle token minted for the standalone credit.
+fn invalid_date_of_birth(flow: &str) -> Report<IntegrationError> {
+    IntegrationError::InvalidDataFormat {
+        field_name: "request.customer.date_of_birth",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "Paysafe {flow} - date of birth year is out of range for the Paysafe API"
+            )),
+            suggested_action: None,
+            doc_url: None,
+        },
+    }
+    .into()
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct PaysafePaymentHandleMeta {
     payment_handle_token: Secret<String>,
@@ -75,46 +88,54 @@ fn to_payment_handle_meta(
     })
 }
 
-/// `transactionType` for a payment handle that only funds a matching standalone
-/// credit (the Paysafe payout rail for paysafecard consumers).
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafePaymentHandleRequest {
+    merchant_ref_num: String,
+    transaction_type: PaysafeTransactionType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_id: Option<Secret<String>>,
+    payment_type: PaysafePaymentType,
+    amount: MinorUnit,
+    currency_code: common_enums::Currency,
+    paysafecard: PaysafePaysafecardPayout,
+    profile: PaysafeCustomerProfileDetails,
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum PaysafeTransactionType {
     StandaloneCredit,
 }
 
-/// `paymentType` on the payment handle / standalone credit.
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 enum PaysafePaymentType {
     Paysafecard,
 }
 
-// ===== PAYOUT CREATE RECIPIENT (mint the payment handle) =====
-
-/// `POST v1/paymenthandles` body for paysafecard payouts. The handle carries the
-/// `paymentHandleToken` that the later standalone credit references.
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaysafePaymentHandleRequest {
-    merchant_ref_num: String,
-    transaction_type: PaysafeTransactionType,
-    currency_code: common_enums::Currency,
-    amount: i64,
-    payment_type: PaysafePaymentType,
-    dup_check: bool,
-    paysafecard: PaysafePaysafecardPayout,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    customer_ip: Option<String>,
-}
-
-/// The paysafecard LPM block on the payment handle. `consumer_id` is the
-/// "my paysafecard" account id of the recipient (required by PaymentHUB; unlike
-/// a payments handle there is no funding card inside).
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaysafecardPayout {
-    consumer_id: Secret<String>,
+    consumer_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    psc_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCustomerProfileDetails {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    email: Email,
+    date_of_birth: CustomerDateOfBirth,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct CustomerDateOfBirth {
+    day: u8,
+    month: u8,
+    year: u16,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -144,6 +165,50 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let item = &item.router_data;
+
+        let merchant_ref_num = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let account_id = PaysafeAuthType::try_from(&item.connector_config)?
+            .account_id
+            .and_then(|account_map| {
+                account_map
+                    .get_account_id(
+                        PaysafeAccountKind::PaysafeGiftCard,
+                        item.request.source_currency,
+                    )
+                    .ok()
+            });
+
+        let customer_details = item.request.customer.as_ref();
+
+        let billing_address = item
+            .request
+            .address
+            .as_ref()
+            .and_then(|address| address.billing_address.as_ref());
+
+        let email = billing_address
+            .and_then(|billing| billing.email.clone())
+            .or_else(|| customer_details.and_then(|customer| customer.email.clone()))
+            .ok_or_else(|| {
+                missing_field(
+                    "request.customer.email or request.billing_address.email",
+                    "Payout Create Recipient",
+                )
+            })?;
+
+        let consumer_id = customer_details
+            .and_then(|customer_details| customer_details.merchant_customer_id.clone())
+            .ok_or_else(|| {
+                missing_field(
+                    "request.customer.merchant_customer_id",
+                    "Payout Create Recipient",
+                )
+            })?;
+
         let gift_card = match item.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::GiftCard(GiftCardPayout::PaySafeCard(card))) => card,
             _ => {
@@ -154,49 +219,81 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let consumer_id = gift_card.consumer_id.clone().ok_or_else(|| {
-            missing_field("payout_method_data.consumer_id", "Payout Create Recipient")
-        })?;
+        let psc_id = gift_card.paysafecard_account_id.clone();
 
-        let merchant_ref_num = item.request.merchant_payout_id.clone().unwrap_or(
-            item.resource_common_data
-                .connector_request_reference_id
-                .clone(),
-        );
+        let paysafecard = PaysafePaysafecardPayout {
+            consumer_id,
+            psc_id,
+        };
+
+        let customer_date_of_birth = customer_details
+            .and_then(|customer| customer.date_of_birth.as_ref())
+            .map(PeekInterface::peek)
+            .ok_or_else(|| {
+                missing_field("request.customer.date_of_birth", "Payout Create Recipient")
+            })?;
+
+        let year = u16::try_from(customer_date_of_birth.year())
+            .map_err(|_| invalid_date_of_birth("Payout Create Recipient"))?;
+
+        let profile = PaysafeCustomerProfileDetails {
+            first_name: billing_address
+                .and_then(|address| address.address.as_ref())
+                .and_then(|address| address.first_name.clone())
+                .ok_or_else(|| {
+                    missing_field(
+                        "request.billing_address.first_name",
+                        "Payout Create Recipient",
+                    )
+                })?,
+            last_name: billing_address
+                .and_then(|address| address.address.as_ref())
+                .and_then(|address| address.last_name.clone())
+                .ok_or_else(|| {
+                    missing_field(
+                        "request.billing_address.last_name",
+                        "Payout Create Recipient",
+                    )
+                })?,
+            email,
+            date_of_birth: CustomerDateOfBirth {
+                day: customer_date_of_birth.day(),
+                month: u8::from(customer_date_of_birth.month()),
+                year,
+            },
+        };
 
         Ok(Self {
             merchant_ref_num,
             transaction_type: PaysafeTransactionType::StandaloneCredit,
-            currency_code: item.request.source_currency,
-            amount: item.request.amount.get_amount_as_i64(),
+            account_id,
             payment_type: PaysafePaymentType::Paysafecard,
-            dup_check: true,
-            paysafecard: PaysafePaysafecardPayout { consumer_id },
-            customer_ip: None,
+            amount: item.request.amount,
+            currency_code: item.request.source_currency,
+            paysafecard,
+            profile,
         })
     }
 }
 
-/// The standalone-credit pending state PaymentHUB reports for a minted handle.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum PaysafeHandleStatus {
-    Initiated,
-    Ready,
-    Payable,
-    Completed,
-    Cancelled,
-    Failed,
-    Expired,
-}
-
-/// `POST v1/paymenthandles` response.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentHandleResponse {
     pub id: String,
-    pub status: PaysafeHandleStatus,
     pub payment_handle_token: Secret<String>,
+    pub status: PaysafeHandleStatus,
+    pub gateway_reconciliation_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaysafeHandleStatus {
+    Initiated,
+    Payable,
+    Processing,
+    Failed,
+    Expired,
+    Completed,
 }
 
 impl TryFrom<ResponseRouterData<PaysafePaymentHandleResponse, Self>>
@@ -213,8 +310,13 @@ impl TryFrom<ResponseRouterData<PaysafePaymentHandleResponse, Self>>
         item: ResponseRouterData<PaysafePaymentHandleResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let payout_status = match item.response.status {
-            PaysafeHandleStatus::Failed => common_enums::PayoutStatus::Failure,
-            _ => common_enums::PayoutStatus::RequiresFulfillment,
+            PaysafeHandleStatus::Failed | PaysafeHandleStatus::Expired => {
+                common_enums::PayoutStatus::Failure
+            }
+            PaysafeHandleStatus::Initiated
+            | PaysafeHandleStatus::Payable
+            | PaysafeHandleStatus::Processing
+            | PaysafeHandleStatus::Completed => common_enums::PayoutStatus::RequiresFulfillment,
         };
 
         let payout_connector_metadata = Some(Secret::new(serde_json::json!({
@@ -225,8 +327,6 @@ impl TryFrom<ResponseRouterData<PaysafePaymentHandleResponse, Self>>
             response: Ok(PayoutCreateRecipientResponse {
                 merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
                 payout_status,
-                // The handle id coordinates with the standalone credit's sync/webhooks
-                // only loosely; the transfer's own id is the authoritative reference.
                 connector_payout_id: Some(item.response.id),
                 status_code: item.http_code,
                 payout_connector_metadata,
@@ -236,23 +336,14 @@ impl TryFrom<ResponseRouterData<PaysafePaymentHandleResponse, Self>>
     }
 }
 
-// ===== PAYOUT TRANSFER (fund the standalone credit) =====
-
-/// `POST v1/standalonecredits` body. The handle minted by the create-recipient
-/// leg is referenced through its `paymentHandleToken`; the credit then credits
-/// the paysafecard account itself, with no further authorization needed.
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeStandaloneCreditRequest {
     merchant_ref_num: String,
-    amount: i64,
-    currency_code: common_enums::Currency,
-    payment_type: PaysafePaymentType,
-    dup_check: bool,
-    settle_with_auth: bool,
     payment_handle_token: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    customer_ip: Option<String>,
+    amount: MinorUnit,
+    currency_code: common_enums::Currency,
+    description: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -299,28 +390,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(|secret| secret.expose()),
         )?;
 
-        let merchant_ref_num = item.request.merchant_payout_id.clone().unwrap_or(
-            item.resource_common_data
-                .connector_request_reference_id
-                .clone(),
-        );
+        let merchant_ref_num = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
 
         Ok(Self {
             merchant_ref_num,
-            amount: item.request.amount.get_amount_as_i64(),
+            amount: item.request.amount,
             currency_code: item.request.destination_currency,
-            payment_type: PaysafePaymentType::Paysafecard,
-            dup_check: true,
-            // The standalone credit settles on creation; a separate auth leg is
-            // not part of the payout flow.
-            settle_with_auth: false,
             payment_handle_token: handle_meta.payment_handle_token,
-            customer_ip: None,
+            description: item.resource_common_data.description.clone(),
         })
     }
 }
 
-/// Status of a standalone credit as reported by PaymentHUB.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeStandaloneCreditResponse {
+    pub id: String,
+    pub status: PaysafeTransactionRequestStatus,
+    pub gateway_reconciliation_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PaysafeTransactionRequestStatus {
@@ -345,17 +437,6 @@ impl From<PaysafeTransactionRequestStatus> for common_enums::PayoutStatus {
             PaysafeTransactionRequestStatus::Expired => Self::Expired,
         }
     }
-}
-
-/// `POST v1/standalonecredits` response.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaysafeStandaloneCreditResponse {
-    pub id: String,
-    pub status: PaysafeTransactionRequestStatus,
-    /// Embedded error block surfaced by PaymentHUB on some non-`FAILED` statuses.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<serde_json::Value>,
 }
 
 impl TryFrom<ResponseRouterData<PaysafeStandaloneCreditResponse, Self>>
