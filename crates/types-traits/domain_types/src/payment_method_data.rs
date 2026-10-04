@@ -847,6 +847,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -1646,6 +1651,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
+use crate::{frm_connectors::kount::KountRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
@@ -2153,7 +2153,7 @@ impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
         item: ResponseRouterData<KountPreRiskCheckResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Always surface the *verbatim* Kount body (independent of the global
-        // `return_raw_and_typed_connector_data` flag). Serialising the captured raw JSON —
+        // `return_raw_connector_data` flag). Serialising the captured raw JSON —
         // not the typed struct — keeps every field Kount sent, including any we
         // don't model. Wrapped whole in `Secret` so it masks in the event log.
         // `None` on serialization failure (degrades the audit trail rather than

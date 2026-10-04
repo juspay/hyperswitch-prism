@@ -165,6 +165,33 @@ arm silently maps it to whatever the arm happens to say, which is how a declined
 
 ---
 
+## 7A. Integrity Objects
+
+Response-side integrity objects are how UCS detects tampering or accidental drift
+between the original request and the connector response. The framework compares
+`request.get_request_integrity_object()` with
+`request.get_response_integrity_object()`; if the latter is `None`, the check is
+skipped.
+
+- [ ] For every flow whose request type has `integrity_object: Option<...>`, the
+      success response transformer sets `integrity_object: Some(...)` on the
+      cloned request
+- [ ] The object uses connector-echoed comparable values when present: amount,
+      currency, connector transaction id, connector refund id, mandate reference,
+      or the specific fields listed in the flow's integrity object
+- [ ] Every fallback to a request value has a short comment explaining that the
+      connector does not echo a comparable field; Transit (`tsys_transit`) is the
+      exemplar
+- [ ] No transformer leaves `integrity_object: None` merely because the scaffold
+      did
+- [ ] Tests cover at least one response that populates the integrity object when
+      the flow has non-empty integrity fields
+
+Reference:
+`grace/rulesbook/codegen/guides/patterns/pattern_integrity_checks.md`.
+
+---
+
 ## 8. Unused Code / Field Removal
 
 - [ ] No fields hardcoded to `None` -- if always None, remove the field entirely
@@ -362,6 +389,7 @@ These are the most frequently observed issues from quality reviews:
 | `transformation_status` on a webhook response | Field does not exist (`E0560`) -- delete it |
 | Missing `macro_connector_flow_status_impls!` | Add it; 112/112 connectors need it or `E0277` |
 | 2xx response with a declined body returned as `Ok(..)` | Branch on `is_payment_failure` and return `Err(ErrorResponse{..})` |
+| Leaving `integrity_object: None` on a comparable success response | Populate the response-side integrity object from connector-echoed values, or document why only request values are available |
 
 ---
 
@@ -422,6 +450,9 @@ Run these checks before declaring the connector complete:
 12. **Stub coverage**: `rg -n 'macro_connector_flow_status_impls' <your connector>.rs` -- one hit,
     and its two lists plus your implemented flows account for every marker in
     `crates/types-traits/domain_types/src/connector_flow.rs`
+13. **Integrity objects**: `rg -n 'integrity_object' <your transformers>` -- every flow request
+    type that has an integrity field sets it on success, and every fallback to request data has
+    a comment explaining the connector contract
 
 ---
 

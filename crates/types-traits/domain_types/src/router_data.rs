@@ -4110,19 +4110,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::Kount => match auth {
-                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
-                        api_key: api_key.clone(),
-                        // The legacy header carries no `client_id`; DDC (the only
-                        // flow that needs one) will reject a request that reaches
-                        // it without one.
-                        client_id: None,
-                        auth_server_id: None,
-                        khash_config_key: None,
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
                 ConnectorEnum::Hyperswitch => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
                         api_key: api_key.clone(),
@@ -4506,6 +4493,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         base_url: None,
                         disable_avs: None,
                         disable_cvn: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Gigadat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Gigadat {
+                        security_token: api_secret.clone(),
+                        access_token: api_key.clone(),
+                        campaign_id: key1.clone(),
+                        base_url: None,
+                        site: None,
                     }),
                     _ => Err(err().into()),
                 },
