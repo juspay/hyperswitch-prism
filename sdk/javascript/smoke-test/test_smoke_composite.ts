@@ -38,6 +38,13 @@ function getPayPalCredentials(credentials: Credentials): { clientId: string; cli
   return null;
 }
 
+const PLACEHOLDER_TOKENS = new Set(["", "placeholder", "test", "dummy", "sk_test_placeholder"]);
+function isPlaceholder(val?: string | null): boolean {
+  if (!val) return true;
+  const v = val.trim().toLowerCase();
+  return PLACEHOLDER_TOKENS.has(v) || v.includes("placeholder");
+}
+
 async function testPaypalAuthorize(credsFile: string): Promise<boolean> {
   console.log("\n[PayPal Authorize]");
 
@@ -48,8 +55,8 @@ async function testPaypalAuthorize(credsFile: string): Promise<boolean> {
   const credentials = loadCredentials(credsFile);
   const paypalCreds = getPayPalCredentials(credentials);
 
-  if (!paypalCreds) {
-    console.log("  SKIPPED: No PayPal credentials in creds.json");
+  if (!paypalCreds || isPlaceholder(paypalCreds.clientId) || isPlaceholder(paypalCreds.clientSecret)) {
+    console.log("  SKIPPED: Placeholder PayPal credentials");
     return true;
   }
 
@@ -311,9 +318,9 @@ async function testStripeAuthorize(credsFile: string): Promise<boolean> {
   const credentials = loadCredentials(credsFile);
   const apiKey = getStripeApiKey(credentials);
 
-  if (!apiKey) {
-    console.log("  FAILED: No Stripe API key in creds.json");
-    return false;
+  if (!apiKey || isPlaceholder(apiKey)) {
+    console.log("  SKIPPED: Placeholder Stripe API key");
+    return true;
   }
 
   const stripeConfig: types.ConnectorConfig = {

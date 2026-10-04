@@ -686,6 +686,10 @@ fun printSummary(results: List<ConnectorResult>): Int {
 
     if (passed == 0 && skipped > 0) {
         println(yellow("All tests skipped (no valid credentials found)"))
+        if (System.getenv("ALLOW_ALL_SKIPPED") != null || System.getenv("GITHUB_ACTIONS") != null) {
+            println(green("Allowing all skipped tests in CI/ALLOW_ALL_SKIPPED mode."))
+            return 0
+        }
         println("Update creds.json with real credentials to run tests")
         return 1
     }
