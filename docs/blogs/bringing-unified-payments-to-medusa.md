@@ -1,44 +1,59 @@
-# Bringing unified payments to Medusa: why the second processor shouldn't cost a quarter
+# Add multiple payment providers to Medusa v2 with medusa-custom-payments plugin
 
-If you run a store on Medusa, the first payment integration feels easy. Out of the box Medusa gives you the **system provider** — a manual placeholder that doesn't actually move money — so the one first-class, documented integration you reach for is **Stripe**. You drop it in, wire up the checkout, test a card, and you are taking money. It is a good day.
+*A stateless, unified, production-grade payment provider abstraction layer for Medusa V2, simplifying extensibility to local/regional payment providers and adding respective payment processor checkout UI*
 
-The second one is where the mood changes. Maybe you are expanding into a market where shoppers reach for a local method that Stripe does not cover well. Maybe finance wants a backup processor so a single outage does not freeze every order. Maybe a partnership comes with PayPal attached. Whatever the reason, you go to add a second provider — and you discover that "add a payment method" is not one task you do twice. It is a fresh project each time.
+**It starts with Stripe.** Medusa ships Stripe as its one first-party, documented provider, alongside a manual payment placeholder that doesn't actually move money. You drop Stripe in, wire up the checkout, test a card, and you're taking money.
+ 
+**Then something drives a second provider.** Maybe you're expanding into Europe, where shoppers in the Netherlands expect iDEAL, Germans reach for Paypal or SEPA or Klarna. Or you're launching your store in Brazil, where payments are generally powered with local payment providers offering Pix and Boleto.
 
-We have watched this happen enough times that it stopped being surprising and started being the thing we wanted to fix. This post is about that: the quiet tax of every new processor, and how a single unified payment provider for Medusa v2 removes it.
+Or maybe finance wants a backup payment processor so a single outage doesn't freeze every order. Whatever the trigger, you now need a payment processor for redundancy or global expansion purposes.
+ 
+**If you're lucky, a plugin already exists.** Medusa has a real community plugin ecosystem — Mollie, Adyen, PayPal, Paystack, Braintree. So you find one, adopt it, and wire its storefront SDK and webhooks into your checkout. It works — but it taught you nothing reusable, because it shares no interface with the Stripe integration you already have or the next plugin you'll add. Coverage could also be uneven because plenty of processors have no official Medusa plugin. 
 
----
+**If you're not lucky, you build a custom payment provider.** No plugin, or none you trust, means extending the custom payment provider of Medusa to your preferred payment processor. 
+ 
+That's the staircase: Stripe is free, more plugins create fragmentation, and a custom payment provider is a project — and every step is a fresh start because nothing in Medusa gives all payment processors a shared shape with the assurance of production quality.
+
+This post is how **`medusa-custom-payments`** — one stateless library that runs inside your own Medusa process — solves for a shared and extensible payment processor interface. It leverages the production-grade payment processor integrations from [**`juspay/hyperswitch`**](https://github.com/juspay/hyperswitch) — an open-source, composable payment platform (42K+ GitHub stars), which orchestrates payments across 100+ payment processors.
 
 ## The second processor is never half the work
 
-Here is the uncomfortable part. The first integration taught you almost nothing reusable. Each processor has its own idea of how credentials are passed, how a payment session is created, how amounts are represented, what a "successful" status even means. So the second integration starts close to zero again.
+The uncomfortable part is that the first integration taught you almost nothing reusable. Each processor has its own idea of how credentials are passed, how a payment session is created, how amounts are represented, what "successful" even means. So the second integration starts close to zero again.
 
-In Medusa specifically, you have two ways to get there, and both cost real time. You can adopt one of the community plugins from the marketplace — there are a handful, of varying authorship and upkeep, including a couple of competing PayPal plugins, Mollie, and Braintree — and then bet that the one you picked stays maintained. Or you build a custom provider yourself by extending `AbstractPaymentProvider`, which means implementing the whole interface for that one processor: `initiatePayment`, `authorizePayment`, `capturePayment`, `refundPayment`, `cancelPayment`, `getPaymentStatus`, `getWebhookActionAndData`, and a dozen more for account holders and saved cards. Then you do it all over again for the next processor.
+In Medusa specifically, you have three ways forward. Here's the comparison:
 
-Then it keeps going. On the storefront you pull in a different client SDK for each processor — Stripe Elements, Adyen's Drop-in, PayPal's Buttons, hosted card fields for someone else — each with its own mounting quirks, context, and callbacks, and your checkout fills up with a connector-specific branch for every one. On the backend you are writing webhook handlers, and webhooks are the part nobody enjoys: signatures to verify, payloads that differ per provider, security-sensitive code that is easy to get subtly wrong and hard to notice when you do.
+| | Community Plugins| Custom payment provider | medusa-custom-payments |
+|---|---|---|---|
+| **Integrations covered** | One per plugin | One per build | Multiple, with shared interface |
+| **Adding/Switching payment processor** | New plugin | New build | Config change, no migration |
+| **Storefront checkout UI** | Yours to assemble per plugin | Yours to build | Shared reusable React components across payment processors |
+| **Production-readiness** | Varies; several warn against live-store testing | Only as much as you test | Part of a production-grade payment platform (juspay/hyperswitch) |
 
-And none of it is "done" when it ships. Every processor is a relationship you now maintain — an API that changes, a dashboard to log into, a separate stream of transactions to reconcile. Three processors is not three times the integration; it is that plus three times the upkeep, forever.
+And then it keeps going. On the storefront you pull in a different client SDK per processor — Stripe Elements, Adyen's Drop-in, PayPal's Buttons, hosted card fields for someone else — each with its own mounting quirks, context, and callbacks, and your checkout fills with a connector-specific branch for every one. On the backend you're writing webhook handlers, and webhooks are the part nobody enjoys: signatures to verify, payloads that differ per provider, security-sensitive code that's easy to get subtly wrong and hard to notice when you do.
 
-> **Q: Is this really worth solving, or is it just annoying?**
+And none of it is "done" when it ships. Every processor is a relationship you now maintain — an API that changes, a dashboard to log into, a separate stream of transactions to reconcile. Three processors isn't three times the integration; it's that plus three times the upkeep, forever.
+
+> **Does Medusa support payment orchestration?**
 >
-> It is worth solving, because the cost is not only engineering time. A meaningful share of shoppers abandon checkout when they do not see a payment option they trust, and that share climbs in every region where your single processor feels foreign. So the calculus is bad in both directions: adding processors is expensive, and *not* adding them quietly loses sales. The whole point of a unified layer is to make "support the method this market expects" cheap enough that you stop treating it as a project.
+> Not out of the box — Medusa ships Stripe first-party and leaves every other processor to the ecosystem. That's a deliberate, composable design choice, but it means *orchestration* (one interface in front of many connectors) is something you will have to implement. And `medusa-custom-payments` serves as that layer: a single provider that speaks to many payment processors, so adding the next one is a config change rather than a rewrite. It doesn't replace Medusa's payment module — it fills the payment processor gap which is not fulfilled by the community plugins.
 
----
+## One provider, many processors — running in your own process
 
-## One provider, many processors
+The shift is to stop integrating processors one by one and integrate one layer that already speaks to all of them. In payments this is called orchestration: a single interface in front of many connectors.
 
-The shift is to stop integrating processors one by one and instead integrate one layer that already speaks to all of them. In the payments world this idea is called orchestration: a single interface in front of many connectors, so adding the next one is a configuration change rather than a rewrite.
+For Medusa v2, that layer is **`medusa-custom-payments`**, powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism) — the open connector library we unbundled out of [Hyperswitch](https://github.com/juspay/hyperswitch) (40k+ GitHub stars, production payment volume at Juspay) so anyone could use the integrations without adopting a whole platform.
 
-For Medusa v2 stores, that layer is **Medusa Unified Payment**, powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism) — the open connector library we unbundled out of Hyperswitch so anyone could use the integrations without adopting a whole platform. The Medusa plugin wraps it in two pieces: a backend payment provider and a set of React components for the storefront checkout.
+The detail that matters most for anyone evaluating this seriously: **Prism is stateless, and the connector logic executes inside your Medusa process.** There is no Juspay server in your payment path. Card data and credentials flow from your app to the processor exactly as they would with a hand-rolled provider — we are never in the middle, you take on no additional PCI scope, and nothing about your money movement depends on our uptime. It's open-source connector code you compile into your own app, not a gateway you route through.
 
-What makes it click is that every connector shares one shape. You are not learning a new config object per processor — you register the same provider, change one `connector` string, and supply that processor's credentials:
+What makes it click day-to-day is that every connector shares one shape. You don't learn a new config object per processor — you register the same provider, change one `connector` string, and supply that processor's credentials:
 
 ```ts
 providers: [
-  { resolve: "@juspay-tech/medusa-unified-payment", id: "stripe",
+  { resolve: "medusa-custom-payments", id: "stripe",
     options: { connector: "stripe",
       connectorConfig: { apiKey: { value: process.env.STRIPE_API_KEY ?? "" } },
       environment: "SANDBOX" } },
-  { resolve: "@juspay-tech/medusa-unified-payment", id: "adyen",
+  { resolve: "medusa-custom-payments", id: "adyen",
     options: { connector: "adyen",
       connectorConfig: { apiKey: { value: process.env.ADYEN_API_KEY ?? "" },
         merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT ?? "" } },
@@ -46,47 +61,86 @@ providers: [
 ]
 ```
 
-Adding PayPal next is another block that looks exactly like these. That is the whole point — the third processor really is half the work, and the fourth even less.
+Adding PayPal next is another block that looks exactly like these. That's the whole point — the third processor really is half the work, and the fourth even less.
 
----
+![Region-based payment provider routing in Medusa Admin](https://cdn.sanity.io/images/9sed75bn/production/56c896a55aede8c91b775bfed2fd028931bb0615-1638x476.png)
+
+> **How do I add a second payment provider in Medusa?**
+>
+> Register `medusa-custom-payments` a second time with a different `id` and `connector` string, supply that processor's credentials, and assign it to a region in the Admin. That's it — no new provider class, no new webhook handler, no new checkout SDK to wire up. The block above is the entire diff.
 
 ## One package for the whole checkout
 
-The backend is only half the story, and the storefront is the half that usually has no unified answer — there is no shared package for the checkout elements, so each SDK is yours to assemble and maintain.
+The backend is only half the story, and the storefront is the half that usually has no unified answer — Medusa has no shared package for checkout elements, so each SDK is yours to assemble and maintain.
 
-The companion React package, `@juspay-tech/medusa-unified-payment-react`, closes that gap. It gives you two components that behave the same regardless of connector: `HyperswitchPrismConnectorPanel` renders the right payment instrument for the selected method, and `HyperswitchPrismPaymentButton` dispatches the correct place-order behavior behind it. You drop the panel into the payment step and the button into review, and the per-connector branches disappear from your own code — the components absorb the differences in mounting, callbacks, and result handling.
+The companion React package, **`medusa-custom-payments-react`**, closes that gap. It gives you two components that behave the same regardless of connector: `HyperswitchPrismConnectorPanel` renders the right payment instrument for the selected method, and `HyperswitchPrismPaymentButton` dispatches the correct place-order behavior behind it. Drop the panel into the payment step and the button into review, and the per-connector branches disappear from your own code — the components absorb the differences in mounting, callbacks, and result handling.
 
-That is the piece most stacks miss: a backend abstraction is common, but a matching multi-connector checkout UI usually is not. For a fully custom flow, the package also exposes the individual connector wrappers.
+That's the piece most stacks miss: a backend abstraction is common, but a matching multi-processor checkout UI usually isn't. For a fully custom flow, the package also exposes the individual payment processor wrappers.
 
----
+![Unified checkout with multiple payment processors](https://cdn.sanity.io/images/9sed75bn/production/987b9c24c7f2c6ad463e83b2892c0f38ead04716-2560x1396.png)
 
-## What you actually get
+## What are the benefits?
 
-**One provider class instead of one per processor.** The plugin implements `AbstractPaymentProvider` once and speaks to every connector behind it, so you never write `authorizePayment`, `capturePayment`, `refundPayment`, and the rest again. Adding a processor is the config block above, not another provider class to build and maintain.
+**One provider class instead of one per processor.** The plugin implements `AbstractPaymentProvider` once and speaks to every connector behind it, so you never write `authorizePayment`, `capturePayment`, `refundPayment`, and the rest again.
 
-**Breadth without breadth of code.** The backend speaks to seven connectors today — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — with ready-made storefront UI for four of them (Stripe, Adyen, PayPal, GlobalPay).
+**Breadth without breadth of code.** The backend speaks to seven connectors today, with ready-made storefront UI for four. The breadth is easily extensible to any of the 100+ connectors of [**`juspay/hyperswitch`**](https://github.com/juspay/hyperswitch).
 
-**Webhooks you don't hand-roll per processor.** Inbound events flow through one path, with verification handled centrally and required by default — an event that cannot be verified is rejected rather than quietly trusted. That is the security-sensitive code you no longer write four times.
+| Connector | Backend | Storefront UI |
+|---|---|---|
+| Stripe | ✅ | ✅ |
+| Adyen | ✅ | ✅ |
+| PayPal | ✅ | ✅ |
+| GlobalPay | ✅ | ✅ |
+| Braintree | ✅ | — |
+| Cybersource | ✅ | — |
+| Mollie | ✅ | — |
 
-**A consistent lifecycle.** Authorize, capture, void, and refund behave through one model across connectors, not four you keep straight.
+**Webhooks you don't hand-roll per processor.** Inbound events flow through one path, with verification handled centrally and required by default — an event that can't be verified is rejected rather than quietly trusted. That's the security-sensitive code you no longer write four times.
 
-**Per-region routing in the Admin.** You assign different providers to different regions from the Medusa Admin, so EU shoppers hit one processor and another market hits a second — no code change to make that call.
+**A consistent lifecycle.** Authorize, capture, void, and refund behave through one model across connectors, not four.
 
-**One switch to go live, and no lock-in.** A single `environment` toggle moves a provider from sandbox to production, and swapping a processor later is a config change, not a migration.
+**Per-region routing in the Admin portal.** Assign different providers to different regions from the Medusa Admin, so EU shoppers hit one processor and another market hits a second — no code change to make that call.
 
-> **Q: Does this actually run, or is it a nice diagram?**
+**One switch to go live, and no lock-in.** A single `environment` toggle moves a provider from sandbox to production, and swapping a processor later is a config change, not a migration. The connectors are open source and the library is useful outside Medusa too — you're adopting code, not a dependency on us.
+
+> **Does this actually run?**
 >
-> It runs. We wired all four storefront connectors end to end on a live Medusa store and took sandbox payments through each — card entry, redirect, and hosted fields alike. The flows in the support matrix are exercised against each connector's sandbox.
+> Yes. We wired all four storefront connectors end to end on a live Medusa store and took sandbox payments through each — card entry, redirect, and hosted fields alike. The flows in the support matrix are exercised against each connector's sandbox. These are the same payment processors that run in production inside juspay/hyperswitch; the path to production volume on Medusa is what we're hardening next, and progress lands in the open in the juspay/medusa-custom-payments repo.
 
----
 
-## Start with one config block
+## How to get started?
 
-If any of this sounds like work you have done before — the second integration that felt like the first — that is exactly the feeling this removes.
+Get started with an npm install and a single config block for all the payment processors you wish to enable.
 
 ```bash
-npm install @juspay-tech/medusa-unified-payment        # backend provider
-npm install @juspay-tech/medusa-unified-payment-react   # storefront UI
+npm install medusa-custom-payments         # backend provider
+npm install medusa-custom-payments-react    # storefront UI
 ```
 
-From there, register a provider, assign it to a region, and take a sandbox payment. The [backend README](../../plugins/medusa/medusa-unified-payment/README.md) walks through provider setup and webhooks, and the [React README](../../plugins/medusa/medusa-unified-payment-react/README.md) covers the checkout components. The first processor stays easy. The difference is that, this time, so does the next one.
+```ts
+providers: [
+  { resolve: "medusa-custom-payments", id: "stripe",
+    options: { connector: "stripe",
+      connectorConfig: { apiKey: { value: process.env.STRIPE_API_KEY ?? "" } },
+      environment: "SANDBOX" } },
+  { resolve: "medusa-custom-payments", id: "adyen",
+    options: { connector: "adyen",
+      connectorConfig: { apiKey: { value: process.env.ADYEN_API_KEY ?? "" },
+        merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT ?? "" } },
+      environment: "SANDBOX" } },
+]
+```
+
+From there, register a provider, assign it to a region, and take a sandbox payment. 
+
+The [backend README](https://github.com/juspay/hyperswitch-prism/tree/main/plugins/medusa/medusa-custom-payments) walks through provider setup and webhooks, and the [React README](https://github.com/juspay/hyperswitch-prism/tree/main/plugins/medusa/medusa-custom-payments-react) covers the checkout components.
+
+---
+
+## About the project 
+
+`medusa-custom-payments` is Apache-2.0 licensed and built using the core payment integration library of [**`juspay/hyperswitch`**](https://github.com/juspay/hyperswitch) — Juspay's open-source enterprise payment platform (42K+ GitHub stars), which orchestrates payments across 100+ payment processors. It is actively maintained by the team at [Juspay](https://juspay.io/us).
+
+And juspay/hyperswitch-prism is the integration layer, unbundled so developers can use the integrations without adopting the full platform. `medusa-custom-payments` brings that same library to Medusa. 
+
+Requests, queries, bugs, and integrations asks can be logged at [juspay/hyperswitch-prism repo](https://github.com/juspay/hyperswitch-prism/issues).
