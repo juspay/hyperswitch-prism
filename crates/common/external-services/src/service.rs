@@ -853,10 +853,7 @@ where
                         maskable_headers_to_json(&masked_headers),
                     )]);
 
-                    let masked_request = request
-                        .typed_connector_request_value
-                        .clone()
-                        .unwrap_or_else(|| mask_connector_request(&request.body));
+                    let masked_request = masked_connector_request_for_logging(&request);
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
@@ -1246,6 +1243,14 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
             }),
         None => serde_json::Value::Null,
     }
+}
+
+#[cfg(feature = "injector-client")]
+fn masked_connector_request_for_logging(request: &Request) -> serde_json::Value {
+    request
+        .typed_connector_request_value
+        .clone()
+        .unwrap_or_else(|| mask_connector_request(&request.body))
 }
 
 #[cfg(feature = "injector-client")]
@@ -2049,4 +2054,51 @@ pub fn error_log(action: &str, message: &serde_json::Value) {
 #[inline]
 pub fn warn_log(action: &str, message: &serde_json::Value) {
     tracing::warn!(tags = %action, json_value= %message);
+}
+
+#[cfg(all(test, feature = "injector-client"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_bytes_request_uses_typed_payload_for_logging_when_available() {
+        let typed_request = json!({
+            "paymentService": {
+                "@merchantCode": "*** alloc::string::String ***",
+                "submit": {
+                    "order": {
+                        "@orderCode": "pay_123",
+                        "paymentDetails": {
+                            "CARD-SSL": {
+                                "cardNumber": "424242**********"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        let mut request = Request::new(Method::Post, "https://example.com/xml");
+        request.body = Some(RequestContent::RawBytes(
+            br#"<paymentService merchantCode="secret"><submit /></paymentService>"#.to_vec(),
+        ));
+        request.typed_connector_request_value = Some(typed_request.clone());
+
+        assert_eq!(
+            masked_connector_request_for_logging(&request),
+            typed_request
+        );
+    }
+
+    #[test]
+    fn raw_bytes_request_without_typed_payload_logs_raw_bytes_marker() {
+        let mut request = Request::new(Method::Post, "https://example.com/xml");
+        request.body = Some(RequestContent::RawBytes(
+            br#"<paymentService merchantCode="secret"><submit /></paymentService>"#.to_vec(),
+        ));
+
+        assert_eq!(
+            masked_connector_request_for_logging(&request),
+            json!({"request_type": "RAW_BYTES"})
+        );
+    }
 }
