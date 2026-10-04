@@ -61,3 +61,17 @@ jobs:
           echo "       Link the consumer migration PR in the PR description."
           echo "       Ensure removed field numbers appear under 'reserved'."
           exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install proto tooling
+        run: pip install grpcio-tools
+
+      - name: Docs drift check
+        run: |
+          python3 scripts/ci/docs_drift_check.py \
+            --base-ref "origin/${GITHUB_BASE_REF}" \
+            --format github
