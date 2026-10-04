@@ -4463,10 +4463,12 @@ pub(crate) fn get_webhook_reference(
                 Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: None,
                     merchant_transaction_id: Some(order_id),
+                    connector_preprocessing_id: None,
                 }),
                 None => WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(event_object.id.clone()),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 }),
             }
         }
@@ -4477,10 +4479,12 @@ pub(crate) fn get_webhook_reference(
                 Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: None,
                     merchant_transaction_id: Some(order_id),
+                    connector_preprocessing_id: None,
                 }),
                 None => WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: event_object.payment_intent.clone(),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 }),
             }
         }
@@ -4495,11 +4499,11 @@ pub(crate) fn get_webhook_reference(
             })
         }
         WebhookEventObjectType::Source => {
-            // HS uses a PreprocessingId here; prism has no source/preprocessing reference,
-            // so surface the source id as the payment connector transaction id.
+            // HS resolves Stripe source webhooks through the preprocessing id path.
             WebhookResourceReference::Payment(PaymentWebhookReference {
-                connector_transaction_id: Some(event_object.id.clone()),
+                connector_transaction_id: None,
                 merchant_transaction_id: None,
+                connector_preprocessing_id: Some(event_object.id.clone()),
             })
         }
         WebhookEventObjectType::Refund => {

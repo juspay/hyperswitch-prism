@@ -225,6 +225,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentWebhookReference {
                 connector_transaction_id: Some(webhook_object.order_id.to_string()),
                 merchant_transaction_id: None,
+                connector_preprocessing_id: None,
             },
         )))
     }

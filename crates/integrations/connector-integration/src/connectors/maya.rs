@@ -303,6 +303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // `requestReferenceNumber` is the merchant-assigned reference we
                 // sent when creating the payment, echoed back by Maya.
                 merchant_transaction_id: body.request_reference_number,
+                connector_preprocessing_id: None,
             },
         )))
     }

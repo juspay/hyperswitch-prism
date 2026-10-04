@@ -3042,6 +3042,8 @@ pub struct PaymentWebhookReference {
     pub connector_transaction_id: Option<String>,
     /// Caller-assigned order / invoice ID echoed back by the connector.
     pub merchant_transaction_id: Option<String>,
+    /// PSP-assigned ID from a preprocessing/source step.
+    pub connector_preprocessing_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

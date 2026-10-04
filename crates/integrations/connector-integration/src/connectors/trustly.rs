@@ -315,6 +315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     domain_types::connector_types::PaymentWebhookReference {
                         connector_transaction_id: Some(order_id),
                         merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
                     },
                 ),
             ));

@@ -436,6 +436,7 @@ impl GrabpayWebhookBody {
             WebhookResourceReference::Payment(PaymentWebhookReference {
                 connector_transaction_id: self.tx_id.clone(),
                 merchant_transaction_id: self.partner_tx_id.clone(),
+                connector_preprocessing_id: None,
             })
         }
     }
