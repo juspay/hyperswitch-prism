@@ -548,12 +548,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Citigate<T>,
     flow:           Refund,
     source:         citigate::CitigatePostAuthStatus,
-    context:        (),
-    params:         [status, ctx],
+    params:         [status],
     success: Approved => Success,
     failure: NotReceived => Failure,
     {
-        ctx;
         match status {
             citigate::CitigatePostAuthStatus::Approved => common_enums::RefundStatus::Success,
             citigate::CitigatePostAuthStatus::NotReceived => common_enums::RefundStatus::Failure,

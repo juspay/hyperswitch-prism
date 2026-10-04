@@ -80,8 +80,7 @@ domain_types::impl_flow_status_mapping! {
     connector:       Cashfree<T>,
     flow:            Capture,
     source:          cashfree::CashfreeCaptureStatus,
-    context:         (),
-    params:          [status, _ctx],
+    params:          [status],
     success: Success => [Charged],
     failure: Failed => CaptureFailed,
     extractors: {
@@ -96,7 +95,6 @@ domain_types::impl_flow_status_mapping! {
                 _ => Status::Other,
             }
         },
-        context: |_request, _response| (),
     },
     {
         use cashfree::CashfreeCaptureStatus;
@@ -121,8 +119,7 @@ domain_types::impl_flow_status_mapping! {
     connector:       Cashfree<T>,
     flow:            Void,
     source:          cashfree::CashfreeVoidStatus,
-    context:         (),
-    params:          [status, _ctx],
+    params:          [status],
     success: Void => [Voided],
     failure: Failed => VoidFailed,
     extractors: {
@@ -137,7 +134,6 @@ domain_types::impl_flow_status_mapping! {
                 _ => Status::Other,
             }
         },
-        context: |_request, _response| (),
     },
     {
         use cashfree::CashfreeVoidStatus;
@@ -188,8 +184,7 @@ domain_types::impl_flow_status_mapping! {
     connector:       Cashfree<T>,
     flow:            PSync,
     source:          cashfree::CashfreePaymentStatus,
-    context:         (),
-    params:          [status, _ctx],
+    params:          [status],
     success: Success => [Charged],
     failure: Failed => Failure,
     extractors: {
@@ -201,7 +196,6 @@ domain_types::impl_flow_status_mapping! {
                 .or_else(|| response.first());
             payment.map_or(cashfree::CashfreePaymentStatus::Pending, |payment| cashfree::CashfreePaymentStatus::from(payment.payment_status.as_str()))
         },
-        context: |_request, _response| (),
     },
     {
         match status {
@@ -238,15 +232,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Cashfree<T>,
     flow:           RSync,
     source:         cashfree::CashfreeRefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: Success => Success,
     failure: Failed => Failure,
     extractors: {
         request: RefundSyncData,
         response: CashfreeRefundSyncResponse,
         source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;
@@ -272,15 +264,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Cashfree<T>,
     flow:           Refund,
     source:         cashfree::CashfreeRefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: Success => Success,
     failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: CashfreeRefundResponse,
         source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;

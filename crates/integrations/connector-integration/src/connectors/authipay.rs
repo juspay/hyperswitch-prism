@@ -57,55 +57,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Authipay<T>, flow: Authorize,
-    source: (Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>, transformers::AuthipayTransactionType), context: (), params: [parts, _ctx],
+    source: (Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>, transformers::AuthipayTransactionType), params: [parts],
     success: _ => [Authorized, Charged, PartialCharged],
     failure: none,
     extractors: { request: PaymentsAuthorizeData<T>, response: AuthipayAuthorizeResponse,
-        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), context: |_request, _response| (), },
+        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
     { let (status, result, state, transaction_type) = parts; transformers::map_status(status, result, state, transaction_type) }
 }
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Authipay<T>, flow: PSync,
-    source: (Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>, transformers::AuthipayTransactionType), context: (), params: [parts, _ctx],
+    source: (Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>, transformers::AuthipayTransactionType), params: [parts],
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
     extractors: { request: PaymentsSyncData, response: AuthipaySyncResponse,
-        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), context: |_request, _response| (), },
+        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
     { let (status, result, state, transaction_type) = parts; transformers::map_status(status, result, state, transaction_type) }
 }
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Authipay<T>, flow: Void,
-    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), context: (), params: [parts, _ctx],
+    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), params: [parts],
     success: _ => [Voided],
     failure: none,
     extractors: { request: PaymentVoidData, response: AuthipayVoidResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), context: |_request, _response| (), },
+        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_void_status(transaction_type, status, result, state) }
 }
 
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Authipay<T>, flow: Refund,
-    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), context: (), params: [parts, _ctx],
+    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), params: [parts],
     success: _ => [Success],
     failure: none,
     extractors: { request: RefundsData, response: AuthipayRefundResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), context: |_request, _response| (), },
+        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_refund_status(Some(transaction_type), status, result, state) }
 }
 
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Authipay<T>, flow: RSync,
-    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), context: (), params: [parts, _ctx],
+    source: (transformers::AuthipayTransactionType, Option<transformers::AuthipayPaymentStatus>, Option<transformers::AuthipayPaymentResult>, Option<transformers::AuthipayTransactionState>), params: [parts],
     success: _ => [Success],
     failure: none,
     extractors: { request: RefundSyncData, response: AuthipayRefundSyncResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), context: |_request, _response| (), },
+        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_refund_status(Some(transaction_type), status, result, state) }
 }
 

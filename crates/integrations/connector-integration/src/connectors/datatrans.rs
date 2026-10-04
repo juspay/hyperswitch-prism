@@ -152,15 +152,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Void,
     source: (),
-    context: (),
-    params: [_ack, _context],
+    params: [_ack],
     success: _ => [Voided],
     failure: none,
     extractors: {
         request: PaymentVoidData,
         response: DatatransVoidResponse,
         source: |_response| (),
-        context: |_request, _response| (),
     },
     { common_enums::AttemptStatus::Voided }
 }
@@ -183,15 +181,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Capture,
     source: (),
-    context: (),
-    params: [_ack, _context],
+    params: [_ack],
     success: _ => [Charged],
     failure: none,
     extractors: {
         request: PaymentsCaptureData,
         response: DatatransCaptureResponse,
         source: |_response| (),
-        context: |_request, _response| (),
     },
     { common_enums::AttemptStatus::Charged }
 }
@@ -283,15 +279,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Refund,
     source: (),
-    context: (),
-    params: [_ack, _context],
+    params: [_ack],
     success: _ => [Success],
     failure: none,
     extractors: {
         request: RefundsData,
         response: DatatransRefundResponse,
         source: |_response| (),
-        context: |_request, _response| (),
     },
     { common_enums::RefundStatus::Success }
 }

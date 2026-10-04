@@ -226,15 +226,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bluesnap<T>,
     flow: Refund,
     source: bluesnap::BluesnapRefundStatus,
-    context: (),
-    params: [status, _context],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request: RefundsData,
         response: BluesnapRefundResponse,
         source: |response| response.refund_status.clone(),
-        context: |_request, _response| (),
     },
     {
         match status {

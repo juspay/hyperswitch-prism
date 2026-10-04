@@ -149,12 +149,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Fiuu<T>,
     flow:           RSync,
     source:         fiuu::RefundStatus,
-    context:        (),
-    params:         [status, ctx],
+    params:         [status],
     success: Success => Success,
     failure: Rejected => Failure,
     {
-        let _ = ctx;
         match status {
             fiuu::RefundStatus::Success => common_enums::RefundStatus::Success,
             fiuu::RefundStatus::Rejected => common_enums::RefundStatus::Failure,

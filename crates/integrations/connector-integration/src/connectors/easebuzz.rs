@@ -143,8 +143,7 @@ domain_types::impl_flow_status_mapping! {
     connector:       Easebuzz<T>,
     flow:            Authorize,
     source:          easebuzz::EasebuzzAuthorizeStatus,
-    context:         (),
-    params:          [status, _ctx],
+    params:          [status],
     success: Success => [Charged],
     failure: Failure => Failure,
     extractors: {
@@ -164,7 +163,6 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
         },
-        context: |_request, _response| (),
     },
     {
         match status {
@@ -261,15 +259,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Easebuzz<T>,
     flow: Refund,
     source: bool,
-    context: (),
-    params: [accepted, _context],
+    params: [accepted],
     success: _ => [Success],
     failure: none,
     extractors: {
         request: RefundsData,
         response: EasebuzzRefundResponse,
         source: |response| response.status,
-        context: |_request, _response| (),
     },
     {
         if accepted {

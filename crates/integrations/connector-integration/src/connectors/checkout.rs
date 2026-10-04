@@ -198,12 +198,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Checkout<T>,
     flow:           RSync,
     source:         transformers::CheckoutActionApproval,
-    context:        (),
-    params:         [status, ctx],
+    params:         [status],
     success: Approved => Success,
     failure: Rejected => Failure,
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use transformers::CheckoutActionApproval;
         match status {
@@ -229,12 +227,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Checkout<T>,
     flow:           Refund,
     source:         transformers::CheckoutRefundVerdict,
-    context:        (),
-    params:         [status, ctx],
+    params:         [status],
     success: Accepted => Success,
     failure: Other => Failure,
     {
-        let _ = ctx;
         use common_enums::RefundStatus;
         use transformers::CheckoutRefundVerdict;
         match status {

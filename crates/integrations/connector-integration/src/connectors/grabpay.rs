@@ -1196,25 +1196,26 @@ domain_types::impl_flow_status_mapping! {
     connector:       Grabpay<T>,
     flow:            Authorize,
     source:          grabpay::GrabpayPaymentStatus,
-    context:         (),
-    params:          [status, ctx],
+    params:          [status],
     success: Success => [Charged],
     failure: Failed => Failure,
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GrabpayAuthorizeResponse,
         source: |response| response.tx_status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::AttemptStatus;
         use grabpay::GrabpayPaymentStatus;
-        match (status, ctx) {
-            (GrabpayPaymentStatus::Success, ()) => AttemptStatus::Charged,
-            (GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined, ()) => AttemptStatus::Failure,
-            (GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist, ()) => AttemptStatus::Pending,
-            (GrabpayPaymentStatus::Authorised, ()) => AttemptStatus::Authorized,
-            (GrabpayPaymentStatus::Unknown(_), ()) => AttemptStatus::Pending,
+        match status {
+            GrabpayPaymentStatus::Success => AttemptStatus::Charged,
+            GrabpayPaymentStatus::Failed
+            | GrabpayPaymentStatus::Cancelled
+            | GrabpayPaymentStatus::AuthorisationDeclined => AttemptStatus::Failure,
+            GrabpayPaymentStatus::Processing
+            | GrabpayPaymentStatus::TransactionAlreadyExist => AttemptStatus::Pending,
+            GrabpayPaymentStatus::Authorised => AttemptStatus::Authorized,
+            GrabpayPaymentStatus::Unknown(_) => AttemptStatus::Pending,
         }
     }
 }
@@ -1231,25 +1232,26 @@ domain_types::impl_flow_status_mapping! {
     connector:       Grabpay<T>,
     flow:            PSync,
     source:          grabpay::GrabpayPaymentStatus,
-    context:         (),
-    params:          [status, ctx],
+    params:          [status],
     success: Success => [Charged],
     failure: Failed => Failure,
     extractors: {
         request: PaymentsSyncData,
         response: GrabpayChargeCompleteResponse,
         source: |response| response.tx_status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::AttemptStatus;
         use grabpay::GrabpayPaymentStatus;
-        match (status, ctx) {
-            (GrabpayPaymentStatus::Success, ()) => AttemptStatus::Charged,
-            (GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined, ()) => AttemptStatus::Failure,
-            (GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist, ()) => AttemptStatus::Pending,
-            (GrabpayPaymentStatus::Authorised, ()) => AttemptStatus::Authorized,
-            (GrabpayPaymentStatus::Unknown(_), ()) => AttemptStatus::Pending,
+        match status {
+            GrabpayPaymentStatus::Success => AttemptStatus::Charged,
+            GrabpayPaymentStatus::Failed
+            | GrabpayPaymentStatus::Cancelled
+            | GrabpayPaymentStatus::AuthorisationDeclined => AttemptStatus::Failure,
+            GrabpayPaymentStatus::Processing
+            | GrabpayPaymentStatus::TransactionAlreadyExist => AttemptStatus::Pending,
+            GrabpayPaymentStatus::Authorised => AttemptStatus::Authorized,
+            GrabpayPaymentStatus::Unknown(_) => AttemptStatus::Pending,
         }
     }
 }
@@ -1267,15 +1269,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Grabpay<T>,
     flow:           Refund,
     source:         grabpay::GrabpayRefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: Success => Success,
     failure: Failed => Failure,
     extractors: {
         request: RefundsData,
         response: GrabpayRefundResponse,
         source: |response| response.tx_status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;
@@ -1302,15 +1302,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Grabpay<T>,
     flow:           RSync,
     source:         grabpay::GrabpayRefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: Success => Success,
     failure: Failed => Failure,
     extractors: {
         request: RefundSyncData,
         response: GrabpayRefundSyncResponse,
         source: |response| response.tx_status.clone(),
-        context: |_request, _response| (),
     },
     {
         use common_enums::RefundStatus;

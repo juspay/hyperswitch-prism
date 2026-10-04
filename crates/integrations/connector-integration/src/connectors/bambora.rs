@@ -161,15 +161,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Bambora<T>,
     flow: Capture,
     source: bool,
-    context: (),
-    params: [status, _context],
+    params: [status],
     success: _ => [Charged],
     failure: none,
     extractors: {
         request: PaymentsCaptureData,
         response: BamboraCaptureResponse,
         source: |response| response.approved == "1",
-        context: |_request, _response| (),
     },
     {
         if status { common_enums::AttemptStatus::Charged } else { common_enums::AttemptStatus::Failure }
@@ -187,15 +185,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Bambora<T>,
     flow: Void,
     source: bool,
-    context: (),
-    params: [status, _context],
+    params: [status],
     success: _ => [Voided],
     failure: none,
     extractors: {
         request: PaymentVoidData,
         response: BamboraVoidResponse,
         source: |response| response.approved == "1",
-        context: |_request, _response| (),
     },
     {
         if status { common_enums::AttemptStatus::Voided } else { common_enums::AttemptStatus::VoidFailed }
@@ -251,15 +247,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bambora<T>,
     flow: Refund,
     source: bool,
-    context: (),
-    params: [status, _context],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request: RefundsData,
         response: BamboraRefundResponse,
         source: |response| response.approved == "1",
-        context: |_request, _response| (),
     },
     {
         if status { common_enums::RefundStatus::Success } else { common_enums::RefundStatus::Failure }
@@ -277,15 +271,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bambora<T>,
     flow: RSync,
     source: bool,
-    context: (),
-    params: [status, _context],
+    params: [status],
     success: _ => [Success],
     failure: none,
     extractors: {
         request: RefundSyncData,
         response: BamboraRSyncResponse,
         source: |response| response.approved == "1",
-        context: |_request, _response| (),
     },
     {
         if status { common_enums::RefundStatus::Success } else { common_enums::RefundStatus::Failure }

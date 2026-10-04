@@ -80,8 +80,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Authorizedotnet<T>,
     flow:      SetupMandate,
     source:    bool,
-    context:   (),
-    params:    [is_success, _context],
+    params:    [is_success],
     success: _ => [Charged],
     failure: none,
     extractors: {
@@ -91,7 +90,6 @@ domain_types::impl_flow_status_mapping! {
             || (response.customer_profile_id.is_some()
                 && (response.customer_payment_profile_id.is_some()
                     || !response.customer_payment_profile_id_list.is_empty())),
-        context: |_request, _response| (),
     },
     {
         if is_success {

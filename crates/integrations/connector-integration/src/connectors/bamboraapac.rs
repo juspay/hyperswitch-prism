@@ -187,8 +187,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: Capture,
     source: u8,
-    context: (),
-    params: [code, _context],
+    params: [code],
     success: _ => [Charged],
     failure: none,
     {
@@ -246,8 +245,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: Refund,
     source: u8,
-    context: (),
-    params: [code, _context],
+    params: [code],
     success: _ => [Success],
     failure: none,
     {
@@ -307,8 +305,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: RSync,
     source: u8,
-    context: (),
-    params: [code, _context],
+    params: [code],
     success: _ => [Success],
     failure: none,
     {
@@ -369,8 +366,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: SetupMandate,
     source: u8,
-    context: (),
-    params: [code, _context],
+    params: [code],
     success: _ => [Charged],
     failure: none,
     {
