@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::connectors::paysafe::PaysafeRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorError;
+use domain_types::errors::{ConnectorError, WebhookError};
 use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub use super::requests::*;
@@ -2888,4 +2888,97 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
             ..item.router_data
         })
     }
+}
+
+// ===== WEBHOOKS =====
+
+/// Paysafe PaymentHUB webhook envelope (`/webhookhandler`).
+///
+/// Every notification is a `WebhookEvent` whose `payload` holds the affected
+/// resource (a payment handle or a standalone credit), `eventName` carries the
+/// specific outcome, and `resourceId` echoes the resource
+/// identifier. Standalone-credit events (`SA_CREDIT_*`) are the payout rail and
+/// map onto payout event types; payment-handle events are surfaced for
+/// completeness but this connector only processes payout webhooks.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeWebhookBody {
+    pub payload: serde_json::Value,
+    pub attempt_number: String,
+    #[serde(rename = "type")]
+    pub resource_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub links: Option<Vec<PaysafeWebhookLink>>,
+    pub event_date: String,
+    pub event_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeWebhookLink {
+    pub rel: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub href: Option<String>,
+}
+
+/// Standalone-credit (`SA_CREDIT_*`) webhooks notify on the standalone-credit
+/// rail, which is the Paysafe payout path. Payment-handle events are not
+/// payout events.
+pub fn is_paysafe_payout_webhook_event(event_name: &str) -> bool {
+    event_name.starts_with("SA_CREDIT_")
+}
+
+pub fn get_paysafe_webhook_event(event_name: &str) -> domain_types::connector_types::EventType {
+    use domain_types::connector_types::EventType;
+
+    match event_name {
+        "PAYMENT_HANDLE_COMPLETED" => EventType::PaymentIntentSuccess,
+        "PAYMENT_HANDLE_FAILED" => EventType::PaymentIntentFailure,
+        "PAYMENT_HANDLE_CANCELLED" => EventType::PaymentIntentCancelled,
+        "SA_CREDIT_COMPLETED" => EventType::PayoutSuccess,
+        "SA_CREDIT_FAILED" => EventType::PayoutFailure,
+        "SA_CREDIT_CANCELLED" => EventType::PayoutCancelled,
+        "SA_CREDIT_HELD" => EventType::PayoutProcessing,
+        "SA_CREDIT_PENDING" | "SA_CREDIT_PROCESSING" => EventType::PayoutProcessing,
+        "SA_CREDIT_REVERSED" => EventType::PayoutReversed,
+        "SA_CREDIT_EXPIRED" => EventType::PayoutExpired,
+        _ => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+pub fn get_paysafe_payout_webhook_status(
+    event_name: &str,
+) -> error_stack::Result<enums::PayoutStatus, WebhookError> {
+    match event_name {
+        "SA_CREDIT_COMPLETED" => Ok(enums::PayoutStatus::Success),
+        "SA_CREDIT_FAILED" => Ok(enums::PayoutStatus::Failure),
+        "SA_CREDIT_CANCELLED" => Ok(enums::PayoutStatus::Cancelled),
+        "SA_CREDIT_REVERSED" => Ok(enums::PayoutStatus::Reversed),
+        "SA_CREDIT_EXPIRED" => Ok(enums::PayoutStatus::Expired),
+        "SA_CREDIT_HELD"
+        | "SA_CREDIT_PENDING"
+        | "SA_CREDIT_PROCESSING"
+        | "SA_CREDIT_RECEIVED"
+        | "SA_CREDIT_INITIATED" => Ok(enums::PayoutStatus::Pending),
+        _ => Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)),
+    }
+}
+
+/// The standalone-credit id embedded in a webhook `payload`.
+pub fn get_paysafe_webhook_payload_id(payload: &serde_json::Value) -> Option<String> {
+    payload
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .map(String::from)
+}
+
+/// The connector-side reference (`merchantRefNum`) echoed in a webhook
+/// `payload`; it matches the `merchant_payout_id` used on the transfers.
+pub fn get_paysafe_webhook_payload_merchant_ref(payload: &serde_json::Value) -> Option<String> {
+    payload
+        .get("merchantRefNum")
+        .and_then(serde_json::Value::as_str)
+        .map(String::from)
 }

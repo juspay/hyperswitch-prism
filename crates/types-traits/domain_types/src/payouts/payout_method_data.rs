@@ -13,6 +13,7 @@ pub enum PayoutMethodData {
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
+    GiftCard(GiftCardPayout),
 }
 
 impl Default for PayoutMethodData {
@@ -49,8 +50,22 @@ impl PayoutMethodData {
             Self::Wallet(_) => "Wallet",
             Self::BankRedirect(_) => "BankRedirect",
             Self::Passthrough(_) => "Passthrough",
+            Self::GiftCard(_) => "GiftCard",
         }
     }
+}
+
+/// The brand of gift card being paid out, mirroring the payment-side
+/// `GiftCardData` enumeration so each issuer can carry its own payout fields.
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum GiftCardPayout {
+    PaySafeCard(PaysafeCardPayout),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PaysafeCardPayout {
+    /// Paysafecard account ID, used to identify the consumer's account for payout.
+    pub paysafecard_account_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

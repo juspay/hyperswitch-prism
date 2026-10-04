@@ -270,6 +270,9 @@ impl PayoutConnectorData {
                     domain_types::payment_method_data::DefaultPCIHolder,
                 >::new())
             }
+            PayoutConnectorEnum::Paysafe => Box::new(payout_connectors::PaysafePayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
