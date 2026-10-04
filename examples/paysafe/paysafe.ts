@@ -5,9 +5,9 @@
 // Paysafe — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paysafe.ts checkout_autocapture
 
-import { PaymentMethodAuthenticationClient, PaymentClient, CustomerClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize", "void"];
+import { PaymentMethodAuthenticationClient, PaymentClient, CustomerClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, CaptureMethod, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "parse_event", "pre_authenticate", "refund", "refund_get", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -75,6 +75,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
         "connectorOrderReferenceId": "probe_order_ref_001"  // Connector Reference Id.
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
@@ -189,6 +214,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -237,7 +280,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    authenticate, capture, customerCreate, get, handleEvent, parseEvent, preAuthenticate, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
