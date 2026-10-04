@@ -43,6 +43,32 @@ use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorCon
 const SHIFT4_VOID_DECLINED: &str =
     "Shift4 declined the authorization release (refund of the uncaptured charge reported `failed`)";
 
+// Bank Transfer payment method data structures
+#[derive(Debug, Clone, Serialize)]
+pub struct AchTransferData {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SepaTransferData {
+    pub iban: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bic: Option<Secret<String>>,
+    pub account_holder: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type")]
+pub enum Shift4BankTransferMethod {
+    #[serde(rename = "ach")]
+    Ach(AchTransferData),
+    #[serde(rename = "sepa")]
+    Sepa(SepaTransferData),
+}
+
 #[derive(Debug, Clone)]
 pub struct Shift4AuthType {
     pub api_key: Secret<String>,
