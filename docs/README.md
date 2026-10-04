@@ -246,7 +246,6 @@ The `hyperswitch-prism` SDK contains platform-specific native libraries compiled
 | Platform | Architecture |
 |----------|--------------|
 | macOS (Apple Silicon) | arm64 |
-| Linux | x86_64 |
 
 ### Reporting Vulnerabilities
 Please report security issues to [security@juspay.in](mailto:security@juspay.in).
