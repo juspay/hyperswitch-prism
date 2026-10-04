@@ -707,8 +707,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Ilixium<T>,
     flow:      PSync,
     source:    common_enums::AttemptStatus,
-    context:   (),
-    params:    [status, _ctx],
+    params:    [status],
     success: _ => [Charged],
     failure: none,
     extractors: {
@@ -750,7 +749,6 @@ domain_types::impl_flow_status_mapping! {
                 request.is_auto_capture(),
             ))
         },
-        context: |_resource_common_data, _request, _response| (),
     },
     {
         status

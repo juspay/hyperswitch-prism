@@ -146,8 +146,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Trustpay<T>,
     flow:           RSync,
     source:         common_enums::RefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: _ => [Success],
     failure: none,
     extractors: {
@@ -156,7 +155,6 @@ domain_types::impl_refund_flow_status_mapping! {
         source: |_resource_common_data, _request, response| {
             trustpay::refund_flow_status(response)
         },
-        context: |_resource_common_data, _request, _response| (),
     },
     {
         status
@@ -173,8 +171,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector:      Trustpay<T>,
     flow:           Refund,
     source:         common_enums::RefundStatus,
-    context:        (),
-    params:         [status, _ctx],
+    params:         [status],
     success: _ => [Success],
     failure: none,
     extractors: {
@@ -183,7 +180,6 @@ domain_types::impl_refund_flow_status_mapping! {
         source: |_resource_common_data, _request, response| {
             trustpay::refund_flow_status(response)
         },
-        context: |_resource_common_data, _request, _response| (),
     },
     {
         status
