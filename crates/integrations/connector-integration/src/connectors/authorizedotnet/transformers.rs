@@ -3655,6 +3655,10 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             let first_error = response.messages.message.first();
             let error_code = first_error.map(|m| m.code.as_str()).unwrap_or("");
             let error_text = first_error.map(|m| m.text.as_str()).unwrap_or("");
+            // Same hyperswitch-parity mapping as every other error path in this file:
+            // message is the resultCode, reason joins every message text.
+            let (parity_code, parity_message, parity_reason) =
+                error_code_message_and_reason(&response.messages);
 
             if error_code == "E00039" {
                 // Extract customer profile ID from error message
@@ -3672,9 +3676,9 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     // Couldn't extract ID, return error
                     new_router_data.response = Err(ErrorResponse {
                         status_code: http_code,
-                        code: error_code.to_string(),
-                        message: error_text.to_string(),
-                        reason: Some(error_text.to_string()),
+                        code: parity_code,
+                        message: parity_message,
+                        reason: Some(parity_reason),
                         attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
                         network_decline_code: None,
@@ -3690,9 +3694,9 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                 // Other error - return error response
                 new_router_data.response = Err(ErrorResponse {
                     status_code: http_code,
-                    code: error_code.to_string(),
-                    message: error_text.to_string(),
-                    reason: Some(error_text.to_string()),
+                    code: parity_code,
+                    message: parity_message,
+                    reason: Some(parity_reason),
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
                     network_decline_code: None,
