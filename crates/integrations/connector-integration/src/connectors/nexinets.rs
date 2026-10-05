@@ -658,6 +658,22 @@ domain_types::impl_flow_status_mapping! {
     success: Success => [Authorized, Charged],
     failure: Declined => AuthorizationFailed,
 
+    extractors: {
+        request:  PaymentsAuthorizeData<T>,
+        response: NexinetsPreAuthOrDebitResponse,
+        // The TryFrom takes the first `transactions` entry; the extractor must mirror
+        // that. An empty list cannot be represented here (the TryFrom errors out) —
+        // `Pending` only acts as an inert placeholder in that impossible case.
+        source: |_resource_common_data, _request, response| Ok({
+            response
+                .transactions
+                .first()
+                .map(|t| t.status.clone())
+                .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+
     {
         use common_enums::AttemptStatus;
         match (status, ctx) {
@@ -685,6 +701,300 @@ domain_types::impl_flow_status_mapping! {
 
             (nexinets::NexinetsPaymentStatus::Pending, _) => AttemptStatus::AuthenticationPending,
             (nexinets::NexinetsPaymentStatus::InProgress, _) => AttemptStatus::Pending,
+        }
+    }
+}
+
+// PSync — mirrors the shared payment Sync TryFrom (transformers.rs:545) via `get_status`
+// (transformers.rs:288), context = `psync_flow` from stored metadata. `PSync::ALLOWED` is
+// a superset of `get_status`'s outputs (`Voided`, `VoidFailed`, `CaptureFailed` all
+// reachable from the Cancel/Capture contexts), so the mirror is exact.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            PSync,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+    params:          [status, ctx],
+    success: Success => [Authorized, Charged, Voided],
+    failure: Declined => Failure,
+    extractors: {
+        request:  PaymentsSyncData,
+        response: NexinetsPaymentResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match (status, ctx) {
+            (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (
+                nexinets::NexinetsPaymentStatus::Success,
+                NexinetsTransactionType::Debit | NexinetsTransactionType::Capture,
+            ) => AttemptStatus::Charged,
+            (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Cancel) => {
+                AttemptStatus::Voided
+            }
+            (
+                nexinets::NexinetsPaymentStatus::Declined
+                | nexinets::NexinetsPaymentStatus::Failure
+                | nexinets::NexinetsPaymentStatus::Expired
+                | nexinets::NexinetsPaymentStatus::Aborted,
+                NexinetsTransactionType::Preauth,
+            ) => AttemptStatus::AuthorizationFailed,
+            (
+                nexinets::NexinetsPaymentStatus::Declined
+                | nexinets::NexinetsPaymentStatus::Failure
+                | nexinets::NexinetsPaymentStatus::Expired
+                | nexinets::NexinetsPaymentStatus::Aborted,
+                NexinetsTransactionType::Debit | NexinetsTransactionType::Capture,
+            ) => AttemptStatus::CaptureFailed,
+            (
+                nexinets::NexinetsPaymentStatus::Declined
+                | nexinets::NexinetsPaymentStatus::Failure
+                | nexinets::NexinetsPaymentStatus::Expired
+                | nexinets::NexinetsPaymentStatus::Aborted,
+                NexinetsTransactionType::Cancel,
+            ) => AttemptStatus::VoidFailed,
+            (nexinets::NexinetsPaymentStatus::Ok, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (nexinets::NexinetsPaymentStatus::Ok, _) => AttemptStatus::Pending,
+            (nexinets::NexinetsPaymentStatus::Pending, _) => AttemptStatus::AuthenticationPending,
+            (nexinets::NexinetsPaymentStatus::InProgress, _) => AttemptStatus::Pending,
+        }
+    }
+}
+
+// Capture — mirrors the Capture TryFrom via `get_status` (the capture endpoint reuses
+// `NexinetsPaymentResponse`; context is always `NexinetsTransactionType::Capture`).
+// Deviations: `Voided` is not in `Capture::ALLOWED`, so unreachable Cancel-context rows
+// map to `CaptureFailed`; `Ok` → `CaptureInitiated` (still in flight).
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            Capture,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+    params:          [status, ctx],
+    success: Success => [Charged],
+    failure: Failure => CaptureFailed,
+    extractors: {
+        request:  PaymentsCaptureData,
+        response: NexinetsCaptureResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match status {
+            nexinets::NexinetsPaymentStatus::Success => AttemptStatus::Charged,
+            // Ok: capture accepted, settlement still in flight.
+            nexinets::NexinetsPaymentStatus::Ok
+            | nexinets::NexinetsPaymentStatus::InProgress => AttemptStatus::CaptureInitiated,
+            nexinets::NexinetsPaymentStatus::Pending => AttemptStatus::Pending,
+            nexinets::NexinetsPaymentStatus::Declined
+            | nexinets::NexinetsPaymentStatus::Failure
+            | nexinets::NexinetsPaymentStatus::Expired
+            | nexinets::NexinetsPaymentStatus::Aborted => AttemptStatus::CaptureFailed,
+        }
+    }
+}
+
+// Void — mirrors the Void TryFrom via `get_status` (context always
+// `NexinetsTransactionType::Cancel`); `Void::ALLOWED` covers `Voided`, `VoidFailed` and
+// `Pending`, and `Ok` → `VoidInitiated` (cancel accepted, still settling).
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            Void,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+    params:          [status, ctx],
+    success: Success => [Voided],
+    failure: Failure => VoidFailed,
+    extractors: {
+        request:  PaymentVoidData,
+        response: NexinetsVoidResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match status {
+            nexinets::NexinetsPaymentStatus::Success => AttemptStatus::Voided,
+            nexinets::NexinetsPaymentStatus::Ok
+            | nexinets::NexinetsPaymentStatus::InProgress
+            | nexinets::NexinetsPaymentStatus::Pending => AttemptStatus::VoidInitiated,
+            nexinets::NexinetsPaymentStatus::Declined
+            | nexinets::NexinetsPaymentStatus::Failure
+            | nexinets::NexinetsPaymentStatus::Expired
+            | nexinets::NexinetsPaymentStatus::Aborted => AttemptStatus::VoidFailed,
+        }
+    }
+}
+
+// SetupMandate — mirrors the SetupMandate TryFrom (transformers.rs:~1190): `get_status`
+// on the always-`Preauth` mandate request, with `Authorized` promoted to `Charged` (a
+// registered zero/low-amount mandate setup must terminate; `Authorized` is not in
+// `SetupMandate::ALLOWED`).
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            SetupMandate,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+    params:          [status, ctx],
+    success: Success => [Charged],
+    failure: Failure => Failure,
+    extractors: {
+        request:  SetupMandateRequestData<T>,
+        response: NexinetsSetupMandateResponse,
+        // The TryFrom takes the first `transactions` entry; the extractor must mirror
+        // that. An empty list cannot be represented here (the TryFrom errors out) —
+        // `Pending` only acts as an inert placeholder in that impossible case.
+        source: |_resource_common_data, _request, response| Ok({
+            response
+                .transactions
+                .first()
+                .map(|t| t.status.clone())
+                .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match status {
+            // Preauth-context Success/Ok → get_status gives Authorized, promoted to Charged.
+            nexinets::NexinetsPaymentStatus::Success
+            | nexinets::NexinetsPaymentStatus::Ok => AttemptStatus::Charged,
+            nexinets::NexinetsPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            nexinets::NexinetsPaymentStatus::InProgress => AttemptStatus::Pending,
+            nexinets::NexinetsPaymentStatus::Declined
+            | nexinets::NexinetsPaymentStatus::Failure
+            | nexinets::NexinetsPaymentStatus::Expired
+            | nexinets::NexinetsPaymentStatus::Aborted => AttemptStatus::Failure,
+        }
+    }
+}
+
+// RepeatPayment — mirrors the RepeatPayment TryFrom (transformers.rs:1424) via
+// `get_status`. Every produced value is RepeatPayment-legal (`Authorized` is
+// intermediate-pending for MIT — the merchant may capture later), but only
+// `Charged` is a *terminal* success in `RepeatPayment::TERMINAL_SUCCESS_SET`, so
+// the declared success_targets is narrowed to `[Charged]`; `Authorized` remains
+// reachable in the body as an intermediate state.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            RepeatPayment,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+    params:          [status, ctx],
+    success: Success => [Charged],
+    failure: Failure => Failure,
+    extractors: {
+        request:  RepeatPaymentData<T>,
+        response: NexinetsRepeatPaymentResponse,
+        // The TryFrom takes the first `transactions` entry; the extractor must mirror
+        // that. An empty list cannot be represented here (the TryFrom errors out) —
+        // `Pending` only acts as an inert placeholder in that impossible case.
+        source: |_resource_common_data, _request, response| Ok({
+            response
+                .transactions
+                .first()
+                .map(|t| t.status.clone())
+                .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match (status, ctx) {
+            (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (
+                nexinets::NexinetsPaymentStatus::Success,
+                NexinetsTransactionType::Debit | NexinetsTransactionType::Capture,
+            ) => AttemptStatus::Charged,
+            // Unreachable in practice (no cancel context on RepeatPayment) — a canceled MIT
+            // is a terminal failure.
+            (nexinets::NexinetsPaymentStatus::Success, _) => AttemptStatus::Failure,
+            (nexinets::NexinetsPaymentStatus::Declined, _)
+            | (nexinets::NexinetsPaymentStatus::Failure, _)
+            | (nexinets::NexinetsPaymentStatus::Expired, _)
+            | (nexinets::NexinetsPaymentStatus::Aborted, _) => AttemptStatus::Failure,
+            (nexinets::NexinetsPaymentStatus::Ok, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (nexinets::NexinetsPaymentStatus::Ok, _) => AttemptStatus::Pending,
+            (nexinets::NexinetsPaymentStatus::Pending, _) => AttemptStatus::AuthenticationPending,
+            (nexinets::NexinetsPaymentStatus::InProgress, _) => AttemptStatus::Pending,
+        }
+    }
+}
+
+// NOTE: no impl_flow_status_mapping! for IncrementalAuthorization / ClientAuthenticationToken.
+// IncrementalAuthorization is declared `not_implemented:` below — the flow never dispatches
+// (no response type is parsed), so there is no wire status to map. ClientAuthenticationToken
+// answers with a bare `order_id` (`NexinetsClientAuthResponse`) and has no `FlowStatusRules`.
+
+// Refund — mirrors `From<nexinets::RefundStatus> for common_enums::RefundStatus`
+// (transformers.rs:650) used by the Refund TryFrom (transformers.rs:660). The `_ctx`
+// variant is used only because the enum is mirrored in full with a per-variant pair list.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexinets<T>,
+    flow:      Refund,
+    source:    nexinets::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Success => Success,
+    failure:   Failure => Failure,
+    extractors: {
+        request:  RefundsData,
+        response: NexinetsRefundResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        match status {
+            nexinets::RefundStatus::Success => common_enums::RefundStatus::Success,
+            nexinets::RefundStatus::Failure
+            | nexinets::RefundStatus::Declined => common_enums::RefundStatus::Failure,
+            nexinets::RefundStatus::InProgress
+            | nexinets::RefundStatus::Ok => common_enums::RefundStatus::Pending,
+        }
+    }
+}
+
+// RSync — same `From<nexinets::RefundStatus>` mapping as Refund (the sync TryFrom at
+// transformers.rs:679 shares it verbatim).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexinets<T>,
+    flow:      RSync,
+    source:    nexinets::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Success => Success,
+    failure:   Failure => Failure,
+    extractors: {
+        request:  RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        match status {
+            nexinets::RefundStatus::Success => common_enums::RefundStatus::Success,
+            nexinets::RefundStatus::Failure
+            | nexinets::RefundStatus::Declined => common_enums::RefundStatus::Failure,
+            nexinets::RefundStatus::InProgress
+            | nexinets::RefundStatus::Ok => common_enums::RefundStatus::Pending,
         }
     }
 }

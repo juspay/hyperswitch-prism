@@ -650,13 +650,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
+pub enum ImerchantsolutionsStatusSource {
+    Payment(ImerchantsolutionsPaymentStatus),
+    Webhook(ImerchantsolutionsWebhookStatus),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsPaymentsResponseData {
     payment_id: String,
     psp_reference: String,
     merchant_reference: Option<String>,
     amount: AmountDetails,
     result_code: ResultCode,
-    status: ImerchantsolutionsPaymentStatus,
+    pub status: ImerchantsolutionsPaymentStatus,
     additional_data: Option<AdditionalData>,
     capture_mode: Option<CaptureMode>,
     capture_delay_hours: Option<i32>,
@@ -686,7 +694,7 @@ enum ResultCode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsPaymentStatus {
+pub enum ImerchantsolutionsPaymentStatus {
     #[serde(alias = "AUTHORISED")]
     Authorised,
     Authorized,
@@ -1042,7 +1050,7 @@ pub struct ImerchantsolutionsPSyncResponseData {
     capture_closed: Option<bool>,
     captures: Vec<Captures>,
     currency: Currency,
-    status: ImerchantsolutionsPaymentStatus,
+    pub status: ImerchantsolutionsPaymentStatus,
     capture_mode: CaptureMode,
     captured_at: Option<String>,
     can_capture: bool,
@@ -1376,13 +1384,13 @@ pub struct ImerchantsolutionsVoidResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    status: ImerchantsolutionsVoidStatus,
+    pub status: ImerchantsolutionsVoidStatus,
     message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-enum ImerchantsolutionsVoidStatus {
+pub enum ImerchantsolutionsVoidStatus {
     Received,
     Cancelled,
 }
@@ -1492,7 +1500,7 @@ pub struct ImerchantsolutionsCaptureResponseData {
     captured_amount: Option<MinorUnit>,
     total_captured: Option<MinorUnit>,
     currency: Currency,
-    status: ImerchantsolutionsCaptureStatus,
+    pub status: ImerchantsolutionsCaptureStatus,
     capture_closed: Option<bool>,
     final_capture: Option<bool>,
     remainder_released: Option<RemainderReleased>,
@@ -1501,7 +1509,7 @@ pub struct ImerchantsolutionsCaptureResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsCaptureStatus {
+pub enum ImerchantsolutionsCaptureStatus {
     Received,
     PartiallyCaptured,
     Captured,
@@ -1595,13 +1603,13 @@ pub struct ImerchantsolutionsRefundResponseData {
     refunded_amount: MinorUnit,
     total_refunded: MinorUnit,
     currency: Currency,
-    status: ImerchantsolutionsRefundStatus,
+    pub status: ImerchantsolutionsRefundStatus,
     message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ImerchantsolutionsRefundStatus {
+pub enum ImerchantsolutionsRefundStatus {
     Received,
     PartiallyRefunded,
     Refunded,
@@ -1636,6 +1644,18 @@ pub enum ImerchantsolutionsRefundSyncResponse {
     ImerchantsolutionsWebhookResponse(Box<ImerchantsolutionsWebhookData>),
 }
 
+/// Status-source bridge for the RSync flow-status mapping: the untagged
+/// `ImerchantsolutionsRefundSyncResponse` carries either an
+/// `ImerchantsolutionsRefundStatus` (status endpoint) or an
+/// `ImerchantsolutionsWebhookStatus` (webhook payload echoed on sync), which the two
+/// arms map through different `From`/`TryFrom` impls.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::enum_variant_names)]
+pub enum ImerchantsolutionsRefundStatusSource {
+    Status(ImerchantsolutionsRefundStatus),
+    Webhook(ImerchantsolutionsWebhookStatus),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsRsyncResponseData {
@@ -1647,7 +1667,7 @@ pub struct ImerchantsolutionsRsyncResponseData {
     total_refunded: Option<MinorUnit>,
     remaining_amount: Option<MinorUnit>,
     currency: Currency,
-    status: ImerchantsolutionsRefundStatus,
+    pub status: ImerchantsolutionsRefundStatus,
     can_refund: bool,
     refunds: Vec<Refunds>,
 }

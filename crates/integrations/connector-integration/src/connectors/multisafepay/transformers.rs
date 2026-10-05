@@ -1191,3 +1191,17 @@ impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
 // ===== VOID FLOW STRUCTURES =====
 // Void flow not implemented - MultiSafepay doesn't support void
 // (requires manual capture support which MultiSafepay doesn't provide)
+
+// ===== FLOW STATUS MAPPING SOURCE TYPES =====
+
+/// Refund verdict derived from the `success: bool` wire flag on the refund-create /
+/// refund-sync responses (`TryFrom<...MultisafepayRefundResponse>` constructs a
+/// `MultisafepayRefundStatus` from this flag — the connector response body has no
+/// refund status enum of its own).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum MultisafepayRefundVerdict {
+    Succeeded,
+    Failed,
+    #[default]
+    Other,
+}

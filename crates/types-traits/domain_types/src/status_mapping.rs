@@ -496,6 +496,158 @@ macro_rules! __impl_runtime_refund_status_mapping {
 /// both are in `Authorize::TERMINAL_SUCCESS_SET`.
 #[macro_export]
 macro_rules! impl_flow_status_mapping {
+    // ── legacy no-context statusless runtime extractor closure ──────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            params: [$status_name],
+            success: _ => [ $($success_target),+ ],
+            failure: none,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+            },
+            $body
+        }
+    };
+
+    // ── legacy no-context runtime extractor closure ─────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => [ $($success_target:ident),+ $(,)? ],
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            params: [$status_name],
+            success: $success_variant => [ $($success_target),+ ],
+            failure: $failure_variant => $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+            },
+            $body
+        }
+    };
+
+    // ── legacy context-aware statusless runtime extractor closures ──────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr,
+            context:  |$context_request:pat_param, $context_response:pat_param| $context_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success: _ => [ $($success_target),+ ],
+            failure: none,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+                context: |_resource_common_data, $context_request, $context_response| $context_body,
+            },
+            $body
+        }
+    };
+
+    // ── legacy context-aware runtime extractor closures ─────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: $success_variant:ident => [ $($success_target:ident),+ $(,)? ],
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr,
+            context:  |$context_request:pat_param, $context_response:pat_param| $context_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success: $success_variant => [ $($success_target),+ ],
+            failure: $failure_variant => $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+                context: |_resource_common_data, $context_request, $context_response| $context_body,
+            },
+            $body
+        }
+    };
+
     // ── no-context statusless mapping with runtime extractors ───────────
     (
         $(generics: [$($generic:tt)*],)?
@@ -1608,6 +1760,158 @@ macro_rules! assert_terminal_mapping {
 /// ```
 #[macro_export]
 macro_rules! impl_refund_flow_status_mapping {
+    // ── legacy no-context statusless runtime extractor closure ──────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            params: [$status_name],
+            success: _ => [ $($success_target),+ ],
+            failure: none,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+            },
+            $body
+        }
+    };
+
+    // ── legacy no-context runtime extractor closure ─────────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        params: [$status_name:ident],
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            params: [$status_name],
+            success: $success_variant => $success_target,
+            failure: $failure_variant => $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+            },
+            $body
+        }
+    };
+
+    // ── legacy context-aware statusless runtime extractor closures ──────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: _ => [ $($success_target:ident),+ $(,)? ],
+        failure: none,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr,
+            context:  |$context_request:pat_param, $context_response:pat_param| $context_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success: _ => [ $($success_target),+ ],
+            failure: none,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+                context: |_resource_common_data, $context_request, $context_response| $context_body,
+            },
+            $body
+        }
+    };
+
+    // ── legacy context-aware runtime extractor closures ─────────────────
+    (
+        $(generics: [$($generic:tt)*],)?
+        connector: $connector:ty,
+        flow: $flow:ty,
+        source: $source:ty,
+        context: $ctx:ty,
+        params: [$status_name:ident, $ctx_name:ident],
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        extractors: {
+            request:  $request:ty,
+            response: $response:ty,
+            source:   |$source_response:pat_param| $source_body:expr,
+            context:  |$context_request:pat_param, $context_response:pat_param| $context_body:expr $(,)?
+        },
+
+        $body:block
+    ) => {
+        $crate::impl_refund_flow_status_mapping! {
+            $(generics: [$($generic)*],)?
+            connector: $connector,
+            flow: $flow,
+            source: $source,
+            context: $ctx,
+            params: [$status_name, $ctx_name],
+            success: $success_variant => $success_target,
+            failure: $failure_variant => $failure_target,
+            extractors: {
+                request: $request,
+                response: $response,
+                source: |_resource_common_data, _request, $source_response| Ok($source_body),
+                context: |_resource_common_data, $context_request, $context_response| $context_body,
+            },
+            $body
+        }
+    };
+
     // ── no-context statusless mapping with runtime extractors ───────────
     (
         $(generics: [$($generic:tt)*],)?

@@ -17,7 +17,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt, report};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -568,7 +568,7 @@ fn error_message_string(
 // Common payment-status mapping shared by the Authorize and PSync flows. `found` is
 // false only for a sync query with no record yet; an approved transaction is `Charged`
 // under auto-capture and `Authorized` under manual capture.
-fn map_payment_status(
+pub(super) fn map_payment_status(
     found: bool,
     approved: bool,
     is_auto_capture: bool,
@@ -582,7 +582,7 @@ fn map_payment_status(
 }
 
 // Common refund-status mapping shared by the Refund and RSync flows.
-fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus {
+pub(super) fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus {
     match (found, approved) {
         (false, _) => common_enums::RefundStatus::Pending,
         (true, true) => common_enums::RefundStatus::Success,

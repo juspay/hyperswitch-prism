@@ -477,6 +477,17 @@ macros::macro_connector_implementation!(
 // Unsupported / not-implemented flows
 // ---------------------------------------------------------------------------
 
+// ===== FLOW STATUS MAPPINGS =====
+// NOTE: no impl_flow_status_mapping! for any flow. Netcetera's only payment flow is a
+// stub Authorize whose `get_url` returns `IntegrationError::NotImplemented` before any
+// HTTP is dispatched — no connector response type (no wire status enum) is ever parsed,
+// so there is no connector status to declare a success variant for. The implemented
+// PreAuthenticate / Authenticate / PostAuthenticate flows surface authentication state as
+// `common_enums::TransactionStatus` (EMVCo `transStatus`) inside
+// `PreAuthenticateResponse` / `AuthenticateResponse` / `PostAuthenticateResponse`, not as
+// a `PaymentFlowData.status` mapping — and neither `connector_flow` has a
+// `FlowStatusRules` impl, so no mapping can be declared for them.
+
 macros::macro_connector_flow_status_impls!(
     connector: Netcetera,
     generic_type: T,
