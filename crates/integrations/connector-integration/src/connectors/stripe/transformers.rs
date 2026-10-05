@@ -2579,11 +2579,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            statement_descriptor_suffix: item
-                .request
-                .billing_descriptor
-                .as_ref()
-                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            statement_descriptor_suffix: Some("ART".to_string()),
             statement_descriptor: item
                 .request
                 .billing_descriptor
