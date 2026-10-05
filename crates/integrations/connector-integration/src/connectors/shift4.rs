@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{AttemptStatus, CurrencyUnit};
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
@@ -36,9 +36,9 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    Shift4AuthType, Shift4CaptureRequest, Shift4ClientAuthRequest, Shift4ClientAuthResponse,
-    Shift4CreateCustomerRequest, Shift4CreateCustomerResponse, Shift4ErrorResponse,
-    Shift4IncrementalAuthRequest, Shift4PSyncRequest, Shift4PaymentsRequest,
+    self as shift4, Shift4AuthType, Shift4CaptureRequest, Shift4ClientAuthRequest,
+    Shift4ClientAuthResponse, Shift4CreateCustomerRequest, Shift4CreateCustomerResponse,
+    Shift4ErrorResponse, Shift4IncrementalAuthRequest, Shift4PSyncRequest, Shift4PaymentsRequest,
     Shift4PaymentsResponse as Shift4AuthorizeResponse,
     Shift4PaymentsResponse as Shift4CaptureResponse,
     Shift4PaymentsResponse as Shift4IncrementalAuthResponse,
@@ -851,6 +851,270 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Shift4<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: Authorize,
+    source: Shift4AuthorizeResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: Shift4AuthorizeResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response.status {
+            shift4::Shift4PaymentStatus::Successful => {
+                if response.captured {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+            shift4::Shift4PaymentStatus::Pending => {
+                match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
+                    Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                    Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
+                        AttemptStatus::Pending
+                    }
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: PSync,
+    source: Shift4PSyncResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: Shift4PSyncResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response.status {
+            shift4::Shift4PaymentStatus::Successful => {
+                if response.captured {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+            shift4::Shift4PaymentStatus::Pending => {
+                match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
+                    Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                    Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
+                        AttemptStatus::Pending
+                    }
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: Capture,
+    source: Shift4CaptureResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: Shift4CaptureResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response.status {
+            shift4::Shift4PaymentStatus::Successful => {
+                if response.captured {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+            shift4::Shift4PaymentStatus::Pending => {
+                match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
+                    Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                    Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
+                        AttemptStatus::Pending
+                    }
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: SetupMandate,
+    source: Shift4SetupMandateResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: Shift4SetupMandateResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        let mut status = match response.status {
+            shift4::Shift4PaymentStatus::Successful => {
+                if response.captured {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+            shift4::Shift4PaymentStatus::Pending => {
+                match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
+                    Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                    Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
+                        AttemptStatus::Pending
+                    }
+                }
+            }
+        };
+        // For zero-amount mandate setup, treat Authorized as Charged so
+        // the attempt reaches a terminal state for downstream consumers.
+        if status == AttemptStatus::Authorized {
+            status = AttemptStatus::Charged;
+        }
+        status
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: RepeatPayment,
+    source: Shift4RepeatPaymentResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: Shift4RepeatPaymentResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response.status {
+            shift4::Shift4PaymentStatus::Successful => {
+                if response.captured {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+            shift4::Shift4PaymentStatus::Pending => {
+                match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
+                    Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                    Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
+                        AttemptStatus::Pending
+                    }
+                }
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: IncrementalAuthorization,
+    source: shift4::Shift4PaymentStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized],
+    failure: none,
+    extractors: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: Shift4IncrementalAuthResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            shift4::Shift4PaymentStatus::Failed => AttemptStatus::AuthorizationFailed,
+            shift4::Shift4PaymentStatus::Successful | shift4::Shift4PaymentStatus::Pending => {
+                AttemptStatus::Authorized
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: Refund,
+    source: shift4::Shift4RefundStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: Shift4RefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            shift4::Shift4RefundStatus::Successful => RefundStatus::Success,
+            shift4::Shift4RefundStatus::Failed => RefundStatus::Failure,
+            shift4::Shift4RefundStatus::Processing => RefundStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Shift4<T>,
+    flow: RSync,
+    source: shift4::Shift4RefundStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: Shift4RSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            shift4::Shift4RefundStatus::Successful => RefundStatus::Success,
+            shift4::Shift4RefundStatus::Failed => RefundStatus::Failure,
+            shift4::Shift4RefundStatus::Processing => RefundStatus::Pending,
+        }
+    }
 }
 
 macros::macro_connector_flow_status_impls!(

@@ -48,7 +48,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-fn get_attempt_status(item: VoltPaymentStatus) -> AttemptStatus {
+pub(super) fn get_attempt_status(item: VoltPaymentStatus) -> AttemptStatus {
     match item {
         VoltPaymentStatus::Received | VoltPaymentStatus::Settled => AttemptStatus::Charged,
         VoltPaymentStatus::Completed
@@ -425,7 +425,7 @@ pub struct VoltPaymentsResponse {
     id: String,
     amount: MinorUnit,
     currency: common_enums::Currency,
-    status: VoltPaymentStatus,
+    pub status: VoltPaymentStatus,
     payment_initiation_flow: VoltPaymentInitiationFlow,
 }
 
@@ -536,7 +536,7 @@ pub enum VoltPaymentsResponseData {
 #[derive(Debug, Serialize, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPsyncResponse {
-    status: VoltPaymentStatus,
+    pub status: VoltPaymentStatus,
     id: String,
     merchant_internal_reference: Option<String>,
     amount: MinorUnit,

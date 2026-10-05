@@ -649,6 +649,263 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Stub Implementations for Unsupported Flows
 // ============================================================================
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      Authorize,
+    source:    Option<responses::DsResponse>,
+    context:   transformers::RedsysPaymentStatusContext,
+    params:    [ds_response, ctx],
+    success:   _ => [Authorized, Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: RedsysAuthorizeResponse,
+        source: |response: &RedsysAuthorizeResponse| match response {
+            responses::RedsysResponse::RedsysResponse(transaction) => {
+                crate::utils::safe_base64_decode(
+                    transaction.ds_merchant_parameters.clone().expose(),
+                )
+                .ok()
+                .and_then(|bytes| {
+                    serde_json::from_slice::<responses::RedsysPaymentsResponse>(&bytes).ok()
+                })
+                .and_then(|decoded| decoded.ds_response)
+            }
+            responses::RedsysResponse::RedsysErrorResponse(_) => None,
+        },
+        context: |request: &PaymentsAuthorizeData<T>, _response| {
+            transformers::RedsysPaymentStatusContext {
+                capture_method: request.capture_method,
+                // 3DS-ness is a resource_common_data flag the runtime extractor
+                // cannot reach; `false` reproduces the Capture/PSync call sites.
+                is_three_ds: false,
+            }
+        },
+    },
+    {
+        match ds_response {
+            Some(ds_response) => transformers::get_redsys_attempt_status(
+                ds_response,
+                ctx.capture_method,
+                ctx.is_three_ds,
+                200,
+            )
+            .unwrap_or(common_enums::AttemptStatus::Failure),
+            // No Ds_Response in the decoded payload means a 3DS redirect form was
+            // issued (get_payments_response's `else` branch).
+            None => common_enums::AttemptStatus::AuthenticationPending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      PSync,
+    source:    Option<responses::DsResponse>,
+    context:   Option<common_enums::CaptureMethod>,
+    params:    [ds_response, capture_method],
+    success:   _ => [Authorized, Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: responses::RedsysSyncResponse,
+        source: |response: &responses::RedsysSyncResponse| {
+            let message = &response
+                .body
+                .consultaoperacionesresponse
+                .consultaoperacionesreturn
+                .messages
+                .version
+                .message;
+            let latest = message
+                .response
+                .clone()
+                .and_then(|mut ops| {
+                    // Pick the latest operation the same way find_latest_response does:
+                    // max by (date, hour, transaction type).
+                    ops.sort_by(|current, next| {
+                        current
+                            .ds_date
+                            .cmp(&next.ds_date)
+                            .then(current.ds_hour.cmp(&next.ds_hour))
+                            .then(current.ds_transactiontype.cmp(&next.ds_transactiontype))
+                    });
+                    ops.into_iter()
+                        .filter(|op| op.ds_date.is_some() && op.ds_hour.is_some())
+                        .last()
+                });
+            match latest {
+                Some(op) => op.ds_response,
+                None => None,
+            }
+        },
+        context: |request: &PaymentsSyncData, _response| request.capture_method,
+    },
+    {
+        match ds_response {
+            Some(ds_response) => transformers::get_redsys_attempt_status(
+                ds_response,
+                capture_method,
+                false,
+                200,
+            )
+            .unwrap_or(common_enums::AttemptStatus::Failure),
+            // No ds_response on the latest op → the Ds_State branch already returns
+            // an in-flight status; Pending is the neutral representative.
+            None => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      Capture,
+    source:    responses::DsResponse,
+    context:   Option<common_enums::CaptureMethod>,
+    params:    [ds_response, capture_method],
+    success:   _ => [Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: RedsysCaptureResponse,
+        source: |response: &RedsysCaptureResponse| match response {
+            responses::RedsysResponse::RedsysResponse(transaction) => {
+                crate::utils::safe_base64_decode(
+                    transaction.ds_merchant_parameters.clone().expose(),
+                )
+                .ok()
+                .and_then(|bytes| {
+                    serde_json::from_slice::<responses::RedsysOperationsResponse>(&bytes)
+                        .ok()
+                })
+                .map(|decoded| decoded.ds_response)
+            }
+            responses::RedsysResponse::RedsysErrorResponse(_) => None,
+        },
+        context: |request: &PaymentsCaptureData, _response| request.capture_method,
+    },
+    {
+        transformers::get_redsys_attempt_status(ds_response, capture_method, false, 200)
+            .unwrap_or(common_enums::AttemptStatus::Failure)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      Void,
+    source:    responses::DsResponse,
+    context:   (),
+    params:    [ds_response, _ctx],
+    success:   _ => [Voided],
+    failure:   none,
+    extractors: {
+        request: PaymentVoidData,
+        response: RedsysVoidResponse,
+        source: |response: &RedsysVoidResponse| match response {
+            responses::RedsysResponse::RedsysResponse(transaction) => {
+                crate::utils::safe_base64_decode(
+                    transaction.ds_merchant_parameters.clone().expose(),
+                )
+                .ok()
+                .and_then(|bytes| {
+                    serde_json::from_slice::<responses::RedsysOperationsResponse>(&bytes)
+                        .ok()
+                })
+                .map(|decoded| decoded.ds_response)
+            }
+            responses::RedsysResponse::RedsysErrorResponse(_) => None,
+        },
+        context: |_request, _response| (),
+    },
+    {
+        transformers::get_redsys_attempt_status(ds_response, None, false, 200)
+            .unwrap_or(common_enums::AttemptStatus::VoidFailed)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      Refund,
+    source:    responses::DsResponse,
+    context:   (),
+    params:    [ds_response, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundsData,
+        response: RedsysRefundResponse,
+        source: |response: &RedsysRefundResponse| match response {
+            responses::RedsysResponse::RedsysResponse(transaction) => {
+                crate::utils::safe_base64_decode(
+                    transaction.ds_merchant_parameters.clone().expose(),
+                )
+                .ok()
+                .and_then(|bytes| {
+                    serde_json::from_slice::<responses::RedsysOperationsResponse>(&bytes)
+                        .ok()
+                })
+                .map(|decoded| decoded.ds_response)
+            }
+            responses::RedsysResponse::RedsysErrorResponse(_) => None,
+        },
+        context: |_request, _response| (),
+    },
+    {
+        transformers::refund_status_from_ds_response(ds_response, 200)
+            .unwrap_or(common_enums::RefundStatus::Failure)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Redsys<T>,
+    flow:      RSync,
+    source:    responses::DsResponse,
+    context:   (),
+    params:    [ds_response, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundSyncData,
+        response: responses::RedsysSyncResponse,
+        source: |response: &responses::RedsysSyncResponse| {
+            let message = &response
+                .body
+                .consultaoperacionesresponse
+                .consultaoperacionesreturn
+                .messages
+                .version
+                .message;
+            message
+                .response
+                .clone()
+                .and_then(|mut ops| {
+                    ops.sort_by(|current, next| {
+                        current
+                            .ds_date
+                            .cmp(&next.ds_date)
+                            .then(current.ds_hour.cmp(&next.ds_hour))
+                            .then(current.ds_transactiontype.cmp(&next.ds_transactiontype))
+                    });
+                    ops.into_iter()
+                        .filter(|op| op.ds_date.is_some() && op.ds_hour.is_some())
+                        .last()
+                })
+                .and_then(|op| op.ds_response)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        transformers::refund_status_from_ds_response(ds_response, 200)
+            .unwrap_or(common_enums::RefundStatus::Failure)
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Redsys,
     generic_type: T,

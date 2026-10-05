@@ -2097,7 +2097,7 @@ pub struct PaymentsCollectionItem {
     expiration_time: Option<String>,
     id: String,
     final_capture: Option<bool>,
-    status: PaypalPaymentStatus,
+    pub status: PaypalPaymentStatus,
     processor_response: Option<ProcessorResponse>,
 }
 
@@ -2110,8 +2110,8 @@ pub struct ProcessorResponse {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentsCollection {
-    authorizations: Option<Vec<PaymentsCollectionItem>>,
-    captures: Option<Vec<PaymentsCollectionItem>>,
+    pub authorizations: Option<Vec<PaymentsCollectionItem>>,
+    pub captures: Option<Vec<PaymentsCollectionItem>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -2124,7 +2124,7 @@ pub struct PurchaseUnitItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalThreeDsResponse {
     id: String,
-    status: PaypalOrderStatus,
+    pub status: PaypalOrderStatus,
     links: Vec<PaypalLinks>,
 }
 
@@ -2218,7 +2218,7 @@ pub struct PaypalOrdersResponse {
     // anyway: for orders it is taken from the capture/authorization status inside `purchase_units`
     // (see `TryFrom<ResponseRouterData<PaypalOrdersResponse, ..>>`).
     status: Option<PaypalOrderStatus>,
-    purchase_units: Vec<PurchaseUnitItem>,
+    pub purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
     payer: Option<Payer>,
 }
@@ -2242,8 +2242,8 @@ pub struct RedirectPurchaseUnitItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalRedirectResponse {
     id: String,
-    intent: PaypalPaymentIntent,
-    status: PaypalOrderStatus,
+    pub intent: PaypalPaymentIntent,
+    pub status: PaypalOrderStatus,
     purchase_units: Vec<RedirectPurchaseUnitItem>,
     links: Vec<PaypalLinks>,
     payment_source: Option<PaymentSourceItemResponse>,
@@ -2278,7 +2278,7 @@ pub enum NextActionCall {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalPaymentsSyncResponse {
     id: String,
-    status: PaypalPaymentStatus,
+    pub status: PaypalPaymentStatus,
     amount: OrderAmount,
     invoice_id: Option<String>,
     supplementary_data: PaypalSupplementaryData,
@@ -2962,7 +2962,7 @@ pub enum PaypalPaymentStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalCaptureResponse {
     id: String,
-    status: PaypalPaymentStatus,
+    pub status: PaypalPaymentStatus,
     amount: Option<OrderAmount>,
     invoice_id: Option<String>,
     final_capture: bool,
@@ -3094,7 +3094,7 @@ pub enum PaypalCancelStatus {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentsCancelResponse {
     id: String,
-    status: PaypalCancelStatus,
+    pub status: PaypalCancelStatus,
     amount: Option<OrderAmount>,
     invoice_id: Option<String>,
 }
@@ -3493,7 +3493,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    pub status: RefundStatus,
     amount: Option<OrderAmount>,
 }
 
@@ -3522,7 +3522,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     id: String,
-    status: RefundStatus,
+    pub status: RefundStatus,
 }
 
 impl TryFrom<ResponseRouterData<RefundSyncResponse, Self>>

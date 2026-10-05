@@ -312,9 +312,10 @@ pub enum TsysPaymentStatus {
     Fail,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TsysTransactionStatus {
+    #[default]
     Approved,
     Declined,
     Void,
@@ -616,7 +617,7 @@ pub struct TsysPSyncRequest(TsysSyncRequest);
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct TsysPSyncResponse(TsysSyncResponse);
+pub struct TsysPSyncResponse(pub TsysSyncResponse);
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -655,13 +656,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // PSync Response
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsysTransactionDetails {
     #[serde(rename = "transactionID")]
-    transaction_id: String,
-    transaction_type: String,
-    transaction_status: TsysTransactionStatus,
+    pub transaction_id: String,
+    pub transaction_type: String,
+    pub transaction_status: TsysTransactionStatus,
 }
 
 impl From<TsysTransactionDetails> for AttemptStatus {
@@ -699,7 +700,7 @@ pub enum SearchResponseTypes {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TsysSyncResponse {
-    search_transaction_response: SearchResponseTypes,
+    pub search_transaction_response: SearchResponseTypes,
 }
 
 fn get_payments_sync_response(
@@ -962,7 +963,7 @@ impl From<TsysTransactionDetails> for common_enums::enums::RefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundResponse {
-    return_response: TsysResponseTypes,
+    pub return_response: TsysResponseTypes,
 }
 
 impl TryFrom<ResponseRouterData<RefundResponse, Self>>
@@ -1001,7 +1002,7 @@ pub struct TsysRSyncRequest(TsysSyncRequest);
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct TsysRSyncResponse(TsysSyncResponse);
+pub struct TsysRSyncResponse(pub TsysSyncResponse);
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<

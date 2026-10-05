@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -504,6 +504,186 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             raw_connector_request: None,
             typed_connector_request: None,
         })
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Authorize,
+    source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: SilverflowPaymentsResponse,
+        source: |response| (
+            response.status.authorization.clone(),
+            response.status.clearing.clone(),
+        ),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            // Approved authorization - check clearing status for final determination
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
+                AttemptStatus::Charged
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
+                AttemptStatus::Authorized
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
+            | (silverflow::SilverflowAuthorizationStatus::Declined, _)
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => AttemptStatus::Failure,
+            (silverflow::SilverflowAuthorizationStatus::Pending, _)
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: PSync,
+    source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: SilverflowSyncResponse,
+        source: |response| (
+            response.status.authorization.clone(),
+            response.status.clearing.clone(),
+        ),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            // Approved authorization - check clearing status for final determination
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
+                AttemptStatus::Charged
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
+                AttemptStatus::Authorized
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
+            | (silverflow::SilverflowAuthorizationStatus::Declined, _)
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => AttemptStatus::Failure,
+            (silverflow::SilverflowAuthorizationStatus::Pending, _)
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Capture,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: SilverflowCaptureResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            silverflow::SilverflowActionStatus::Completed
+            | silverflow::SilverflowActionStatus::Success => AttemptStatus::Charged,
+            silverflow::SilverflowActionStatus::Failed => AttemptStatus::Failure,
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Void,
+    source: silverflow::SilverflowAuthorizationStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: SilverflowVoidResponse,
+        source: |response| response.status.authorization.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            silverflow::SilverflowAuthorizationStatus::Approved => AttemptStatus::Voided,
+            silverflow::SilverflowAuthorizationStatus::Declined
+            | silverflow::SilverflowAuthorizationStatus::Failed => AttemptStatus::VoidFailed,
+            silverflow::SilverflowAuthorizationStatus::Pending
+            | silverflow::SilverflowAuthorizationStatus::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Refund,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: SilverflowRefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            silverflow::SilverflowActionStatus::Success
+            | silverflow::SilverflowActionStatus::Completed => RefundStatus::Success,
+            silverflow::SilverflowActionStatus::Failed => RefundStatus::Failure,
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => RefundStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: RSync,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: SilverflowRefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            silverflow::SilverflowActionStatus::Success
+            | silverflow::SilverflowActionStatus::Completed => RefundStatus::Success,
+            silverflow::SilverflowActionStatus::Failed => RefundStatus::Failure,
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => RefundStatus::Pending,
+        }
     }
 }
 

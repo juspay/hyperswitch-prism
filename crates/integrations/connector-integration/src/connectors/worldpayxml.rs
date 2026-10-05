@@ -5,7 +5,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CaptureMethod, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
 use domain_types::{
     connector_flow::{
@@ -684,6 +684,411 @@ macros::macro_connector_local_flow_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
 );
+
+// Mirrors `map_worldpayxml_authorize_status`. A 3DS `challengeRequired` reply and an
+// inquiry-level `<error>` reply are handled before the mapper runs in the Authorize TryFrom,
+// so the extractor surfaces them as flags alongside the payment `lastEvent`. The mapper's
+// `previous_status` retention for `Unknown`/out-of-journey events is not reachable from the
+// request/response pair, so those collapse to `Pending`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: Authorize,
+    source: (bool, bool, Option<responses::WorldpayxmlLastEvent>),
+    context: bool,
+    params: [status, is_auto_capture],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: WorldpayxmlAuthorizeResponse,
+        source: |response| {
+            let reply = &response.reply;
+            let order_status = reply.order_status.as_ref();
+            let error = reply.error.is_some()
+                || order_status.is_some_and(|os| os.error.is_some());
+            let challenge = order_status.is_some_and(|os| os.challenge_required.is_some());
+            let last_event = order_status
+                .and_then(|os| os.payment.as_ref())
+                .map(|payment| payment.last_event);
+            (error, challenge, last_event)
+        },
+        context: |request, _response| {
+            request.capture_method != Some(CaptureMethod::Manual)
+                && request.capture_method != Some(CaptureMethod::ManualMultiple)
+        },
+    },
+    {
+        match status {
+            (true, _, _) => AttemptStatus::Failure,
+            (false, true, _) => AttemptStatus::AuthenticationPending,
+            (false, false, None) => AttemptStatus::Pending,
+            (false, false, Some(last_event)) => match last_event {
+                responses::WorldpayxmlLastEvent::Authorised => {
+                    if is_auto_capture {
+                        AttemptStatus::Charged
+                    } else {
+                        AttemptStatus::Authorized
+                    }
+                }
+                responses::WorldpayxmlLastEvent::Refused
+                | responses::WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
+                responses::WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+                responses::WorldpayxmlLastEvent::Captured
+                | responses::WorldpayxmlLastEvent::Settled
+                | responses::WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+                responses::WorldpayxmlLastEvent::SentForAuthorisation => {
+                    AttemptStatus::Authorizing
+                }
+                _ => AttemptStatus::Pending,
+            },
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: PSync,
+    source: (bool, Option<responses::WorldpayxmlLastEvent>),
+    context: bool,
+    params: [status, is_auto_capture],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: WorldpayxmlTransactionResponse,
+        source: |response| match response {
+            responses::WorldpayxmlTransactionResponse::Payment(xml_response) => {
+                let reply = &xml_response.reply;
+                let order_status = reply.order_status.as_ref();
+                let error = reply.error.is_some()
+                    || order_status.is_some_and(|os| {
+                        os.error.is_some() && os.payment.is_some()
+                    });
+                let last_event = order_status
+                    .and_then(|os| os.payment.as_ref())
+                    .map(|payment| payment.last_event);
+                (error, last_event)
+            }
+            responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
+                (false, Some(webhook_response.payment_status))
+            }
+        },
+        context: |request, _response| {
+            request.capture_method != Some(CaptureMethod::Manual)
+                && request.capture_method != Some(CaptureMethod::ManualMultiple)
+        },
+    },
+    {
+        match status {
+            (true, _) => AttemptStatus::Failure,
+            (false, None) => AttemptStatus::Pending,
+            (false, Some(last_event)) => match last_event {
+                responses::WorldpayxmlLastEvent::Authorised => {
+                    if is_auto_capture {
+                        AttemptStatus::Charged
+                    } else {
+                        AttemptStatus::Authorized
+                    }
+                }
+                responses::WorldpayxmlLastEvent::Refused
+                | responses::WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
+                responses::WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+                responses::WorldpayxmlLastEvent::Captured
+                | responses::WorldpayxmlLastEvent::Settled
+                | responses::WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+                responses::WorldpayxmlLastEvent::SentForAuthorisation => {
+                    AttemptStatus::Authorizing
+                }
+                _ => AttemptStatus::Pending,
+            },
+        }
+    }
+}
+
+// Mirrors `map_worldpayxml_setup_mandate_status`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: SetupMandate,
+    source: (bool, Option<responses::WorldpayxmlLastEvent>),
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: WorldpayxmlSetupMandateResponse,
+        source: |response| {
+            let reply = &response.reply;
+            let order_status = reply.order_status.as_ref();
+            let error = reply.error.is_some()
+                || order_status.is_some_and(|os| os.error.is_some());
+            let last_event = order_status
+                .and_then(|os| os.payment.as_ref())
+                .map(|payment| payment.last_event);
+            (error, last_event)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            (true, _) => AttemptStatus::Failure,
+            (false, None) => AttemptStatus::Pending,
+            (false, Some(last_event)) => match last_event {
+                responses::WorldpayxmlLastEvent::Refused
+                | responses::WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
+                responses::WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+                responses::WorldpayxmlLastEvent::Authorised
+                | responses::WorldpayxmlLastEvent::Captured
+                | responses::WorldpayxmlLastEvent::Settled
+                | responses::WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+                responses::WorldpayxmlLastEvent::SentForAuthorisation => {
+                    AttemptStatus::Authorizing
+                }
+                _ => AttemptStatus::Pending,
+            },
+        }
+    }
+}
+
+// Mirrors `map_worldpayxml_authorize_status` as used by the RepeatPayment TryFrom.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: RepeatPayment,
+    source: (bool, Option<responses::WorldpayxmlLastEvent>),
+    context: bool,
+    params: [status, is_auto_capture],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: WorldpayxmlRepeatPaymentResponse,
+        source: |response| {
+            let reply = &response.reply;
+            let order_status = reply.order_status.as_ref();
+            let error = reply.error.is_some()
+                || order_status.is_some_and(|os| os.error.is_some());
+            let last_event = order_status
+                .and_then(|os| os.payment.as_ref())
+                .map(|payment| payment.last_event);
+            (error, last_event)
+        },
+        context: |request, _response| {
+            request.capture_method != Some(CaptureMethod::Manual)
+                && request.capture_method != Some(CaptureMethod::ManualMultiple)
+        },
+    },
+    {
+        match status {
+            (true, _) => AttemptStatus::Failure,
+            (false, None) => AttemptStatus::Pending,
+            (false, Some(last_event)) => match last_event {
+                responses::WorldpayxmlLastEvent::Authorised => {
+                    if is_auto_capture {
+                        AttemptStatus::Charged
+                    } else {
+                        AttemptStatus::Authorized
+                    }
+                }
+                responses::WorldpayxmlLastEvent::Refused
+                | responses::WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
+                responses::WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+                responses::WorldpayxmlLastEvent::Captured
+                | responses::WorldpayxmlLastEvent::Settled
+                | responses::WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+                responses::WorldpayxmlLastEvent::SentForAuthorisation => {
+                    AttemptStatus::Authorizing
+                }
+                _ => AttemptStatus::Pending,
+            },
+        }
+    }
+}
+
+// WorldpayXML acknowledges a capture with `<captureReceived>`; completion is confirmed via
+// PSync, so an ack maps to `CaptureInitiated` and a reply-level error to `CaptureFailed`,
+// mirroring the Capture TryFrom.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: Capture,
+    source: bool,
+    context: (),
+    params: [acknowledged, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: WorldpayxmlCaptureResponse,
+        source: |response| {
+            if response.reply.error.is_some() {
+                false
+            } else {
+                response.reply.ok.is_some()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if acknowledged {
+            AttemptStatus::CaptureInitiated
+        } else {
+            AttemptStatus::CaptureFailed
+        }
+    }
+}
+
+// WorldpayXML acknowledges a void with `<cancelReceived>`; completion is confirmed via PSync,
+// so an ack maps to `VoidInitiated` and a reply-level error to `VoidFailed`, mirroring the
+// Void TryFrom.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: Void,
+    source: bool,
+    context: (),
+    params: [acknowledged, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: WorldpayxmlVoidResponse,
+        source: |response| {
+            if response.reply.error.is_some() {
+                false
+            } else {
+                response.reply.ok.is_some()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if acknowledged {
+            AttemptStatus::VoidInitiated
+        } else {
+            AttemptStatus::VoidFailed
+        }
+    }
+}
+
+// The VoidPC TryFrom confirms the post-capture void synchronously
+// (`PostCaptureVoidStatus::Succeeded` ⇔ `VoidedPostCapture`, `Failed` ⇔ `Failure`).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: VoidPC,
+    source: bool,
+    context: (),
+    params: [acknowledged, _ctx],
+    success: _ => [VoidedPostCapture],
+    failure: none,
+    extractors: {
+        request: PaymentsCancelPostCaptureData,
+        response: WorldpayxmlVoidPCResponse,
+        source: |response| {
+            if response.reply.error.is_some() {
+                false
+            } else {
+                response.reply.ok.is_some()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if acknowledged {
+            AttemptStatus::VoidedPostCapture
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+// WorldpayXML acknowledges a refund with `<refundReceived>` — the refund stays `Pending`
+// until RSync — while a reply-level error fails the refund in the Refund TryFrom.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: Refund,
+    source: bool,
+    context: (),
+    params: [acknowledged, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: WorldpayxmlRefundResponse,
+        source: |response| {
+            if response.reply.error.is_some() {
+                false
+            } else {
+                response.reply.ok.is_some()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if acknowledged {
+            RefundStatus::Pending
+        } else {
+            RefundStatus::Failure
+        }
+    }
+}
+
+// Mirrors `map_worldpayxml_refund_status`, driven by the inquiry `lastEvent`. The mapper's
+// `Unknown` retention of the previous refund status is mirrored through the request's
+// `refund_status`.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayxml<T>,
+    flow: RSync,
+    source: (bool, Option<responses::WorldpayxmlLastEvent>),
+    context: RefundStatus,
+    params: [status, previous_status],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: WorldpayxmlRsyncResponse,
+        source: |response| match response {
+            responses::WorldpayxmlTransactionResponse::Payment(xml_response) => {
+                let reply = &xml_response.reply;
+                let order_status = reply.order_status.as_ref();
+                let error = reply.error.is_some();
+                let last_event = order_status
+                    .and_then(|os| os.payment.as_ref())
+                    .map(|payment| payment.last_event);
+                (error, last_event)
+            }
+            responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
+                (false, Some(webhook_response.payment_status))
+            }
+        },
+        context: |request, _response| request.refund_status,
+    },
+    {
+        match status {
+            (true, _) => RefundStatus::Failure,
+            (false, None) => RefundStatus::Pending,
+            (false, Some(last_event)) => match last_event {
+                responses::WorldpayxmlLastEvent::Refunded
+                | responses::WorldpayxmlLastEvent::RefundedByMerchant => RefundStatus::Success,
+                responses::WorldpayxmlLastEvent::SentForRefund
+                | responses::WorldpayxmlLastEvent::RefundRequested
+                | responses::WorldpayxmlLastEvent::SentForFastRefund
+                | responses::WorldpayxmlLastEvent::Captured
+                | responses::WorldpayxmlLastEvent::Settled => RefundStatus::Pending,
+                responses::WorldpayxmlLastEvent::RefundFailed
+                | responses::WorldpayxmlLastEvent::Expired => RefundStatus::Failure,
+                responses::WorldpayxmlLastEvent::Unknown => previous_status,
+                _ => RefundStatus::Pending,
+            },
+        }
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Worldpayxml,

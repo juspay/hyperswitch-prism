@@ -2,6 +2,7 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums;
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     errors::CustomResult,
     events,
@@ -43,7 +44,7 @@ use serde::Serialize;
 
 use self::transformers::{
     CnpOnlineResponse, VantivSyncResponse, WorldpayvantivAuthType, WorldpayvantivPaymentsRequest,
-    BASE64_ENGINE,
+    WorldpayvantivResponseCode, BASE64_ENGINE,
 };
 
 use super::macros;
@@ -894,6 +895,335 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorSpecifications for Worldpayvantiv<T>
 {
+}
+
+// ===== FLOW STATUS MAPPINGS =====
+// Bodies mirror `get_attempt_status` / the per-flow TryFroms in transformers: the
+// approved codes (`Approved`, `PartiallyApproved`, `OfflineApproval`,
+// `TransactionReceived`) mean the operation reached the gateway (still settling),
+// everything else is a decline.
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: Authorize,
+    source: Option<WorldpayvantivResponseCode>,
+    context: transformers::WorldpayvantivPaymentFlow,
+    params: [code, flow],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .sale_response
+            .as_ref()
+            .map(|payment| payment.response)
+            .or_else(|| {
+                response
+                    .authorization_response
+                    .as_ref()
+                    .map(|payment| payment.response)
+            }),
+        context: |_request, response| {
+            if response.sale_response.is_some() {
+                transformers::WorldpayvantivPaymentFlow::Sale
+            } else {
+                transformers::WorldpayvantivPaymentFlow::Auth
+            }
+        },
+    },
+    {
+        match code {
+            None => AttemptStatus::Failure,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::PartiallyApproved)
+            | Some(WorldpayvantivResponseCode::OfflineApproval)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => match flow {
+                transformers::WorldpayvantivPaymentFlow::Sale => AttemptStatus::Pending,
+                _ => AttemptStatus::Authorizing,
+            },
+            Some(_) => match flow {
+                transformers::WorldpayvantivPaymentFlow::Sale => AttemptStatus::Failure,
+                _ => AttemptStatus::AuthorizationFailed,
+            },
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: Capture,
+    source: Option<WorldpayvantivResponseCode>,
+    context: (),
+    params: [code, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .capture_response
+            .as_ref()
+            .map(|capture| capture.response),
+        context: |_request, _response| (),
+    },
+    {
+        match code {
+            None => AttemptStatus::CaptureFailed,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::PartiallyApproved)
+            | Some(WorldpayvantivResponseCode::OfflineApproval)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => {
+                AttemptStatus::CaptureInitiated
+            }
+            Some(_) => AttemptStatus::CaptureFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: Void,
+    source: Option<WorldpayvantivResponseCode>,
+    context: (),
+    params: [code, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .auth_reversal_response
+            .as_ref()
+            .map(|reversal| reversal.response)
+            .or_else(|| response.void_response.as_ref().map(|void| void.response)),
+        context: |_request, _response| (),
+    },
+    {
+        match code {
+            None => AttemptStatus::VoidFailed,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::PartiallyApproved)
+            | Some(WorldpayvantivResponseCode::OfflineApproval)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => {
+                AttemptStatus::VoidInitiated
+            }
+            Some(_) => AttemptStatus::VoidFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: VoidPC,
+    source: Option<WorldpayvantivResponseCode>,
+    context: (),
+    params: [code, _ctx],
+    success: _ => [VoidedPostCapture],
+    failure: none,
+    extractors: {
+        request: PaymentsCancelPostCaptureData,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .void_response
+            .as_ref()
+            .map(|void| void.response),
+        context: |_request, _response| (),
+    },
+    {
+        match code {
+            None => AttemptStatus::VoidFailed,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::PartiallyApproved)
+            | Some(WorldpayvantivResponseCode::OfflineApproval)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => {
+                AttemptStatus::VoidPostCaptureInitiated
+            }
+            Some(_) => AttemptStatus::VoidFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: IncrementalAuthorization,
+    source: Option<WorldpayvantivResponseCode>,
+    context: (),
+    params: [code, _ctx],
+    success: _ => [Authorized],
+    failure: none,
+    extractors: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .authorization_response
+            .as_ref()
+            .map(|auth| auth.response),
+        context: |_request, _response| (),
+    },
+    {
+        match code {
+            None => AttemptStatus::AuthorizationFailed,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::PartiallyApproved)
+            | Some(WorldpayvantivResponseCode::OfflineApproval)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => {
+                AttemptStatus::Authorizing
+            }
+            Some(_) => AttemptStatus::AuthorizationFailed,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: Refund,
+    source: Option<WorldpayvantivResponseCode>,
+    context: (),
+    params: [code, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: CnpOnlineResponse,
+        source: |response| response
+            .credit_response
+            .as_ref()
+            .map(|credit| credit.response),
+        context: |_request, _response| (),
+    },
+    {
+        match code {
+            None => RefundStatus::Failure,
+            Some(WorldpayvantivResponseCode::Approved)
+            | Some(WorldpayvantivResponseCode::TransactionReceived) => RefundStatus::Pending,
+            Some(_) => RefundStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: PSync,
+    source: transformers::PaymentStatus,
+    context: Option<String>,
+    params: [payment_status, merchant_txn_id],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: VantivSyncResponse,
+        source: |response| match &response.payment_status {
+            transformers::PaymentStatus::NotYetProcessed => {
+                transformers::PaymentStatus::NotYetProcessed
+            }
+            transformers::PaymentStatus::ProcessedSuccessfully => {
+                transformers::PaymentStatus::ProcessedSuccessfully
+            }
+            transformers::PaymentStatus::TransactionDeclined => {
+                transformers::PaymentStatus::TransactionDeclined
+            }
+            transformers::PaymentStatus::StatusUnavailable => {
+                transformers::PaymentStatus::StatusUnavailable
+            }
+            transformers::PaymentStatus::PaymentStatusNotFound => {
+                transformers::PaymentStatus::PaymentStatusNotFound
+            }
+        },
+        context: |_request, response| {
+            response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.merchant_txn_id.clone())
+        },
+    },
+    {
+        // Mirrors determine_attempt_status_for_psync: the flow leg is read off the
+        // merchant transaction id; without it, the TryFrom's simple fallback applies.
+        let flow_type = merchant_txn_id.map(|id| {
+            let lower = id.to_lowercase();
+            if lower.contains("voidpc") {
+                transformers::WorldpayvantivPaymentFlow::VoidPC
+            } else if lower.contains("void") {
+                transformers::WorldpayvantivPaymentFlow::Void
+            } else if lower.contains("auth") {
+                transformers::WorldpayvantivPaymentFlow::Auth
+            } else if lower.contains("capture") {
+                transformers::WorldpayvantivPaymentFlow::Capture
+            } else {
+                transformers::WorldpayvantivPaymentFlow::Sale
+            }
+        });
+        match payment_status {
+            transformers::PaymentStatus::ProcessedSuccessfully => match flow_type {
+                Some(transformers::WorldpayvantivPaymentFlow::Auth) => AttemptStatus::Authorized,
+                Some(transformers::WorldpayvantivPaymentFlow::Void) => AttemptStatus::Voided,
+                Some(transformers::WorldpayvantivPaymentFlow::VoidPC) => {
+                    AttemptStatus::VoidedPostCapture
+                }
+                _ => AttemptStatus::Charged,
+            },
+            transformers::PaymentStatus::TransactionDeclined => match flow_type {
+                Some(transformers::WorldpayvantivPaymentFlow::Auth) => {
+                    AttemptStatus::AuthorizationFailed
+                }
+                Some(transformers::WorldpayvantivPaymentFlow::Void)
+                | Some(transformers::WorldpayvantivPaymentFlow::VoidPC) => AttemptStatus::VoidFailed,
+                _ => AttemptStatus::Failure,
+            },
+            // NotYetProcessed / StatusUnavailable / PaymentStatusNotFound retain the
+            // current status in the TryFrom, which the mapping cannot observe.
+            _ => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
+    connector: Worldpayvantiv<T>,
+    flow: RSync,
+    source: transformers::PaymentStatus,
+    context: (),
+    params: [payment_status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: VantivSyncResponse,
+        source: |response| match &response.payment_status {
+            transformers::PaymentStatus::NotYetProcessed => {
+                transformers::PaymentStatus::NotYetProcessed
+            }
+            transformers::PaymentStatus::ProcessedSuccessfully => {
+                transformers::PaymentStatus::ProcessedSuccessfully
+            }
+            transformers::PaymentStatus::TransactionDeclined => {
+                transformers::PaymentStatus::TransactionDeclined
+            }
+            transformers::PaymentStatus::StatusUnavailable => {
+                transformers::PaymentStatus::StatusUnavailable
+            }
+            transformers::PaymentStatus::PaymentStatusNotFound => {
+                transformers::PaymentStatus::PaymentStatusNotFound
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match payment_status {
+            transformers::PaymentStatus::ProcessedSuccessfully => RefundStatus::Success,
+            transformers::PaymentStatus::TransactionDeclined => RefundStatus::Failure,
+            // The TryFrom retains the current refund status for other statuses.
+            _ => RefundStatus::Pending,
+        }
+    }
 }
 
 macros::macro_connector_flow_status_impls!(

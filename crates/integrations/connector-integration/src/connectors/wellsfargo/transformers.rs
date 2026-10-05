@@ -1718,7 +1718,7 @@ fn is_payment_successful(
 
 /// Maps Wells Fargo payment status to AttemptStatus
 /// The capture flag affects interpretation: Authorized+capture=true → Charged
-fn map_attempt_status(
+pub(super) fn map_attempt_status(
     status: &Option<WellsfargoPaymentStatus>,
     capture: bool,
     error_info: &Option<WellsfargoErrorInformation>,
@@ -1768,7 +1768,7 @@ fn map_attempt_status(
 }
 
 /// Maps Wells Fargo payment status to RefundStatus
-fn get_refund_status(
+pub(super) fn get_refund_status(
     status: &Option<WellsfargoPaymentStatus>,
     error_info: &Option<WellsfargoErrorInformation>,
 ) -> RefundStatus {

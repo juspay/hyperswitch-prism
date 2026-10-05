@@ -29,7 +29,7 @@ use super::macros;
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_utils::types::StringMajorUnit;
-use transformers::*;
+use transformers::{self as payhere, *};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use crate::with_error_response_body;
@@ -238,6 +238,40 @@ macros::macro_connector_payout_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payhere<T>,
+    flow:      PSync,
+    source:    payhere::PayherePaymentStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: PayhereSyncResponse,
+        source: |response| {
+            response
+                .data
+                .as_ref()
+                .and_then(|payments| payments.first())
+                .map(|payment| payment.status)
+                .unwrap_or(payhere::PayherePaymentStatus::Unknown)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            payhere::PayherePaymentStatus::Received
+            | payhere::PayherePaymentStatus::RefundRequested
+            | payhere::PayherePaymentStatus::RefundProcessing
+            | payhere::PayherePaymentStatus::Refunded
+            | payhere::PayherePaymentStatus::Chargebacked => common_enums::AttemptStatus::Charged,
+            payhere::PayherePaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],

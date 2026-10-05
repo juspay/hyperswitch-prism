@@ -419,7 +419,16 @@ where
     }
 }
 
-fn get_redsys_attempt_status(
+/// Context needed to disambiguate a `DsResponse` into an `AttemptStatus` whose
+/// value depends on the payment's capture mode (and, for soft declines, whether
+/// 3DS was requested). Used by the flow-status mapping macro blocks in `redsys.rs`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RedsysPaymentStatusContext {
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub is_three_ds: bool,
+}
+
+pub(crate) fn get_redsys_attempt_status(
     ds_response: responses::DsResponse,
     capture_method: Option<enums::CaptureMethod>,
     is_three_ds: bool,
@@ -479,7 +488,7 @@ fn get_redsys_attempt_status(
     }
 }
 
-fn refund_status_from_ds_response(
+pub(crate) fn refund_status_from_ds_response(
     ds_response: responses::DsResponse,
     http_status: u16,
 ) -> Result<common_enums::RefundStatus, ResponseError> {

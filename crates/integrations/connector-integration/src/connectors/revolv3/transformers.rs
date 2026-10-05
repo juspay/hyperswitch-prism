@@ -729,7 +729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Revolv3PaymentsResponse {
     Sale(Revolv3SaleResponse),
@@ -737,7 +737,7 @@ pub enum Revolv3PaymentsResponse {
 }
 
 // Note: An authorization request does not create an invoice
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3AuthorizeResponse {
     pub network_transaction_id: Option<String>,
@@ -750,7 +750,7 @@ pub struct Revolv3AuthorizeResponse {
     pub auth_code: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3SaleResponse {
     pub invoice_id: i64,
@@ -895,7 +895,7 @@ impl Revolv3AuthorizeResponse {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum InvoiceStatus {
     Paid,
@@ -958,7 +958,7 @@ pub struct Revolv3PaymentSyncResponse {
     pub invoice_attempts: Option<Vec<Revolv3InvoiceAttempt>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3PaymentMethodResponse {
     pub payment_method_id: Option<i64>,
@@ -1113,7 +1113,7 @@ pub struct RefundInvoice {
     pub invoice_status: RefundInvoiceStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum RefundInvoiceStatus {
     Refund,
@@ -1578,7 +1578,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Revolv3RepeatPaymentResponse {
     Sale(Revolv3SaleResponse),

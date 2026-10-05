@@ -1248,6 +1248,49 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Refund: source is the refund's own status; stripe refunds have a Failed
+// terminal so failure targets are not declared here (the From impl drives it).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      Refund,
+    source:    stripe::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        common_enums::RefundStatus::from(status)
+    }
+}
+
+// RSync mirrors Refund — same `RefundResponse` shape on the sync RPC.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      RSync,
+    source:    stripe::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        common_enums::RefundStatus::from(status)
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Stripe,
     generic_type: T,

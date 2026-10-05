@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -451,6 +451,232 @@ macros::macro_connector_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: Authorize,
+    source: (Option<travelhub::TravelhubResult>, bool),
+    context: Option<common_enums::CaptureMethod>,
+    params: [source, capture_method],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TravelhubAuthorizeResponse,
+        source: |response| {
+            let is_redirect = response
+                .response3ds
+                .as_ref()
+                .and_then(|r3ds| r3ds.acs_url.as_ref())
+                .is_some();
+            (response.result.clone(), is_redirect)
+        },
+        context: |request, _response| request.capture_method,
+    },
+    {
+        let (result, is_redirect) = source;
+        let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+        if is_redirect {
+            AttemptStatus::AuthenticationPending
+        } else {
+            match result {
+                travelhub::TravelhubResult::Approved => {
+                    if crate::utils::is_manual_capture(capture_method) {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                travelhub::TravelhubResult::Captured | travelhub::TravelhubResult::Settled => {
+                    AttemptStatus::Charged
+                }
+                travelhub::TravelhubResult::Declined
+                | travelhub::TravelhubResult::Error
+                | travelhub::TravelhubResult::Invalid => AttemptStatus::Failure,
+                travelhub::TravelhubResult::Cancelled => AttemptStatus::Voided,
+                travelhub::TravelhubResult::Refunded => AttemptStatus::Charged,
+                travelhub::TravelhubResult::Redirected
+                | travelhub::TravelhubResult::Pending
+                | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: Capture,
+    source: Option<travelhub::TravelhubResult>,
+    context: (),
+    params: [result, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: TravelhubCaptureResponse,
+        source: |response| response.result.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+        match result {
+            // An approved capture leg means the funds are captured at TravelHub (Charged),
+            // not merely held (Authorized).
+            travelhub::TravelhubResult::Approved
+            | travelhub::TravelhubResult::Captured
+            | travelhub::TravelhubResult::Settled => AttemptStatus::Charged,
+            travelhub::TravelhubResult::Declined
+            | travelhub::TravelhubResult::Error
+            | travelhub::TravelhubResult::Invalid => AttemptStatus::CaptureFailed,
+            travelhub::TravelhubResult::Cancelled => AttemptStatus::Voided,
+            travelhub::TravelhubResult::Refunded => AttemptStatus::Charged,
+            travelhub::TravelhubResult::Redirected
+            | travelhub::TravelhubResult::Pending
+            | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: Void,
+    source: Option<travelhub::TravelhubResult>,
+    context: (),
+    params: [result, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: TravelhubVoidResponse,
+        source: |response| response.result.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+        match result {
+            // An approved cancel is the void success path at TravelHub.
+            travelhub::TravelhubResult::Approved | travelhub::TravelhubResult::Cancelled => {
+                AttemptStatus::Voided
+            }
+            travelhub::TravelhubResult::Declined
+            | travelhub::TravelhubResult::Error
+            | travelhub::TravelhubResult::Invalid => AttemptStatus::VoidFailed,
+            travelhub::TravelhubResult::Captured
+            | travelhub::TravelhubResult::Settled
+            | travelhub::TravelhubResult::Refunded => AttemptStatus::Charged,
+            travelhub::TravelhubResult::Redirected
+            | travelhub::TravelhubResult::Pending
+            | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: PSync,
+    source: Option<travelhub::TravelhubResult>,
+    context: Option<common_enums::CaptureMethod>,
+    params: [result, capture_method],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TravelhubPSyncResponse,
+        source: |response| response.result.clone(),
+        context: |request, _response| request.capture_method,
+    },
+    {
+        let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+        match result {
+            travelhub::TravelhubResult::Approved => {
+                if crate::utils::is_manual_capture(capture_method) {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Charged
+                }
+            }
+            travelhub::TravelhubResult::Captured | travelhub::TravelhubResult::Settled => {
+                AttemptStatus::Charged
+            }
+            travelhub::TravelhubResult::Declined
+            | travelhub::TravelhubResult::Error
+            | travelhub::TravelhubResult::Invalid => AttemptStatus::Failure,
+            travelhub::TravelhubResult::Cancelled => AttemptStatus::Voided,
+            travelhub::TravelhubResult::Refunded => AttemptStatus::Charged,
+            travelhub::TravelhubResult::Redirected
+            | travelhub::TravelhubResult::Pending
+            | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: Refund,
+    source: Option<travelhub::TravelhubResult>,
+    context: (),
+    params: [result, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: TravelhubRefundResponse,
+        source: |response| response.result.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match result.unwrap_or(travelhub::TravelhubResult::Pending) {
+            travelhub::TravelhubResult::Approved
+            | travelhub::TravelhubResult::Refunded
+            | travelhub::TravelhubResult::Settled => RefundStatus::Success,
+            travelhub::TravelhubResult::Declined
+            | travelhub::TravelhubResult::Error
+            | travelhub::TravelhubResult::Invalid => RefundStatus::Failure,
+            travelhub::TravelhubResult::Captured
+            | travelhub::TravelhubResult::Redirected
+            | travelhub::TravelhubResult::Cancelled
+            | travelhub::TravelhubResult::Pending
+            | travelhub::TravelhubResult::Unknown => RefundStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Travelhub<T>,
+    flow: RSync,
+    source: Option<travelhub::TravelhubResult>,
+    context: (),
+    params: [result, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: TravelhubRSyncResponse,
+        source: |response| response.result.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match result.unwrap_or(travelhub::TravelhubResult::Pending) {
+            travelhub::TravelhubResult::Approved
+            | travelhub::TravelhubResult::Refunded
+            | travelhub::TravelhubResult::Settled => RefundStatus::Success,
+            travelhub::TravelhubResult::Declined
+            | travelhub::TravelhubResult::Error
+            | travelhub::TravelhubResult::Invalid => RefundStatus::Failure,
+            travelhub::TravelhubResult::Captured
+            | travelhub::TravelhubResult::Redirected
+            | travelhub::TravelhubResult::Cancelled
+            | travelhub::TravelhubResult::Pending
+            | travelhub::TravelhubResult::Unknown => RefundStatus::Pending,
+        }
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Travelhub,

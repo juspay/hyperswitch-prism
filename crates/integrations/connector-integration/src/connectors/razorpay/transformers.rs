@@ -775,6 +775,20 @@ pub enum RazorpayStatus {
     Failed,
 }
 
+impl From<crate::connectors::razorpayv2::transformers::RazorpayStatus> for RazorpayStatus {
+    fn from(status: crate::connectors::razorpayv2::transformers::RazorpayStatus) -> Self {
+        match status {
+            crate::connectors::razorpayv2::transformers::RazorpayStatus::Created => Self::Created,
+            crate::connectors::razorpayv2::transformers::RazorpayStatus::Authorized => {
+                Self::Authorized
+            }
+            crate::connectors::razorpayv2::transformers::RazorpayStatus::Captured => Self::Captured,
+            crate::connectors::razorpayv2::transformers::RazorpayStatus::Refunded => Self::Refunded,
+            crate::connectors::razorpayv2::transformers::RazorpayStatus::Failed => Self::Failed,
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CaptureMethod {

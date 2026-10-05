@@ -1041,7 +1041,7 @@ pub enum TesouroApiResponse<T> {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TesouroApiSuccess<T> {
-    data: T,
+    pub data: T,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1324,13 +1324,13 @@ fn success_transaction_response(
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroVerifyAccountData {
-    verify_account: TesouroVerifyAccountResponse,
+    pub verify_account: TesouroVerifyAccountResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroVerifyAccountResponse {
-    verify_account_response: Option<VerifyAccountResponseType>,
+    pub verify_account_response: Option<VerifyAccountResponseType>,
     errors: Option<Vec<TesouroTransactionErrorData>>,
 }
 
@@ -1413,13 +1413,13 @@ pub struct TesouroAuthorizeData {
     /// `authorizeCustomerInitiatedTransaction`; the alias picks up the RepeatPayment
     /// mutation, which returns the same shape under `authorizeRecurring`.
     #[serde(alias = "authorizeRecurring")]
-    authorize_customer_initiated_transaction: AuthorizationInnerResponse,
+    pub authorize_customer_initiated_transaction: AuthorizationInnerResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizationInnerResponse {
-    authorization_response: Option<AuthorizationResponseData>,
+    pub authorization_response: Option<AuthorizationResponseData>,
     errors: Option<Vec<TesouroTransactionErrorData>>,
 }
 
@@ -1435,7 +1435,7 @@ pub struct AuthorizationResponseData {
     pub activity_date: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AuthorizeTransactionResponseType {
     AuthorizationApproval,
@@ -1640,7 +1640,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroSyncData {
-    payment_transaction: TesouroPaymentTransactionResponse,
+    pub payment_transaction: TesouroPaymentTransactionResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1653,7 +1653,7 @@ pub struct TesouroPaymentTransactionResponse {
     pub processor_response_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum TesouroSyncStatus {
     AcceptedSale,
     ApprovedAuthorization,

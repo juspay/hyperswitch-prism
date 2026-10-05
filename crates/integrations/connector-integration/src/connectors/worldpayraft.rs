@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
@@ -449,6 +449,172 @@ macros::macro_connector_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
+// The (String, String) source is (return_code, response_code) lifted off the
+// per-flow response envelope, scoped to the credit/debit inner block that the
+// TryFrom selects. Success is `ReturnCode == "0000" && ResponseCode == "000"`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Authorize,
+    source: (String, String),
+    context: (),
+    params: [codes, _ctx],
+    success: _ => [Authorized],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: WorldpayraftAuthorizeResponse,
+        source: |response| match response {
+            WorldpayraftAuthorizeResponse::Credit { creditauthresponse } => (
+                creditauthresponse.return_code.clone(),
+                creditauthresponse.response_code.clone(),
+            ),
+            WorldpayraftAuthorizeResponse::Debit {
+                debitpreauthresponse,
+            } => (
+                debitpreauthresponse.return_code.clone(),
+                debitpreauthresponse.response_code.clone(),
+            ),
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if codes.0 == "0000" && codes.1 == "000" {
+            AttemptStatus::Authorized
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Capture,
+    source: (String, String),
+    context: (),
+    params: [codes, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: WorldpayraftCaptureResponse,
+        source: |response| match response {
+            WorldpayraftCaptureResponse::Credit {
+                creditcompletionresponse,
+            } => (
+                creditcompletionresponse.return_code.clone(),
+                creditcompletionresponse.response_code.clone(),
+            ),
+            WorldpayraftCaptureResponse::Debit {
+                debitcompletionresponse,
+            } => (
+                debitcompletionresponse.return_code.clone(),
+                debitcompletionresponse.response_code.clone(),
+            ),
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if codes.0 == "0000" && codes.1 == "000" {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Refund,
+    source: (String, String),
+    context: (),
+    params: [codes, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: WorldpayraftRefundResponse,
+        source: |response| match response {
+            WorldpayraftRefundResponse::Credit {
+                creditrefundresponse,
+            } => (
+                creditrefundresponse.return_code.clone(),
+                creditrefundresponse.response_code.clone(),
+            ),
+            WorldpayraftRefundResponse::Debit {
+                debitrefundresponse,
+            } => (
+                debitrefundresponse.return_code.clone(),
+                debitrefundresponse.response_code.clone(),
+            ),
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if codes.0 == "0000" && codes.1 == "000" {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: SetupMandate,
+    source: (String, String),
+    context: (),
+    params: [codes, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: WorldpayraftSetupMandateResponse,
+        source: |response| {
+            let inner = &response.tokenizeresponse;
+            (inner.return_code.clone(), inner.response_code.clone())
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if codes.0 == "0000" && codes.1 == "000" {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: RepeatPayment,
+    source: (String, String),
+    context: (),
+    params: [codes, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: WorldpayraftRepeatPaymentResponse,
+        source: |response| {
+            let inner = &response.creditauthresponse;
+            (inner.return_code.clone(), inner.response_code.clone())
+        },
+        context: |_request, _response| (),
+    },
+    {
+        if codes.0 == "0000" && codes.1 == "000" {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
 // not_implemented: flows that will be implemented later
 // not_supported: flows that Worldpay RAFT does not support
 crate::connectors::macros::macro_connector_flow_status_impls!(

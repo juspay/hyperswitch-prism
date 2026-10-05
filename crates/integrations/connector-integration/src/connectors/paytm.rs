@@ -243,9 +243,63 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paytm<T>,
+    flow: Authorize,
+    source: String,
+    context: (),
+    params: [result_code, _ctx],
+    success: _ => [Authorized],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: PaytmProcessTxnResponse,
+        source: |response| match &response.body {
+            response::PaytmProcessRespBodyTypes::SuccessBody(body) => {
+                body.result_info.result_code.clone()
+            }
+            response::PaytmProcessRespBodyTypes::FailureBody(body) => {
+                body.result_info.result_code.clone()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        paytm::map_paytm_authorize_status_to_attempt_status(&result_code)
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Paytm<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paytm<T>,
+    flow: PSync,
+    source: String,
+    context: (),
+    params: [result_code, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: PaytmTransactionStatusResponse,
+        source: |response| match &response.body {
+            response::PaytmTransactionStatusRespBodyTypes::SuccessBody(body) => {
+                body.result_info.result_code.clone()
+            }
+            response::PaytmTransactionStatusRespBodyTypes::FailureBody(body) => {
+                body.result_info.result_code.clone()
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        paytm::map_paytm_sync_status_to_attempt_status(&result_code)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

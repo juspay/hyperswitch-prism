@@ -660,6 +660,52 @@ macros::macro_connector_implementation!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Qwikcilver<T>,
+    flow:      Authorize,
+    source:    i64,
+    context:   (),
+    params:    [response_code, _ctx],
+    success:   _ => [Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: QwikcilverRedeemResponse,
+        source: |response| response.response_code,
+        context: |_request, _response| (),
+    },
+    {
+        match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => common_enums::AttemptStatus::Charged,
+            _ => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Qwikcilver<T>,
+    flow:      Refund,
+    source:    i64,
+    context:   (),
+    params:    [response_code, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundsData,
+        response: QwikcilverCancelRedeemResponse,
+        source: |response| response.response_code,
+        context: |_request, _response| (),
+    },
+    {
+        match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => common_enums::RefundStatus::Success,
+            _ => common_enums::RefundStatus::Failure,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Qwikcilver,
     generic_type: T,

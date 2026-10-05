@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
@@ -573,6 +573,241 @@ macros::macro_connector_payout_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: Authorize,
+    source: saferpay::SaferpayTransactionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: SaferpayAuthorizeResponse,
+        source: |response| {
+            response
+                .0
+                .transaction
+                .as_ref()
+                .and_then(|transaction| transaction.status)
+                .unwrap_or(saferpay::SaferpayTransactionStatus::Unknown)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            saferpay::SaferpayTransactionStatus::Authorized => AttemptStatus::Authorized,
+            saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Voided,
+            saferpay::SaferpayTransactionStatus::Pending
+            | saferpay::SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: PSync,
+    source: saferpay::SaferpayTransactionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: SaferpayPSyncResponse,
+        source: |response| {
+            response
+                .0
+                .transaction
+                .as_ref()
+                .and_then(|transaction| transaction.status)
+                .unwrap_or(saferpay::SaferpayTransactionStatus::Unknown)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            saferpay::SaferpayTransactionStatus::Authorized => AttemptStatus::Authorized,
+            saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Voided,
+            saferpay::SaferpayTransactionStatus::Pending | saferpay::SaferpayTransactionStatus::Unknown => {
+                AttemptStatus::Pending
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: Capture,
+    source: saferpay::SaferpayTransactionStatus,
+    context: bool,
+    params: [status, is_partial],
+    success: _ => [Charged, PartialCharged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: SaferpayCaptureResponse,
+        source: |response| {
+            response
+                .status
+                .unwrap_or(saferpay::SaferpayTransactionStatus::Unknown)
+        },
+        context: |request, _response| {
+            // Capture carries only the amount being captured: full capture when the
+            // caller supplies the authorization total and it matches, partial
+            // otherwise (mirrors the conservative default in the TryFrom impl).
+            let authorized_amount = request
+                .connector_feature_data
+                .as_ref()
+                .and_then(|metadata| {
+                    hyperswitch_masking::PeekInterface::peek(metadata)
+                        .get(saferpay::AUTHORIZED_AMOUNT_METADATA_KEY)
+                })
+                .and_then(|value| {
+                    value
+                        .as_str()
+                        .and_then(|amount| amount.parse::<i64>().ok())
+                        .or_else(|| value.as_i64())
+                });
+            authorized_amount
+                .map(|amount| amount > request.minor_amount_to_capture.get_amount_as_i64())
+                .unwrap_or(true)
+        },
+    },
+    {
+        match status {
+            saferpay::SaferpayTransactionStatus::Captured if is_partial => AttemptStatus::PartialCharged,
+            saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Failure,
+            saferpay::SaferpayTransactionStatus::Authorized
+            | saferpay::SaferpayTransactionStatus::Pending
+            | saferpay::SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: Void,
+    source: (),
+    context: (),
+    params: [_ack, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: SaferpayVoidResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::Voided
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: PreAuthenticate,
+    source: (),
+    context: (),
+    params: [_ack, _ctx],
+    success: _ => [AuthenticationSuccessful],
+    failure: none,
+    extractors: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: SaferpayPreAuthenticateResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::AuthenticationPending
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: Refund,
+    source: saferpay::SaferpayTransactionStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: SaferpayRefundResponse,
+        source: |response| {
+            response
+                .0
+                .transaction
+                .as_ref()
+                .and_then(|transaction| transaction.status)
+                .unwrap_or(saferpay::SaferpayTransactionStatus::Unknown)
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            saferpay::SaferpayTransactionStatus::Captured => RefundStatus::Success,
+            saferpay::SaferpayTransactionStatus::Authorized
+            | saferpay::SaferpayTransactionStatus::Pending
+            | saferpay::SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
+            saferpay::SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Saferpay<T>,
+    flow: RSync,
+    source: SaferpayRefundSyncResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: SaferpayRefundSyncResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response {
+            SaferpayRefundSyncResponse::Settled(capture) => {
+                match capture.status.unwrap_or(saferpay::SaferpayTransactionStatus::Unknown) {
+                    saferpay::SaferpayTransactionStatus::Captured => RefundStatus::Success,
+                    saferpay::SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
+                    saferpay::SaferpayTransactionStatus::Authorized
+                    | saferpay::SaferpayTransactionStatus::Pending
+                    | saferpay::SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
+                }
+            }
+            SaferpayRefundSyncResponse::Inquired(inquired) => {
+                match inquired
+                    .transaction
+                    .as_ref()
+                    .and_then(|transaction| transaction.status)
+                    .unwrap_or(saferpay::SaferpayTransactionStatus::Unknown)
+                {
+                    saferpay::SaferpayTransactionStatus::Captured => RefundStatus::Success,
+                    saferpay::SaferpayTransactionStatus::Authorized
+                    | saferpay::SaferpayTransactionStatus::Pending
+                    | saferpay::SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
+                    saferpay::SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
+                }
+            }
+        }
+    }
+}
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // Everything outside Authorize / PSync / Capture / Void / Refund / RSync is stubbed:
