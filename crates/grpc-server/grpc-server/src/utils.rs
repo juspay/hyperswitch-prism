@@ -831,6 +831,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                return_typed_connector_data: config.common.return_typed_connector_data,
                 masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
@@ -975,7 +976,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1005,7 +1006,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1037,7 +1038,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1238,6 +1239,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                return_typed_connector_data: config.common.return_typed_connector_data,
                 masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,

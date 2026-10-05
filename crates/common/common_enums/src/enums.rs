@@ -885,6 +885,96 @@ pub enum BankNames {
     Seb,
     Swedbank,
     MockUkPayments,
+    Abanca,
+    AlmBrand,
+    AlphaFx,
+    ArbejdernesLandsbank,
+    ArbuthnotLatham,
+    BancoPopular,
+    BankPocztowy,
+    Bankia,
+    BnBank,
+    CaterAllen,
+    ChelseaBuildingSociety,
+    Citadele,
+    CoopPank,
+    CooperativeBank,
+    Cumberland,
+    DabBank,
+    DjurslandsBank,
+    Dnb,
+    EtneSparebank,
+    FanaSparebank,
+    FidorBank,
+    FlekkefjordSparebank,
+    ForexBank,
+    HaugesundSparebank,
+    HoareAndCo,
+    IcaBanken,
+    JyskeBank,
+    KleinwortHambros,
+    KlpBanken,
+    Kreditbanken,
+    LandkredittBank,
+    Lansforsakringar,
+    LhvPank,
+    LillesandsSparebank,
+    Luminor,
+    LusterSparebank,
+    MetroBank,
+    NordfynsBank,
+    NordjyskeBank,
+    Norisbank,
+    NykreditBank,
+    ObosBanken,
+    OrangeFinanse,
+    ParetoBank,
+    PkoBankPolski,
+    RingkjobingLandbobank,
+    Sbanken,
+    SiauliuBankas,
+    SiliconValleyBank,
+    Skandiabanken,
+    SkjernBank,
+    SkudenesOgAakraSparebank,
+    SogneOgGreipstadSparebank,
+    SparNordBank,
+    SparbankenSyd,
+    SpardaBank,
+    SpareBank1,
+    SparebankenMore,
+    SparebankenOst,
+    SparebankenSognOgFjordane,
+    SparebankenSor,
+    SparebankenVest,
+    SparekassenDanmark,
+    SparekassenSjaellandFyn,
+    Spareskillingsbanken,
+    Sydbank,
+    VanquisBank,
+    VestjyskBank,
+    VossSparebank,
+    YorkshireBuildingSociety,
+    SpareBank1Gudbrandsdal,
+    SpareBank1HallingdalValdres,
+    SpareBank1LomOgSkjak,
+    SpareBank1Modum,
+    SpareBank1Nordmore,
+    SpareBank1RingerikeHadeland,
+    SpareBank1Smn,
+    SpareBank1SrBank,
+    SpareBank1SoreSunnmore,
+    SpareBank1SorostNorgeBv,
+    SpareBank1SorostNorgeTelemark,
+    SpareBank1OstfoldAkershus,
+    SpareBank1Ostlandet,
+    CitiHandlowy,
+    DeutscheBankPolska,
+    IngBankSlaski,
+    IngDiba,
+    NordeaDirect,
+    SantanderUk,
+    SwedbankSparbankerna,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1549,6 +1639,7 @@ pub enum PaymentMethodType {
     Paymaya,
     Payhere,
     QwikcilverWallet,
+    Ted,
 }
 
 impl PaymentMethodType {
@@ -2066,6 +2157,75 @@ impl CardNetwork {
     pub fn is_us_local_network(&self) -> bool {
         matches!(self, Self::Star | Self::Pulse | Self::Accel | Self::Nyce)
     }
+}
+
+/// The funding type of a card (credit, debit, prepaid, etc.)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FundingSource {
+    Credit,
+    Debit,
+    #[serde(rename = "DEFERRED DEBIT")]
+    #[strum(serialize = "DEFERRED DEBIT")]
+    DeferredDebit,
+    Prepaid,
+    #[serde(rename = "CHARGE CARD")]
+    #[strum(serialize = "CHARGE CARD")]
+    ChargeCard,
+}
+
+/// The segment/category of a card (consumer vs commercial/business/government)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardSegmentType {
+    Business,
+    Commercial,
+    Consumer,
+    Government,
+}
+
+/// The type of card from the issuer's perspective
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardType {
+    Credit,
+    Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.

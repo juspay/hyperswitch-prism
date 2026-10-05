@@ -847,6 +847,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -1358,6 +1363,11 @@ pub struct ApplePayDecryptedData {
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+    /// Apple Pay merchant token identifier — present for merchant-provisioned
+    /// tokens (MPAN) only; stable per card x device x merchant
+    pub merchant_token_identifier: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1462,6 +1472,17 @@ impl ApplePayDecryptedData {
         let year = self.get_four_digit_expiry_year();
         let month = self.application_expiration_month.clone().expose();
         Secret::new(format!("{month}{separator}{}", year.peek()))
+    }
+
+    /// Get the device manufacturer identifier, erroring out when it is absent.
+    pub fn get_device_manufacturer_identifier(
+        &self,
+    ) -> error_stack::Result<Secret<String>, ValidationError> {
+        self.device_manufacturer_identifier.clone().ok_or_else(|| {
+            error_stack::report!(ValidationError::MissingRequiredField {
+                field_name: "device_manufacturer_identifier".to_string(),
+            })
+        })
     }
 }
 
@@ -1630,6 +1651,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]

@@ -58,7 +58,9 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {
@@ -560,7 +562,7 @@
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Trustly { country: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None })."
       },
       "Twint": {
         "status": "not_implemented",
