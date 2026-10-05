@@ -528,7 +528,7 @@ macro_rules! impl_flow_status_mapping {
                 request: $request,
                 response: $response,
                 source: $source_from,
-                context: |_request, _response| (),
+                context: |_resource_common_data, _request, _response| (),
             },
             $body
         }
@@ -594,7 +594,7 @@ macro_rules! impl_flow_status_mapping {
                 request: $request,
                 response: $response,
                 source: $source_from,
-                context: |_request, _response| (),
+                context: |_resource_common_data, _request, _response| (),
             },
             $body
         }
@@ -1640,7 +1640,7 @@ macro_rules! impl_refund_flow_status_mapping {
                 request: $request,
                 response: $response,
                 source: $source_from,
-                context: |_request, _response| (),
+                context: |_resource_common_data, _request, _response| (),
             },
             $body
         }
@@ -1706,7 +1706,7 @@ macro_rules! impl_refund_flow_status_mapping {
                 request: $request,
                 response: $response,
                 source: $source_from,
-                context: |_request, _response| (),
+                context: |_resource_common_data, _request, _response| (),
             },
             $body
         }
