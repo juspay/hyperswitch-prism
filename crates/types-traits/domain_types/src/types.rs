@@ -11022,6 +11022,29 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
                     .collect()
             })
             .unwrap_or_default();
+        let dispute_minor_amount = common_utils::types::AmountConvertor::convert_back(
+            &common_utils::types::StringMinorUnitForConnector,
+            value.amount.clone(),
+            value.currency,
+        )
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to convert dispute webhook amount to minor units".to_string(),
+                ),
+                ..Default::default()
+            },
+        })?;
+        let dispute_currency = grpc_api_types::payments::Currency::foreign_try_from(value.currency)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "dispute_amount.currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert dispute webhook currency to gRPC Currency".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Ok(Self {
             connector_dispute_id: Some(value.dispute_id),
             connector_transaction_id: None,
@@ -11029,7 +11052,10 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(grpc_api_types::payments::Money {
+                minor_amount: dispute_minor_amount.get_amount_as_i64(),
+                currency: dispute_currency.into(),
+            }),
             dispute_date: None,
             service_date: None,
             shipping_date: None,

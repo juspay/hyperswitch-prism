@@ -41,6 +41,7 @@ pub fn generate_signature(
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "airwallex" => generate_airwallex_signature(payload, secret, ctx.timestamp),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
 }
@@ -71,6 +72,36 @@ fn generate_phonepe_signature(
     }
 
     Ok(format!("{hex_hash}###{key_index}"))
+}
+
+/// Generate Airwallex webhook `x-signature`.
+///
+/// Airwallex signs `x-timestamp ++ body` (timestamp string first, no separator)
+/// with HMAC-SHA256 and sends the lowercase hex digest. The timestamp must be the
+/// exact `x-timestamp` header value of the request, so there is no "now" fallback.
+fn generate_airwallex_signature(
+    payload: &[u8],
+    secret: &str,
+    timestamp: Option<i64>,
+) -> Result<String, String> {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    let timestamp =
+        timestamp.ok_or_else(|| "airwallex signature needs the x-timestamp header".to_string())?;
+
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+        .map_err(|e| format!("Failed to create HMAC: {e}"))?;
+    mac.update(timestamp.to_string().as_bytes());
+    mac.update(payload);
+    let signature_bytes = mac.finalize().into_bytes();
+
+    let mut hex_signature = String::with_capacity(signature_bytes.len() * 2);
+    for byte in signature_bytes {
+        write!(&mut hex_signature, "{byte:02x}")
+            .map_err(|e| format!("Failed to write hex: {e}"))?;
+    }
+    Ok(hex_signature)
 }
 
 /// Generate Stripe webhook signature
