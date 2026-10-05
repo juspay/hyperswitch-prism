@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.28.1-hotfix3
+
+### Bug Fixes
+
+- **ci:** Resolve Rust 1.99 workspace clippy failures ([#2445](https://github.com/juspay/connector-service/pull/2445)) ([`dc0333d`](https://github.com/juspay/connector-service/commit/dc0333d4fe40ffff869c4bac05cce2475e7ed3e7))
+
+**Full Changelog:** [`2026.09.28.1-hotfix2...2026.09.28.1-hotfix3`](https://github.com/juspay/connector-service/compare/2026.09.28.1-hotfix2...2026.09.28.1-hotfix3)
+
+- - -
+
 ## 2026.09.28.1-hotfix2
 
 ### Bug Fixes
