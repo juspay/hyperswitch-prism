@@ -875,6 +875,24 @@ pub enum AdyenShopperInteraction {
     Pos,
 }
 
+fn shopper_interaction(
+    off_session: Option<bool>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> AdyenShopperInteraction {
+    match off_session {
+        Some(true) => AdyenShopperInteraction::ContinuedAuthentication,
+        _ => match payment_channel {
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                | common_enums::PaymentChannel::TelephoneOrder,
+            ) => AdyenShopperInteraction::Moto,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => {
+                AdyenShopperInteraction::Ecommerce
+            }
+        },
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     From<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for AdyenShopperInteraction
@@ -887,10 +905,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -5552,6 +5567,19 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
+    NotificationOfFraud,
+    InformationSupplied,
+    PrearbitrationOpen,
+    PrearbitrationAccepted,
+    PrearbitrationDeclined,
+    PrearbitrationIssuerWithdrawn,
+    SchemeArbitration,
+    SchemeArbitrationWon,
+    SchemeArbitrationLost,
+    DisputeDefensePeriodEnded,
+    IssuerResponseTimeframeExpired,
+    IssuerComments,
     OfferClosed,
     RecurringContract,
     #[serde(other)]
@@ -5565,6 +5593,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Responded,
+    Expired,
+    Unresponded,
     #[serde(other)]
     Unknown,
 }
@@ -5746,6 +5777,7 @@ pub(crate) fn get_adyen_refund_webhook_event(
 pub(crate) fn get_adyen_webhook_event_type(
     code: WebhookEventCode,
     is_success: String,
+    dispute_status: Option<DisputeStatus>,
 ) -> Result<EventType, WebhookError> {
     match code {
         // Adyen sends the same AUTHORISATION eventCode for both success and
@@ -5761,24 +5793,75 @@ pub(crate) fn get_adyen_webhook_event_type(
             }
         }
         WebhookEventCode::AuthorisationAdjustment => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentExtendAuthorizationSuccess)
+            } else {
+                Ok(EventType::PaymentIntentExtendAuthorizationFailure)
+            }
         }
-        WebhookEventCode::Cancellation => Ok(EventType::PaymentIntentCancelled),
-        WebhookEventCode::Capture => Ok(EventType::PaymentIntentCaptureSuccess),
+        WebhookEventCode::Cancellation => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCancelled)
+            } else {
+                Ok(EventType::PaymentIntentCancelFailure)
+            }
+        }
+        WebhookEventCode::Capture => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCaptureSuccess)
+            } else {
+                Ok(EventType::PaymentIntentCaptureFailure)
+            }
+        }
         WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
         WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
-        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            Ok(EventType::RefundFailure)
+        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::RefundSuccess)
+            } else {
+                Ok(EventType::RefundFailure)
+            }
         }
-        WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {
-            Ok(EventType::DisputeOpened)
-        }
-        WebhookEventCode::ChargebackReversed | WebhookEventCode::PrearbitrationWon => {
-            Ok(EventType::DisputeWon)
-        }
+        WebhookEventCode::RefundFailed => Ok(EventType::RefundFailure),
+        WebhookEventCode::RefundReversed => Ok(EventType::RefundReview),
+        WebhookEventCode::NotificationOfChargeback => Ok(EventType::DisputeOpened),
+        WebhookEventCode::Chargeback => match dispute_status {
+            Some(DisputeStatus::Won) => Ok(EventType::DisputeWon),
+            Some(DisputeStatus::Lost) | None => Ok(EventType::DisputeLost),
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Expired) => Ok(EventType::DisputeExpired),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::InformationSupplied => match dispute_status {
+            Some(DisputeStatus::Responded) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::ChargebackReversed => match dispute_status {
+            Some(DisputeStatus::Pending) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeWon),
+        },
+        WebhookEventCode::PrearbitrationWon => Ok(EventType::DisputeWon),
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
+        }
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok(EventType::DisputeOpened)
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok(EventType::DisputeAccepted),
+        WebhookEventCode::PrearbitrationDeclined => Ok(EventType::DisputeChallenged),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon
+        | WebhookEventCode::IssuerResponseTimeframeExpired => Ok(EventType::DisputeWon),
+        WebhookEventCode::SchemeArbitrationLost => Ok(EventType::DisputeLost),
+        WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeLost),
+        },
+        WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
+            Ok(EventType::IncomingWebhookEventUnspecified)
         }
         WebhookEventCode::Unknown => {
             tracing::warn!(
@@ -6540,10 +6623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
+                item.router_data.resource_common_data.get_optional_billing(),
             ),
             shopper_email: item
                 .router_data
@@ -6738,12 +6818,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            // Hyperswitch does not send shopperName for wallet setup mandates.
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -6954,10 +7030,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -7767,18 +7840,21 @@ pub(crate) fn get_dispute_stage_and_status(
 > {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
+    // Stage and status mirror HS direct Adyen behavior:
+    // - stage: `impl From<WebhookEventCode> for DisputeStage` in the
+    //   hyperswitch Adyen connector (PreDispute is never produced there)
+    // - status: the dispute event produced by `get_adyen_webhook_event`,
+    //   which HS core converts 1:1 into `DisputeStatus`
     match code {
+        // Stage::Dispute
         WebhookEventCode::NotificationOfChargeback => {
-            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
-                Some(DisputeStatus::Undefended) | Some(DisputeStatus::Pending) => {
-                    HSDisputeStatus::DisputeOpened
-                }
+                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
-                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Unknown) => {
                     return Err(
                         error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
@@ -7788,6 +7864,21 @@ pub(crate) fn get_dispute_stage_and_status(
                             ),
                     );
                 }
+                Some(_) => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::RequestForInformation => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Expired) => HSDisputeStatus::DisputeExpired,
+                _ => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::InformationSupplied => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Responded) => HSDisputeStatus::DisputeChallenged,
+                _ => HSDisputeStatus::DisputeOpened,
             };
             Ok((DisputeStage::Dispute, status))
         }
@@ -7805,27 +7896,52 @@ pub(crate) fn get_dispute_stage_and_status(
             };
             Ok((DisputeStage::Dispute, status))
         }
+        WebhookEventCode::DisputeDefensePeriodEnded => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
+                _ => HSDisputeStatus::DisputeLost,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::IssuerResponseTimeframeExpired => {
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeWon))
+        }
+        // Stage::PreArbitration
         WebhookEventCode::SecondChargeback => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
-            if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(
-                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
-                        "Received unknown Adyen dispute status in PrearbitrationWon event",
-                    ),
-                );
-            }
-            let status = match dispute_status {
-                Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
-                _ => HSDisputeStatus::DisputeWon,
-            };
-            Ok((DisputeStage::PreArbitration, status))
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
         }
         WebhookEventCode::PrearbitrationLost => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeOpened))
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeAccepted,
+        )),
+        WebhookEventCode::PrearbitrationDeclined => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeChallenged,
+        )),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
+        }
+        WebhookEventCode::SchemeArbitrationLost => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
+        }
+        // Dispute stage/status must only be resolved for dispute events;
+        // refuse to guess for anything else.
+        _ => Err(
+            error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(format!(
+                "Received non-dispute Adyen webhook event code {code:?}; \
+                 cannot resolve dispute stage and status"
+            )),
+        ),
     }
 }
 
@@ -7923,6 +8039,10 @@ fn get_browser_info<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
@@ -7957,6 +8077,10 @@ fn get_browser_info_for_setup_mandate<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method

@@ -339,6 +339,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: 200,
                 response_headers: None,
                 connector_reason_code: reason_info.reason.code,
+                additional_details: None,
             },
         )
     }
