@@ -522,6 +522,9 @@ impl From<common_enums::TransactionStatus> for CybersourceParesStatus {
             common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                 Self::CardChallenged
             }
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::CardChallenged
+            }
             common_enums::TransactionStatus::InformationOnly => Self::AuthenticationNotCompleted,
         }
     }
