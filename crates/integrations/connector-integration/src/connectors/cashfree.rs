@@ -67,6 +67,152 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ── Capture ──────────────────────────────────────────────────────────────────
+// Mirrors `map_capture_payment_status` in transformers.rs (called from the
+// Capture TryFrom): "SUCCESS" → Charged, "FAILED" → CaptureFailed,
+// "PENDING" → CaptureInitiated, "CAPTURE" (pre-auth authorization-status
+// variant) → Charged, anything else → Pending (still in flight). The raw
+// string is typed as `cashfree::CashfreeCaptureStatus`, which documents the
+// same mapping — the `_ctx` form with `()` context is used only because the
+// declarative macro's per-variant arms cannot express the `_` catch-all.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cashfree<T>,
+    flow:            Capture,
+    source:          cashfree::CashfreeCaptureStatus,
+    params:          [status],
+    success: Success => [Charged],
+    failure: Failed => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CashfreeCaptureResponse,
+        source: |_resource_common_data, _request, response| {
+            use cashfree::CashfreeCaptureStatus as Status;
+            match response.payment_status.as_deref().or(response.status.as_deref()) {
+                Some("SUCCESS" | "CAPTURE") => Status::Success,
+                Some("FAILED") => Status::Failed,
+                Some("PENDING") => Status::Pending,
+                _ => Status::Other,
+            }
+        },
+    },
+    {
+        use cashfree::CashfreeCaptureStatus;
+        match status {
+            CashfreeCaptureStatus::Success => AttemptStatus::Charged,
+            CashfreeCaptureStatus::Failed => AttemptStatus::CaptureFailed,
+            CashfreeCaptureStatus::Pending => AttemptStatus::CaptureInitiated,
+            CashfreeCaptureStatus::Other => AttemptStatus::Pending,
+        }
+    }
+}
+
+// ── Void ─────────────────────────────────────────────────────────────────────
+// Mirrors `map_void_payment_status` in transformers.rs (called from the Void
+// TryFrom): "VOID" → Voided, "FAILED" → VoidFailed, "PENDING" → Pending,
+// anything else → Pending. Cashfree never reports an explicit
+// "VOID_INITIATED" string here, so Pending is the honest in-flight verdict.
+// The raw string is typed as `cashfree::CashfreeVoidStatus`; same catch-all
+// rationale for the `_ctx` form as Capture.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cashfree<T>,
+    flow:            Void,
+    source:          cashfree::CashfreeVoidStatus,
+    params:          [status],
+    success: Void => [Voided],
+    failure: Failed => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CashfreeVoidResponse,
+        source: |_resource_common_data, _request, response| {
+            use cashfree::CashfreeVoidStatus as Status;
+            match response.payment_status.as_deref().or(response.status.as_deref()).or(response.action.as_deref()) {
+                Some("VOID") => Status::Void,
+                Some("FAILED") => Status::Failed,
+                Some("PENDING") => Status::Pending,
+                _ => Status::Other,
+            }
+        },
+    },
+    {
+        use cashfree::CashfreeVoidStatus;
+        match status {
+            CashfreeVoidStatus::Void => AttemptStatus::Voided,
+            CashfreeVoidStatus::Failed => AttemptStatus::VoidFailed,
+            CashfreeVoidStatus::Pending | CashfreeVoidStatus::Other => {
+                AttemptStatus::Pending
+            }
+        }
+    }
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cashfree<T>,
+    flow: Authorize,
+    statuses: [AuthenticationPending, Pending, Failure],
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: CashfreePaymentResponse,
+        status: |_request, response| match response.channel.as_str() {
+            "link" => AttemptStatus::AuthenticationPending,
+            "collect" => AttemptStatus::Pending,
+            _ => AttemptStatus::Failure,
+        },
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cashfree<T>,
+    flow: CreateOrder,
+    status: Pending,
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: CashfreeOrderCreateResponse,
+    },
+}
+
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Mirrors the `From<CashfreePaymentStatus> for AttemptStatus` impl in
+// transformers.rs that the PSync TryFrom routes through. The `_ctx` variant is
+// used (with `()` context) only because `Unknown(String)` is a tuple variant
+// that the plain macro's unit-variant arms cannot match.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Cashfree<T>,
+    flow:            PSync,
+    source:          cashfree::CashfreePaymentStatus,
+    params:          [status],
+    success: Success => [Charged],
+    failure: Failed => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: CashfreeSyncResponse,
+        source: |_resource_common_data, _request, response| {
+            let payment = response.iter().find(|payment| payment.payment_status == "SUCCESS")
+                .or_else(|| response.iter().find(|payment| payment.payment_status == "PENDING"))
+                .or_else(|| response.first());
+            payment.map_or(cashfree::CashfreePaymentStatus::Pending, |payment| cashfree::CashfreePaymentStatus::from(payment.payment_status.as_str()))
+        },
+    },
+    {
+        match status {
+            cashfree::CashfreePaymentStatus::Success => AttemptStatus::Charged,
+            cashfree::CashfreePaymentStatus::Pending
+            | cashfree::CashfreePaymentStatus::NotAttempted => {
+                AttemptStatus::Pending
+            }
+            cashfree::CashfreePaymentStatus::Failed
+            | cashfree::CashfreePaymentStatus::Cancelled
+            | cashfree::CashfreePaymentStatus::UserDropped => {
+                AttemptStatus::Failure
+            }
+            cashfree::CashfreePaymentStatus::Unknown(_) => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cashfree<T>
 {
@@ -75,9 +221,69 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Cashfree<T>
 {
 }
+// Mirrors `map_refund_status(&response.refund_status)` in transformers.rs —
+// the raw `refund_status` string is first typed into `CashfreeRefundStatus`
+// ("SUCCESS"/"OK" → Success, "PENDING" → Pending, "CANCELLED"/"FAILED" →
+// Failure, anything else → `Other` → Pending, i.e. still in flight). The
+// `_ctx` form with `()` context is used only because the declarative macro's
+// match arms cannot cover the catch-all `Other` semantics in a readable way.
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Cashfree<T>,
+    flow:           RSync,
+    source:         cashfree::CashfreeRefundStatus,
+    params:         [status],
+    success: Success => Success,
+    failure: Failed => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: CashfreeRefundSyncResponse,
+        source: |_resource_common_data, _request, response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+    },
+    {
+        use common_enums::RefundStatus;
+        use cashfree::CashfreeRefundStatus;
+        match status {
+            CashfreeRefundStatus::Success => RefundStatus::Success,
+            CashfreeRefundStatus::Pending => RefundStatus::Pending,
+            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
+                RefundStatus::Failure
+            }
+            CashfreeRefundStatus::Other => RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cashfree<T>
 {
+}
+// Refund runs the identical `map_refund_status` mapping as RSync — the refund
+// create response carries the same `refund_status` string.
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Cashfree<T>,
+    flow:           Refund,
+    source:         cashfree::CashfreeRefundStatus,
+    params:         [status],
+    success: Success => Success,
+    failure: Failed => Failure,
+    extractors: {
+        request: RefundsData,
+        response: CashfreeRefundResponse,
+        source: |_resource_common_data, _request, response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+    },
+    {
+        use common_enums::RefundStatus;
+        use cashfree::CashfreeRefundStatus;
+        match status {
+            CashfreeRefundStatus::Success => RefundStatus::Success,
+            CashfreeRefundStatus::Pending => RefundStatus::Pending,
+            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
+                RefundStatus::Failure
+            }
+            CashfreeRefundStatus::Other => RefundStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Cashfree<T>

@@ -320,7 +320,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 
 // ===== RESPONSE STATUS ENUMS =====
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthipayTransactionType {
     Sale,
@@ -333,6 +333,7 @@ pub enum AuthipayTransactionType {
     PayerAuth,
     Disbursement,
     #[serde(other)]
+    #[default]
     Unknown,
 }
 
@@ -373,6 +374,32 @@ pub enum AuthipayTransactionState {
     Settled,
     Voided,
     Waiting,
+}
+
+/// Context bundle for the Authorize/PSync/Capture `impl_flow_status_mapping_ctx!`
+/// declarations. Mirrors the fields `map_status` consults beyond the status enum.
+#[derive(Debug, Clone, Default)]
+pub struct AuthipayPaymentCtx {
+    pub transaction_type: AuthipayTransactionType,
+    pub transaction_status: Option<AuthipayPaymentStatus>,
+    pub transaction_result: Option<AuthipayPaymentResult>,
+    pub transaction_state: Option<AuthipayTransactionState>,
+}
+
+/// Same fields as [`AuthipayPaymentCtx`], reused for the Void flow — its mapper
+/// (`map_void_status`) takes the same four inputs.
+pub type AuthipayVoidCtx = AuthipayPaymentCtx;
+
+/// Context bundle for the Refund/RSync `impl_refund_flow_status_mapping_ctx!`
+/// declarations. Mirrors the four optional fields `map_refund_status` consults;
+/// unlike [`AuthipayPaymentCtx`], `transaction_type` is Option here because
+/// `map_refund_status` treats a missing type as Pending.
+#[derive(Debug, Default, Clone)]
+pub struct AuthipayRefundCtx {
+    pub transaction_type: Option<AuthipayTransactionType>,
+    pub transaction_status: Option<AuthipayPaymentStatus>,
+    pub transaction_result: Option<AuthipayPaymentResult>,
+    pub transaction_state: Option<AuthipayTransactionState>,
 }
 
 // ===== RESPONSE STRUCTURES =====
@@ -499,7 +526,7 @@ fn extract_network_fields(
 // ===== STATUS MAPPING FUNCTION =====
 // CRITICAL: This checks BOTH transactionResult AND transactionStatus, AND considers transactionType
 
-fn map_status(
+pub(crate) fn map_status(
     authipay_status: Option<AuthipayPaymentStatus>,
     authipay_result: Option<AuthipayPaymentResult>,
     authipay_state: Option<AuthipayTransactionState>,
@@ -820,7 +847,7 @@ use common_enums::RefundStatus;
 // 3. transactionState should be CAPTURED for success
 // ONLY returns RefundStatus::Success when ALL conditions are met
 
-fn map_refund_status(
+pub(crate) fn map_refund_status(
     transaction_type: Option<AuthipayTransactionType>,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,
@@ -960,7 +987,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // 3. transactionState should be VOIDED for success
 // ONLY returns AttemptStatus::Voided when ALL conditions are met
 
-fn map_void_status(
+pub(crate) fn map_void_status(
     transaction_type: AuthipayTransactionType,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,

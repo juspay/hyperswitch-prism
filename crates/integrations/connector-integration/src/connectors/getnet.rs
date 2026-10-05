@@ -60,6 +60,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ── Authorize ────────────────────────────────────────────────────────────────
+// Mirrors the Authorize TryFrom: the base mapping is the generic
+// `From<&GetnetPaymentStatus> for AttemptStatus`, except that a redirect present
+// alongside a non-terminal status upgrades it to `AuthenticationPending`.
+// The ctx boolean is `redirection_data.is_some()` (Default = false = no redirect).
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Getnet<T>,
+    flow:            Authorize,
+    source:          transformers::GetnetPaymentStatus,
+    context:         bool,
+    params:          [status, has_redirect],
+    success: Approved => [Charged, Authorized],
+    failure: Denied => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: GetnetAuthorizeResponse,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.redirect_url.as_deref().or_else(|| response.next_step.as_ref().and_then(|next| next.redirect_url.as_deref())).and_then(|url| url::Url::parse(url).ok()).is_some(),
+    },
+    {
+        use common_enums::AttemptStatus;
+        use transformers::GetnetPaymentStatus;
+        match status {
+            GetnetPaymentStatus::Approved | GetnetPaymentStatus::Captured => {
+                AttemptStatus::Charged
+            }
+            GetnetPaymentStatus::Authorized => AttemptStatus::Authorized,
+            GetnetPaymentStatus::Pending
+            | GetnetPaymentStatus::Waiting
+            | GetnetPaymentStatus::Open
+            | GetnetPaymentStatus::Unknown => {
+                // The TryFrom upgrades Pending|Waiting|RequiresAction|Redirect|Unknown
+                // to AuthenticationPending when a redirect URL is present; `Open`
+                // (boleto) never carries a redirect.
+                if has_redirect && !matches!(status, GetnetPaymentStatus::Open) {
+                    AttemptStatus::AuthenticationPending
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            GetnetPaymentStatus::Denied
+            | GetnetPaymentStatus::Failed
+            | GetnetPaymentStatus::Error
+            | GetnetPaymentStatus::Expired => AttemptStatus::Failure,
+            GetnetPaymentStatus::Canceled | GetnetPaymentStatus::Cancelled => {
+                AttemptStatus::Voided
+            }
+            GetnetPaymentStatus::RequiresAction | GetnetPaymentStatus::Redirect => {
+                AttemptStatus::AuthenticationPending
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Getnet<T>
 {
@@ -85,26 +139,167 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: PreAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: GetnetPreAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: Authenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: GetnetAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
+domain_types::impl_connector_flow_allowed_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow: PostAuthenticate,
+    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: GetnetPostAuthenticateResponse,
+        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+    },
+}
+
+// ── PSync ────────────────────────────────────────────────────────────────────
+// The PSync TryFrom is a plain `AttemptStatus::from(&GetnetPaymentStatus)` — no
+// redirect handling — so every body target is exactly the generic From mapping.
+// All targets land in PSync's (intentionally broad) ALLOWED set.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow:      PSync,
+    source:    transformers::GetnetPaymentStatus,
+    success:   Approved => Charged,
+    failure:   Denied   => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: GetnetSyncResponse,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        Captured       => Charged,
+        Authorized     => Authorized,
+        Pending        => Pending,
+        Waiting        => Pending,
+        Open           => Pending,
+        Unknown        => Pending,
+        Failed         => Failure,
+        Error          => Failure,
+        Expired        => Failure,
+        Canceled       => Voided,
+        Cancelled      => Voided,
+        RequiresAction => AuthenticationPending,
+        Redirect       => AuthenticationPending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Getnet<T>
 {
 }
 
+// BLOCKED: Void uses the shared `From<&GetnetPaymentStatus>` transformer.
+// `Approved | Captured -> Charged`, which is not allowed for Void. A mapping
+// declaration cannot both mirror the transformer and satisfy Void::ALLOWED.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Getnet<T>
 {
 }
 
+// BLOCKED: Capture also uses the shared status conversion. In particular,
+// `Canceled | Cancelled -> Voided`, which is not in Capture::ALLOWED, while
+// `Denied | Failed | Error | Expired -> Failure` (not CaptureFailed). Remapping
+// those branches here would diverge from the production transformer.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Getnet<T>
 {
 }
 
+// Mirrors `From<&GetnetPaymentStatus> for RefundStatus`: the refund is booked
+// once the payment is canceled/cancelled; an explicit denied/failed/error/expired
+// is a refund failure; everything else (approved, captured, still-pending,
+// redirect states) is reported Pending — the refund leg has not settled.
+// The `_ => Pending` catch-all in the From is enumerated variant-by-variant here.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow:      Refund,
+    source:    transformers::GetnetPaymentStatus,
+    success:   Cancelled => Success,
+    failure:   Failed    => Failure,
+    extractors: {
+        request: RefundsData,
+        response: GetnetRefundResponse,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        Approved       => Pending,
+        Captured       => Pending,
+        Pending        => Pending,
+        Waiting        => Pending,
+        Authorized     => Pending,
+        Denied         => Failure,
+        Error          => Failure,
+        Canceled       => Success,
+        Expired        => Failure,
+        RequiresAction => Pending,
+        Redirect       => Pending,
+        Open           => Pending,
+        Unknown        => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Getnet<T>
 {
 }
 
+// RSync re-issues the same status lookup and goes through the identical
+// `From<&GetnetPaymentStatus> for RefundStatus` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Getnet<T>,
+    flow:      RSync,
+    source:    transformers::GetnetPaymentStatus,
+    success:   Cancelled => Success,
+    failure:   Failed    => Failure,
+    extractors: {
+        request: RefundSyncData,
+        response: GetnetRefundSyncResponse,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        Approved       => Pending,
+        Captured       => Pending,
+        Pending        => Pending,
+        Waiting        => Pending,
+        Authorized     => Pending,
+        Denied         => Failure,
+        Error          => Failure,
+        Canceled       => Success,
+        Expired        => Failure,
+        RequiresAction => Pending,
+        Redirect       => Pending,
+        Open           => Pending,
+        Unknown        => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Getnet<T>
 {

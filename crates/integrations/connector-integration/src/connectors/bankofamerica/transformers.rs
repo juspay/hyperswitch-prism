@@ -1012,8 +1012,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRefundResponse {
     id: String,
-    status: BankofamericaRefundStatus,
-    error_information: Option<BankOfAmericaErrorInformation>,
+    pub status: BankofamericaRefundStatus,
+    pub error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 impl From<BankOfAmericaRefundResponse> for common_enums::RefundStatus {
@@ -1214,7 +1214,7 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponseForCapture, Self
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaClientReferenceResponse {
     id: String,
-    status: BankofamericaPaymentStatus,
+    pub status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
     processor_information: Option<ClientProcessorInformation>,
     processing_information: Option<ProcessingInformationResponse>,
@@ -1447,7 +1447,7 @@ pub struct BankOfAmericaTokenInformation {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BankOfAmericaErrorInformation {
-    reason: Option<String>,
+    pub(crate) reason: Option<String>,
     message: Option<String>,
     details: Option<Vec<Details>>,
 }

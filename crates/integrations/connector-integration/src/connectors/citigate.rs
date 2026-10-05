@@ -397,31 +397,199 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+// Mirrors `CitigatePaymentsResponse::attempt_status` (approved path) and
+// `failure_status` (declined path). The success arm splits an approval into
+// Sale/Capture → Charged vs. Authorise → Authorized off the response
+// `TransTypeID` (ctx); the failure arm maps every non-`0` outcome to
+// `AuthorizationFailed`, matching `failure_status`'s catch-all — the
+// (ResponseCode, TransTypeID) granularity cannot distinguish an ACS-stage
+// abort (`103`/`106`/`700`/`800`) from a plain bank decline.
+// BLOCKED: Authorize distinguishes authentication failures (103/106/700/800
+// and malformed 600) from authorization failures. CitigateAuthStatus collapses
+// all of those into NotReceived, so the declaration cannot mirror every branch.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Citigate<T>,
+    flow:            Authorize,
+    source:          citigate::CitigateAuthStatus,
+    context:         citigate::CitigateFlowCtx,
+    params:          [status, ctx],
+    success: Approved => [Charged, Authorized],
+    failure: NotReceived => AuthorizationFailed,
+    {
+        use citigate::{CitigateAuthStatus, CitigateTransTypeId};
+        use common_enums::AttemptStatus;
+        match status {
+            CitigateAuthStatus::Approved => match ctx.trans_type_id {
+                // Sale / Capture — settled in one step.
+                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture => AttemptStatus::Charged,
+                // Authorise — pre-auth, capture outstanding.
+                CitigateTransTypeId::Authorise => AttemptStatus::Authorized,
+                // Not a settled sale leg — not settled yet.
+                _ => AttemptStatus::Pending,
+            },
+            CitigateAuthStatus::RedirectRequired => AttemptStatus::AuthenticationPending,
+            CitigateAuthStatus::Pending => AttemptStatus::Pending,
+            CitigateAuthStatus::NotReceived => AttemptStatus::AuthorizationFailed,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Citigate<T>
 {
 }
 
+// Mirrors `CitigatePaymentsResponse::sync_attempt_status` (approved path) and
+// `sync_failure_status` (declined path): on an approval the response
+// `TransTypeID` identifies the original leg (Sale/Capture/Refund → Charged,
+// Authorise → Authorized, Cancel → Voided); a cancel-leg approval reports
+// `Voided`; a non-approved payment leg collapses to `Failure`, mirroring the
+// TryFrom's error arm (`999` + `TransTypeID 99` — "MerchantRef not found" —
+// included) — ACS aborts (`103`/`106`/`700`/`800`) cannot be told apart at
+// this granularity.
+// BLOCKED: PSync likewise distinguishes authentication-failure response codes
+// before its general Failure arm; CitigateSyncStatus loses that code detail.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Citigate<T>,
+    flow:            PSync,
+    source:          citigate::CitigateSyncStatus,
+    context:         citigate::CitigateFlowCtx,
+    params:          [status, ctx],
+    success: CancelApproved => [Voided],
+    failure: PurchaseNotApproved => Failure,
+    {
+        use citigate::{CitigateSyncStatus, CitigateTransTypeId};
+        use common_enums::AttemptStatus;
+        match status {
+            CitigateSyncStatus::PurchaseApproved => match ctx.trans_type_id {
+                // A sale, a captured auth or a settled refund leg of the payment.
+                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture | CitigateTransTypeId::Refund => AttemptStatus::Charged,
+                CitigateTransTypeId::Authorise => AttemptStatus::Authorized,
+                _ => AttemptStatus::Pending,
+            },
+            CitigateSyncStatus::CancelApproved => AttemptStatus::Voided,
+            CitigateSyncStatus::PurchaseNotApproved => AttemptStatus::Failure,
+            CitigateSyncStatus::CancelNotApproved => AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Citigate<T>
 {
 }
 
+// Mirrors `CitigatePaymentsResponse::capture_attempt_status` — approval means
+// the auth is now settled (charged); anything else means the capture failed
+// (`561` included: the auth was already captured, possibly by Citigate's own
+// 48–96h auto-capture service).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Citigate<T>,
+    flow:      Capture,
+    source:    citigate::CitigatePostAuthStatus,
+    success:   Approved    => Charged,
+    failure:   NotReceived => CaptureFailed,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: CitigateCaptureResponse,
+        source: |_resource_common_data, _request, response| if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Citigate<T>
 {
 }
 
+// Mirrors `CitigatePaymentsResponse::void_attempt_status` — approval voids the
+// open authorisation; anything else (notably `561`, "auth no longer open")
+// means the void failed and a Refund is the correct operation instead.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Citigate<T>,
+    flow:      Void,
+    source:    citigate::CitigatePostAuthStatus,
+    success:   Approved    => Voided,
+    failure:   NotReceived => VoidFailed,
+    extractors: {
+        request: PaymentVoidData,
+        response: CitigateVoidResponse,
+        source: |_resource_common_data, _request, response| if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Citigate<T>
 {
 }
 
+// Mirrors the refined `CitigatePaymentsResponse::refund_status`. The refund
+// endpoint answers with the bare `ResponseCode`, so the Approved/NotReceived
+// pair is all there is — but the `_ctx` form is used because the body must
+// reproduce the doc-driven transient-code refinement (issuer/acquirer errors →
+// Pending for retry) under a fail-safe wildcard (`_ => Failure`). The `()`
+// context is unused; the match is on the code only.
+// BLOCKED: Refund maps five documented transient response codes to Pending and
+// other failures to Failure. CitigatePostAuthStatus collapses all non-zero codes,
+// so this declaration cannot preserve that distinction.
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Citigate<T>,
+    flow:           Refund,
+    source:         citigate::CitigatePostAuthStatus,
+    params:         [status],
+    success: Approved => Success,
+    failure: NotReceived => Failure,
+    {
+        match status {
+            citigate::CitigatePostAuthStatus::Approved => common_enums::RefundStatus::Success,
+            citigate::CitigatePostAuthStatus::NotReceived => common_enums::RefundStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Citigate<T>
 {
 }
 
+// Mirrors the refined `CitigatePaymentsResponse::refund_sync_status`. RSync is a
+// function of the (`ResponseCode`, `TransTypeID`) pair — an approved refund leg
+// (`TransTypeID 5`) settles, other approvals and the `999`+`6` pending shape read
+// Pending, transient infra codes read Pending, and a fail-safe wildcard fails the
+// rest. So `source = CitigatePostAuthStatus` (the bare code) plus
+// `context = CitigateFlowCtx` (the `TransTypeID` echo).
+// BLOCKED: RSync also needs the raw response code to distinguish transient
+// Pending responses from terminal failures; the current source type loses it.
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Citigate<T>,
+    flow:           RSync,
+    source:         citigate::CitigatePostAuthStatus,
+    context:        citigate::CitigateFlowCtx,
+    params:         [status, ctx],
+    success: Approved => Success,
+    failure: NotReceived => Failure,
+    {
+        use citigate::{CitigatePostAuthStatus, CitigateTransTypeId};
+        use common_enums::RefundStatus;
+        match (status, ctx.trans_type_id) {
+            (CitigatePostAuthStatus::Approved, CitigateTransTypeId::Refund) => RefundStatus::Success,
+            (CitigatePostAuthStatus::Approved, _) => RefundStatus::Pending,
+            (CitigatePostAuthStatus::NotReceived, _) => RefundStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Citigate<T>
 {

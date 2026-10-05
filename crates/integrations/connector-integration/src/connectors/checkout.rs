@@ -72,26 +72,208 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Checkout<T>
 {
 }
+
+// ── Authorize ────────────────────────────────────────────────────────────────
+// Mirrors `get_attempt_status_cap`: `Authorized` maps to `Charged` when the
+// capture method is Automatic/absent (auto-capture), else `Authorized`.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Checkout<T>,
+    flow:            Authorize,
+    source:          transformers::CheckoutPaymentStatus,
+    context:         Option<common_enums::CaptureMethod>,
+    params:          [status, capture_method],
+    success: Captured => [Charged, Authorized],
+    failure: Declined => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: PaymentsResponse,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, request, _response| request.capture_method,
+    },
+    {
+        use common_enums::AttemptStatus;
+        use transformers::CheckoutPaymentStatus;
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(common_enums::CaptureMethod::Automatic)
+                    || capture_method.is_none()
+                {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded
+            | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
+            CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Checkout<T>
 {
 }
 
+// BLOCKED: PSync returns a transformer error for Scheduled or absent capture
+// method. Inline extractors are infallible, so they cannot preserve that branch.
+#[cfg(any())]
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Mirrors `get_attempt_status_intent`: the intent (stored in connector_meta at
+// authorize time) decides whether `Authorized` means `Charged` or `Authorized`.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Checkout<T>,
+    flow:            PSync,
+    source:          transformers::CheckoutPaymentStatus,
+    context:         transformers::CheckoutPaymentIntent,
+    params:          [status, psync_flow],
+    success: Captured => [Charged, Authorized],
+    failure: Declined => Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{CheckoutPaymentIntent, CheckoutPaymentStatus};
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if psync_flow == CheckoutPaymentIntent::Capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded
+            | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
+            CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Checkout<T>
 {
+}
+// BLOCKED: Void status is derived from the HTTP code (202 -> Voided, otherwise
+// VoidFailed), but ConnectorRuntimeStatusMapping does not receive the HTTP code.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      Void,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   Voided            => Voided,
+    failure:   Declined          => VoidFailed,
+    {
+        Authorized        => VoidInitiated,
+        Pending           => VoidInitiated,
+        RetryScheduled    => VoidInitiated,
+        CardVerified      => VoidInitiated,
+        Canceled          => Voided,
+        Captured          => VoidFailed,
+        PartiallyCaptured => VoidFailed,
+        PartiallyRefunded => VoidFailed,
+        Refunded          => VoidFailed,
+        Expired           => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Checkout<T>
 {
 }
+// Mirrors `From<&ActionResponse> for RefundStatus` in transformers.rs — the
+// RSync TryFrom locates the refund action in the actions list and maps its
+// `approved: Option<bool>` tri-state (true→Success, false→Failure,
+// absent→Pending), typed as `CheckoutActionApproval`. The `()` context is
+// unused; the match is on the approval verdict only.
+// BLOCKED: RSync performs a fallible lookup by connector_refund_id in a response
+// list. Inline extractors cannot return the same missing-row error.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Checkout<T>,
+    flow:           RSync,
+    source:         transformers::CheckoutActionApproval,
+    params:         [status],
+    success: Approved => Success,
+    failure: Rejected => Failure,
+    {
+        use common_enums::RefundStatus;
+        use transformers::CheckoutActionApproval;
+        match status {
+            CheckoutActionApproval::Approved => RefundStatus::Success,
+            CheckoutActionApproval::Rejected => RefundStatus::Failure,
+            CheckoutActionApproval::Pending => RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Checkout<T>
 {
 }
+// Mirrors `http_code_to_refund_status`: Checkout's refund-create response
+// carries only ids, so the status is derived from the HTTP code alone
+// (202→Success, anything else→Failure), typed as `CheckoutRefundVerdict`.
+// The `()` context is unused; the match is on the verdict only.
+// BLOCKED: Refund status is derived solely from the HTTP code, which is absent
+// from the runtime extractor interface.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Checkout<T>,
+    flow:           Refund,
+    source:         transformers::CheckoutRefundVerdict,
+    params:         [status],
+    success: Accepted => Success,
+    failure: Other => Failure,
+    {
+        use common_enums::RefundStatus;
+        use transformers::CheckoutRefundVerdict;
+        match status {
+            CheckoutRefundVerdict::Accepted => RefundStatus::Success,
+            CheckoutRefundVerdict::Other => RefundStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Checkout<T>
 {
+}
+// BLOCKED: Capture status is derived solely from the HTTP code (202 -> Charged,
+// otherwise Pending), which is absent from the runtime extractor interface.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      Capture,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   Captured          => Charged,
+    failure:   Declined          => CaptureFailed,
+    {
+        PartiallyCaptured => PartialCharged,
+        PartiallyRefunded => Charged,
+        Refunded          => Charged,
+        Authorized        => CaptureInitiated,
+        Pending           => CaptureInitiated,
+        RetryScheduled    => CaptureInitiated,
+        CardVerified      => CaptureInitiated,
+        Voided            => CaptureFailed,
+        Canceled          => CaptureFailed,
+        Expired           => CaptureFailed,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Checkout<T>
@@ -100,6 +282,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Checkout<T>
 {
+}
+// ── SetupMandate ─────────────────────────────────────────────────────────────
+// `Authorized` is NOT in SetupMandate's ALLOWED set — a successful zero-amount
+// verification is `Charged` (same treatment as DLocal in batch 1).
+// BLOCKED: SetupMandate uses get_attempt_status_cap unchanged. A manual-capture
+// response can therefore produce Authorized, outside SetupMandate::ALLOWED.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Checkout<T>,
+    flow:      SetupMandate,
+    source:    transformers::CheckoutPaymentStatus,
+    success:   CardVerified      => Charged,
+    failure:   Declined          => Failure,
+    {
+        Authorized        => Charged,
+        Captured          => Charged,
+        PartiallyCaptured => Charged,
+        PartiallyRefunded => Charged,
+        Refunded          => Charged,
+        Canceled          => Failure,
+        Expired           => Failure,
+        Voided            => Failure,
+        Pending           => AuthenticationPending,
+        RetryScheduled    => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Checkout<T>
@@ -386,6 +594,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Checkout<T>
 {
 }
+// BLOCKED: RepeatPayment uses `get_attempt_status_cap` exactly. Its `Voided`
+// branch returns AttemptStatus::Voided, which is not in RepeatPayment::ALLOWED.
+// Mapping it to Failure here would change existing production behavior.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Checkout<T>
 {

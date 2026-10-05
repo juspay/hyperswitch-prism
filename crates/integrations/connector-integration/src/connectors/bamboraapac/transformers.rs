@@ -115,6 +115,10 @@ struct QueryCriteriaXml {
 // END XML SERIALIZATION STRUCTURES
 // ============================================================================
 
+// ============================================================================
+// FLOW STATUS MAPPING TYPES
+// ============================================================================
+
 // Authentication Type Definition
 #[derive(Debug, Clone)]
 pub struct BamboraapacAuthType {

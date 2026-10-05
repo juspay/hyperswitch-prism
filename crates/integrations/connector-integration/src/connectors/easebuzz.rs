@@ -132,26 +132,212 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the Authorize TryFrom's `get_str("status")` match on the seamless
+// payment response object: "success" → Charged (supported capture method is
+// automatic only, so a success is always settled), "failure"/"failed" →
+// Failure, anything else — and non-JSON HTML-redirect bodies — → Pending. The
+// raw string is typed as `easebuzz::EasebuzzAuthorizeStatus`; the `()` context
+// is unused, the `_ctx` form is only there to host the three-way match.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Easebuzz<T>,
+    flow:            Authorize,
+    source:          easebuzz::EasebuzzAuthorizeStatus,
+    params:          [status],
+    success: Success => [Charged],
+    failure: Failure => Failure,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: EasebuzzPaymentsResponse,
+        source: |_resource_common_data, _request, response| {
+            use easebuzz::EasebuzzAuthorizeStatus as Status;
+            if response.0.get("error").and_then(serde_json::Value::as_str)
+                .is_some_and(|error| !error.is_empty() && error != "0")
+            {
+                Status::Failure
+            } else {
+                match response.0.get("status").and_then(serde_json::Value::as_str) {
+                    Some("success" | "SUCCESS") => Status::Success,
+                    Some("failure" | "FAILURE" | "failed" | "FAILED") => Status::Failure,
+                    _ => Status::Other,
+                }
+            }
+        },
+    },
+    {
+        match status {
+            easebuzz::EasebuzzAuthorizeStatus::Success => common_enums::AttemptStatus::Charged,
+            easebuzz::EasebuzzAuthorizeStatus::Failure => common_enums::AttemptStatus::Failure,
+            easebuzz::EasebuzzAuthorizeStatus::Other => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Easebuzz<T>
 {
 }
 
+// Mirrors the PSync TryFrom's `txn_resp.status.to_lowercase()` match
+// ("success" → Charged, "initiated"|"pending"|"in_process" → Pending, anything
+// else → Failure). The raw string is typed as `easebuzz::EasebuzzTxnStatus`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Easebuzz<T>,
+    flow:      PSync,
+    source:    easebuzz::EasebuzzTxnStatus,
+    success:   Success => Charged,
+    failure:   Other   => Failure,
+    extractors: {
+        request: PaymentsSyncData,
+        response: EasebuzzSyncResponse,
+        source: |_resource_common_data, _request, response| {
+            use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzTxnSyncMsg};
+            match &response.msg {
+                EasebuzzTxnSyncMsg::Success(transaction) => match transaction.status.to_lowercase().as_str() {
+                    "success" => Status::Success,
+                    "initiated" | "pending" | "in_process" => Status::InFlight,
+                    _ => Status::Other,
+                },
+                EasebuzzTxnSyncMsg::Error(_) => Status::InFlight,
+            }
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        InFlight => Pending
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Easebuzz<T>
 {
 }
 
+// Mirrors the Capture TryFrom's `_data.status.to_lowercase()` match — the same
+// status vocabulary as PSync ("success" → Charged, "initiated"|"pending"|
+// "in_process" → Pending, anything else → Failure), typed as
+// `easebuzz::EasebuzzTxnStatus`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Easebuzz<T>,
+    flow:      Capture,
+    source:    easebuzz::EasebuzzTxnStatus,
+    success:   Success => Charged,
+    failure:   Other   => Failure,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: EasebuzzCaptureResponse,
+        source: |_resource_common_data, _request, response| {
+            use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzCaptureResponse};
+            match response {
+                EasebuzzCaptureResponse::Success(response) => {
+                    if response.data.error.as_deref().is_some_and(|error| !error.is_empty() && error != "0") {
+                        Status::Other
+                    } else {
+                        match response.data.status.to_lowercase().as_str() {
+                            "success" => Status::Success,
+                            "initiated" | "pending" | "in_process" => Status::InFlight,
+                            _ => Status::Other,
+                        }
+                    }
+                }
+                EasebuzzCaptureResponse::Error(_) => Status::Other,
+            }
+        },
+        context: |_resource_common_data, _request, _response| (),
+    },
+    {
+        InFlight => Pending
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Easebuzz<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Easebuzz<T>,
+    flow: Refund,
+    source: bool,
+    params: [accepted],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: EasebuzzRefundResponse,
+        source: |_resource_common_data, _request, response| response.status,
+    },
+    {
+        if accepted {
+            common_enums::RefundStatus::Pending
+        } else {
+            common_enums::RefundStatus::Failure
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Easebuzz<T>
 {
 }
 
+// Mirrors the RSync TryFrom's `refund_status.to_lowercase()` match
+// ("refunded"/"settled" → Success, "cancelled"/"reverse chargeback"/"failed"
+// → Failure, anything else → Pending), typed as
+// `easebuzz::EasebuzzRefundSyncStatus`.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Easebuzz<T>,
+    flow:      RSync,
+    source:    (),
+    context:   easebuzz::EasebuzzRefundSyncStatus,
+    params:    [_source, status],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: EasebuzzRefundSyncResponse,
+        source: |_resource_common_data, _request, _response| (),
+        context: |_resource_common_data, request, response| match response {
+            EasebuzzRefundSyncResponse::Success(data) => {
+                let refund = data.refunds.as_ref().and_then(|refunds| {
+                    refunds
+                        .iter()
+                        .find(|refund| {
+                            refund.refund_id.as_deref()
+                                == Some(request.connector_refund_id.as_str())
+                                || refund.merchant_refund_id.as_deref()
+                                    == Some(request.connector_refund_id.as_str())
+                        })
+                        .or_else(|| refunds.first())
+                });
+                match refund
+                    .and_then(|refund| refund.refund_status.as_deref())
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .as_str()
+                {
+                    "refunded" => easebuzz::EasebuzzRefundSyncStatus::Refunded,
+                    "settled" => easebuzz::EasebuzzRefundSyncStatus::Settled,
+                    "cancelled" => easebuzz::EasebuzzRefundSyncStatus::Cancelled,
+                    "reverse chargeback" => easebuzz::EasebuzzRefundSyncStatus::ReverseChargeback,
+                    "failed" => easebuzz::EasebuzzRefundSyncStatus::Failed,
+                    _ => easebuzz::EasebuzzRefundSyncStatus::Other,
+                }
+            }
+            EasebuzzRefundSyncResponse::Error(_) => easebuzz::EasebuzzRefundSyncStatus::Other,
+        },
+    },
+    {
+        match status {
+            easebuzz::EasebuzzRefundSyncStatus::Refunded
+            | easebuzz::EasebuzzRefundSyncStatus::Settled => common_enums::RefundStatus::Success,
+            easebuzz::EasebuzzRefundSyncStatus::Cancelled
+            | easebuzz::EasebuzzRefundSyncStatus::ReverseChargeback
+            | easebuzz::EasebuzzRefundSyncStatus::Failed => common_enums::RefundStatus::Failure,
+            easebuzz::EasebuzzRefundSyncStatus::Other => common_enums::RefundStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Easebuzz<T>
 {

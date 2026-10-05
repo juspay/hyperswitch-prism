@@ -57,36 +57,424 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Authorize: mirrors the TryFrom exactly. response_code 0 → Authorized (manual capture) /
+// Charged (auto) — hence the ctx; non-zero → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Authorize,
+    source: u8,
+    context: bool,
+    params: [code, manual_capture],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::AttemptStatus::Failure
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Authorize,
+        PaymentsAuthorizeData<T>,
+        BamboraapacAuthorizeResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &PaymentsAuthorizeData<T>,
+        response: &BamboraapacAuthorizeResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::PaymentResponse = xml.as_str().parse_xml().map_err(|error| {
+            ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                format!("bamboraapac Authorize: {error}"),
+            ))
+        })?;
+        let code = parsed.response_code;
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Authorize>>::map_attempt_status(
+            code,
+            request.capture_method == Some(common_enums::CaptureMethod::Manual),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentAuthorizeV2<T> for Bamboraapac<T>
 {
 }
 
+// PSync: mirrors the TryFrom exactly. Found + response_code 0 → Authorized (manual) /
+// Charged (auto) — hence the ctx; found + non-zero or not-found → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: PSync,
+    source: u8,
+    context: bool,
+    params: [code, manual_capture],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::AttemptStatus::Failure
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        PSync,
+        PaymentsSyncData,
+        BamboraapacPSyncResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &PaymentsSyncData,
+        response: &BamboraapacPSyncResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .query_transaction_response
+            .query_transaction_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::QueryResponse = xml.as_str().parse_xml().map_err(|error| {
+            ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                format!("bamboraapac PSync: {error}"),
+            ))
+        })?;
+        let code = parsed.response.map_or(1, |response| response.response_code);
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<PSync>>::map_attempt_status(
+            code,
+            request.capture_method == Some(common_enums::CaptureMethod::Manual),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentSyncV2 for Bamboraapac<T>
 {
 }
 
+// Capture: mirrors the TryFrom exactly. response_code 0 → Charged, non-zero → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Capture,
+    source: u8,
+    params: [code],
+    success: _ => [Charged],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::AttemptStatus::Failure
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Capture,
+        PaymentsCaptureData,
+        BamboraapacCaptureResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &PaymentsCaptureData,
+        response: &BamboraapacCaptureResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .submit_single_capture_response
+            .submit_single_capture_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::CaptureResponse = xml.as_str().parse_xml().map_err(|error| {
+            ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                format!("bamboraapac Capture: {error}"),
+            ))
+        })?;
+        let code = parsed.response_code;
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<Capture>>::map_attempt_status(
+            code,
+            (),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentCapture for Bamboraapac<T>
 {
 }
 
+// Refund: mirrors the TryFrom exactly. response_code 0 → Success, non-zero → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Refund,
+    source: u8,
+    params: [code],
+    success: _ => [Success],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::RefundStatus::Failure
+        } else {
+            common_enums::RefundStatus::Success
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        Refund,
+        RefundsData,
+        BamboraapacRefundResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::RefundStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &RefundsData,
+        response: &BamboraapacRefundResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .submit_single_refund_response
+            .submit_single_refund_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::RefundResponseInner =
+            xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac Refund: {error}"),
+                ))
+            })?;
+        let code = parsed.response_code;
+        Ok(<Self as domain_types::flow_status::ConnectorRefundTerminalMapping<Refund>>::map_refund_status(
+            code,
+            (),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundV2 for Bamboraapac<T>
 {
 }
 
+// RSync: mirrors the TryFrom exactly. Found + response_code 0 → Success; found + non-zero or
+// not-found → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: RSync,
+    source: u8,
+    params: [code],
+    success: _ => [Success],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::RefundStatus::Failure
+        } else {
+            common_enums::RefundStatus::Success
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        RSync,
+        RefundSyncData,
+        BamboraapacRSyncResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::RefundStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &RefundSyncData,
+        response: &BamboraapacRSyncResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .query_transaction_response
+            .query_transaction_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::QueryResponse = xml.as_str().parse_xml().map_err(|error| {
+            ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                format!("bamboraapac RSync: {error}"),
+            ))
+        })?;
+        let code = parsed.response.map_or(1, |response| response.response_code);
+        Ok(<Self as domain_types::flow_status::ConnectorRefundTerminalMapping<RSync>>::map_refund_status(
+            code,
+            (),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundSyncV2 for Bamboraapac<T>
 {
 }
 
+// SetupMandate: mirrors the TryFrom exactly. The discriminator is `return_value` (registration
+// outcome), with the same 0/non-zero semantics as response_code:
+// 0 → Charged (registration done — SetupMandate uses Charged, not Authorized),
+// non-zero → Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: SetupMandate,
+    source: u8,
+    params: [code],
+    success: _ => [Charged],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::AttemptStatus::Failure
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        SetupMandate,
+        SetupMandateRequestData<T>,
+        BamboraapacSetupMandateResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        _request: &SetupMandateRequestData<T>,
+        response: &BamboraapacSetupMandateResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .register_single_customer_response
+            .register_single_customer_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::RegisterSingleCustomerResponseInner =
+            xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac SetupMandate: {error}"),
+                ))
+            })?;
+        let code = parsed.return_value;
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<SetupMandate>>::map_attempt_status(
+            code,
+            (),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::SetupMandateV2<T> for Bamboraapac<T>
 {
 }
 
+// RepeatPayment also respects manual capture: an approved authorization stays Authorized.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: RepeatPayment,
+    source: u8,
+    context: bool,
+    params: [code, manual_capture],
+    success: _ => [Charged],
+    failure: none,
+    {
+        if code != 0 {
+            common_enums::AttemptStatus::Failure
+        } else if manual_capture {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Charged
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    domain_types::flow_status::ConnectorRuntimeStatusMapping<
+        RepeatPayment,
+        RepeatPaymentData<T>,
+        BamboraapacRepeatPaymentResponse,
+    > for Bamboraapac<T>
+{
+    type MappedStatus = common_enums::AttemptStatus;
+
+    fn map_runtime_status<CommonData>(
+        _common_data: &CommonData,
+        request: &RepeatPaymentData<T>,
+        response: &BamboraapacRepeatPaymentResponse,
+    ) -> Result<Self::MappedStatus, ConnectorError>
+    where
+        CommonData: domain_types::flow_status::FlowStatusReader<Self::MappedStatus>,
+    {
+        let xml = response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
+        let parsed: transformers::PaymentResponse = xml.as_str().parse_xml().map_err(|error| {
+            ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                format!("bamboraapac RepeatPayment: {error}"),
+            ))
+        })?;
+        let code = parsed.response_code;
+        Ok(<Self as domain_types::flow_status::ConnectorTerminalMapping<RepeatPayment>>::map_attempt_status(
+            code,
+            request.capture_method == Some(common_enums::CaptureMethod::Manual),
+        ))
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RepeatPaymentV2<T> for Bamboraapac<T>
 {
