@@ -327,6 +327,7 @@ where
 /// Extending functionalities of Wrapper types for idiomatic async operations
 #[cfg(feature = "async_ext")]
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
+#[allow(clippy::double_must_use)]
 pub trait AsyncExt<A> {
     /// Output type of the map function
     type WrappedSelf<T>;
