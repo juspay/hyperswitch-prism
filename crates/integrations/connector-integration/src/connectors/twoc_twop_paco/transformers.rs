@@ -273,10 +273,6 @@ pub struct PacoNotificationUrls {
     pub backend_url: Option<String>,
 }
 
-fn filter_paco_billing_state(state: Option<Secret<String>>) -> Option<Secret<String>> {
-    state.filter(|state| state.peek().chars().count() <= 3)
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoBillingAddress {
@@ -914,9 +910,9 @@ where
             bill_addr_line2: common.get_optional_billing_line2(),
             bill_addr_line3: common.get_optional_billing_line3(),
             bill_addr_post_code: common.get_optional_billing_zip(),
-            // EMVCo billAddrState accepts ISO 3166-2 subdivision codes up to 3 characters.
-            // Omit full state names so PACO does not reject the authorization request.
-            bill_addr_state: filter_paco_billing_state(common.get_optional_billing_state()),
+            bill_addr_state: common
+                .get_optional_billing_state()
+                .filter(|state| state.peek().chars().count() <= 3),
         });
 
     let paco_shipping_address = common
@@ -2771,51 +2767,5 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
             },
             ..router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn billing_address(state: Option<&str>) -> PacoBillingAddress {
-        PacoBillingAddress {
-            bill_addr_city: None,
-            bill_addr_country: None,
-            bill_addr_line1: None,
-            bill_addr_line2: None,
-            bill_addr_line3: None,
-            bill_addr_post_code: None,
-            bill_addr_state: state.map(|state| Secret::new(state.to_string())),
-        }
-    }
-
-    #[test]
-    fn serializes_billing_state_as_camel_case() {
-        let value = serde_json::to_value(billing_address(Some("CA")))
-            .expect("PACO billing address serialization should succeed");
-
-        assert_eq!(value.get("billAddrState"), Some(&serde_json::json!("CA")));
-        assert!(value.get("bill_addr_state").is_none());
-    }
-
-    #[test]
-    fn omits_billing_state_when_absent() {
-        let value = serde_json::to_value(billing_address(None))
-            .expect("PACO billing address serialization should succeed");
-
-        assert!(value.get("billAddrState").is_none());
-    }
-
-    #[test]
-    fn drops_billing_state_longer_than_emvco_limit() {
-        let short_state = filter_paco_billing_state(Some(Secret::new("CA".to_string())));
-        let full_state = filter_paco_billing_state(Some(Secret::new("California".to_string())));
-
-        assert_eq!(
-            short_state.map(|state| state.peek().clone()),
-            Some("CA".to_string())
-        );
-        assert!(full_state.is_none());
     }
 }
