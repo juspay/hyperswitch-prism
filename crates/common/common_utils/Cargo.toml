@@ -63,7 +63,7 @@ log-transformations = ["logging"]
 deja = ["dep:deja", "time/serde"]
 
 [dependencies.async-trait]
-version = "0.1.74"
+version = "0.1.92"
 optional = true
 
 [dependencies.futures]
