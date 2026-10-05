@@ -3053,8 +3053,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
             }
             None => {
                 // Handle error response
-                let (code, message, reason) =
-                    error_code_message_and_reason(&response.messages);
+                let (code, message, reason) = error_code_message_and_reason(&response.messages);
                 let error_response = ErrorResponse {
                     status_code: http_code,
                     code,
