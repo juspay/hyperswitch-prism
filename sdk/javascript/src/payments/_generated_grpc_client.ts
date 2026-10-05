@@ -310,7 +310,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CoinbaseConfig: ["apiKey"],
   CoingateConfig: ["apiKey"],
   PeachpaymentsConfig: ["apiKey", "tenantId", "clientMerchantReferenceId", "merchantPaymentMethodRouteId"],
-  PproConfig: ["apiKey", "merchantId"],
+  PproConfig: ["apiKey", "merchantId", "webhookSecret"],
   PaypalConfig: ["clientId", "clientSecret", "payerId"],
   TrustlyConfig: ["username", "password", "privateKey"],
   EasebuzzConfig: ["apiKey", "apiSalt"],
