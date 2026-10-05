@@ -174,6 +174,15 @@ struct DecryptedWalletEncryptedBlock {
     encryption_block_fields: String,
 }
 
+/// Card-derived fields for a DecryptedWallet encryption block.
+///
+/// Grouping these three adjacent `&str` args prevents silent positional swaps at call sites.
+struct DecryptedWalletCardFields<'a> {
+    dpan: &'a str,
+    exp_month: &'a str,
+    exp_year: &'a str,
+}
+
 /// Build and RSA-OAEP-SHA256 encrypt the plaintext block for a DecryptedWallet charge.
 ///
 /// Fiserv's block format is a bare concatenation of field values in the order listed by
@@ -188,12 +197,16 @@ struct DecryptedWalletEncryptedBlock {
 fn encrypt_decrypted_wallet_data(
     cavv: Option<&Secret<String>>,
     xid: Option<&str>,
-    dpan: &str,
-    exp_month: &str,
-    exp_year: &str,
+    card_fields: DecryptedWalletCardFields<'_>,
     key_id: String,
     public_key_der: &[u8],
 ) -> Result<DecryptedWalletEncryptedBlock, error_stack::Report<errors::IntegrationError>> {
+    let DecryptedWalletCardFields {
+        dpan,
+        exp_month,
+        exp_year,
+    } = card_fields;
+
     let mut plain_block = String::new();
     let mut field_descriptors: Vec<String> = Vec::new();
 
@@ -369,11 +382,13 @@ fn build_decrypted_wallet_source(
             let encrypted_block = encrypt_decrypted_wallet_data(
                 Some(&payment_cryptogram),
                 None,
-                decrypted_apple_pay
-                    .application_primary_account_number
-                    .peek(),
-                &expiration_month,
-                &expiration_year,
+                DecryptedWalletCardFields {
+                    dpan: decrypted_apple_pay
+                        .application_primary_account_number
+                        .peek(),
+                    exp_month: &expiration_month,
+                    exp_year: &expiration_year,
+                },
                 key_id,
                 public_key_der,
             )?;
@@ -448,9 +463,11 @@ fn build_decrypted_wallet_source(
             let encrypted_block = encrypt_decrypted_wallet_data(
                 decrypted_gpay.cryptogram.as_ref(),
                 None,
-                decrypted_gpay.application_primary_account_number.peek(),
-                &expiration_month,
-                &expiration_year,
+                DecryptedWalletCardFields {
+                    dpan: decrypted_gpay.application_primary_account_number.peek(),
+                    exp_month: &expiration_month,
+                    exp_year: &expiration_year,
+                },
                 key_id,
                 public_key_der,
             )?;
@@ -2255,7 +2272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 domain_types::types::AdditionalPaymentData::Card(card_info) => {
                     match (&card_info.card_exp_month, &card_info.card_exp_year) {
                         (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {
-                            expiration_month: month.clone(),
+                            expiration_month: Secret::new(format!("{:0>2}", month.peek())),
                             expiration_year: utils::expand_expiry_year_to_four_digits(year),
                         }),
                         _ => None,
@@ -2286,7 +2303,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     };
                     match (exp_month, exp_year) {
                         (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {
-                            expiration_month: month.clone(),
+                            expiration_month: Secret::new(format!("{:0>2}", month.peek())),
                             expiration_year: utils::expand_expiry_year_to_four_digits(year),
                         }),
                         _ => None,
