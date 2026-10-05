@@ -4450,6 +4450,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Stripe => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Deutschebank => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,

@@ -102,6 +102,11 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments. Unlike
+    /// VGS's MITM proxy, this is a plain CONNECT-tunnel proxy, so no CA certificate is
+    /// needed here.
+    #[serde(default)]
+    pub proxy_url: Option<Url>,
 }
 
 pub trait ConnectorRequestReference {
@@ -2241,6 +2246,12 @@ fn apply_vault_config_to_injector(
                     api_key: hsv.vault_auth_data.api_key,
                     profile_id: hsv.vault_auth_data.profile_id,
                 });
+            // Thread optional proxy egress (e.g. Squid) through to the injector. Sourced
+            // from the router's own [proxy] config, not per-MCA metadata — HyperswitchVault
+            // is a plain CONNECT-tunnel egress, so no CA certificate is needed here (unlike
+            // VGS's MITM proxy above).
+            injector_request.connection_config.proxy_url =
+                hsv.proxy_url.map(|u| Secret::new(u.to_string()));
         }
     }
 }
