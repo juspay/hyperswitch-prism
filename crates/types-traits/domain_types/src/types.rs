@@ -14240,6 +14240,7 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
                         payment_method_data::ApplePayAdditionalData {
                             display_name: apple_pay_data.display_name,
                             card_info: apple_pay_data.card_info.map(grpc_card_info_to_domain),
+                            device_pan_bin: apple_pay_data.device_pan_bin,
                         },
                     )),
                 )),
@@ -14250,6 +14251,7 @@ impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<Additiona
                         GooglePayAdditionalData {
                             payment_method_data_type: google_pay_data.payment_method_data_type,
                             card_info: google_pay_data.card_info.map(grpc_card_info_to_domain),
+                            device_pan_bin: google_pay_data.device_pan_bin,
                             email: google_pay_data.email.and_then(|e| {
                                 let raw = e.expose();
                                 Email::try_from(raw)
@@ -14293,7 +14295,6 @@ fn grpc_card_info_to_domain(card: grpc_payment_types::AdditionalCardInfo) -> Add
         funding_source,
         issuer_country,
         card_network: card.card_network,
-        device_pan_bin: card.device_pan_bin,
     }
 }
 
