@@ -163,7 +163,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"card\":{\"type\":\"PLAIN\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"737\"},\"autoSettle\":true,\"option\":null}"
         }
       },
       "CashappQr": {
@@ -714,7 +714,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"type\":\"PLAIN\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"{{$card_cvc}}\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
@@ -756,7 +756,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":{\"createAlias\":true}}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"type\":\"PLAIN\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"customer\":{\"email\":\"test@example.com\",\"firstName\":\"John\"},\"option\":{\"createAlias\":true}}"
         }
       }
     },
@@ -882,7 +882,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":\"https://example.com/mandate-return\",\"cancelUrl\":\"https://example.com/mandate-return\",\"errorUrl\":\"https://example.com/mandate-return\"},\"option\":{\"createAlias\":true}}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_mandate_001\",\"card\":{\"type\":\"PLAIN\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"737\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":\"https://example.com/mandate-return\",\"cancelUrl\":\"https://example.com/mandate-return\",\"errorUrl\":\"https://example.com/mandate-return\"},\"customer\":{\"email\":\"test@example.com\",\"firstName\":\"John\"},\"option\":{\"createAlias\":true}}"
         }
       }
     },
@@ -910,7 +910,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"type\":\"ALIAS\",\"alias\":\"pm_1AbcXyzStripeTestToken\",\"cardOnFile\":{\"enroll\":true}},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
@@ -960,7 +960,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_mandate_001\",\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_mandate_001\",\"card\":{\"type\":\"ALIAS\",\"alias\":\"pm_1AbcXyzStripeTestToken\",\"cardOnFile\":{\"enroll\":true},\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"customer\":{\"email\":\"test@example.com\",\"firstName\":\"John\"},\"option\":null}"
         }
       }
     },
