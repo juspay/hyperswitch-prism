@@ -557,7 +557,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             ),
             (
                 auth_headers::STRIPE_API_VERSION.to_string(),
-                auth_headers::STRIPE_VERSION.to_string().into_masked(),
+                format!("{}.art", auth_headers::STRIPE_VERSION).into_masked(),
             ),
         ])
     }
