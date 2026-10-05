@@ -113,10 +113,6 @@ fn default_lineage_prefix() -> String {
     consts::LINEAGE_FIELD_PREFIX.to_string()
 }
 
-fn default_true() -> bool {
-    true
-}
-
 /// Test mode configuration for mock server integration
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct TestConfig {
@@ -216,8 +212,20 @@ impl ApiTagConfig {
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Common {
     pub environment: consts::Env,
-    #[serde(default = "default_true")]
+    /// Controls whether raw connector request/response payloads are included in
+    /// responses returned to the client.
+    ///
+    /// Enabling this can significantly increase gRPC response size.
+    #[serde(default = "default_return_connector_data")]
     pub return_raw_connector_data: bool,
+    /// Controls whether typed connector request/response payloads are included
+    /// in responses returned to the client.
+    #[serde(default = "default_return_connector_data")]
+    pub return_typed_connector_data: bool,
+}
+
+fn default_return_connector_data() -> bool {
+    true
 }
 
 impl Default for Common {
@@ -225,6 +233,7 @@ impl Default for Common {
         Self {
             environment: consts::Env::Development,
             return_raw_connector_data: true,
+            return_typed_connector_data: true,
         }
     }
 }

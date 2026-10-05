@@ -55,18 +55,17 @@ pub const fn const_contains(slice: &[AttemptStatus], target: AttemptStatus) -> b
     false
 }
 
-/// Connectors whose modification endpoints acknowledge async processing and
-/// report the terminal outcome via webhook or sync.
-pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &["adyen"];
-
 /// Live connectors whose transformer-produced status remains the runtime source
 /// of truth while the status framework runs in shadow mode for mismatch logging.
 pub const LIVE_STATUS_TRANSFORMER_CONNECTORS: &[&str] = &[
+    "fiservcommercehub",
     "stripe",
     "adyen",
+    "datatrans",
     "cybersource",
     "paypal",
     "authorizedotnet",
+    "tsys_transit",
 ];
 
 pub fn is_live_status_transformer_connector(connector: &str) -> bool {
