@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.05.1
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Add payout benificiary reference validation ([#2420](https://github.com/juspay/connector-service/pull/2420)) ([`b0a0ba0`](https://github.com/juspay/connector-service/commit/b0a0ba078bc1597f5f4eefb4eb8de9528afe95b3))
+
+**Full Changelog:** [`2026.10.05.0...2026.10.05.1`](https://github.com/juspay/connector-service/compare/2026.10.05.0...2026.10.05.1)
+
+- - -
+
 ## 2026.10.05.0
 
 ### Features
