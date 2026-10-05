@@ -318,7 +318,7 @@ macro_rules! __impl_connector_flow_allowed_status_mapping_async_ack_status_guard
     ($connector_name:expr, $flow:ident, [$( $status:ident ),+]) => {
         const _: () = assert!(
             $crate::flow_status::const_contains_str(
-                $crate::flow_status::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
+                common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
                 $connector_name,
             ),
             "async-ack status mapping is not allowed for this connector"
