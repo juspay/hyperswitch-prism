@@ -398,7 +398,7 @@ see `macro_patterns_reference.md` §3-§5 for full argument lists and real invoc
 | Macro | Where | Use it for |
 |---|---|---|
 | `macro_connector_flow_status_impls!` | `macros.rs:1827` | Every flow you did NOT implement. Keys: `not_implemented: [...]` (the API could do it, nobody wrote it) and `not_supported: [...]` (the API cannot do it). **All 111 connectors on HEAD invoke this** (111 of the 111 files in `connectors/` excluding `macros.rs`) — without it the connector does not compile, because `ConnectorServiceTrait` demands a `ConnectorIntegrationV2` impl per flow. |
-| `macro_connector_local_flow_implementation!` | `macros.rs:2425` | A flow resolved entirely inside UCS with no outbound call. Sets `CallConnectorAction::HandleResponseWithoutBuildRequest`, `build_request_v2 -> Ok(None)`, and dispatches to the free function named in `handle_response`. Real invocation: `connectors/kount.rs:390`. |
+| `macro_connector_local_flow_implementation!` | `macros.rs:2425` | A flow resolved entirely inside UCS with no outbound call. Sets `CallConnectorAction::HandleResponseWithoutBuildRequest`, `build_request_v2 -> Ok(None)`, and dispatches to the free function named in `handle_response`. Real invocation: `frm_connectors/kount.rs`. |
 | `macro_connector_payout_implementation!` | `macros.rs:1448` | Payout flow stubs. Invoked with no `payout_flows:` key it covers all nine payout flows (`macros.rs:1460-1470`). Real invocation: `connectors/travelhub.rs:187`. |
 
 A flow must appear in exactly ONE of these plus `macro_connector_implementation!` — listing it

@@ -176,9 +176,24 @@ than a private helper in the connector module.
 **Seen as.** A reviewer writing "please create/use a common util for this" on a connector-local function
 duplicating behaviour already available.
 
-**Check.** For each new free function or private helper in the connector module, grep the shared crates
-(`crates/common/`, `crates/types-traits/domain_types/`) for the same shape by name and by signature before
-accepting it.
+**Check.**
+
+```bash
+# every new free function or private helper in the connector module — each one needs a shared-crate search
+git diff {BASE} -- <files> | grep -nE '^\+\s*(pub(\(crate\))? )?(async )?fn [a-z_]+'   # gate: advisory
+```
+
+Advisory, not blocking, and deliberately so: the grep fires on a legitimate new helper exactly as readily as
+on a duplicate, and a check that cannot separate the two buys nothing but a stack of justifications. It names
+the candidates; the search is the actual check. For each line it returns, grep `crates/common/` and
+`crates/types-traits/domain_types/` for the same shape by name and by signature, and read
+`grace/rulesbook/codegen/guides/utility_functions_reference.md` — the catalogue of what already exists —
+before accepting the new copy.
+
+Duplication here is not cosmetic. One shipped PR hand-wrote a currency-code table covering 50 currencies and
+including a retired one, where `Currency::iso_4217()` already had every currency; another hand-rolled a byte
+comparison for an HMAC where `crypto::HmacSha256::verify_signature` was in the tree and compares in constant
+time. The copy was wrong in a way the original was not — see TH-17.
 
 **PRs.** #2187, #2206, #2212, #2221 — representative:
 <https://github.com/juspay/hyperswitch-prism/pull/2206#discussion_r3957184314>
@@ -453,6 +468,11 @@ git diff {BASE} -- <files> | grep -nE '^\+.*(preimage|to_sign|string_to_sign|sig
 Then cross-check by hand: list every field the event-type mapper, the status mapper and the reference
 resolver read, and confirm each one appears in the preimage construction. A field read by a mapper and
 absent from the preimage is the defect. Also confirm no classification happens before verification.
+
+The first grep matches an *added* `fn verify_webhook_source` line, so it sees a weak override and misses the
+commoner defect — no override at all, inheriting the macro default. That one has inverted polarity (no output
+is the defect) and is asserted by presence in `grace/workflow/2.3b_codegen_unit.md` Phase 7 instead; keep the
+two in step when editing either.
 
 **PRs.** #2330, #2340, #2341, #2356, #2364 — representative:
 <https://github.com/juspay/hyperswitch-prism/pull/2356#discussion_r4111659599>

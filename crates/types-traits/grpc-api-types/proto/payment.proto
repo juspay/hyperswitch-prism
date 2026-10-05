@@ -539,6 +539,8 @@ enum WebhookEventType {
   PAYMENT_INTENT_EXPIRED = 11;              // Payment intent expired
   PAYMENT_ACTION_REQUIRED = 12; // Payment requires additional action
   PAYMENT_ASSOCIATED_DATA_UPDATE = 43; // Associated data events. Data about a payment shared out of band, typically after the payment has reached a terminal state. Carries no status change.
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_SUCCESS = 44; // Extended authorization success
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_FAILURE = 45; // Extended authorization failure
 
   SOURCE_CHARGEABLE = 13;          // Source is chargeable
   SOURCE_TRANSACTION_CREATED = 14; // Source transaction created
@@ -547,6 +549,7 @@ enum WebhookEventType {
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
   WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
+  WEBHOOK_REFUND_REVIEW = 46; // Refund requires review
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -1074,6 +1077,7 @@ enum PaymentMethodType {
   NETELLER = 136;
   PAY_HERE = 137;
   TAMARA_REDIRECT = 138;
+  TED = 139;
 }
 
 // Product type enumeration
@@ -3668,6 +3672,32 @@ message DisputeResponse {
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
+
+  // Card-network specific details of the dispute.
+  optional DisputeAdditionalDetails additional_details = 21;
+}
+
+// Additional details of a dispute, such as card network specific details.
+message DisputeAdditionalDetails {
+  optional DisputeNetworkDetails network_details = 1;
+}
+
+// Card network specific details of a dispute.
+message DisputeNetworkDetails {
+  oneof network {
+    VisaDisputeDetails visa = 1;
+  }
+}
+
+// Visa specific dispute details.
+message VisaDisputeDetails {
+  optional RapidDisputeResolution rapid_dispute_resolution = 1;
+}
+
+// Visa Rapid Dispute Resolution details.
+message RapidDisputeResolution {
+  // Whether Rapid Dispute Resolution has been applied.
+  bool applied = 1;
 }
 
 // Request message for setting up a mandate
@@ -3784,6 +3814,13 @@ message PaymentServiceSetupRecurringRequest {
   // additionalData.authorisationType / manualCapture) need the real value;
   // absent means the connector's default (automatic).
   optional CaptureMethod capture_method = 42;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen). Stripe's setup_intents needs it
+  // for on_behalf_of on a destination charge, and to echo the charge details back
+  // as mandate_reference.mandate_metadata.
+  optional SplitPaymentsDetails split_payments = 43;
 }
 
 // Response message for a mandate setup operation
@@ -6927,11 +6964,20 @@ message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+  optional StripeAdditionalInformation stripe = 3;
 }
 
 message WorldpayxmlAdditionalInformation {
   optional string funding_transaction_type = 1;
   optional string payment_purpose = 2;
+}
+
+// Stripe-specific additional information to be included in the payment request.
+message StripeAdditionalInformation {
+  // For MIT (merchant-initiated) payments: when true, Stripe fails the payment
+  // outright instead of returning a `requires_action` status, since there's no
+  // customer present to complete additional authentication.
+  optional bool error_on_requires_action = 1;
 }
 
 // Checkout.com-specific additional information to be included in the payment request.
