@@ -315,7 +315,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_method_type,
                 created_at,
             },
-            metadata: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }

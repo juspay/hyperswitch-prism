@@ -356,6 +356,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             .map(MandateAmountData::foreign_try_from)
             .transpose()?;
 
+        let metadata = value
+            .metadata
+            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "metadata")))
+            .transpose()?;
+
         let payment_connector_metadata = value
             .payment_connector_metadata
             .map(|metadata| {
@@ -374,13 +379,12 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             merchant_transaction_id: value.merchant_transaction_id,
             order_details,
             address,
-            metadata: value.metadata,
+            metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
             mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
-            payment_connector: value.payment_connector,
             payment_connector_metadata,
         })
     }
@@ -504,6 +508,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 },
             })?;
 
+        let metadata = value
+            .metadata
+            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "metadata")))
+            .transpose()?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -513,7 +522,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             payment_method,
             merchant_transaction_id: value.merchant_transaction_id,
             order_details,
-            metadata: value.metadata,
+            metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
             payment_status,
@@ -570,6 +579,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest>
             })
             .transpose()?;
 
+        let metadata = value
+            .metadata
+            .map(|metadata| SecretSerdeValue::foreign_try_from((metadata, "metadata")))
+            .transpose()?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -577,8 +591,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePrePayoutRiskCheckRequest>
             },
             payout_method,
             merchant_payout_id: value.merchant_payout_id,
-            payout_connector: value.payout_connector,
             payout_connector_metadata,
+            metadata,
         })
     }
 }

@@ -88,7 +88,7 @@ pub struct PreRiskCheckRequest {
     pub merchant_transaction_id: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub address: Option<PaymentAddress>,
-    pub metadata: Option<Secret<String>>,
+    pub metadata: Option<SecretSerdeValue>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
     /// Recurring / subscription details for risk scoring (shared MandateAmountData;
@@ -98,8 +98,6 @@ pub struct PreRiskCheckRequest {
     pub merchant_details: Option<MerchantDetails>,
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
     pub payment_method_type: Option<PaymentMethodType>,
-    /// Payment gateway associated with the transaction.
-    pub payment_connector: Option<String>,
     /// Gateway-specific metadata, validated as JSON at the proto boundary.
     pub payment_connector_metadata: Option<SecretSerdeValue>,
 }
@@ -122,7 +120,7 @@ pub struct PostRiskCheckRequest {
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub merchant_transaction_id: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
-    pub metadata: Option<Secret<String>>,
+    pub metadata: Option<SecretSerdeValue>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
     pub payment_status: Option<AttemptStatus>,
@@ -147,10 +145,9 @@ pub struct PrePayoutRiskCheckRequest {
     pub amount: Money,
     pub payout_method: Option<crate::payouts::payout_method_data::PayoutMethodData>,
     pub merchant_payout_id: Option<String>,
-    /// Payout gateway associated with the payout.
-    pub payout_connector: Option<String>,
     /// Gateway-specific metadata, validated as JSON at the proto boundary.
     pub payout_connector_metadata: Option<SecretSerdeValue>,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 /// Response data for pre-payout risk check

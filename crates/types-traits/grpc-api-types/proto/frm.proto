@@ -66,14 +66,11 @@ message FrmServicePreRiskCheckRequest {
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
 
-  // Payment connector associated with the transaction.
-  optional string payment_connector = 14;
-
   // Payment-connector-specific metadata for the transaction.
-  optional SecretString payment_connector_metadata = 15;
+  optional SecretString payment_connector_metadata = 14;
 
   // Merchant identifier for the fraud risk check.
-  optional string merchant_frm_id = 16;
+  optional string merchant_frm_id = 15;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -116,20 +113,20 @@ message FrmServicePrePayoutRiskCheckRequest {
   // Payout method details
   optional PayoutMethod payout_method = 2;
 
-  // Payout connector associated with the payout.
-  optional string payout_connector = 3;
-
   // Payout-connector-specific metadata for the payout.
-  optional SecretString payout_connector_metadata = 4;
+  optional SecretString payout_connector_metadata = 3;
 
   // Merchant identifier for the fraud risk check.
-  optional string merchant_frm_id = 5;
+  optional string merchant_frm_id = 4;
 
   // Merchant payout identifier.
-  optional string merchant_payout_id = 6;
+  optional string merchant_payout_id = 5;
 
   // State information
-  optional ConnectorState state = 7;
+  optional ConnectorState state = 6;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 7;
 }
 
 // Response for FrmService.PrePayoutRiskCheck
