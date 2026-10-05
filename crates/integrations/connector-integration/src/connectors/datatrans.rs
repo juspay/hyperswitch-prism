@@ -70,8 +70,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: DatatransPaymentsResponse,
-        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
-        context: |request, _response| !request.is_auto_capture(),
+        source: |_resource_common_data, _request, response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |_resource_common_data, request, _response| !request.is_auto_capture(),
     },
     {
         if requires_challenge {
@@ -106,8 +106,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: DatatransSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -158,7 +158,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: DatatransVoidResponse,
-        source: |_response| (),
+        source: |_resource_common_data, _request, _response| (),
     },
     { common_enums::AttemptStatus::Voided }
 }
@@ -187,7 +187,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: DatatransCaptureResponse,
-        source: |_response| (),
+        source: |_resource_common_data, _request, _response| (),
     },
     { common_enums::AttemptStatus::Charged }
 }
@@ -208,8 +208,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: DatatransSetupMandateResponse,
-        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
-        context: |_request, _response| false,
+        source: |_resource_common_data, _request, response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |_resource_common_data, _request, _response| false,
     },
     {
         if requires_challenge {
@@ -238,8 +238,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: DatatransRepeatPaymentResponse,
-        source: |response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
-        context: |request, _response| !request.is_auto_capture(),
+        source: |_resource_common_data, _request, response| matches!(response, DatatransPaymentsResponse::ThreeDSResponse(_)),
+        context: |_resource_common_data, request, _response| !request.is_auto_capture(),
     },
     {
         if requires_challenge {
@@ -285,7 +285,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: DatatransRefundResponse,
-        source: |_response| (),
+        source: |_resource_common_data, _request, _response| (),
     },
     { common_enums::RefundStatus::Success }
 }
@@ -312,8 +312,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: DatatransRefundSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::RefundStatus;

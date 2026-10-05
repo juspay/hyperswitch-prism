@@ -353,8 +353,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: D24SyncResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status,
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Pending       => Pending,
@@ -448,8 +448,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: D24RefundResponse,
-        source: |response| response.refund_info.as_ref().and_then(|info| info.result).unwrap_or(d24::D24RefundResult::InProgress),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.refund_info.as_ref().and_then(|info| info.result).unwrap_or(d24::D24RefundResult::InProgress),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         InProgress => Pending,
@@ -508,8 +508,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: D24RefundSyncResponse,
-        source: |response| response.status,
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status,
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Cancelled        => Failure,

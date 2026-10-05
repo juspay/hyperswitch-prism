@@ -79,7 +79,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BarclaycardAuthorizeResponse,
-        source: |response| match response {
+        source: |_resource_common_data, _request, response| match response {
             responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info) => info
                 .status
                 .clone()
@@ -88,7 +88,7 @@ domain_types::impl_flow_status_mapping! {
                 responses::BarclaycardPaymentStatus::Failed
             }
         },
-        context: |request, _response| matches!(
+        context: |_resource_common_data, request, _response| matches!(
             request.capture_method,
             Some(common_enums::CaptureMethod::Automatic) | None
         ),
@@ -364,8 +364,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: BarclaycardRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response
             .error_information
             .as_ref()
             .and_then(|error| error.reason.clone()),

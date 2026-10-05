@@ -105,8 +105,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: FlywirePSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Delivered   => Charged,
@@ -139,8 +139,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: FlywireRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Completed => Success,
@@ -175,8 +175,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: FlywireRSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Completed => Success,

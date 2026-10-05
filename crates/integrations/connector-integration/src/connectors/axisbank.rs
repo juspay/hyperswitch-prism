@@ -84,8 +84,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: AxisbankSyncResponse,
-        source: |response| response.response_code.clone(),
-        context: |_request, response| response.payload.as_ref().map(|payload| payload.gateway_response_code.clone()),
+        source: |_resource_common_data, _request, response| response.response_code.clone(),
+        context: |_resource_common_data, _request, response| response.payload.as_ref().map(|payload| payload.gateway_response_code.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -156,7 +156,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: AxisbankRefundResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
             response.payload.as_ref().map_or(Status::Failed, |payload| {
                 if payload.refund_type.eq_ignore_ascii_case("UDIR") {
@@ -166,7 +166,7 @@ domain_types::impl_refund_flow_status_mapping! {
                 }
             })
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Pending => Pending,
@@ -188,7 +188,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: AxisbankRefundSyncResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
             response.payload.as_ref().map_or(Status::Failed, |payload| {
                 if payload.refund_type.eq_ignore_ascii_case("UDIR") {
@@ -198,7 +198,7 @@ domain_types::impl_refund_flow_status_mapping! {
                 }
             })
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Pending => Pending,

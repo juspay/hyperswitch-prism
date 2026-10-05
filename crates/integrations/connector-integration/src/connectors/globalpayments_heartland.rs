@@ -431,7 +431,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GlobalpaymentsHeartlandPaymentsResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use transformers::GlobalpaymentsHeartlandFlowStatus as Status;
             let body = response.body.pos_response.ver.transaction.as_ref()
                 .and_then(|transaction| transaction.credit_auth.as_ref().or(transaction.credit_sale.as_ref()));
@@ -439,7 +439,7 @@ domain_types::impl_flow_status_mapping! {
                 Status::Approved
             } else { Status::Other }
         },
-        context: |request, response| transformers::GlobalpaymentsHeartlandAuthorizeCtx {
+        context: |_resource_common_data, request, response| transformers::GlobalpaymentsHeartlandAuthorizeCtx {
             gateway: if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
             is_auto_capture: request.is_auto_capture(),
         },
@@ -532,8 +532,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: GlobalpaymentsHeartlandCaptureResponse,
-        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_resource_common_data, _request, _response| (),
     },
     {}
 }
@@ -554,8 +554,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: GlobalpaymentsHeartlandVoidResponse,
-        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_resource_common_data, _request, _response| (),
     },
     {}
 }
@@ -578,8 +578,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GlobalpaymentsHeartlandRefundResponse,
-        source: |response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| if response.body.pos_response.ver.header.gateway_rsp_code.as_deref() == Some("0") { transformers::GlobalpaymentsHeartlandFlowStatus::Approved } else { transformers::GlobalpaymentsHeartlandFlowStatus::Other },
+        context: |_resource_common_data, _request, _response| (),
     },
     {}
 }

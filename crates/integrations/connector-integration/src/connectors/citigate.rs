@@ -493,12 +493,12 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: CitigateCaptureResponse,
-        source: |response| if response.0.response_code.as_deref() == Some("0") {
+        source: |_resource_common_data, _request, response| if response.0.response_code.as_deref() == Some("0") {
             citigate::CitigatePostAuthStatus::Approved
         } else {
             citigate::CitigatePostAuthStatus::NotReceived
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {}
 }
@@ -520,12 +520,12 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: CitigateVoidResponse,
-        source: |response| if response.0.response_code.as_deref() == Some("0") {
+        source: |_resource_common_data, _request, response| if response.0.response_code.as_deref() == Some("0") {
             citigate::CitigatePostAuthStatus::Approved
         } else {
             citigate::CitigatePostAuthStatus::NotReceived
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {}
 }

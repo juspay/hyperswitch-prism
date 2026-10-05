@@ -126,8 +126,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: AdyenPaymentResponse,
-        source: |r| r.result_code(),
-        context: |req, _| (
+        source: |_resource_common_data, _request, r| r.result_code(),
+        context: |_resource_common_data, req, _response| (
             crate::utils::is_manual_capture(req.capture_method),
             req.payment_method_type,
         ),
@@ -184,8 +184,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: AdyenPSyncResponse,
-        source: |r| r.result_code(),
-        context: |req, _| (
+        source: |_resource_common_data, _request, r| r.result_code(),
+        context: |_resource_common_data, req, _response| (
             crate::utils::is_manual_capture(req.capture_method),
             req.payment_method_type,
         ),
@@ -281,8 +281,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  SetupMandateRequestData<T>,
         response: SetupMandateResponse,
-        source: |r| r.result_code(),
-        context: |_req, _| (),
+        source: |_resource_common_data, _request, r| r.result_code(),
+        context: |_resource_common_data, _req, _response| (),
     },
     {
         AuthenticationFinished    => AuthenticationSuccessful,
@@ -328,8 +328,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  RepeatPaymentData<T>,
         response: AdyenRepeatPaymentResponse,
-        source: |r| r.result_code(),
-        context: |req, _| (
+        source: |_resource_common_data, _request, r| r.result_code(),
+        context: |_resource_common_data, req, _response| (
             crate::utils::is_manual_capture(req.capture_method),
             req.payment_method_type,
         ),

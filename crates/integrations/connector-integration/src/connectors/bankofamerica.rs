@@ -73,13 +73,13 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BankofamericaPaymentsResponse,
-        source: |response| match response {
+        source: |_resource_common_data, _request, response| match response {
             BankofamericaPaymentsResponse::ClientReferenceInformation(info) => info.status.clone(),
             BankofamericaPaymentsResponse::ErrorInformation(_) => {
                 transformers::BankofamericaPaymentStatus::Failed
             }
         },
-        context: |request, _response| request.is_auto_capture(),
+        context: |_resource_common_data, request, _response| request.is_auto_capture(),
     },
     {
         use transformers::BankofamericaPaymentStatus as S;
@@ -221,8 +221,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,
-        source: |response| response.status.clone(),
-        context: |_request, response| response
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response
             .error_information
             .as_ref()
             .and_then(|error| error.reason.clone()),
@@ -260,8 +260,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,
-        source: |response| response.status.clone(),
-        context: |_request, response| response
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response
             .error_information
             .as_ref()
             .and_then(|error| error.reason.clone()),

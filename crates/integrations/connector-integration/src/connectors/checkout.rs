@@ -88,8 +88,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: PaymentsResponse,
-        source: |response| response.status.clone(),
-        context: |request, _response| request.capture_method,
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, request, _response| request.capture_method,
     },
     {
         use common_enums::AttemptStatus;

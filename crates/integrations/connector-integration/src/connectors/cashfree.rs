@@ -86,7 +86,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: CashfreeCaptureResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use cashfree::CashfreeCaptureStatus as Status;
             match response.payment_status.as_deref().or(response.status.as_deref()) {
                 Some("SUCCESS" | "CAPTURE") => Status::Success,
@@ -125,7 +125,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: CashfreeVoidResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use cashfree::CashfreeVoidStatus as Status;
             match response.payment_status.as_deref().or(response.status.as_deref()).or(response.action.as_deref()) {
                 Some("VOID") => Status::Void,
@@ -190,7 +190,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: CashfreeSyncResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             let payment = response.iter().find(|payment| payment.payment_status == "SUCCESS")
                 .or_else(|| response.iter().find(|payment| payment.payment_status == "PENDING"))
                 .or_else(|| response.first());
@@ -238,7 +238,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: CashfreeRefundSyncResponse,
-        source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+        source: |_resource_common_data, _request, response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
     },
     {
         use common_enums::RefundStatus;
@@ -270,7 +270,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: CashfreeRefundResponse,
-        source: |response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
+        source: |_resource_common_data, _request, response| cashfree::CashfreeRefundStatus::from(response.refund_status.as_str()),
     },
     {
         use common_enums::RefundStatus;

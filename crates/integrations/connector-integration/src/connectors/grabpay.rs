@@ -1202,7 +1202,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GrabpayAuthorizeResponse,
-        source: |response| response.tx_status.clone(),
+        source: |_resource_common_data, _request, response| response.tx_status.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -1238,7 +1238,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GrabpayChargeCompleteResponse,
-        source: |response| response.tx_status.clone(),
+        source: |_resource_common_data, _request, response| response.tx_status.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -1275,7 +1275,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GrabpayRefundResponse,
-        source: |response| response.tx_status.clone(),
+        source: |_resource_common_data, _request, response| response.tx_status.clone(),
     },
     {
         use common_enums::RefundStatus;
@@ -1308,7 +1308,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: GrabpayRefundSyncResponse,
-        source: |response| response.tx_status.clone(),
+        source: |_resource_common_data, _request, response| response.tx_status.clone(),
     },
     {
         use common_enums::RefundStatus;
