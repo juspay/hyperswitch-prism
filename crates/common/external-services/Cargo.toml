@@ -24,10 +24,6 @@ reqwest = { version = "0.12", features = [
     "gzip",
     "multipart",
 ] }
-# Already pulled in transitively via reqwest's default-tls feature (the
-# backend reqwest actually uses here — see http_client.rs). Direct
-# dependency only to name `native_tls::Error` for source-chain downcasting.
-native-tls = "0.2"
 base64 = "0.21.2"
 bytes = { workspace = true }
 http = "1.2.0"
