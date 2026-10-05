@@ -7,6 +7,9 @@ pub use self::loonio::LoonioPayouts;
 pub mod paypal;
 pub use self::paypal::PaypalPayouts;
 
+pub mod stripe;
+pub use self::stripe::StripePayouts;
+
 pub mod deutschebank;
 pub use self::deutschebank::DeutschebankPayouts;
 
@@ -18,6 +21,9 @@ pub use self::worldpayxml::WorldpayxmlPayouts;
 
 pub mod cybersource;
 pub use self::cybersource::CybersourcePayouts;
+
+pub mod gigadat;
+pub use self::gigadat::GigadatPayouts;
 
 pub mod santander;
 pub use self::santander::SantanderPayouts;

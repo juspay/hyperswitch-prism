@@ -135,6 +135,19 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
                 .transpose()?,
+            customer: value
+                .customer
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+                .transpose()?,
+            payout_connector_metadata: value
+                .payout_connector_metadata
+                .map(|m| {
+                    common_utils::pii::SecretSerdeValue::foreign_try_from((
+                        m,
+                        "payout_connector_metadata",
+                    ))
+                })
+                .transpose()?,
         })
     }
 }
@@ -615,7 +628,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     field_name: "bank_name",
                     context: IntegrationErrorContext {
                         additional_context: Some("Invalid bank name".to_owned()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Provide a valid bank name for the Pix payout method data".to_owned(),
+                        ),
+                        doc_url: None,
                     },
                 })
             })
@@ -660,6 +676,90 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                 })
                 .transpose()?,
             account_holder_name: pix.account_holder_name,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::TedBankTransferPayout>
+    for payouts::payout_method_data::TedBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        ted: grpc_api_types::payouts::TedBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let bank_name =
+            ted.bank_name
+                .map(|bn| {
+                    grpc_api_types::payouts::BankNames::try_from(bn)
+                        .map_err(|_| {
+                            error_stack::report!(IntegrationError::InvalidDataFormat {
+                                field_name: "bank_name",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!("Unknown bank name: {bn}")),
+                                    suggested_action: Some(
+                                        "Provide a valid bank name for the TED payout method data"
+                                            .to_owned(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
+                        })
+                        .and_then(|b| {
+                            common_enums::BankNames::try_from(b.as_str_name())
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "bank_name",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Invalid bank name".to_owned()),
+                                    suggested_action: Some(
+                                        "Provide a valid bank name for the TED payout method data"
+                                            .to_owned(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
+                        })
+                })
+                .transpose()?;
+        Ok(payouts::payout_method_data::TedBankTransfer {
+            bank_name,
+            bank_code: ted.bank_code,
+            ispb: ted.ispb,
+            bank_branch: ted.bank_branch,
+            bank_account_number: ted.bank_account_number.ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "bank_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Bank account number is required for TED bank transfer".to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Provide the recipient's bank account number in the `bank_account_number` field of the TED payout method data".to_owned(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?,
+            bank_account_type: ted
+                .bank_account_type
+                .map(|bank_type_raw| {
+                    common_enums::BankType::foreign_try_from(bank_type_raw).change_context(
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "unsupported bank_account_type value: {bank_type_raw}"
+                                )),
+                                suggested_action: Some(
+                                    "Provide a valid bank account type".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        },
+                    )
+                })
+                .transpose()?,
+            tax_id: ted.tax_id,
+            account_holder_name: ted.account_holder_name,
         })
     }
 }
@@ -1102,6 +1202,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 )))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::Ted(ted) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::Ted(
+                    payouts::payout_method_data::TedBankTransfer::foreign_try_from(ted)?,
+                )))
+            }
             grpc_api_types::payouts::payout_method::PayoutMethodData::Trustly(trustly) => {
                 Ok(Self::Bank(payouts::payout_method_data::Bank::Trustly(
                     payouts::payout_method_data::TrustlyBankTransfer::foreign_try_from(trustly)?,
@@ -1222,6 +1327,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::SourceBankData> for payouts::payout
                     payouts::payout_method_data::TrustlyBankTransfer::foreign_try_from(trustly)?,
                 ))
             }
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Ted(ted) => Ok(Self::Ted(
+                payouts::payout_method_data::TedBankTransfer::foreign_try_from(ted)?,
+            )),
         }
     }
 }
@@ -1296,7 +1404,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
@@ -1331,6 +1439,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
                     ))
                 })
                 .transpose()?,
+            billing_descriptor: value.billing_descriptor.as_ref().map(|descriptor| {
+                crate::connector_types::BillingDescriptor::from((descriptor, None, None))
+            }),
         })
     }
 }
@@ -1346,63 +1457,161 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutAddress>
         Ok(Self {
             shipping_address: value
                 .shipping_address
-                .map(convert_payouts_address_to_domain)
+                .map(crate::payment_address::Address::foreign_try_from)
                 .transpose()?,
             billing_address: value
                 .billing_address
-                .map(convert_payouts_address_to_domain)
+                .map(crate::payment_address::Address::foreign_try_from)
                 .transpose()?,
         })
     }
 }
 
-fn convert_payouts_customer_to_domain(
-    customer: grpc_api_types::payments::Customer,
-) -> Result<payouts::payouts_types::PayoutCustomer, error_stack::Report<IntegrationError>> {
-    let email = customer
-        .email
-        .map(|email_str| {
-            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.email",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid email".to_owned()),
-                        ..Default::default()
-                    },
-                })
-                .attach_printable(format!("{e:?}"))
-            })
-        })
-        .transpose()?;
+impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_types::PayoutCustomer {
+    type Error = IntegrationError;
 
-    Ok(payouts::payouts_types::PayoutCustomer {
-        name: customer.name,
-        email,
-        merchant_customer_id: customer.id,
-        connector_customer_id: customer.connector_customer_id,
-        phone_number: customer.phone_number,
-        phone_country_code: customer.phone_country_code,
-    })
+    fn foreign_try_from(
+        customer: grpc_api_types::payments::Customer,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let email = customer
+            .email
+            .map(|email_str| {
+                common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "customer.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email".to_owned()),
+                            ..Default::default()
+                        },
+                    })
+                    .attach_printable(format!("{e:?}"))
+                })
+            })
+            .transpose()?;
+
+        Ok(Self {
+            name: customer.name,
+            email,
+            merchant_customer_id: customer.id,
+            connector_customer_id: customer.connector_customer_id,
+            phone_number: customer.phone_number,
+            phone_country_code: customer.phone_country_code,
+        })
+    }
 }
 
-fn convert_payouts_address_to_domain(
-    addr: grpc_api_types::payouts::Address,
-) -> Result<crate::payment_address::Address, error_stack::Report<IntegrationError>> {
-    let payments_addr = grpc_api_types::payments::Address {
-        first_name: addr.first_name,
-        last_name: addr.last_name,
-        line1: addr.line1,
-        line2: addr.line2,
-        line3: addr.line3,
-        city: addr.city,
-        state: addr.state,
-        zip_code: addr.zip_code,
-        country_alpha2_code: addr.country_alpha2_code,
-        email: addr.email,
-        phone_number: addr.phone_number,
-        phone_country_code: addr.phone_country_code,
-    };
-    crate::payment_address::Address::foreign_try_from(payments_addr)
+impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
+    for payouts::payouts_types::PayoutVendorAccountDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::PayoutVendorAccountDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(payouts::payouts_types::PayoutVendorAccountDetails {
+            vendor_details: value
+                .vendor_details
+                .map(|vd| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(
+                        payouts::payouts_types::PayoutVendorDetails {
+                            account_type: payout_account_type_from_proto(vd.account_type)?,
+                            vendor_type: bank_holder_type_from_proto(
+                                vd.vendor_type,
+                                "vendor_type",
+                            )?,
+                            vendor_category_code: vd.vendor_category_code,
+                            vendor_url: vd.vendor_url,
+                            vendor_name: vd.vendor_name,
+                            statement_descriptor: vd.statement_descriptor,
+                            owners_provided: vd.owners_provided,
+                            card_payments_enabled: vd.card_payments_enabled,
+                            transfers_enabled: vd.transfers_enabled,
+                        },
+                    )
+                })
+                .transpose()?,
+            individual_details: value
+                .individual_details
+                .map(|id| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(
+                        payouts::payouts_types::PayoutIndividualDetails {
+                            first_name: id.first_name,
+                            last_name: id.last_name,
+                            phone: id.phone,
+                            ssn_last_4: id.ssn_last_4,
+                            id_number: id.id_number,
+                            date_of_birth: id.date_of_birth,
+                            tos_acceptance_date: id.tos_acceptance_date,
+                            tos_acceptance_ip: id.tos_acceptance_ip,
+                            external_account_account_holder_type: bank_holder_type_from_proto(
+                                id.external_account_account_holder_type,
+                                "external_account_account_holder_type",
+                            )?,
+                        },
+                    )
+                })
+                .transpose()?,
+        })
+    }
+}
+
+fn payout_account_type_from_proto(
+    value: Option<i32>,
+) -> Result<Option<payouts::payouts_types::PayoutAccountType>, error_stack::Report<IntegrationError>>
+{
+    match value {
+        None => Ok(None),
+        Some(value) => {
+            match grpc_api_types::payouts::payout_enums::PayoutAccountType::try_from(value) {
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Custom) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Custom))
+                }
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Express) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Express))
+                }
+                Ok(grpc_api_types::payouts::payout_enums::PayoutAccountType::Standard) => {
+                    Ok(Some(payouts::payouts_types::PayoutAccountType::Standard))
+                }
+                Ok(_) => Ok(None),
+                Err(_) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "account_type",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some("Unknown account type".to_string()),
+                        suggested_action: Some(
+                            "Send the account type as custom, express or standard".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })),
+            }
+        }
+    }
+}
+
+fn bank_holder_type_from_proto(
+    value: Option<i32>,
+    field_name: &'static str,
+) -> Result<Option<common_enums::BankHolderType>, error_stack::Report<IntegrationError>> {
+    match value {
+        None => Ok(None),
+        Some(value) => match grpc_api_types::payouts::BankHolderType::try_from(value) {
+            Ok(grpc_api_types::payouts::BankHolderType::Business) => {
+                Ok(Some(common_enums::BankHolderType::Business))
+            }
+            Ok(grpc_api_types::payouts::BankHolderType::Personal) => {
+                Ok(Some(common_enums::BankHolderType::Personal))
+            }
+            Ok(_) => Ok(None),
+            Err(_) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(format!("Unknown {field_name}")),
+                    suggested_action: Some("Send the field as personal or business".to_string()),
+                    doc_url: None,
+                },
+            })),
+        },
+    }
 }
 
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
@@ -1416,10 +1625,51 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
+            customer: value
+                .customer
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+                .transpose()?,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
                 .transpose()?,
+            payout_method_type: value
+                .payout_method_type
+                .map(
+                    |raw| -> Result<
+                        Option<common_enums::PaymentMethodType>,
+                        error_stack::Report<IntegrationError>,
+                    > {
+                        let pt = grpc_api_types::payments::PaymentMethodType::try_from(raw)
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payout_method_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "unknown PaymentMethodType value: {raw}"
+                                    )),
+                                    suggested_action: Some(
+                                        "Provide a valid payout_method_type".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })?;
+                        Option::<common_enums::PaymentMethodType>::foreign_try_from(pt)
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payout_method_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "unsupported payout_method_type".to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "Provide a valid payout_method_type".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
+                    },
+                )
+                .transpose()?
+                .flatten(),
         })
     }
 }
@@ -1486,11 +1736,35 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let customer = value
+            .customer
+            .clone()
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+            .transpose()?;
+        let browser_info = value
+            .browser_info
+            .clone()
+            .map(crate::router_request_types::BrowserInformation::foreign_try_from)
+            .transpose()?;
+        let address = value
+            .address
+            .clone()
+            .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
+            .transpose()?;
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
+            payout_method_data,
+            customer,
+            browser_info,
+            address,
         })
     }
 }
@@ -1632,12 +1906,17 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
             .address
             .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
+            .transpose()?;
+
+        let vendor_account_details = value
+            .vendor_account_details
+            .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
@@ -1650,6 +1929,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             )?,
             customer,
             address,
+            vendor_account_details,
         })
     }
 }
@@ -1689,16 +1969,45 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let destination_currency = value
+            .destination_currency
+            .map(|currency| {
+                let curr = grpc_api_types::payments::Currency::try_from(currency).change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    },
+                )?;
+                common_enums::Currency::foreign_try_from(curr)
+            })
+            .transpose()?;
+
         let payout_method_data = value
             .payout_method_data
             .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+
+        let customer = value
+            .customer
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+            .transpose()?;
+
+        let vendor_account_details = value
+            .vendor_account_details
+            .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
+            destination_currency,
             payout_method_data,
+            customer,
+            vendor_account_details,
         })
     }
 }
@@ -1872,7 +2181,7 @@ impl
                     expires_in: None,
                 }
             }),
-            test_mode: None,
+            test_mode: value.test_mode,
             description: None,
             merchant_request_id: value.merchant_request_id.clone(),
         })
@@ -2272,6 +2581,7 @@ pub fn generate_payout_stage_response(
                 connector_payout_id: response.connector_payout_id,
                 error: None,
                 status_code: u32::from(response.status_code),
+                connector_metadata: response.payout_connector_metadata,
             })
         }
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceStageResponse {
@@ -2308,6 +2618,7 @@ pub fn generate_payout_stage_response(
                 }),
             }),
             status_code: u32::from(err.status_code),
+            connector_metadata: None,
         }),
     }
 }
@@ -2510,7 +2821,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
 
         let customer = value
             .customer
-            .map(convert_payouts_customer_to_domain)
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value

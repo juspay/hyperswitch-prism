@@ -2096,6 +2096,26 @@ enum BankNames {
   VestjyskBank = 684;
   VossSparebank = 685;
   YorkshireBuildingSociety = 686;
+  SpareBank1Gudbrandsdal = 687;
+  SpareBank1HallingdalValdres = 688;
+  SpareBank1LomOgSkjak = 689;
+  SpareBank1Modum = 690;
+  SpareBank1Nordmore = 691;
+  SpareBank1RingerikeHadeland = 692;
+  SpareBank1Smn = 693;
+  SpareBank1SrBank = 694;
+  SpareBank1SoreSunnmore = 695;
+  SpareBank1SorostNorgeBv = 696;
+  SpareBank1SorostNorgeTelemark = 697;
+  SpareBank1OstfoldAkershus = 698;
+  SpareBank1Ostlandet = 699;
+  CitiHandlowy = 700;
+  DeutscheBankPolska = 701;
+  IngBankSlaski = 702;
+  IngDiba = 703;
+  NordeaDirect = 704;
+  SantanderUk = 705;
+  SwedbankSparbankerna = 706;
 }
 
 // ============================================================================
