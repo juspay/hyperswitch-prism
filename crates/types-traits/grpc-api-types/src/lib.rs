@@ -1,6 +1,5 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::uninlined_format_args)]
-#![allow(clippy::double_must_use)]
 #![allow(legacy_derive_helpers)]
 
 pub const FILE_DESCRIPTOR_SET: &[u8] =

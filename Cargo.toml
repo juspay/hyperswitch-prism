@@ -113,4 +113,3 @@ use_self = "warn"
 
 # Lints to allow
 option_map_unit_fn = "allow"
-double_must_use = "allow"
