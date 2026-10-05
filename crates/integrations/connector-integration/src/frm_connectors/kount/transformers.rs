@@ -1268,7 +1268,7 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
             initial_billing_amount: mandate
                 .initial_billing_amount
                 .as_ref()
-                .and_then(&minor_unit_amount),
+                .and_then(minor_unit_amount),
             period_billing_amount: minor_unit_amount(&mandate.amount),
             period: mandate.frequency.clone(),
             external_subscription_id: mandate.external_subscription_id.clone(),
@@ -2153,7 +2153,7 @@ impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
         item: ResponseRouterData<KountPreRiskCheckResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Always surface the *verbatim* Kount body (independent of the global
-        // `return_raw_and_typed_connector_data` flag). Serialising the captured raw JSON —
+        // `return_raw_connector_data` flag). Serialising the captured raw JSON —
         // not the typed struct — keeps every field Kount sent, including any we
         // don't model. Wrapped whole in `Secret` so it masks in the event log.
         // `None` on serialization failure (degrades the audit trail rather than

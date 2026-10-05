@@ -12,6 +12,7 @@ extend-exclude = [
     "backend/ucs-connector-tests/test_result.md",
     "crates/internal/ucs-connector-tests/**",
     "docs-generated/**",
+    "crates/types-traits/domain_types/src/state_codes.rs", # Generated state/province name -> code table
 ]
 
 [default.extend-words]
@@ -33,6 +34,7 @@ Tema = "Tema" # "Banca Tema" — Italian bank (Terre Etrusche e di Maremma)
 tema = "tema" # "banca-tema" — lowercase form in TrueLayer provider ids
 Institutionnels = "Institutionnels" # French "Arkéa Banque Entreprises et Institutionnels"
 Imagin = "Imagin" # "imaginBank" — CaixaBank mobile-only brand
+regio = "regio" # "Regio Bank" — Dutch bank
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

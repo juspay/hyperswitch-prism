@@ -1052,6 +1052,16 @@ message Sofort {
 message Trustly {
   // The customer's country code (required by Trustly)
   optional CountryAlpha2 country = 1;
+  // Name of the account holder
+  optional SecretString account_holder_name = 2;
+  // Bank the customer selected at Trustly
+  optional BankNames bank_name = 3;
+  // Additional payment details as a JSON string
+  optional SecretString additional_details = 4;
+  // Last digits of the customer's bank account at the selected bank
+  optional SecretString bank_last_digits = 5;
+  // The connector's own reference to the customer's bank account.
+  optional SecretString connector_instrument_id = 6;
 }
 
 // Giropay - German bank transfer payment method
@@ -2016,6 +2026,96 @@ enum BankNames {
   Seb = 614;
   Swedbank = 615;
   MockUkPayments = 616;
+  Abanca = 617;
+  AlmBrand = 618;
+  AlphaFx = 619;
+  ArbejdernesLandsbank = 620;
+  ArbuthnotLatham = 621;
+  BancoPopular = 622;
+  BankPocztowy = 623;
+  Bankia = 624;
+  BnBank = 625;
+  CaterAllen = 626;
+  ChelseaBuildingSociety = 627;
+  Citadele = 628;
+  CoopPank = 629;
+  CooperativeBank = 630;
+  Cumberland = 631;
+  DabBank = 632;
+  DjurslandsBank = 633;
+  Dnb = 634;
+  EtneSparebank = 635;
+  FanaSparebank = 636;
+  FidorBank = 637;
+  FlekkefjordSparebank = 638;
+  ForexBank = 639;
+  HaugesundSparebank = 640;
+  HoareAndCo = 641;
+  IcaBanken = 642;
+  JyskeBank = 643;
+  KleinwortHambros = 644;
+  KlpBanken = 645;
+  Kreditbanken = 646;
+  LandkredittBank = 647;
+  Lansforsakringar = 648;
+  LhvPank = 649;
+  LillesandsSparebank = 650;
+  Luminor = 651;
+  LusterSparebank = 652;
+  MetroBank = 653;
+  NordfynsBank = 654;
+  NordjyskeBank = 655;
+  Norisbank = 656;
+  NykreditBank = 657;
+  ObosBanken = 658;
+  OrangeFinanse = 659;
+  ParetoBank = 660;
+  PkoBankPolski = 661;
+  RingkjobingLandbobank = 662;
+  Sbanken = 663;
+  SiauliuBankas = 664;
+  SiliconValleyBank = 665;
+  Skandiabanken = 666;
+  SkjernBank = 667;
+  SkudenesOgAakraSparebank = 668;
+  SogneOgGreipstadSparebank = 669;
+  SparNordBank = 670;
+  SparbankenSyd = 671;
+  SpardaBank = 672;
+  SpareBank1 = 673;
+  SparebankenMore = 674;
+  SparebankenOst = 675;
+  SparebankenSognOgFjordane = 676;
+  SparebankenSor = 677;
+  SparebankenVest = 678;
+  SparekassenDanmark = 679;
+  SparekassenSjaellandFyn = 680;
+  Spareskillingsbanken = 681;
+  Sydbank = 682;
+  VanquisBank = 683;
+  VestjyskBank = 684;
+  VossSparebank = 685;
+  YorkshireBuildingSociety = 686;
+  SpareBank1Gudbrandsdal = 687;
+  SpareBank1HallingdalValdres = 688;
+  SpareBank1LomOgSkjak = 689;
+  SpareBank1Modum = 690;
+  SpareBank1Nordmore = 691;
+  SpareBank1RingerikeHadeland = 692;
+  SpareBank1Smn = 693;
+  SpareBank1SrBank = 694;
+  SpareBank1SoreSunnmore = 695;
+  SpareBank1SorostNorgeBv = 696;
+  SpareBank1SorostNorgeTelemark = 697;
+  SpareBank1OstfoldAkershus = 698;
+  SpareBank1Ostlandet = 699;
+  CitiHandlowy = 700;
+  DeutscheBankPolska = 701;
+  IngBankSlaski = 702;
+  IngDiba = 703;
+  NordeaDirect = 704;
+  SantanderUk = 705;
+  SwedbankSparbankerna = 706;
 }
 
 // ============================================================================

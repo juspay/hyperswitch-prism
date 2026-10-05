@@ -469,7 +469,8 @@ The real `get_headers` does not hand-roll the base64 itself — it calls
 
 ### Pattern 4: Stub Implementation
 
-Only 15 connectors register the flow (roster below); every other connector in the payment, FRM and
+Only 15 connectors register the flow in the current snapshot (verify the roster with
+`rg -n 'ServerAuthenticationToken' crates/integrations/connector-integration/src/{connectors,frm_connectors,payout_connectors}`); every other connector in the payment, FRM and
 payout registries carries the empty marker impl so the service-trait bound is satisfied. The
 `ValidationTrait` default already returns `false`, so an override is only needed to turn the flow ON:
 
@@ -851,10 +852,11 @@ rg -l "flow: ClientAuthenticationToken,"        crates/integrations/connector-in
 
 At HEAD:
 
-- **`ServerAuthenticationToken`: 15 registrations** — `airwallex`, `fiservcommercehub`, `getnet`,
+- **`ServerAuthenticationToken`: 15 registrations in the current snapshot** — `airwallex`, `fiservcommercehub`, `getnet`,
   `globalpay`, `iatapay`, `jpmorgan`, `kount`, `moneris`, `paypal`, `pinelabs_online`, `qwikcilver`,
   `tesouro`, `truelayer`, `trustpay`, `volt` (all under
-  `crates/integrations/connector-integration/src/connectors/`). Note `kount` is the FRM connector —
+  `crates/integrations/connector-integration/src/connectors/`, except `kount`, which now lives in
+  `src/frm_connectors/`). Note `kount` is an FRM connector —
   `ServerAuthentication` is a supertrait of `FrmServiceTrait` as well as `ConnectorServiceTrait` and
   `PayoutServiceTrait`.
 - **`ServerSessionAuthenticationToken`: 5 registrations** — `authorizedotnet`, `grabpay`, `nuvei`,
