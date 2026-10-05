@@ -3910,7 +3910,10 @@ pub struct RefundRequest {
 
 #[derive(Debug, Serialize)]
 pub struct ChargeRefundRequest {
-    pub charge: String,
+    /// Stripe accepts either identifier. `charge` is used when it is known; otherwise the refund
+    /// goes against `payment_intent`, which keeps the split refund options on the request.
+    pub charge: Option<String>,
+    pub payment_intent: Option<String>,
     pub refund_application_fee: Option<bool>,
     pub reverse_transfer: Option<bool>,
     pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
@@ -5280,8 +5283,14 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
                         ) => (Some(*revert_platform_fee), Some(*revert_transfer)),
                     };
 
+                    let charge = stripe_refund.charge_id.clone();
+                    let payment_intent = charge
+                        .is_none()
+                        .then(|| item.request.connector_transaction_id.clone());
+
                     Ok(Self {
-                        charge: stripe_refund.charge_id.clone(),
+                        charge,
+                        payment_intent,
                         refund_application_fee,
                         reverse_transfer,
                         amount: Some(amount),

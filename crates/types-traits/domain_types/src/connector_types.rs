@@ -4707,7 +4707,8 @@ pub struct AdyenSplitItem {
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct StripeSplitRefundData {
-    pub charge_id: String,
+    /// `None` when the charge id is unknown; the refund is issued against the payment intent.
+    pub charge_id: Option<String>,
     pub transfer_account_id: String,
     pub charge_type: common_enums::PaymentChargeType,
     pub options: ChargeRefundsOptions,
