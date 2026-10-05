@@ -597,7 +597,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout", "payshap": "PayshapBankTransferPayout", "payshapProxy": "PayshapProxyBankTransferPayout", "trustly": "TrustlyBankTransferPayout", "ted": "TedBankTransferPayout" },
   PayoutServiceCreateRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateResponse: { "error": "ErrorInfo" },
-  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
+  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData", "billingDescriptor": "BillingDescriptor" },
   PayoutServiceTransferResponse: { "error": "ErrorInfo" },
   PayoutServiceStageRequest: { "address": "PayoutAddress", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "payoutMethodData": "PayoutMethod" },
   PayoutServiceStageResponse: { "error": "ErrorInfo" },

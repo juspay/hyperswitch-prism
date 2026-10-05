@@ -14,7 +14,7 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse,
+        ConnectorSpecificClientAuthenticationResponse, CustomerInfo,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
@@ -63,11 +63,6 @@ fn datatrans_redirection_host(base_url: &str) -> &'static str {
         REDIRECTION_PROD_URL
     }
 }
-/// Card `type` discriminator sent to Datatrans for raw PAN card data.
-const CARD_TYPE_PLAIN: &str = "PLAIN";
-/// Card `type` discriminator sent to Datatrans for a stored-alias charge
-/// (MIT / RepeatPayment): the alias created by SetupMandate is reused in place of a PAN.
-const CARD_TYPE_ALIAS: &str = "ALIAS";
 /// Error surfaced when a Datatrans MIT/RepeatPayment carries a mandate reference type
 /// this connector cannot charge via an alias (only connector-stored alias mandates work).
 const UNSUPPORTED_MANDATE_REFERENCE_ERROR: &str =
@@ -167,31 +162,184 @@ impl Default for DatatransErrorResponse {
     }
 }
 
-// Card details for Datatrans API
+/// The `card` object of a Datatrans transaction request (`/v1/transactions/authorize`).
+///
+/// Datatrans models `card` as a `oneOf` whose shape *is* the card type, with `type` merely
+/// restating it. Encoding that as an enum makes the two shapes this connector sends mutually
+/// exclusive by construction — a PAN can never be sent alongside an alias, and neither
+/// variant can be built with the fields its shape does not allow. Serialization is internally
+/// tagged, so each variant still emits the `type` discriminator Datatrans expects.
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DatatransCard<
+#[serde(tag = "type")]
+pub enum DatatransCard<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alias: Option<Secret<String>>,
+    /// Raw PAN charge: the full card details are sent on this request.
+    #[serde(rename = "PLAIN")]
+    Plain(DatatransPlainCard<T>),
+    /// Stored-alias charge: the alias created by SetupMandate (or minted for a wallet by
+    /// `POST /v1/aliases/tokenize`) is reused in place of a PAN.
+    #[serde(rename = "ALIAS")]
+    Alias(DatatransAliasCard),
+}
+
+/// `card` payload for a raw PAN charge (`type = PLAIN`).
+///
+/// No `cardOnFile`: a raw-card CIT enrolls the credential through `option.createAlias`, and
+/// Datatrans owns the COF state on that path (see `should_create_alias`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransPlainCard<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub number: RawCardNumber<T>,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
+    /// The `3D` object driving card 3DS: either merchant-supplied external
+    /// authentication artifacts (`Authentication`) or cardholder details that ask
+    /// Datatrans to run native 3DS (`Cardholder`). Omitted for non-3DS card payments.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "3D")]
+    pub three_ds: Option<ThreeDSecureData>,
+}
+
+/// `card` payload for a stored-alias charge (`type = ALIAS`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransAliasCard {
+    pub alias: Secret<String>,
+    /// Expiry of the aliased card, required by Datatrans when charging an alias minted from
+    /// a raw card. A wallet alias from `POST /v1/aliases/tokenize` carries no expiry of its
+    /// own, so both fields are omitted there.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_month: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_year: Option<Secret<String>>,
+    /// Explicit Card-on-File parameters (`card.cardOnFile`). Sent on the first,
+    /// customer-initiated charge of a Google Pay alias so the issuer sees an initial
+    /// stored-credential transaction, and replayed by the MIT that later charges it.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub number: Option<RawCardNumber<T>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "type")]
-    pub card_type: Option<String>,
-    /// The `3D` object driving card 3DS: either merchant-supplied external
-    /// authentication artifacts (`Authentication`) or cardholder details that ask
-    /// Datatrans to run native 3DS (`Cardholder`). Omitted for non-3DS card payments.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "3D")]
+    pub card_on_file: Option<DatatransCardOnFile>,
+    /// The `3D` object driving a native 3DS challenge on the alias. Omitted for non-3DS
+    /// charges and for MITs, which charge an already-authenticated alias.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "3D")]
     pub three_ds: Option<ThreeDSecureData>,
+}
+
+/// Datatrans `card.cardOnFile` — explicit Card-on-File (COF) parameters.
+///
+/// Datatrans normally derives COF state from its own alias lifecycle (`option.createAlias`).
+/// A Google Pay alias minted out of band by `POST /v1/aliases/tokenize` has no such
+/// lifecycle, so without this object nothing marks its first charge as the initial
+/// stored-credential transaction and Visa/Mastercard decline it (`DoNotHonor`).
+/// The COF feature must be enabled for the merchant by Datatrans.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransCardOnFile {
+    /// `true` performs a COF enrollment; the resulting id is echoed back on the
+    /// authorize response as `card.cardOnFile.id`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enroll: Option<bool>,
+    /// An already-enrolled COF id, replayed on subsequent MIT authorizations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Secret<String>>,
+}
+
+impl DatatransCardOnFile {
+    /// Enroll a freshly tokenized wallet alias on its first charge. Raw-card charges use
+    /// `option.createAlias` instead; subsequent MITs reuse the enrolled COF id.
+    fn enrollment() -> Self {
+        Self {
+            enroll: Some(true),
+            id: None,
+        }
+    }
+
+    /// Reuse the COF id saved from the initial charge, if one was returned. Older mandates
+    /// and raw-card aliases have no explicit COF id and let Datatrans resolve it by alias.
+    fn from_mandate_reference(mandate_reference: &MandateReferenceId) -> Option<Self> {
+        let MandateReferenceId::ConnectorMandateId(connector_mandate_id) = mandate_reference else {
+            return None;
+        };
+        Some(Self {
+            enroll: None,
+            id: Some(Secret::new(
+                connector_mandate_id.get_connector_mandate_request_reference_id()?,
+            )),
+        })
+    }
+}
+
+/// Datatrans top-level `customer` object.
+///
+/// Datatrans (and the issuer, on a card-on-file authorization) ties a shopper's
+/// stored-credential transactions together by `customer.id`; the remaining fields are the
+/// shopper details Datatrans accepts, sourced from the billing address.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransCustomer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    /// 2-letter ISO 3166-1 alpha-2 country code.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zip_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+}
+
+/// The merchant's customer identifier for `customer.id`, taken from the request's explicit
+/// `customer_id` and falling back to the id nested in the full customer details.
+///
+/// Datatrans (and the issuer, on a card-on-file authorization) ties a shopper's
+/// stored-credential transactions together by `customer.id`, so dropping it on the
+/// enrolling CIT breaks the linkage to the MIT that later charges the alias. The two
+/// sources are populated independently by the caller, hence the fallback.
+fn resolve_customer_id(
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    customer: Option<&CustomerInfo>,
+) -> Option<String> {
+    customer_id
+        .or_else(|| customer.and_then(|customer| customer.customer_id.as_ref()))
+        .map(|customer_id| customer_id.get_string_repr().to_string())
+}
+
+impl DatatransCustomer {
+    /// `email` is the request-level email, falling back to the billing email.
+    fn new(
+        id: Option<String>,
+        email: Option<Email>,
+        resource_common_data: &PaymentFlowData,
+    ) -> Option<Self> {
+        let customer = Self {
+            id,
+            email: email.or_else(|| resource_common_data.get_optional_billing_email()),
+            first_name: resource_common_data.get_optional_billing_first_name(),
+            last_name: resource_common_data.get_optional_billing_last_name(),
+            city: resource_common_data.get_optional_billing_city(),
+            country: resource_common_data.get_optional_billing_country(),
+            zip_code: resource_common_data.get_optional_billing_zip(),
+            phone: resource_common_data.get_optional_billing_phone_number(),
+        };
+        let is_empty = customer.id.is_none()
+            && customer.email.is_none()
+            && customer.first_name.is_none()
+            && customer.last_name.is_none()
+            && customer.city.is_none()
+            && customer.country.is_none()
+            && customer.zip_code.is_none()
+            && customer.phone.is_none();
+        (!is_empty).then_some(customer)
+    }
 }
 
 /// The `3D` object attached to a Datatrans card in an Authorize request.
@@ -261,6 +409,10 @@ pub struct DatatransPaymentsRequest<
     /// ACS challenge. Omitted for passthrough external 3DS and no-3DS payments.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect: Option<RedirectUrls>,
+    /// The merchant's customer identifier and email (`customer.id` / `customer.email`).
+    /// Datatrans expects these on stored-credential (alias / card-on-file) transactions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<DatatransCustomer>,
     // Don't skip serializing - we want "option": null to appear in JSON
     pub option: Option<DatatransPaymentOptions>,
     #[serde(rename = "PAY", skip_serializing_if = "Option::is_none")]
@@ -364,19 +516,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (card, redirect, pay, apl) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Direct card flow - use raw card details
-                let card = DatatransCard {
-                    alias: None,
-                    number: Some(card_data.card_number.clone()),
-                    expiry_month: Some(card_data.card_exp_month.clone()),
-                    expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
-                    cvv: Some(card_data.card_cvc.clone()),
-                    card_type: Some(CARD_TYPE_PLAIN.to_string()),
+                let card = DatatransCard::Plain(DatatransPlainCard {
+                    number: card_data.card_number.clone(),
+                    expiry_month: card_data.card_exp_month.clone(),
+                    expiry_year: card_data.get_card_expiry_year_2_digit()?,
+                    cvv: card_data.card_cvc.clone(),
                     three_ds: build_three_ds_data(
                         router_data.request.authentication_data.as_ref(),
                         &router_data.resource_common_data,
                         false,
                     )?,
-                };
+                });
                 // Return URLs are required for a native-3DS challenge OR a CIT alias
                 // registration (which Datatrans runs through the redirect-capable endpoint).
                 let redirect = (is_native_three_ds || is_mandate_payment).then(|| RedirectUrls {
@@ -393,19 +543,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::PaymentMethodToken(token_data) => {
                 let token = token_data.token.clone();
 
-                let card = DatatransCard {
-                    alias: Some(token),
-                    number: None,
+                let card = DatatransCard::Alias(DatatransAliasCard {
+                    alias: token,
+                    // A tokenize-sourced alias carries no expiry of its own.
                     expiry_month: None,
                     expiry_year: None,
-                    cvv: None,
-                    card_type: Some(CARD_TYPE_ALIAS.to_string()),
+                    // Enroll the Google Pay alias as a Card on File on every charge, mandate
+                    // or not, so the issuer sees a stored-credential transaction.
+                    card_on_file: Some(DatatransCardOnFile::enrollment()),
                     three_ds: build_three_ds_data(
                         router_data.request.authentication_data.as_ref(),
                         &router_data.resource_common_data,
                         false,
                     )?,
-                };
+                });
                 // Native 3DS on the alias follows the same redirect contract as a
                 // raw-card 3DS charge (the alias itself carries no expiry/CVV, so the
                 // CIT-mandate `createAlias` branch is not applicable here).
@@ -520,6 +671,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card,
             auto_settle,
             redirect,
+            customer: DatatransCustomer::new(
+                resolve_customer_id(
+                    router_data.request.customer_id.as_ref(),
+                    router_data.request.customer.as_ref(),
+                ),
+                router_data.request.email.clone(),
+                &router_data.resource_common_data,
+            ),
             // CIT mandate registration asks Datatrans to persist a reusable alias
             // (surfaced later via PSync as `connector_mandate_id`); non-mandate Authorize
             // sends `option: null`.
@@ -556,6 +715,17 @@ fn should_create_alias<T: PaymentMethodDataTypes>(
     is_mandate_payment: bool,
 ) -> bool {
     is_mandate_payment && matches!(payment_method_data, PaymentMethodData::Card(_))
+}
+
+fn repeat_payment_card_on_file(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    mandate_reference: &MandateReferenceId,
+) -> Option<DatatransCardOnFile> {
+    if payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        None
+    } else {
+        DatatransCardOnFile::from_mandate_reference(mandate_reference)
+    }
 }
 
 /// Builds the optional `3D` object for a card request (Authorize / SetupMandate).
@@ -612,6 +782,28 @@ pub struct DatatransCardResponse {
     /// Masked in logs; the domain `connector_mandate_id` boundary requires the plain value.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<Secret<String>>,
+    /// COF id minted when the request carried `card.cardOnFile.enroll = true`. Retained in
+    /// the mandate reference metadata so a later MIT can replay it as `card.cardOnFile.id`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_on_file: Option<DatatransCardOnFileResponse>,
+}
+
+impl DatatransCardResponse {
+    /// The COF id minted by authorization, distinct from the alias returned by tokenization.
+    /// A later MIT sends this id as `card.cardOnFile.id`.
+    fn card_on_file_id(&self) -> Option<String> {
+        self.card_on_file
+            .as_ref()
+            .and_then(|card_on_file| card_on_file.id.as_ref())
+            .map(|id| id.peek().clone())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransCardOnFileResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Secret<String>>,
 }
 
 // Authorize response — Datatrans returns either a settled/authorized transaction or,
@@ -686,19 +878,22 @@ fn get_authorize_status(
 ///   reference. This is the only source on a 3DS-enrolled response, which carries no
 ///   `card` object.
 ///
-/// The token fallback applies only to mandate payments: surfacing a mandate
-/// reference for a plain one-off payment would misreport a single-use charge as
-/// reusable.
+/// The token fallback is NOT gated on mandate intent. Datatrans echoes `card.alias` only
+/// on a `card_check` sync / createAlias response — never on a settled `payment` or on a
+/// 3DS-enrolled response — so gating the fallback left the wallet-alias flow with no
+/// connector mandate id at all, and the MIT then charged a locally generated identifier
+/// (`"alias": "OcaHDvEgpPf08pnl9T"`) instead of the real alias. A tokenize-sourced alias is
+/// a genuinely reusable credential that we know we just charged, so it is always the
+/// correct value to surface; whether a mandate is stored from it stays the caller's call.
 fn connector_mandate_reference<T: PaymentMethodDataTypes>(
     response_card: Option<&DatatransCardResponse>,
     payment_method_data: &PaymentMethodData<T>,
-    is_mandate_payment: bool,
 ) -> Option<Box<MandateReference>> {
     response_card
         .and_then(|card| card.alias.as_ref())
         .map(|alias| alias.peek().clone())
         .or_else(|| match payment_method_data {
-            PaymentMethodData::PaymentMethodToken(token_data) if is_mandate_payment => {
+            PaymentMethodData::PaymentMethodToken(token_data) => {
                 Some(token_data.token.peek().clone())
             }
             _ => None,
@@ -707,7 +902,10 @@ fn connector_mandate_reference<T: PaymentMethodDataTypes>(
             Box::new(MandateReference {
                 connector_mandate_id: Some(alias),
                 payment_method_id: None,
-                connector_mandate_request_reference_id: None,
+                // Tokenization supplies the alias above. Authorization supplies this separate
+                // COF id (if any), which the later MIT sends as `card.cardOnFile.id`.
+                connector_mandate_request_reference_id: response_card
+                    .and_then(DatatransCardResponse::card_on_file_id),
                 mandate_metadata: None,
             })
         })
@@ -730,7 +928,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let mandate_reference = connector_mandate_reference(
                     response.card.as_ref(),
                     &item.router_data.request.payment_method_data,
-                    item.router_data.request.is_mandate_payment(),
                 );
 
                 // Non-3DS / passthrough external 3DS: no redirect. For raw-card mandate
@@ -762,7 +959,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let mandate_reference = connector_mandate_reference(
                     None,
                     &item.router_data.request.payment_method_data,
-                    item.router_data.request.is_mandate_payment(),
                 );
                 // Host is derived from the connector's configured API base_url so the
                 // sandbox challenge stays on the sandbox host (see
@@ -846,32 +1042,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // The call sits inside the match arms so an unsupported payment method still
         // reports `NotImplemented` rather than a missing-billing-field error.
         let card = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card_data) => DatatransCard {
-                alias: None,
-                number: Some(card_data.card_number.clone()),
-                expiry_month: Some(card_data.card_exp_month.clone()),
-                expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
-                cvv: Some(card_data.card_cvc.clone()),
-                card_type: Some(CARD_TYPE_PLAIN.to_string()),
+            // The raw-card registration enrolls via `option.createAlias`; Datatrans owns
+            // the COF state for that path (see `should_create_alias`).
+            PaymentMethodData::Card(card_data) => DatatransCard::Plain(DatatransPlainCard {
+                number: card_data.card_number.clone(),
+                expiry_month: card_data.card_exp_month.clone(),
+                expiry_year: card_data.get_card_expiry_year_2_digit()?,
+                cvv: card_data.card_cvc.clone(),
                 // zero auth always runs native 3DS, so Datatrans can drive the ACS challenge with the cardholder details
                 three_ds: build_three_ds_data(None, &router_data.resource_common_data, true)?,
-            },
+            }),
             // Google Pay zero-auth registration: the PaymentMethodToken flow already
             // tokenized the Google Pay payload into a Datatrans alias
             // (`POST /v1/aliases/tokenize`), and this token carries it. The alias is
             // registered as an `ALIAS` card — the Datatrans path that supports a native
             // 3DS challenge for Google Pay — and is itself the reusable mandate
             // reference, so no `createAlias` is requested (see `should_create_alias`).
-            PaymentMethodData::PaymentMethodToken(token_data) => DatatransCard {
-                alias: Some(token_data.token.clone()),
-                number: None,
-                // A tokenize-sourced alias carries no expiry/CVV of its own.
-                expiry_month: None,
-                expiry_year: None,
-                cvv: None,
-                card_type: Some(CARD_TYPE_ALIAS.to_string()),
-                three_ds: build_three_ds_data(None, &router_data.resource_common_data, true)?,
-            },
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                DatatransCard::Alias(DatatransAliasCard {
+                    alias: token_data.token.clone(),
+                    // A tokenize-sourced alias carries no expiry of its own.
+                    expiry_month: None,
+                    expiry_year: None,
+                    // Enroll the Google Pay alias as a Card on File on this first use.
+                    card_on_file: Some(DatatransCardOnFile::enrollment()),
+                    three_ds: build_three_ds_data(None, &router_data.resource_common_data, true)?,
+                })
+            }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -909,6 +1106,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // Zero-auth: no amount is charged; the field is omitted from the request.
             amount: None,
             card: Some(card),
+            customer: DatatransCustomer::new(
+                resolve_customer_id(
+                    router_data.request.customer_id.as_ref(),
+                    router_data.request.customer.as_ref(),
+                ),
+                router_data.request.email.clone(),
+                &router_data.resource_common_data,
+            ),
             // Zero-auth alias creation cannot be manually captured.
             auto_settle: Some(true),
             redirect: Some(RedirectUrls {
@@ -961,7 +1166,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let mandate_reference = connector_mandate_reference(
                     response.card.as_ref(),
                     &item.router_data.request.payment_method_data,
-                    true,
                 );
                 PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
@@ -990,7 +1194,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let mandate_reference = connector_mandate_reference(
                     None,
                     &item.router_data.request.payment_method_data,
-                    true,
                 );
                 // Native 3DS: redirect the cardholder to the Datatrans challenge page.
                 // Host is derived from the connector's configured API base_url (not
@@ -1162,16 +1365,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 (Some(expiry_month), Some(expiry_year))
             }
         };
-        let card = DatatransCard {
-            alias: Some(Secret::new(alias)),
+        let card = DatatransCard::Alias(DatatransAliasCard {
+            alias: Secret::new(alias),
             expiry_month,
             expiry_year,
-            number: None,
-            cvv: None,
-            card_type: Some(CARD_TYPE_ALIAS.to_string()),
+            // Apple Pay repeat payments charge the stored alias without a COF id.
+            // Other aliases replay the COF id enrolled by the CIT, when available.
+            card_on_file: repeat_payment_card_on_file(
+                router_data.request.payment_method_type,
+                &router_data.request.mandate_reference,
+            ),
             // MIT charges an already-3DS-authenticated alias; no cardholder challenge / redirect.
             three_ds: None,
-        };
+        });
 
         Ok(Self {
             currency: router_data.request.currency,
@@ -1181,6 +1387,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             amount: Some(router_data.request.minor_amount),
             card: Some(card),
+            customer: DatatransCustomer::new(
+                resolve_customer_id(None, router_data.request.customer.as_ref()),
+                router_data.request.email.clone(),
+                &router_data.resource_common_data,
+            ),
             // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
             // Manual/ManualMultiple/Scheduled -> false.
             auto_settle: Some(router_data.request.is_auto_capture()),
@@ -1523,16 +1734,44 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
             // (SetupMandate/CIT). Surface it as the `connector_mandate_id` that MIT reuses.
             // `.peek()` exposes the value only at the domain `connector_mandate_id` boundary.
             // Only surfaced on a non-failure sync (a failed transaction has no usable alias).
-            let mandate_reference = response
+            //
+            // The alias and the COF id are never observable on the same call for a 3DS
+            // wallet-alias payment: `card.alias` is echoed on a `card_check` sync but NOT on a
+            // settled `payment`, while `card.cardOnFile.id` — the COF id the MIT has to replay
+            // — is returned on both, and the 3DS-enrolled Authorize response carries no `card`
+            // object at all. So merge the two sources, response first (it is the fresher value)
+            // and the sync request second: the caller hands back the mandate reference already
+            // registered on this payment, which for a tokenize-sourced alias (Google Pay) is
+            // the alias itself, surfaced by Authorize from the payment method token.
+            let request_mandate = item.router_data.request.mandate_reference.as_ref();
+
+            let card_on_file_id = response
+                .card
+                .as_ref()
+                .and_then(DatatransCardResponse::card_on_file_id)
+                .or_else(|| {
+                    request_mandate
+                        .and_then(|mandate| mandate.connector_mandate_request_reference_id.clone())
+                });
+            let connector_mandate_id = response
                 .card
                 .as_ref()
                 .and_then(|card| card.alias.as_ref())
-                .map(|alias| MandateReference {
-                    connector_mandate_id: Some(alias.peek().clone()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                    mandate_metadata: None,
+                .map(|alias| alias.peek().clone())
+                .or_else(|| {
+                    request_mandate.and_then(|mandate| mandate.connector_mandate_id.clone())
                 });
+
+            // Emitted only when the alias is known. The caller replaces the stored mandate
+            // detail wholesale with whatever this sync returns rather than merging it, so a
+            // reference carrying `connector_mandate_id: None` would wipe the alias registered
+            // by Authorize and leave the MIT with nothing to charge.
+            let mandate_reference = connector_mandate_id.map(|alias| MandateReference {
+                connector_mandate_id: Some(alias),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: card_on_file_id,
+                mandate_metadata: None,
+            });
 
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
