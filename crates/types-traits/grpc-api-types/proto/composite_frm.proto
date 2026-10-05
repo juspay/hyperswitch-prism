@@ -77,14 +77,11 @@ message CompositeFrmPreRiskCheckRequest {
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 15;
 
-  // Payment connector associated with the transaction.
-  optional string payment_connector = 16;
-
   // Payment-connector-specific metadata for the transaction.
-  optional SecretString payment_connector_metadata = 17;
+  optional SecretString payment_connector_metadata = 16;
 
   // Merchant identifier for the fraud risk check.
-  optional string merchant_frm_id = 18;
+  optional string merchant_frm_id = 17;
 }
 
 // Composite request for PostRiskCheck that includes all fields from
