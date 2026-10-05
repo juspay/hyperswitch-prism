@@ -130,7 +130,7 @@ pub enum SilverflowClearingStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum SilverflowActionStatus {
     Completed,
@@ -310,25 +310,25 @@ pub struct SilverflowPaymentsResponse {
     pub version: Option<i32>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SilverflowMerchantAcceptorRef {
     pub key: String,
     pub version: i32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowCardResponse {
     pub masked_number: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SilverflowAmountResponse {
     pub value: MinorUnit,
     pub currency: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowPaymentTypeResponse {
     pub intent: String,
@@ -336,21 +336,21 @@ pub struct SilverflowPaymentTypeResponse {
     pub order: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SilverflowStatus {
     pub authentication: String,
     pub authorization: SilverflowAuthorizationStatus,
     pub clearing: SilverflowClearingStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SilverflowAuthentication {
     pub sca: Option<SilverflowSca>,
     pub cvc: Option<String>,
     pub avs: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowSca {
     pub compliance: String,
@@ -358,7 +358,7 @@ pub struct SilverflowSca {
     pub method: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowAuthorizationIsoFields {
     pub response_code: String,
@@ -371,7 +371,7 @@ pub struct SilverflowAuthorizationIsoFields {
     pub network_specific_fields: Option<SilverflowNetworkSpecificFields>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowNetworkSpecificFields {
     pub transaction_identifier: Option<String>,
@@ -681,7 +681,7 @@ pub struct SilverflowAuthorizationResponse {
 }
 
 // Void/Reversal status structure (simpler than charge status)
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SilverflowVoidStatus {
     pub authorization: SilverflowAuthorizationStatus,
 }

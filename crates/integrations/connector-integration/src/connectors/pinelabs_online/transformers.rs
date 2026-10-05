@@ -315,7 +315,7 @@ pub struct RefundPaymentDetails {
 
 // ========== Status Mapping ==========
 
-fn get_payment_status(status: &str, pre_auth: Option<bool>) -> AttemptStatus {
+pub fn get_payment_status(status: &str, pre_auth: Option<bool>) -> AttemptStatus {
     match (status, pre_auth) {
         // Manual capture: AUTHORIZED means payment is authorized, awaiting capture
         ("AUTHORIZED", Some(true)) => AttemptStatus::Authorized,
@@ -328,7 +328,7 @@ fn get_payment_status(status: &str, pre_auth: Option<bool>) -> AttemptStatus {
     }
 }
 
-fn get_capture_status(status: &str) -> Option<AttemptStatus> {
+pub fn get_capture_status(status: &str) -> Option<AttemptStatus> {
     match status {
         "PROCESSED" => Some(AttemptStatus::Charged),
         "FAILED" => Some(AttemptStatus::CaptureFailed),
@@ -338,7 +338,7 @@ fn get_capture_status(status: &str) -> Option<AttemptStatus> {
     }
 }
 
-fn get_void_status(status: &str) -> Option<AttemptStatus> {
+pub fn get_void_status(status: &str) -> Option<AttemptStatus> {
     match status {
         "FAILED" => Some(AttemptStatus::VoidFailed),
         "PENDING" => Some(AttemptStatus::VoidInitiated),
@@ -347,7 +347,7 @@ fn get_void_status(status: &str) -> Option<AttemptStatus> {
     }
 }
 
-fn get_refund_status(status: &str) -> RefundStatus {
+pub fn get_refund_status(status: &str) -> RefundStatus {
     match status {
         "PROCESSED" => RefundStatus::Success,
         "FAILED" => RefundStatus::Failure,

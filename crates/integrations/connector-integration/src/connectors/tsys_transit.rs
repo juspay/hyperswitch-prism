@@ -733,6 +733,216 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: Authorize,
+    source: TsysTransitAuthorizeResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged, Authorized, PartialCharged, PartiallyAuthorized],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TsysTransitAuthorizeResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        tsys_transit::map_authorize_status(&response)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: PSync,
+    source: (),
+    context: Option<tsys_transit::TsysTransitTransactionDetails>,
+    params: [_status, ctx],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TsysTransitTransactionInquiryResponse,
+        source: |_response| (),
+        context: |_request, response| response.transaction_details.clone(),
+    },
+    {
+        match ctx.as_ref() {
+            Some(transaction_details) => {
+                common_enums::AttemptStatus::from(transaction_details)
+            }
+            // PSync error path keeps the previous status; it never reaches
+            // map_runtime_status with a terminal response, so a safe
+            // non-terminal placeholder is returned here.
+            None => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: Capture,
+    source: TsysTransitCaptureResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged, PartialCharged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: TsysTransitCaptureResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        tsys_transit::map_capture_status(&response)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: Void,
+    source: TsysTransitVoidResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: TsysTransitVoidResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        tsys_transit::map_void_status(&response)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: SetupMandate,
+    source: TsysTransitCardAuthenticationResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: TsysTransitCardAuthenticationResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        let is_success = matches!(response.status, Some(tsys_transit::TsysTransitStatus::Pass))
+            && response.response_code.as_deref() == Some("A0000");
+        if is_success {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: RepeatPayment,
+    source: TsysTransitRepeatPaymentResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged, PartialCharged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: TsysTransitRepeatPaymentResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        let body = response.body();
+        let authorize_view = response.as_authorize();
+        match (
+            body.status.as_ref(),
+            body.response_code.as_deref(),
+            &authorize_view,
+        ) {
+            (
+                Some(tsys_transit::TsysTransitStatus::Pass),
+                Some("A0000"),
+                TsysTransitAuthorizeResponse::SaleResponse(_),
+            ) => common_enums::AttemptStatus::Charged,
+            (
+                Some(tsys_transit::TsysTransitStatus::Pass),
+                Some("A0000"),
+                TsysTransitAuthorizeResponse::AuthResponse(_),
+            ) => common_enums::AttemptStatus::Authorized,
+            (
+                Some(tsys_transit::TsysTransitStatus::Pass),
+                Some("A0002"),
+                TsysTransitAuthorizeResponse::SaleResponse(_),
+            ) => common_enums::AttemptStatus::PartialCharged,
+            (
+                Some(tsys_transit::TsysTransitStatus::Pass),
+                Some("A0002"),
+                TsysTransitAuthorizeResponse::AuthResponse(_),
+            ) => common_enums::AttemptStatus::PartiallyAuthorized,
+            (Some(tsys_transit::TsysTransitStatus::Fail), _, _) => {
+                common_enums::AttemptStatus::Failure
+            }
+            _ => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: Refund,
+    source: TsysTransitReturnResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: TsysTransitReturnResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        tsys_transit::map_refund_status(&response)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: TsysTransit<T>,
+    flow: RSync,
+    source: Option<tsys_transit::TsysTransitTransactionDetails>,
+    context: (),
+    params: [details, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: TsysTransitRSyncResponse,
+        source: |response| response.transaction_details.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match details.as_ref().and_then(tsys_transit::get_refund_status) {
+            Some(refund_status) => refund_status,
+            // On RSync ambiguity the handle_response keeps the refund in its
+            // previous state instead of failing it.
+            None => common_enums::RefundStatus::Unknown,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: TsysTransit,
     generic_type: T,

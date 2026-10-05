@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Refund},
@@ -521,6 +521,61 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             headers: vec![],
             body: Some(response_body),
         })
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustly<T>,
+    flow: Authorize,
+    // Trustly's authorize response only initializes a hosted-page redirect: `true` is the
+    // success envelope (a redirect URL), `false` the error envelope. Final payment status
+    // arrives via webhooks.
+    source: bool,
+    context: (),
+    params: [acknowledged, _ctx],
+    success: _ => [Authorized],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustlyPaymentsResponse,
+        source: |response| matches!(response, TrustlyPaymentsResponse::Success(_)),
+        context: |_request, _response| (),
+    },
+    {
+        if acknowledged {
+            AttemptStatus::AuthenticationPending
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustly<T>,
+    flow: Refund,
+    source: Option<trustly::TrustlyRefundResult>,
+    context: (),
+    params: [result, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: TrustlyRefundResponse,
+        source: |response| match response {
+            TrustlyRefundResponse::Success(success) => {
+                Some(success.result.data.result.clone())
+            }
+            TrustlyRefundResponse::Failure(_) => None,
+        },
+        context: |_request, _response| (),
+    },
+    {
+        match result {
+            Some(trustly::TrustlyRefundResult::Pending) => RefundStatus::Pending,
+            Some(trustly::TrustlyRefundResult::Failed) | None => RefundStatus::Failure,
+        }
     }
 }
 

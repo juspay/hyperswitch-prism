@@ -331,7 +331,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// Note: Stax API returns amounts in dollars (f64 major units).
 /// The `total` field is in dollars and needs conversion back to MinorUnit
 /// when mapping to RouterDataV2.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StaxPaymentResponse {
     pub success: bool,
     pub id: String,
@@ -361,7 +361,7 @@ pub type StaxRSyncResponse = StaxPaymentResponse;
 pub type StaxRepeatPaymentResponse = StaxPaymentResponse;
 
 /// Child capture transaction (for pre-auth captures)
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChildCapture {
     pub id: String,
 }
@@ -373,7 +373,7 @@ pub struct StaxMetaData {
 }
 
 /// Child transaction (for refunds/voids)
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChildTransaction {
     pub id: String,
     #[serde(rename = "type")]

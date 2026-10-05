@@ -692,6 +692,164 @@ macros::macro_connector_implementation!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolut<T>,
+    flow:      Authorize,
+    source:    revolut::RevolutOrderState,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Authorized, Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: RevolutOrderCreateResponse,
+        source: |response| response.state.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            revolut::RevolutOrderState::Authorised => AttemptStatus::Authorized,
+            revolut::RevolutOrderState::Completed => AttemptStatus::Charged,
+            revolut::RevolutOrderState::Failed => AttemptStatus::Failure,
+            revolut::RevolutOrderState::Cancelled => AttemptStatus::Voided,
+            revolut::RevolutOrderState::Pending => AttemptStatus::AuthenticationPending,
+            revolut::RevolutOrderState::Processing => AttemptStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolut<T>,
+    flow:      PSync,
+    source:    AttemptStatus,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Authorized, Charged, Voided],
+    failure:   none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: RevolutPSyncResponse,
+        // Mirrors the PSync `TryFrom`: prefer the first payment's state, falling
+        // back to the order state via `map_order_state`.
+        source: |response| match &response.payments {
+            Some(payments) => match payments.first() {
+                Some(first_payment) => match first_payment.state {
+                    revolut::RevolutPaymentState::Authorised => AttemptStatus::Authorized,
+                    revolut::RevolutPaymentState::Captured
+                    | revolut::RevolutPaymentState::Completed => AttemptStatus::Charged,
+                    revolut::RevolutPaymentState::Failed
+                    | revolut::RevolutPaymentState::Declined => AttemptStatus::Failure,
+                    revolut::RevolutPaymentState::Cancelled => AttemptStatus::Voided,
+                    revolut::RevolutPaymentState::Pending => AttemptStatus::Pending,
+                    revolut::RevolutPaymentState::AuthenticationChallenge => {
+                        AttemptStatus::AuthenticationPending
+                    }
+                    _ => AttemptStatus::Pending,
+                },
+                None => match response.state {
+                    revolut::RevolutOrderState::Authorised => AttemptStatus::Authorized,
+                    revolut::RevolutOrderState::Completed => AttemptStatus::Charged,
+                    revolut::RevolutOrderState::Failed => AttemptStatus::Failure,
+                    revolut::RevolutOrderState::Cancelled => AttemptStatus::Voided,
+                    revolut::RevolutOrderState::Pending => AttemptStatus::AuthenticationPending,
+                    revolut::RevolutOrderState::Processing => AttemptStatus::Pending,
+                },
+            },
+            None => match response.state {
+                revolut::RevolutOrderState::Authorised => AttemptStatus::Authorized,
+                revolut::RevolutOrderState::Completed => AttemptStatus::Charged,
+                revolut::RevolutOrderState::Failed => AttemptStatus::Failure,
+                revolut::RevolutOrderState::Cancelled => AttemptStatus::Voided,
+                revolut::RevolutOrderState::Pending => AttemptStatus::AuthenticationPending,
+                revolut::RevolutOrderState::Processing => AttemptStatus::Pending,
+            },
+        },
+        context: |_request, _response| (),
+    },
+    { status }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolut<T>,
+    flow:      Capture,
+    source:    revolut::RevolutOrderState,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Charged],
+    failure:   none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: RevolutCaptureResponse,
+        source: |response| response.state.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            revolut::RevolutOrderState::Completed => AttemptStatus::Charged,
+            revolut::RevolutOrderState::Authorised => AttemptStatus::Authorized,
+            revolut::RevolutOrderState::Processing => AttemptStatus::Pending,
+            revolut::RevolutOrderState::Pending => AttemptStatus::Pending,
+            revolut::RevolutOrderState::Failed => AttemptStatus::Failure,
+            revolut::RevolutOrderState::Cancelled => AttemptStatus::Voided,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolut<T>,
+    flow:      Refund,
+    source:    revolut::RevolutOrderState,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundsData,
+        response: RevolutRefundResponse,
+        source: |response| response.state.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            revolut::RevolutOrderState::Completed => common_enums::RefundStatus::Success,
+            revolut::RevolutOrderState::Processing => common_enums::RefundStatus::Pending,
+            revolut::RevolutOrderState::Failed => common_enums::RefundStatus::Failure,
+            revolut::RevolutOrderState::Cancelled => common_enums::RefundStatus::Failure,
+            _ => common_enums::RefundStatus::Pending,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolut<T>,
+    flow:      RSync,
+    source:    revolut::RevolutOrderState,
+    context:   (),
+    params:    [status, _ctx],
+    success:   _ => [Success],
+    failure:   none,
+    extractors: {
+        request: RefundSyncData,
+        response: RevolutRSyncResponse,
+        source: |response| response.state.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match status {
+            revolut::RevolutOrderState::Completed => common_enums::RefundStatus::Success,
+            revolut::RevolutOrderState::Processing => common_enums::RefundStatus::Pending,
+            revolut::RevolutOrderState::Failed => common_enums::RefundStatus::Failure,
+            revolut::RevolutOrderState::Cancelled => common_enums::RefundStatus::Failure,
+            _ => common_enums::RefundStatus::Pending,
+        }
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Revolut,
     generic_type: T,

@@ -22,16 +22,17 @@ use interfaces::{
     verification::SourceVerification,
 };
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
-    PinelabsOnlineAccessTokenErrorResponse, PinelabsOnlineAccessTokenRequest,
-    PinelabsOnlineAccessTokenResponse, PinelabsOnlineAuthorizeResponse,
-    PinelabsOnlineCaptureRequest, PinelabsOnlineCaptureResponse, PinelabsOnlineCreateOrderResponse,
-    PinelabsOnlineErrorResponse, PinelabsOnlineOrderRequest, PinelabsOnlinePSyncResponse,
-    PinelabsOnlineRSyncResponse, PinelabsOnlineRefundRequest, PinelabsOnlineRefundResponse,
-    PinelabsOnlineTransactionRequest, PinelabsOnlineVoidResponse,
+    self as pinelabs_online, PinelabsOnlineAccessTokenErrorResponse,
+    PinelabsOnlineAccessTokenRequest, PinelabsOnlineAccessTokenResponse,
+    PinelabsOnlineAuthorizeResponse, PinelabsOnlineCaptureRequest, PinelabsOnlineCaptureResponse,
+    PinelabsOnlineCreateOrderResponse, PinelabsOnlineErrorResponse, PinelabsOnlineOrderRequest,
+    PinelabsOnlinePSyncResponse, PinelabsOnlineRSyncResponse, PinelabsOnlineRefundRequest,
+    PinelabsOnlineRefundResponse, PinelabsOnlineResponse, PinelabsOnlineTransactionRequest,
+    PinelabsOnlineVoidResponse,
 };
 
 use super::macros;
@@ -692,6 +693,221 @@ macros::macro_connector_payout_implementation!(
         PayoutEnrollDisburseAccount
     ]
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: Authorize,
+    source: (),
+    context: AttemptStatus,
+    params: [_source, status],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: PinelabsOnlineAuthorizeResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineResponse` is not Clone.
+            match response {
+                PinelabsOnlineResponse::Success(data_response) => {
+                    let payment_status = data_response
+                        .data
+                        .payments
+                        .as_ref()
+                        .and_then(|payments| payments.first())
+                        .and_then(|payment| payment.status.as_deref());
+                    let status_str = payment_status
+                        .or(data_response.data.status.as_deref())
+                        .unwrap_or("PENDING");
+                    pinelabs_online::get_payment_status(status_str, data_response.data.pre_auth)
+                }
+                PinelabsOnlineResponse::Error(_) => AttemptStatus::Failure,
+            }
+        },
+    },
+    {
+        status
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: PSync,
+    source: (),
+    context: AttemptStatus,
+    params: [_source, status],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: PinelabsOnlinePSyncResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineResponse` is not Clone.
+            match response {
+                PinelabsOnlineResponse::Success(data_response) => {
+                    let payment_status = data_response
+                        .data
+                        .payments
+                        .as_ref()
+                        .and_then(|payments| payments.first())
+                        .and_then(|payment| payment.status.as_deref());
+                    let status_str = payment_status
+                        .or(data_response.data.status.as_deref())
+                        .unwrap_or("PENDING");
+                    pinelabs_online::get_payment_status(status_str, data_response.data.pre_auth)
+                }
+                PinelabsOnlineResponse::Error(_) => AttemptStatus::Failure,
+            }
+        },
+    },
+    {
+        status
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: Capture,
+    source: (),
+    context: AttemptStatus,
+    params: [_source, status],
+    success: _ => [Charged, PartialCharged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: PinelabsOnlineCaptureResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineResponse` is not Clone.
+            match &response.0 {
+                PinelabsOnlineResponse::Success(data_response) => {
+                    let status_str = data_response.data.status.as_deref().unwrap_or("PENDING");
+                    pinelabs_online::get_capture_status(status_str)
+                        .unwrap_or(AttemptStatus::CaptureInitiated)
+                }
+                PinelabsOnlineResponse::Error(_) => AttemptStatus::CaptureFailed,
+            }
+        },
+    },
+    {
+        status
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: Void,
+    source: (),
+    context: AttemptStatus,
+    params: [_source, status],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: PinelabsOnlineVoidResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineResponse` is not Clone.
+            match &response.0 {
+                PinelabsOnlineResponse::Success(data_response) => {
+                    let status_str = data_response.data.status.as_deref().unwrap_or("PENDING");
+                    pinelabs_online::get_void_status(status_str)
+                        .unwrap_or(AttemptStatus::VoidInitiated)
+                }
+                PinelabsOnlineResponse::Error(_) => AttemptStatus::VoidFailed,
+            }
+        },
+    },
+    {
+        status
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: CreateOrder,
+    source: (),
+    context: (),
+    params: [_response, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentCreateOrderData,
+        response: PinelabsOnlineCreateOrderResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    {
+        // The handler parks every successful order creation in Pending (the order is
+        // only charged by the later Authorize call). Both declared terminals satisfy
+        // the mandatory success-set check; the body only ever yields Pending.
+        AttemptStatus::Pending
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: Refund,
+    source: (),
+    context: RefundStatus,
+    params: [_source, status],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: PinelabsOnlineRefundResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineRefundResponse` is not Clone.
+            match response {
+                PinelabsOnlineRefundResponse::Success(refund_response) => {
+                    let status_str = refund_response.data.status.as_deref().unwrap_or("PENDING");
+                    pinelabs_online::get_refund_status(status_str)
+                }
+                PinelabsOnlineRefundResponse::Error(_) => RefundStatus::Failure,
+            }
+        },
+    },
+    {
+        status
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: PinelabsOnline<T>,
+    flow: RSync,
+    source: (),
+    context: RefundStatus,
+    params: [_source, status],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: PinelabsOnlineRSyncResponse,
+        source: |_response| (),
+        context: |_request, response| {
+            // Shed the mapped status into the context: `PinelabsOnlineRefundResponse` is not Clone.
+            match &response.0 {
+                PinelabsOnlineRefundResponse::Success(refund_response) => {
+                    let status_str = refund_response.data.status.as_deref().unwrap_or("PENDING");
+                    pinelabs_online::get_refund_status(status_str)
+                }
+                PinelabsOnlineRefundResponse::Error(_) => RefundStatus::Failure,
+            }
+        },
+    },
+    {
+        status
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: PinelabsOnline,

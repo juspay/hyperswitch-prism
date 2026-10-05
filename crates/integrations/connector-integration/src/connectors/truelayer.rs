@@ -1028,6 +1028,114 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: Authorize,
+    source: truelayer::TruelayerPaymentStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TruelayerPaymentsResponseData,
+        source: |response| response.status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        truelayer::get_attempt_status(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: PSync,
+    source: (AttemptStatus, Option<String>),
+    context: (),
+    params: [source, _ctx],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TruelayerPSyncResponseData,
+        source: |response| match response {
+            TruelayerPSyncResponseData::PSyncResponse(response) => (
+                truelayer::get_attempt_status(response.status.clone()),
+                response.failure_reason.clone(),
+            ),
+            TruelayerPSyncResponseData::WebhookResponse(webhook) => (
+                truelayer::get_truelayer_payment_webhook_status(webhook._type.clone())
+                    .unwrap_or(AttemptStatus::Pending),
+                webhook.failure_reason.clone(),
+            ),
+        },
+        context: |_request, _response| (),
+    },
+    {
+        let (status, failure_reason) = source;
+        // A failed payment whose failure_reason is "canceled" is a voided payment.
+        if failure_reason.as_deref() == Some("canceled")
+            && domain_types::utils::is_payment_failure(status)
+        {
+            AttemptStatus::Voided
+        } else {
+            status
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: Refund,
+    source: (),
+    context: (),
+    params: [_ack, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: TruelayerRefundResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    {
+        // The refund-create response only echoes an id; the request is accepted and the
+        // refund settles asynchronously.
+        RefundStatus::Pending
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: RSync,
+    source: common_enums::RefundStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: TruelayerRsyncResponse,
+        source: |response| match response {
+            TruelayerRsyncResponse::RsyncResponse(response) => {
+                truelayer::get_refund_status(response.status.clone())
+            }
+            TruelayerRsyncResponse::WebhookResponse(webhook) => {
+                truelayer::get_truelayer_refund_webhook_status(webhook._type.clone())
+                    .unwrap_or(common_enums::RefundStatus::Pending)
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        status
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Truelayer,
     generic_type: T,

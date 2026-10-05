@@ -497,6 +497,281 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: Authorize,
+    source: TsysAuthorizeResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: TsysAuthorizeResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match response.0 {
+            transformers::TsysPaymentsResponse::AuthResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(auth_response) => {
+                    match auth_response.status {
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Authorized,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::AuthorizationFailed,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => {
+                    AttemptStatus::AuthorizationFailed
+                }
+            },
+            transformers::TsysPaymentsResponse::SaleResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(sale_response) => {
+                    match sale_response.status {
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Charged,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::Failure,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => AttemptStatus::Failure,
+            },
+            _ => AttemptStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: PSync,
+    source: transformers::TsysTransactionDetails,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: TsysPSyncResponse,
+        source: |response| {
+            match &response.0.search_transaction_response {
+                transformers::SearchResponseTypes::SuccessResponse(search_response) => {
+                    search_response.transaction_details.clone()
+                }
+                transformers::SearchResponseTypes::ErrorResponse(_) => {
+                    transformers::TsysTransactionDetails::default()
+                }
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        common_enums::AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: Capture,
+    source: TsysCaptureResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: TsysCaptureResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match response.0 {
+            transformers::TsysPaymentsResponse::CaptureResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(capture_response) => {
+                    match capture_response.status {
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Charged,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::CaptureFailed,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => AttemptStatus::CaptureFailed,
+            },
+            _ => AttemptStatus::CaptureFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: Void,
+    source: TsysVoidResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: TsysVoidResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match response.0 {
+            transformers::TsysPaymentsResponse::VoidResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(void_response) => {
+                    match void_response.status {
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Voided,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::VoidFailed,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => AttemptStatus::VoidFailed,
+            },
+            _ => AttemptStatus::VoidFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: SetupMandate,
+    source: TsysSetupMandateResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: TsysSetupMandateResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match response.0 {
+            transformers::TsysPaymentsResponse::AuthResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(auth_response) => {
+                    match auth_response.status {
+                        // SetupMandate's TERMINAL_SUCCESS_SET is [Charged]; the
+                        // upstream transformer already coerces zero-auth Authorized
+                        // to Charged inside handle_response, so mirror that here.
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Charged,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::AuthorizationFailed,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => {
+                    AttemptStatus::AuthorizationFailed
+                }
+            },
+            _ => AttemptStatus::AuthorizationFailed,
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: RepeatPayment,
+    source: TsysRepeatPaymentResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: TsysRepeatPaymentResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        use common_enums::AttemptStatus;
+        match response.0 {
+            transformers::TsysPaymentsResponse::SaleResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(sale_response) => {
+                    match sale_response.status {
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Charged,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::Failure,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => AttemptStatus::Failure,
+            },
+            transformers::TsysPaymentsResponse::AuthResponse(resp) => match resp {
+                transformers::TsysResponseTypes::SuccessResponse(auth_response) => {
+                    match auth_response.status {
+                        // RepeatPayment's TERMINAL_SUCCESS_SET only includes
+                        // Charged / PartialCharged — TSYS replays issue a Sale so
+                        // map a successful Auth replay to Charged here as well.
+                        transformers::TsysPaymentStatus::Pass => AttemptStatus::Charged,
+                        transformers::TsysPaymentStatus::Fail => AttemptStatus::AuthorizationFailed,
+                    }
+                }
+                transformers::TsysResponseTypes::ErrorResponse(_) => {
+                    AttemptStatus::AuthorizationFailed
+                }
+            },
+            _ => AttemptStatus::Failure,
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: Refund,
+    source: transformers::TsysPaymentStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |response| match &response.return_response {
+            transformers::TsysResponseTypes::SuccessResponse(success_response) => {
+                success_response.status.clone()
+            }
+            transformers::TsysResponseTypes::ErrorResponse(_) => {
+                transformers::TsysPaymentStatus::Fail
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        common_enums::RefundStatus::from(status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tsys<T>,
+    flow: RSync,
+    source: transformers::TsysTransactionDetails,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: TsysRSyncResponse,
+        source: |response| {
+            match &response.0.search_transaction_response {
+                transformers::SearchResponseTypes::SuccessResponse(search_response) => {
+                    search_response.transaction_details.clone()
+                }
+                transformers::SearchResponseTypes::ErrorResponse(_) => {
+                    transformers::TsysTransactionDetails::default()
+                }
+            }
+        },
+        context: |_request, _response| (),
+    },
+    {
+        common_enums::RefundStatus::from(status)
+    }
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Tsys,
     generic_type: T,

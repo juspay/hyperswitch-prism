@@ -8,11 +8,12 @@ use self::requests::{
     WorldpayRepeatPaymentRequest,
 };
 use self::response::{
-    WorldpayAuthorizeResponse, WorldpayCaptureResponse, WorldpayErrorResponse,
-    WorldpayIncrementalAuthResponse, WorldpayPostAuthenticateResponse,
+    EventType, PaymentOutcome, WorldpayAuthorizeResponse, WorldpayCaptureResponse,
+    WorldpayErrorResponse, WorldpayIncrementalAuthResponse, WorldpayPostAuthenticateResponse,
     WorldpayPreAuthenticateResponse, WorldpayRefundResponse, WorldpayRefundSyncResponse,
     WorldpayRepeatPaymentResponse, WorldpaySyncResponse, WorldpayVoidResponse,
 };
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::{
@@ -679,6 +680,218 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Authorize,
+    source: PaymentOutcome,
+    context: common_utils::types::MinorUnit,
+    params: [status, amount],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: WorldpayAuthorizeResponse,
+        source: |response| response.outcome.clone(),
+        context: |request, _response| request.minor_amount,
+    },
+    {
+        if amount == common_utils::types::MinorUnit::zero()
+            && status == PaymentOutcome::Authorized
+        {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::from(status)
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PSync,
+    source: EventType,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: WorldpaySyncResponse,
+        source: |response| response.last_event.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(&status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Capture,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: WorldpayCaptureResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Void,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: WorldpayVoidResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Refund,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: WorldpayRefundResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        RefundStatus::from(status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: RSync,
+    source: EventType,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: WorldpayRefundSyncResponse,
+        source: |response| response.last_event.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        RefundStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PreAuthenticate,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [AuthenticationSuccessful],
+    failure: none,
+    extractors: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: WorldpayPreAuthenticateResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PostAuthenticate,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [AuthenticationSuccessful, Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: WorldpayPostAuthenticateResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: RepeatPayment,
+    source: PaymentOutcome,
+    context: common_utils::types::MinorUnit,
+    params: [status, amount],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: WorldpayRepeatPaymentResponse,
+        source: |response| response.outcome.clone(),
+        context: |request, _response| request.minor_amount,
+    },
+    {
+        if amount == common_utils::types::MinorUnit::zero()
+            && status == PaymentOutcome::Authorized
+        {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::from(status)
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: IncrementalAuthorization,
+    source: PaymentOutcome,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: WorldpayIncrementalAuthResponse,
+        source: |response| response.outcome.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(status)
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Worldpay,

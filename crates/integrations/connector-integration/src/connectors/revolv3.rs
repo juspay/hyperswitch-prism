@@ -3,7 +3,7 @@ use super::macros;
 use std::fmt::Debug;
 
 use crate::{types::ResponseRouterData, with_error_response_body};
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -541,6 +541,192 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: Authorize,
+    source: Revolv3PaymentsResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Authorized, Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: Revolv3PaymentsResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response {
+            Revolv3PaymentsResponse::Authorize(auth_response) => {
+                if auth_response.payment_method_authorization_id.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+            Revolv3PaymentsResponse::Sale(sale_response) => {
+                AttemptStatus::from(&sale_response.invoice_status)
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: PSync,
+    source: revolv3::InvoiceStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: Revolv3PaymentSyncResponse,
+        source: |response| response.invoice_status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(&status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: Capture,
+    source: revolv3::InvoiceStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: Revolv3SaleResponse,
+        source: |response| response.invoice_status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::from(&status)
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: Void,
+    source: (),
+    context: (),
+    params: [_ack, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: Revolv3AuthReversalResponse,
+        source: |_response| (),
+        context: |_request, _response| (),
+    },
+    {
+        AttemptStatus::Voided
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: SetupMandate,
+    source: (),
+    context: Option<i64>,
+    params: [_ack, payment_method_authorization_id],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: Revolv3AuthorizeResponse,
+        source: |_response| (),
+        context: |_request, response| response.payment_method_authorization_id,
+    },
+    {
+        if payment_method_authorization_id.is_some() {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: RepeatPayment,
+    source: Revolv3RepeatPaymentResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: Revolv3RepeatPaymentResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        match response {
+            Revolv3RepeatPaymentResponse::Authorize(auth_response) => {
+                if auth_response.payment_method_authorization_id.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+            Revolv3RepeatPaymentResponse::Sale(sale_response) => {
+                AttemptStatus::from(&sale_response.invoice_status)
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: Refund,
+    source: revolv3::RefundInvoiceStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: Revolv3RefundResponse,
+        source: |response| response.invoice.invoice_status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        RefundStatus::from(&status)
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Revolv3<T>,
+    flow: RSync,
+    source: revolv3::RefundInvoiceStatus,
+    context: (),
+    params: [status, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: Revolv3RefundSyncResponse,
+        source: |response| response.invoice_status.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        RefundStatus::from(&status)
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Revolv3,

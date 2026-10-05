@@ -128,7 +128,7 @@ pub struct Shift4CreateCustomerRequest {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Shift4CreateCustomerResponse {
     /// Shift4 customer id (`cust_...`).
     pub id: Secret<String>,
@@ -1121,7 +1121,7 @@ impl<T: PaymentMethodDataTypes>
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4PaymentsResponse {
     pub id: String,

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
+use common_enums::{AttemptStatus, CurrencyUnit, PaymentMethod, PaymentMethodType, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
@@ -34,7 +34,7 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    StaxAuthType, StaxAuthorizeRequest, StaxAuthorizeResponse, StaxCaptureRequest,
+    self as stax, StaxAuthType, StaxAuthorizeRequest, StaxAuthorizeResponse, StaxCaptureRequest,
     StaxCaptureResponse, StaxCustomerRequest, StaxCustomerResponse, StaxErrorResponse,
     StaxPSyncRequest, StaxPSyncResponse, StaxRSyncRequest, StaxRSyncResponse, StaxRefundRequest,
     StaxRefundResponse, StaxRepeatPaymentRequest, StaxRepeatPaymentResponse,
@@ -654,6 +654,255 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Stax<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Authorize,
+    source: StaxAuthorizeResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsAuthorizeData<T>,
+        response: StaxAuthorizeResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                // `get_payment_status` errors out on unexpected types; they cannot
+                // be reported through the mapping, so fall back to Pending.
+                _ => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: PSync,
+    source: StaxPSyncResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Authorized, Charged, Voided],
+    failure: none,
+    extractors: {
+        request: PaymentsSyncData,
+        response: StaxPSyncResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        if !response.success {
+            AttemptStatus::Failure
+        } else if response.is_voided {
+            AttemptStatus::Voided
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Capture,
+    source: StaxCaptureResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: PaymentsCaptureData,
+        response: StaxCaptureResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Void,
+    source: bool,
+    context: (),
+    params: [is_voided, _ctx],
+    success: _ => [Voided],
+    failure: none,
+    extractors: {
+        request: PaymentVoidData,
+        response: StaxVoidResponse,
+        source: |response| response.is_voided,
+        context: |_request, _response| (),
+    },
+    {
+        if is_voided {
+            AttemptStatus::Voided
+        } else {
+            AttemptStatus::VoidFailed
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: SetupMandate,
+    source: StaxSetupMandateResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: SetupMandateRequestData<T>,
+        response: StaxSetupMandateResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: RepeatPayment,
+    source: StaxRepeatPaymentResponse,
+    context: (),
+    params: [response, _ctx],
+    success: _ => [Charged],
+    failure: none,
+    extractors: {
+        request: RepeatPaymentData<T>,
+        response: StaxRepeatPaymentResponse,
+        source: |response| response.clone(),
+        context: |_request, _response| (),
+    },
+    {
+        if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Refund,
+    source: bool,
+    context: (),
+    params: [refund_child_success, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundsData,
+        response: StaxRefundResponse,
+        // The handler errors out when no refund child matches, and compares
+        // `total` at FloatMajorUnit precision; unrepresentable here. `true`
+        // only says HTTP-200 carried the refund shape — Pending is honest.
+        source: |_response| true,
+        context: |_request, _response| (),
+    },
+    {
+        if refund_child_success {
+            RefundStatus::Pending
+        } else {
+            RefundStatus::Failure
+        }
+    }
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: RSync,
+    source: bool,
+    context: (),
+    params: [success, _ctx],
+    success: _ => [Success],
+    failure: none,
+    extractors: {
+        request: RefundSyncData,
+        response: StaxRSyncResponse,
+        source: |response| response.success,
+        context: |_request, _response| (),
+    },
+    {
+        if success {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
+        }
+    }
 }
 
 macros::macro_connector_flow_status_impls!(
