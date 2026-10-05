@@ -1,6 +1,6 @@
-use cards::CardNumber;
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose, Engine};
+use cards::CardNumber;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -386,7 +386,9 @@ fn build_decrypted_wallet_source(
                 Some(&payment_cryptogram),
                 None,
                 DecryptedWalletCardFields {
-                    dpan: decrypted_apple_pay.application_primary_account_number.clone(),
+                    dpan: decrypted_apple_pay
+                        .application_primary_account_number
+                        .clone(),
                     exp_month: expiration_month,
                     exp_year: expiration_year,
                 },
