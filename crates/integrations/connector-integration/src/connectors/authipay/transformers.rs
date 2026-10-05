@@ -623,14 +623,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
                         .as_ref()
                         .and_then(|p| p.response_message.clone())
                 })
-                .unwrap_or_else(|| "Payment declined".to_string());
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
             Err(ErrorResponse {
                 code: item
                     .response
                     .processor
                     .as_ref()
                     .and_then(|p| p.association_response_code.clone())
-                    .unwrap_or_else(|| "DECLINED".to_string()),
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
                 message: decline_message.clone(),
                 reason: Some(decline_message),
                 status_code: item.http_code,
