@@ -6319,6 +6319,28 @@ impl
                 },
             })?;
 
+        // Connectors that require the original MIT amount/currency up front (e.g.
+        // Cybersource's Discover-network check) read this off `resource_common_data`,
+        // not off `RepeatPaymentData.request` — populate both from the same proto field.
+        let recurring_mandate_payment_data = value
+            .original_payment_authorized_amount
+            .as_ref()
+            .map(|money| {
+                Ok::<_, error_stack::Report<IntegrationError>>(
+                    connector_types::RecurringMandatePaymentData {
+                        payment_method_type: None,
+                        original_payment_authorized_amount: Some(
+                            common_utils::types::MinorUnit::new(money.minor_amount),
+                        ),
+                        original_payment_authorized_currency: Some(
+                            common_enums::Currency::foreign_try_from(money.currency())?,
+                        ),
+                        mandate_metadata: None,
+                    },
+                )
+            })
+            .transpose()?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -6372,7 +6394,7 @@ impl
             connector_response_headers: None,
             connector_response: None,
             vault_headers: None,
-            recurring_mandate_payment_data: None,
+            recurring_mandate_payment_data,
             order_details: None,
             minor_amount_authorized: None,
             merchant_request_id: None,
