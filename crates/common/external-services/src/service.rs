@@ -102,6 +102,11 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments. Unlike
+    /// VGS's MITM proxy, this is a plain CONNECT-tunnel proxy, so no CA certificate is
+    /// needed here.
+    #[serde(default)]
+    pub proxy_url: Option<Url>,
 }
 
 pub trait ConnectorRequestReference {
@@ -721,7 +726,10 @@ where
             Ok(response)
         }
         Err(err) => {
-            tracing::Span::current().record("url", tracing::field::display(url));
+            tracing::Span::current().record(
+                "url",
+                tracing::field::display(connector.sanitize_url_for_logs(&url)),
+            );
             Err(err)
         }
     }
@@ -972,8 +980,12 @@ where
                     // Replace URL with mock server URL
                     req.url = test_ctx.mock_server_url.clone();
 
-                    // Add test headers
-                    req.add_header(X_API_URL, original_url.clone().into());
+                    // Add test headers. Masked values are exposed when the request
+                    // is built, so the mock server still receives the real URL.
+                    req.add_header(
+                        X_API_URL,
+                        Maskable::Masked(Secret::new(original_url.clone())),
+                    );
                     req.add_header(X_SESSION_ID, test_ctx.session_id.clone().into());
 
                     // Add API tag if provided
@@ -983,7 +995,7 @@ where
 
                     tracing::info!(
                         "Test mode enabled: redirected {} to {}",
-                        original_url,
+                        connector.sanitize_url_for_logs(&original_url),
                         test_ctx.mock_server_url
                     );
                 });
@@ -1013,7 +1025,10 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
-                    tracing::Span::current().record("request.url", tracing::field::display(&url));
+                    tracing::Span::current().record(
+                        "request.url",
+                        tracing::field::display(connector.sanitize_url_for_logs(&url)),
+                    );
                     tracing::Span::current()
                         .record("request.method", tracing::field::display(method));
 
@@ -1147,7 +1162,8 @@ where
                             info_log(
                                 "NETWORK_ERROR",
                                 &json!(format!(
-                                    "Failed getting response from connector. Error: {:?}",
+                                    "Failed getting response from connector (url: {}). Error: {:?}",
+                                    connector.sanitize_url_for_logs(&url),
                                     err
                                 )),
                             );
@@ -1193,7 +1209,7 @@ where
                     // Create single event (response_data will be set by connector)
                     let mut event = create_event(
                         &event_params,
-                        Some(url.clone()),
+                        Some(connector.sanitize_url_for_logs(&url).into_owned()),
                         Some(method.to_string()),
                         Some(latency),
                         &masked_headers,
@@ -2155,6 +2171,12 @@ fn apply_vault_config_to_injector(
                     api_key: hsv.vault_auth_data.api_key,
                     profile_id: hsv.vault_auth_data.profile_id,
                 });
+            // Thread optional proxy egress (e.g. Squid) through to the injector. Sourced
+            // from the router's own [proxy] config, not per-MCA metadata — HyperswitchVault
+            // is a plain CONNECT-tunnel egress, so no CA certificate is needed here (unlike
+            // VGS's MITM proxy above).
+            injector_request.connection_config.proxy_url =
+                hsv.proxy_url.map(|u| Secret::new(u.to_string()));
         }
     }
 }
