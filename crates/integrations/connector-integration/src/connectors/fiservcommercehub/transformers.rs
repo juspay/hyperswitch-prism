@@ -176,11 +176,11 @@ struct DecryptedWalletEncryptedBlock {
 
 /// Card-derived fields for a DecryptedWallet encryption block.
 ///
-/// Grouping these three adjacent `&str` args prevents silent positional swaps at call sites.
-struct DecryptedWalletCardFields<'a> {
-    dpan: &'a str,
-    exp_month: &'a str,
-    exp_year: &'a str,
+/// Grouping these three adjacent args prevents silent positional swaps at call sites.
+struct DecryptedWalletCardFields {
+    dpan: Secret<String>,
+    exp_month: Secret<String>,
+    exp_year: Secret<String>,
 }
 
 /// Build and RSA-OAEP-SHA256 encrypt the plaintext block for a DecryptedWallet charge.
@@ -197,7 +197,7 @@ struct DecryptedWalletCardFields<'a> {
 fn encrypt_decrypted_wallet_data(
     cavv: Option<&Secret<String>>,
     xid: Option<&str>,
-    card_fields: DecryptedWalletCardFields<'_>,
+    card_fields: DecryptedWalletCardFields,
     key_id: String,
     public_key_der: &[u8],
 ) -> Result<DecryptedWalletEncryptedBlock, error_stack::Report<errors::IntegrationError>> {
@@ -221,14 +221,14 @@ fn encrypt_decrypted_wallet_data(
         field_descriptors.push(format!("xid:{}", xid_str.len()));
     }
 
-    plain_block.push_str(dpan);
-    field_descriptors.push(format!("card.cardData:{}", dpan.len()));
+    plain_block.push_str(dpan.peek());
+    field_descriptors.push(format!("card.cardData:{}", dpan.peek().len()));
 
-    plain_block.push_str(exp_month);
-    field_descriptors.push(format!("card.expirationMonth:{}", exp_month.len()));
+    plain_block.push_str(exp_month.peek());
+    field_descriptors.push(format!("card.expirationMonth:{}", exp_month.peek().len()));
 
-    plain_block.push_str(exp_year);
-    field_descriptors.push(format!("card.expirationYear:{}", exp_year.len()));
+    plain_block.push_str(exp_year.peek());
+    field_descriptors.push(format!("card.expirationYear:{}", exp_year.peek().len()));
 
     let encryption_block_fields = field_descriptors.join(",");
 
@@ -365,14 +365,16 @@ fn build_decrypted_wallet_source(
                 .online_payment_cryptogram
                 .clone();
             // Fiserv expects a 2-digit month; zero-pad against bare-digit wallet payloads.
-            let expiration_month = format!(
+            let expiration_month = Secret::new(format!(
                 "{:0>2}",
                 decrypted_apple_pay.application_expiration_month.peek()
+            ));
+            let expiration_year = Secret::new(
+                decrypted_apple_pay
+                    .get_four_digit_expiry_year()
+                    .peek()
+                    .to_string(),
             );
-            let expiration_year = decrypted_apple_pay
-                .get_four_digit_expiry_year()
-                .peek()
-                .to_string();
 
             // XID is intentionally omitted for Apple Pay.
             // Fiserv's `xid` field is a 3DS authentication cryptogram, not Apple Pay's
@@ -383,11 +385,14 @@ fn build_decrypted_wallet_source(
                 Some(&payment_cryptogram),
                 None,
                 DecryptedWalletCardFields {
-                    dpan: decrypted_apple_pay
-                        .application_primary_account_number
-                        .peek(),
-                    exp_month: &expiration_month,
-                    exp_year: &expiration_year,
+                    dpan: Secret::new(
+                        decrypted_apple_pay
+                            .application_primary_account_number
+                            .peek()
+                            .to_string(),
+                    ),
+                    exp_month: expiration_month,
+                    exp_year: expiration_year,
                 },
                 key_id,
                 public_key_der,
@@ -439,34 +444,42 @@ fn build_decrypted_wallet_source(
                 }
             };
 
-            let expiration_month = format!("{:0>2}", decrypted_gpay.card_exp_month.peek());
-            let expiration_year = decrypted_gpay
-                .get_four_digit_expiry_year()
-                .change_context(errors::IntegrationError::InvalidDataFormat {
-                    field_name: "google_pay.card_exp_year",
-                    context: errors::IntegrationErrorContext {
-                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
-                        suggested_action: Some(
-                            "Expiry year from Google Pay decrypted data must be 2 or 4 digits"
-                                .to_string(),
-                        ),
-                        additional_context: Some(
-                            "Failed to expand Google Pay card_exp_year to 4-digit format"
-                                .to_string(),
-                        ),
-                    },
-                })?
-                .peek()
-                .to_string();
+            let expiration_month =
+                Secret::new(format!("{:0>2}", decrypted_gpay.card_exp_month.peek()));
+            let expiration_year = Secret::new(
+                decrypted_gpay
+                    .get_four_digit_expiry_year()
+                    .change_context(errors::IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay.card_exp_year",
+                        context: errors::IntegrationErrorContext {
+                            doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                            suggested_action: Some(
+                                "Expiry year from Google Pay decrypted data must be 2 or 4 digits"
+                                    .to_string(),
+                            ),
+                            additional_context: Some(
+                                "Failed to expand Google Pay card_exp_year to 4-digit format"
+                                    .to_string(),
+                            ),
+                        },
+                    })?
+                    .peek()
+                    .to_string(),
+            );
 
             // Google Pay decrypted data has no separate transaction identifier (XID).
             let encrypted_block = encrypt_decrypted_wallet_data(
                 decrypted_gpay.cryptogram.as_ref(),
                 None,
                 DecryptedWalletCardFields {
-                    dpan: decrypted_gpay.application_primary_account_number.peek(),
-                    exp_month: &expiration_month,
-                    exp_year: &expiration_year,
+                    dpan: Secret::new(
+                        decrypted_gpay
+                            .application_primary_account_number
+                            .peek()
+                            .to_string(),
+                    ),
+                    exp_month: expiration_month,
+                    exp_year: expiration_year,
                 },
                 key_id,
                 public_key_der,
