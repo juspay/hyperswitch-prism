@@ -123,8 +123,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: FiuuPaymentCancelResponse,
-        source: |response| fiuu::FiuuVoidStatus::from_stat_code(&response.stat_code),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| fiuu::FiuuVoidStatus::from_stat_code(&response.stat_code),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Other => VoidFailed

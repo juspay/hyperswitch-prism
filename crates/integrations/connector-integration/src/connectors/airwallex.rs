@@ -120,8 +120,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: AirwallexPaymentsResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -168,8 +168,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: AirwallexSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -222,8 +222,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: AirwallexVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -264,8 +264,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: AirwallexCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -308,8 +308,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: AirwallexRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Received => Pending,
@@ -333,8 +333,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: AirwallexRefundSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Received => Pending,
@@ -360,8 +360,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: AirwallexSetupMandateResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -405,8 +405,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: RepeatPaymentData<T>,
         response: AirwallexRepeatPaymentResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.next_action.as_ref().map(|action| action.action_type.clone()),
     },
     {
         use common_enums::AttemptStatus;

@@ -69,6 +69,13 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, IntegrationError>;
 
+    /// Returns the url to record in logs. Defaults to the real url — this base
+    /// implementation deliberately masks nothing. Override it in connectors whose url
+    /// carries a secret (e.g. a token in the query string) that must not be logged.
+    fn sanitize_url_for_logs<'a>(&self, url: &'a str) -> std::borrow::Cow<'a, str> {
+        std::borrow::Cow::Borrowed(url)
+    }
+
     /// returns request body
     fn get_request_body(
         &self,

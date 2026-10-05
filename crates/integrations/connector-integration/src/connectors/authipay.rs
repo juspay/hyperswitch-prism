@@ -61,7 +61,7 @@ domain_types::impl_flow_status_mapping! {
     success: _ => [Authorized, Charged, PartialCharged],
     failure: none,
     extractors: { request: PaymentsAuthorizeData<T>, response: AuthipayAuthorizeResponse,
-        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
+        source: |_resource_common_data, _request, response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
     { let (status, result, state, transaction_type) = parts; transformers::map_status(status, result, state, transaction_type) }
 }
 
@@ -72,7 +72,7 @@ domain_types::impl_flow_status_mapping! {
     success: _ => [Authorized, Charged, Voided, PartialCharged],
     failure: none,
     extractors: { request: PaymentsSyncData, response: AuthipaySyncResponse,
-        source: |response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
+        source: |_resource_common_data, _request, response| (response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone(), response.transaction_type.clone()), },
     { let (status, result, state, transaction_type) = parts; transformers::map_status(status, result, state, transaction_type) }
 }
 
@@ -83,7 +83,7 @@ domain_types::impl_flow_status_mapping! {
     success: _ => [Voided],
     failure: none,
     extractors: { request: PaymentVoidData, response: AuthipayVoidResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
+        source: |_resource_common_data, _request, response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_void_status(transaction_type, status, result, state) }
 }
 
@@ -94,7 +94,7 @@ domain_types::impl_refund_flow_status_mapping! {
     success: _ => [Success],
     failure: none,
     extractors: { request: RefundsData, response: AuthipayRefundResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
+        source: |_resource_common_data, _request, response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_refund_status(Some(transaction_type), status, result, state) }
 }
 
@@ -105,7 +105,7 @@ domain_types::impl_refund_flow_status_mapping! {
     success: _ => [Success],
     failure: none,
     extractors: { request: RefundSyncData, response: AuthipayRefundSyncResponse,
-        source: |response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
+        source: |_resource_common_data, _request, response| (response.transaction_type.clone(), response.transaction_status.clone(), response.transaction_result.clone(), response.transaction_state.clone()), },
     { let (transaction_type, status, result, state) = parts; transformers::map_refund_status(Some(transaction_type), status, result, state) }
 }
 

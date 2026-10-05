@@ -86,7 +86,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: SetupMandateRequestData<T>,
         response: AuthorizedotnetSetupMandateResponse,
-        source: |response| response.messages.result_code == transformers::ResultCode::Ok
+        source: |_resource_common_data, _request, response| response.messages.result_code == transformers::ResultCode::Ok
             || (response.customer_profile_id.is_some()
                 && (response.customer_payment_profile_id.is_some()
                     || !response.customer_payment_profile_id_list.is_empty())),
@@ -394,8 +394,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: AuthorizedotnetAuthorizeResponse,
-        source: |response| response.0.clone(),
-        context: |request, _response| request.capture_method,
+        source: |_resource_common_data, _request, response| response.0.clone(),
+        context: |_resource_common_data, request, _response| request.capture_method,
     },
     {
         transformers::get_hs_status(

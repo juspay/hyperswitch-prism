@@ -133,8 +133,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BamboraAuthorizeResponse,
-        source: |response| (response.approved == "1").then(|| response.payment_type.clone()),
-        context: |request, _response| request.capture_method.is_some_and(|method| method != common_enums::CaptureMethod::Automatic),
+        source: |_resource_common_data, _request, response| (response.approved == "1").then(|| response.payment_type.clone()),
+        context: |_resource_common_data, request, _response| request.capture_method.is_some_and(|method| method != common_enums::CaptureMethod::Automatic),
     },
     {
         use transformers::BamboraPaymentType as Type;
@@ -167,7 +167,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: BamboraCaptureResponse,
-        source: |response| response.approved == "1",
+        source: |_resource_common_data, _request, response| response.approved == "1",
     },
     {
         if status { common_enums::AttemptStatus::Charged } else { common_enums::AttemptStatus::Failure }
@@ -191,7 +191,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: BamboraVoidResponse,
-        source: |response| response.approved == "1",
+        source: |_resource_common_data, _request, response| response.approved == "1",
     },
     {
         if status { common_enums::AttemptStatus::Voided } else { common_enums::AttemptStatus::VoidFailed }
@@ -217,8 +217,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: BamboraPSyncResponse,
-        source: |response| (response.approved == "1").then(|| response.payment_type.clone()),
-        context: |request, _response| request.capture_method.is_some_and(|method| method != common_enums::CaptureMethod::Automatic),
+        source: |_resource_common_data, _request, response| (response.approved == "1").then(|| response.payment_type.clone()),
+        context: |_resource_common_data, request, _response| request.capture_method.is_some_and(|method| method != common_enums::CaptureMethod::Automatic),
     },
     {
         use transformers::BamboraPaymentType as Type;
@@ -253,7 +253,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: BamboraRefundResponse,
-        source: |response| response.approved == "1",
+        source: |_resource_common_data, _request, response| response.approved == "1",
     },
     {
         if status { common_enums::RefundStatus::Success } else { common_enums::RefundStatus::Failure }
@@ -277,7 +277,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: BamboraRSyncResponse,
-        source: |response| response.approved == "1",
+        source: |_resource_common_data, _request, response| response.approved == "1",
     },
     {
         if status { common_enums::RefundStatus::Success } else { common_enums::RefundStatus::Failure }

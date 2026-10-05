@@ -77,8 +77,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: GetnetAuthorizeResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.redirect_url.as_deref().or_else(|| response.next_step.as_ref().and_then(|next| next.redirect_url.as_deref())).and_then(|url| url::Url::parse(url).ok()).is_some(),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, response| response.redirect_url.as_deref().or_else(|| response.next_step.as_ref().and_then(|next| next.redirect_url.as_deref())).and_then(|url| url::Url::parse(url).ok()).is_some(),
     },
     {
         use common_enums::AttemptStatus;
@@ -189,8 +189,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: GetnetSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Captured       => Charged,
@@ -245,8 +245,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: GetnetRefundResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Approved       => Pending,
@@ -281,8 +281,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: GetnetRefundSyncResponse,
-        source: |response| response.status.clone(),
-        context: |_request, _response| (),
+        source: |_resource_common_data, _request, response| response.status.clone(),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         Approved       => Pending,

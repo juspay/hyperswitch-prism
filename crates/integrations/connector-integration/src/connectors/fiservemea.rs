@@ -183,8 +183,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: FiservemeaAuthorizeResponse,
-        source: |response| response.transaction_status.clone(),
-        context: |_request, response| fiservemea::FiservemeaStatusCtx {
+        source: |_resource_common_data, _request, response| response.transaction_status.clone(),
+        context: |_resource_common_data, _request, response| fiservemea::FiservemeaStatusCtx {
             transaction_result: response.transaction_result.clone(),
             transaction_type: response.transaction_type.clone(),
         },
@@ -248,8 +248,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: FiservemeaSyncResponse,
-        source: |response| response.transaction_status.clone(),
-        context: |_request, response| fiservemea::FiservemeaStatusCtx {
+        source: |_resource_common_data, _request, response| response.transaction_status.clone(),
+        context: |_resource_common_data, _request, response| fiservemea::FiservemeaStatusCtx {
             transaction_result: response.transaction_result.clone(),
             transaction_type: response.transaction_type.clone(),
         },
@@ -456,8 +456,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: FiservemeaRefundResponse,
-        source: |response| response.transaction_status.clone(),
-        context: |_request, response| fiservemea::FiservemeaRefundCtx {
+        source: |_resource_common_data, _request, response| response.transaction_status.clone(),
+        context: |_resource_common_data, _request, response| fiservemea::FiservemeaRefundCtx {
             transaction_status: response.transaction_status.clone(),
             transaction_result: response.transaction_result.clone(),
         },
@@ -509,8 +509,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: FiservemeaRefundSyncResponse,
-        source: |response| response.transaction_status.clone(),
-        context: |_request, response| fiservemea::FiservemeaRefundCtx {
+        source: |_resource_common_data, _request, response| response.transaction_status.clone(),
+        context: |_resource_common_data, _request, response| fiservemea::FiservemeaRefundCtx {
             transaction_status: response.transaction_status.clone(),
             transaction_result: response.transaction_result.clone(),
         },

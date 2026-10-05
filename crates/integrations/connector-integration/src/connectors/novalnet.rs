@@ -824,6 +824,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             stage: common_enums::DisputeStage::Dispute,
             dispute_id: notif.event.tid.to_string(),
             connector_reason_code: reason_code,
+            additional_details: None,
             status: common_enums::DisputeStatus::foreign_try_from(dispute_status)
                 .map_err(|e| e.change_context(WebhookError::WebhookProcessingFailed))?,
             connector_response_reference_id: None,

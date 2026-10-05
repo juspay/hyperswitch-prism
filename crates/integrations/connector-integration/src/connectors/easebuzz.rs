@@ -149,7 +149,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: EasebuzzPaymentsResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use easebuzz::EasebuzzAuthorizeStatus as Status;
             if response.0.get("error").and_then(serde_json::Value::as_str)
                 .is_some_and(|error| !error.is_empty() && error != "0")
@@ -190,7 +190,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: EasebuzzSyncResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzTxnSyncMsg};
             match &response.msg {
                 EasebuzzTxnSyncMsg::Success(transaction) => match transaction.status.to_lowercase().as_str() {
@@ -201,7 +201,7 @@ domain_types::impl_flow_status_mapping! {
                 EasebuzzTxnSyncMsg::Error(_) => Status::InFlight,
             }
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         InFlight => Pending
@@ -226,7 +226,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: EasebuzzCaptureResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| {
             use easebuzz::{EasebuzzTxnStatus as Status, EasebuzzCaptureResponse};
             match response {
                 EasebuzzCaptureResponse::Success(response) => {
@@ -243,7 +243,7 @@ domain_types::impl_flow_status_mapping! {
                 EasebuzzCaptureResponse::Error(_) => Status::Other,
             }
         },
-        context: |_request, _response| (),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
         InFlight => Pending
@@ -265,7 +265,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: EasebuzzRefundResponse,
-        source: |response| response.status,
+        source: |_resource_common_data, _request, response| response.status,
     },
     {
         if accepted {
@@ -296,8 +296,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: EasebuzzRefundSyncResponse,
-        source: |_response| (),
-        context: |request, response| match response {
+        source: |_resource_common_data, _request, _response| (),
+        context: |_resource_common_data, request, response| match response {
             EasebuzzRefundSyncResponse::Success(data) => {
                 let refund = data.refunds.as_ref().and_then(|refunds| {
                     refunds

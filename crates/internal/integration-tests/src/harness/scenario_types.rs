@@ -234,7 +234,13 @@ impl SuiteDependency {
     }
 }
 
+/// `deny_unknown_fields` is deliberate: a key nobody reads is worse than a
+/// missing one, because it looks configured. The README documented an
+/// `additional_dependencies` key for a while that no code has ever read, so a
+/// `specs.json` setting it was silently ignored. A parse error is the only
+/// feedback loop that catches that.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConnectorSuiteSpec {
     /// Connector name represented by this spec file.
     pub connector: String,

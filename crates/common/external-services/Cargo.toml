@@ -18,7 +18,7 @@ serde_json = { workspace = true }
 hex = "0.4.3"
 ring = { version = "0.17.8", features = ["std"] }
 strum = { version = "0.26.2", features = ["derive"] }
-reqwest = { version = "0.11.27", features = [
+reqwest = { version = "0.12", features = [
     "json",
     "rustls-tls",
     "gzip",
@@ -56,7 +56,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
     "time",
 ] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.18.0", optional = true }
+injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.09.30.0", optional = true }
 connector_request_kafka = { path = "../connector_request_kafka", optional = true }
 url = "2.5.0"
 chrono = "0.4.31"

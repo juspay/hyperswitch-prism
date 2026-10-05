@@ -66,8 +66,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsAuthorizeData<T>,
         response: BluesnapAuthorizeResponse,
-        source: |response| response.processing_info.processing_status.clone(),
-        context: |_request, response| response.card_transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.processing_info.processing_status.clone(),
+        context: |_resource_common_data, _request, response| response.card_transaction_type.clone(),
     },
     {
         use bluesnap::BluesnapProcessingStatus as P;
@@ -103,8 +103,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsSyncData,
         response: BluesnapPSyncResponse,
-        source: |response| response.processing_info.processing_status.clone(),
-        context: |_request, response| response.card_transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.processing_info.processing_status.clone(),
+        context: |_resource_common_data, _request, response| response.card_transaction_type.clone(),
     },
     {
         use bluesnap::BluesnapProcessingStatus as P;
@@ -140,8 +140,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentVoidData,
         response: BluesnapVoidResponse,
-        source: |response| response.processing_info.processing_status.clone(),
-        context: |_request, response| response.card_transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.processing_info.processing_status.clone(),
+        context: |_resource_common_data, _request, response| response.card_transaction_type.clone(),
     },
     {
         use bluesnap::BluesnapProcessingStatus as P;
@@ -191,8 +191,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request: PaymentsCaptureData,
         response: BluesnapCaptureResponse,
-        source: |response| response.processing_info.processing_status.clone(),
-        context: |_request, response| response.card_transaction_type.clone(),
+        source: |_resource_common_data, _request, response| response.processing_info.processing_status.clone(),
+        context: |_resource_common_data, _request, response| response.card_transaction_type.clone(),
     },
     {
         use bluesnap::BluesnapProcessingStatus as P;
@@ -232,7 +232,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundsData,
         response: BluesnapRefundResponse,
-        source: |response| response.refund_status.clone(),
+        source: |_resource_common_data, _request, response| response.refund_status.clone(),
     },
     {
         match status {
@@ -264,8 +264,8 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request: RefundSyncData,
         response: BluesnapRefundSyncResponse,
-        source: |response| response.processing_info.processing_status.clone(),
-        context: |_request, _response| None,
+        source: |_resource_common_data, _request, response| response.processing_info.processing_status.clone(),
+        context: |_resource_common_data, _request, _response| None,
     },
     {
         let _ = ctx;
