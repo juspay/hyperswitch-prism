@@ -2334,16 +2334,36 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
 /// Build an `ErrorResponse` from Authorize.Net's `ResponseMessages`, mirroring
 /// hyperswitch's `get_err_response`: use the first message's code/text and leave
 /// `attempt_status: None` so the caller preserves the prior attempt status.
+/// Parity with hyperswitch's direct Authorize.net flow: `resultCode` is the error *message*
+/// (`"Error"`), and the reason carries every `messages.message[].text`, joined. Reading
+/// `message[0].text` into both fields diverges on `message` and silently drops every message
+/// after the first.
+fn error_code_message_and_reason(messages: &ResponseMessages) -> (String, String, String) {
+    let code = messages
+        .message
+        .first()
+        .map(|m| m.code.clone())
+        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+    let joined_reason = messages
+        .message
+        .iter()
+        .map(|m| m.text.clone())
+        .collect::<Vec<String>>()
+        .join(" ");
+    let reason = if joined_reason.is_empty() {
+        consts::NO_ERROR_MESSAGE.to_string()
+    } else {
+        joined_reason
+    };
+    (code, messages.result_code.to_string(), reason)
+}
+
 fn get_err_response(status_code: u16, messages: ResponseMessages) -> ErrorResponse {
-    let first = messages.message.first();
+    let (code, message, reason) = error_code_message_and_reason(&messages);
     ErrorResponse {
-        code: first
-            .map(|m| m.code.clone())
-            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-        message: first
-            .map(|m| m.text.clone())
-            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: first.map(|m| m.text.clone()),
+        code,
+        message,
+        reason: Some(reason),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
@@ -2583,7 +2603,7 @@ pub struct ResponseMessage {
     pub text: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize, strum::Display)]
 #[serde(rename_all = "PascalCase")]
 pub enum ResultCode {
     #[default]
@@ -3033,28 +3053,13 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
             }
             None => {
                 // Handle error response
+                let (code, message, reason) =
+                    error_code_message_and_reason(&response.messages);
                 let error_response = ErrorResponse {
                     status_code: http_code,
-                    code: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.code.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(
-                        response
-                            .messages
-                            .message
-                            .first()
-                            .map(|m| m.text.clone())
-                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    ),
+                    code,
+                    message,
+                    reason: Some(reason),
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
@@ -3274,28 +3279,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_account_reference: None,
             });
         } else {
+            let (code, message, reason) = error_code_message_and_reason(&response.messages);
             let error_response = ErrorResponse {
                 status_code: http_code,
-                code: response
-                    .messages
-                    .message
-                    .first()
-                    .map(|m| m.code.clone())
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .messages
-                    .message
-                    .first()
-                    .map(|m| m.text.clone())
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: Some(
-                    response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                ),
+                code,
+                message,
+                reason: Some(reason),
                 attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
@@ -3587,7 +3576,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     vec![ShipToList {
                         first_name: address.first_name.clone(),
                         last_name: address.last_name.clone(),
-                        address: get_address_line(&address.line1, &address.line2, &address.line3),
+                        // hyperswitch direct sends line1 only for shipTo (unlike billTo, which
+                        // does join the lines) -- joining here emitted a trailing space whenever
+                        // line2 was present-but-empty.
+                        address: address.line1.clone(),
                         city: address.city.clone(),
                         state: address.state.clone(),
                         zip: address.zip.clone(),
@@ -3847,5 +3839,53 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
             response: Ok(ServerSessionAuthenticationTokenResponseData { session_token }),
             ..router_data.clone()
         })
+    }
+}
+
+#[cfg(test)]
+mod error_message_parity_tests {
+    use super::{error_code_message_and_reason, ResponseMessage, ResponseMessages, ResultCode};
+
+    fn messages(result_code: ResultCode, texts: &[(&str, &str)]) -> ResponseMessages {
+        ResponseMessages {
+            result_code,
+            message: texts
+                .iter()
+                .map(|(code, text)| ResponseMessage {
+                    code: (*code).to_string(),
+                    text: (*text).to_string(),
+                })
+                .collect(),
+        }
+    }
+
+    /// hyperswitch sends `messages.resultCode` as the error message and joins every
+    /// `messages.message[].text` into the reason. Taking `message[0].text` for the message
+    /// was the prod parity diff; dropping the later texts was the latent half of it.
+    #[test]
+    fn message_is_result_code_and_reason_joins_every_text() {
+        let (code, message, reason) = error_code_message_and_reason(&messages(
+            ResultCode::Error,
+            &[
+                ("E00027", "This transaction has been declined."),
+                ("E00040", "Customer profile not found."),
+            ],
+        ));
+
+        assert_eq!(code, "E00027");
+        assert_eq!(message, "Error");
+        assert_eq!(
+            reason,
+            "This transaction has been declined. Customer profile not found."
+        );
+    }
+
+    #[test]
+    fn empty_messages_fall_back_to_the_placeholders() {
+        let (code, message, reason) = error_code_message_and_reason(&messages(ResultCode::Ok, &[]));
+
+        assert_eq!(code, super::consts::NO_ERROR_CODE);
+        assert_eq!(message, "Ok");
+        assert_eq!(reason, super::consts::NO_ERROR_MESSAGE);
     }
 }
