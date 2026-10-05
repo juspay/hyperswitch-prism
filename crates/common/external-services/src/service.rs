@@ -924,6 +924,7 @@ where
                 }
                 _ => updated_router_data,
             };
+            let _art_probe = common_utils::fp_utils::generate_uuid_v4();
             connector_request = connector_request.map(|mut req| {
                 if event_params.shadow_mode {
                     req.add_header(
