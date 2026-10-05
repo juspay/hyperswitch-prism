@@ -58,6 +58,42 @@ pub struct JpmorganPaymentsResponse {
     pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<CapMethod>,
+    pub payment_authentication_result: Option<JpmorganAuthenticationResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganAuthenticationResult {
+    pub authentication_orchestration_url: Option<String>,
+    pub three_domain_secure_completion: Option<JpmorganThreeDsCompletion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDsCompletion {
+    #[serde(rename = "threeDSTransactionStatus")]
+    pub three_ds_transaction_status: JpmorganThreeDsStatus,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum JpmorganThreeDsStatus {
+    Y,
+    A,
+    N,
+    U,
+    C,
+    R,
+    D,
+    I,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JpmorganAuthorizeResponse {
+    Payment(JpmorganPaymentsResponse),
+    Verification(JpmorganSetupMandateResponse),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -93,6 +129,7 @@ pub struct NetworkResponse {
     pub address_verification_result_code: Option<Secret<String>>,
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -170,12 +207,33 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
+pub type JpmorganPSyncResponse = JpmorganAuthorizeResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
 /// response shape for both pre-capture void and post-capture void operations.
 pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
-pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganVerificationStatus {
+    Success,
+    Denied,
+    Error,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganSetupMandateResponse {
+    pub transaction_id: String,
+    pub request_id: String,
+    pub response_status: JpmorganVerificationStatus,
+    pub response_code: String,
+    pub response_message: Option<String>,
+    pub payment_method_type: Option<PaymentMethodType>,
+    pub verification_authentication_result: Option<JpmorganAuthenticationResult>,
+}
+
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

@@ -147,6 +147,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
+    fn requires_authorize_post_redirect(&self) -> bool {
+        true
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ServerAuthentication for Jpmorgan<T>
@@ -226,7 +229,7 @@ macros::create_all_prerequisites!(
         (
             flow: Authorize,
             request_body: JpmorganPaymentsRequest<T>,
-            response_body: JpmorganPaymentsResponse,
+            response_body: JpmorganAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -552,7 +555,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Jpmorgan,
     curl_request: Json(JpmorganPaymentsRequest<T>),
-    curl_response: JpmorganPaymentsResponse,
+    curl_response: JpmorganAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -573,6 +576,23 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/payments", self.connector_base_url(req)))
+        }
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+            let context = jpmorgan::resolved_connector_context(req.request.connector_feature_data.as_ref(), req.resource_common_data.connector_feature_data.as_ref(), req.request.metadata.as_ref())?;
+            let continuing = req.request.redirect_response.is_some() || context.continue_three_ds;
+            let (method, url, body, typed_request) = if continuing {
+            let resource = context.three_ds_resource.as_ref().ok_or_else(jpmorgan::missing_request_field("connector_feature_data.jpmorgan.threeDsResource"))?;
+                jpmorgan::validate_three_ds_resource(resource, &req.resource_common_data)?;
+                (common_utils::request::Method::Get, format!("{}/{}/{}", self.connector_base_url(req), resource.kind.path(), resource.id), None, None)
+            } else {
+                let data = ConnectorIntegrationV2::<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>::get_request_body(self, req)?;
+                let (body, typed) = data.map_or((None, None), |data| (Some(data.content), data.typed_request.map(|value| value.inner().clone())));
+                (common_utils::request::Method::Post, self.get_url(req)?, body, typed)
+            };
+            Ok(Some(common_utils::request::RequestBuilder::new().method(method).url(&url).attach_default_headers().headers(self.get_headers(req)?).set_optional_body(body).set_typed_connector_request(typed_request).add_certificate(self.get_certificate(req)?).add_certificate_key(self.get_certificate_key(req)?).add_ca_certificate_pem(self.get_ca_certificate(req)?).build()))
         }
     }
 );
@@ -602,6 +622,14 @@ macros::macro_connector_implementation!(
             let transaction_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+            let context = jpmorgan::resolved_connector_context(req.request.connector_feature_data.as_ref(), req.resource_common_data.connector_feature_data.as_ref(), None)?;
+            if let Some(resource) = &context.three_ds_resource {
+                jpmorgan::validate_three_ds_resource(resource, &req.resource_common_data)?;
+                if resource.id != transaction_id {
+                return Err(IntegrationError::InvalidDataFormat { field_name: "connector_transaction_id", context: jpmorgan::request_error_context() }.into());
+                }
+                return Ok(format!("{}/{}/{}", self.connector_base_url(req), resource.kind.path(), resource.id));
+            }
             Ok(format!("{}/payments/{}", self.connector_base_url(req), transaction_id))
         }
     }
@@ -745,7 +773,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url(req)))
+            Ok(format!("{}/verifications", self.connector_base_url(req)))
         }
     }
 );
@@ -785,6 +813,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Jpmorgan<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &domain_types::connector_types::RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, IntegrationError> {
+        // A callback is a lookup trigger. Only the authenticated gateway GET verifies the outcome.
+        Ok(false)
+    }
+    fn process_redirect_response(
+        &self,
+        _request: &domain_types::connector_types::RequestDetails,
+        feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<domain_types::connector_types::RedirectDetailsResponse, IntegrationError>
+    {
+        let feature_data =
+            feature_data.ok_or_else(jpmorgan::missing_request_field("connector_feature_data"))?;
+        let value: serde_json::Value = serde_json::from_str(feature_data.peek()).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "connector_feature_data",
+                context: jpmorgan::request_error_context(),
+            },
+        )?;
+        let mut context =
+            jpmorgan::connector_context(Some(&hyperswitch_masking::Secret::new(value)), None)?;
+        let resource =
+            context
+                .three_ds_resource
+                .as_ref()
+                .ok_or_else(jpmorgan::missing_request_field(
+                    "connector_feature_data.jpmorgan.threeDsResource",
+                ))?;
+        let resource_id =
+            domain_types::connector_types::ResponseId::ConnectorTransactionId(resource.id.clone());
+        context.continue_three_ds = true;
+        Ok(domain_types::connector_types::RedirectDetailsResponse {
+            resource_id: Some(resource_id),
+            status: None,
+            response_amount: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: None,
+            connector_feature_data: Some(serde_json::json!({"jpmorgan": context}).to_string()),
+        })
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Jpmorgan<T>

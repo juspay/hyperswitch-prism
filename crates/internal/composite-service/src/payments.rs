@@ -926,6 +926,11 @@ where
                 .authn_response_opt
                 .as_ref()
                 .map(|r| r.redirection_data.is_some())
+                .unwrap_or(false)
+            || state
+                .authorize_response_opt
+                .as_ref()
+                .map(|r| r.redirection_data.is_some())
                 .unwrap_or(false);
 
         let composite_status = if has_redirection {

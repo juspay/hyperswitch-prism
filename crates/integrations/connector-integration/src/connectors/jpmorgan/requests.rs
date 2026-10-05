@@ -30,6 +30,8 @@ pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub account_holder: Option<JpmorganAccountHolder>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<Secret<String>>,
+    #[serde(flatten)]
+    pub stored_credential: JpmorganStoredCredential,
 }
 
 #[derive(Debug, Serialize)]
@@ -49,8 +51,65 @@ pub struct JpmorganPaymentMethodType<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCard<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
+    pub account_number: JpmorganAccountNumber<T>,
     pub expiry: Expiry,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number_type: Option<JpmorganAccountNumberType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet_provider: Option<JpmorganWalletProvider>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<JpmorganAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_network_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_transaction_link_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_authentication_request: Option<JpmorganNativeAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification_authentication_request: Option<JpmorganNativeAuthentication>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum JpmorganAccountNumber<T: PaymentMethodDataTypes> {
+    Card(RawCardNumber<T>),
+    Decrypted(cards::CardNumber),
+    Token(cards::NetworkToken),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganAccountNumberType {
+    Pan,
+    DeviceToken,
+    NetworkToken,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganWalletProvider {
+    ApplePay,
+    GooglePay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganAuthentication {
+    #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<JpmorganThreeDs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_authentication_value: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub electronic_commerce_indicator: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDs {
+    pub authentication_value: Secret<String>,
+    pub authentication_transaction_id: String,
+    #[serde(rename = "threeDSProgramProtocol")]
+    pub three_ds_program_protocol: String,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
@@ -68,6 +127,90 @@ pub struct JpmorganAch {
 pub struct JpmorganAccountHolder {
     pub first_name: Secret<String>,
     pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<JpmorganBillingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<JpmorganPhone>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganBillingAddress {
+    pub line1: Secret<String>,
+    pub city: Secret<String>,
+    pub postal_code: Secret<String>,
+    pub country_code: common_enums::CountryAlpha3,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganPhone {
+    pub phone_number: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<u16>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganNativeAuthentication {
+    pub authentication_return_url: String,
+    #[serde(rename = "threeDSRequestorAuthenticationInfo")]
+    pub requestor_info: JpmorganRequestorInfo,
+    #[serde(rename = "threeDSPurchaseInfo")]
+    pub purchase_info: JpmorganPurchaseInfo,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRequestorInfo {
+    pub authentication_purpose: JpmorganAuthenticationPurpose,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganAuthenticationPurpose {
+    PaymentTransaction,
+    RecurringTransaction,
+    AddCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganPurchaseInfo {
+    pub purchase_date: String,
+    pub three_domain_secure_transaction_type: JpmorganThreeDsTransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganThreeDsTransactionType {
+    GoodsServices,
+    Check,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganChallengeWindowSize {
+    FullScreen,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganBrowserInfo {
+    pub browser_accept_header: String,
+    #[serde(rename = "deviceIPAddress")]
+    pub device_ip_address: Secret<String>,
+    pub browser_language: String,
+    pub browser_color_depth: String,
+    pub browser_screen_height: String,
+    pub browser_screen_width: String,
+    pub device_local_time_zone: String,
+    pub browser_user_agent: String,
+    pub challenge_window_size: JpmorganChallengeWindowSize,
+    pub java_enabled: bool,
+    pub java_script_enabled: bool,
 }
 
 /// ACH Account Type enum
@@ -186,86 +329,88 @@ pub struct JpmorganRecurring {
     pub agreement_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_variable_amount: Option<bool>,
-}
-
-/// JPMorgan card body used by SetupMandate (initial CIT) — carries the PAN and
-/// expiry the cardholder just entered.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
-    pub expiry: Expiry,
-}
-
-/// JPMorgan card body used by RepeatPayment when the upstream mandate is an
-/// NTI. JPMorgan's API requires `accountNumber` + `expiry` even on a SUBSEQUENT
-/// MIT — the `originalNetworkTransactionId` is what reclassifies the txn as
-/// MIT (paired with `initiatorType: MERCHANT`, `accountOnFile: STORED`,
-/// `recurringSequence: SUBSEQUENT`), not a substitute for the card data.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganMitCardByNti<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
-    pub expiry: Expiry,
-    pub original_network_transaction_id: String,
-}
-
-/// JPMorgan stored-credential reference used by RepeatPayment when the
-/// upstream mandate is JPMorgan's own `transactionId` from the prior auth.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganTransactionReference {
-    pub transaction_reference_id: String,
-}
-
-/// SetupMandate's payment method type — always carries `card`.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganSetupMandatePaymentMethodType<T: PaymentMethodDataTypes> {
-    pub card: JpmorganSetupMandateCard<T>,
-}
-
-/// RepeatPayment's payment method type — exactly one of `card` (PAN + expiry +
-/// NTI) or `transaction_reference` is set, depending on which mandate handle
-/// the upstream gave us.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<JpmorganMitCardByNti<T>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction_reference: Option<JpmorganTransactionReference>,
+    pub recurring_number: Option<u32>,
 }
 
-/// SetupMandate request (initial CIT with credential storage)
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganStoredCredential {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiator_type: Option<JpmorganInitiatorType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_on_file: Option<JpmorganAccountOnFile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring: Option<JpmorganRecurring>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_amount_final: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_info: Option<JpmorganBrowserInfo>,
+}
+
+/// Non-secret original credential context. Never store payment credentials here.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganContext {
+    pub agreement_id: Option<String>,
+    pub is_variable_amount: Option<bool>,
+    pub recurring_number: Option<u32>,
+    #[serde(default)]
+    pub scheduled_recurring: bool,
+    pub account_number_type: Option<JpmorganAccountNumberType>,
+    pub wallet_provider: Option<JpmorganWalletProvider>,
+    pub original_network_transaction_id: Option<String>,
+    pub original_transaction_link_id: Option<String>,
+    pub three_ds_resource: Option<JpmorganThreeDsResource>,
+    pub native_capture_method: Option<CapMethod>,
+    #[serde(default)]
+    pub continue_three_ds: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDsResource {
+    pub kind: JpmorganResourceKind,
+    pub id: String,
+    pub merchant_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganResourceKind {
+    Payment,
+    Verification,
+}
+
+impl JpmorganResourceKind {
+    pub fn path(self) -> &'static str {
+        match self {
+            Self::Payment => "payments",
+            Self::Verification => "verifications",
+        }
+    }
+}
+
+/// Non-financial credential verification. Do not send amount or capture fields.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
-    pub capture_method: CapMethod,
-    pub amount: MinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
-    pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
-    pub recurring: JpmorganRecurring,
+    pub payment_method_type: JpmorganPaymentMethodType<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_sequence: Option<JpmorganRecurringSequence>,
     pub initiator_type: JpmorganInitiatorType,
     pub account_on_file: JpmorganAccountOnFile,
-    pub is_amount_final: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_info: Option<JpmorganBrowserInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder: Option<JpmorganAccountHolder>,
 }
 
-/// RepeatPayment request (subsequent MIT).
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
-    pub capture_method: CapMethod,
-    pub amount: MinorUnit,
-    pub currency: common_enums::Currency,
-    pub merchant: JpmorganMerchant,
-    pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,
-    pub recurring: JpmorganRecurring,
-    pub initiator_type: JpmorganInitiatorType,
-    pub account_on_file: JpmorganAccountOnFile,
-    pub is_amount_final: bool,
-}
+pub type JpmorganRepeatPaymentRequest<T> = JpmorganPaymentsRequest<T>;
 
 // ---- Google Pay (encrypted) request structs ----
 

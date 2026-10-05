@@ -5,6 +5,7 @@ mod auto_populate;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
+    println!("cargo:rerun-if-changed=proto");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 

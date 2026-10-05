@@ -1,0 +1,135 @@
+{
+  "authorize": {
+    "jpmorgan_caller_metadata_cannot_select_lookup": {
+      "display_name": "Caller metadata cannot turn a fresh authorization into a lookup",
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 6000, "currency": "USD" },
+        "payment_method": { "card": {
+          "card_number": { "value": "4111111111111111" },
+          "card_exp_month": { "value": "12" },
+          "card_exp_year": { "value": "2030" },
+          "card_cvc": { "value": "123" }
+        } },
+        "address": {},
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "metadata": { "value": "{\"jpmorgan\":{\"continueThreeDs\":true,\"threeDsResource\":{\"kind\":\"PAYMENT\",\"id\":\"original_1\",\"merchantId\":\"validation_merchant\"}}}" }
+      },
+      "assert": {
+        "error.error_code": { "one_of": ["INVALID_DATA_FORMAT"] },
+        "error.error_message": { "contains": "metadata.jpmorgan" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpmorgan_caller_metadata_cannot_supply_native_capture_state": {
+      "display_name": "Caller metadata cannot replace native capture state",
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 6000, "currency": "USD" },
+        "payment_method": { "card": {
+          "card_number": { "value": "4111111111111111" },
+          "card_exp_month": { "value": "12" },
+          "card_exp_year": { "value": "2030" },
+          "card_cvc": { "value": "123" }
+        } },
+        "address": {},
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "metadata": { "value": "{\"jpmorgan\":{\"nativeCaptureMethod\":\"MANUAL\"}}" }
+      },
+      "assert": {
+        "error.error_code": { "one_of": ["INVALID_DATA_FORMAT"] },
+        "error.error_message": { "contains": "metadata.jpmorgan" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpmorgan_google_pay_missing_auth_method": {
+      "display_name": "Google Pay refuses an unclassified decrypted credential",
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 6000, "currency": "USD" },
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 1111",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": { "value": "12" },
+                "card_exp_year": { "value": "2030" },
+                "application_primary_account_number": { "value": "4111111111111111" }
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "test_mode": true
+      },
+      "assert": {
+        "error.error_code": { "one_of": ["MISSING_REQUIRED_FIELD"] },
+        "error.error_message": { "contains": "wallet.google_pay.auth_method" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpmorgan_recurring_first_card": {
+      "display_name": "Initial recurring card payment returns the original network identifier and agreement context",
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 6000, "currency": "USD" },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "2030" },
+            "card_cvc": { "value": "123" }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "setup_future_usage": "OFF_SESSION",
+        "mit_category": "RECURRING_MIT",
+        "metadata": { "value": "{\"jpmorgan\":{\"agreementId\":\"jpmorgan-recurring-card\",\"isVariableAmount\":false}}" },
+        "test_mode": true
+      },
+      "assert": {
+        "status": { "one_of": ["CHARGED"] },
+        "connector_transaction_id": { "must_exist": true },
+        "network_transaction_id": { "must_exist": true },
+        "connector_feature_data": { "must_exist": true },
+        "error": { "must_not_exist": true }
+      }
+    },
+    "jpmorgan_google_pay_pan_only": {
+      "display_name": "Google Pay PAN_ONLY authorization preserves the PAN credential type",
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 6000, "currency": "USD" },
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 1111",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": { "value": "12" },
+                "card_exp_year": { "value": "2030" },
+                "application_primary_account_number": { "value": "4111111111111111" },
+                "auth_method": "PAN_ONLY"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "test_mode": true
+      },
+      "assert": {
+        "status": { "one_of": ["CHARGED"] },
+        "connector_transaction_id": { "must_exist": true },
+        "error": { "must_not_exist": true }
+      }
+    }
+  }
+}

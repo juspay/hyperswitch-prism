@@ -1209,6 +1209,8 @@ pub struct GooglePayDecryptedData {
     pub application_primary_account_number: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 impl GooglePayDecryptedData {
