@@ -678,7 +678,7 @@ macros::macro_connector_implementation!(
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                "v1/payment_intents"
+                "v1/payment_intents?art=1"
             ))
         }
     }
