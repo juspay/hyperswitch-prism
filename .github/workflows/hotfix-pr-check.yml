@@ -60,6 +60,7 @@ jobs:
           PR_NUMBERS="${PR_NUMBERS[*]}"
           all_checks_failed=1
 
+          PR_NUMS=()
           PR_AUTHORS=()
           PR_TITLES=()
           PR_BASE_REFS=()
@@ -87,12 +88,37 @@ jobs:
                 break
               fi
 
+              PR_NUMS+=("$pr_number")
               PR_AUTHORS+=("$pr_author")
               PR_TITLES+=("$pr_title")
               PR_BASE_REFS+=("$pr_base_ref")
               PR_STATES+=("$pr_state")
             fi
           done
+
+          # A rollup hotfix PR backports several original PRs in one go, so there is no
+          # single original title or author for it to match. Verify the set instead:
+          # every original it references must target 'main' (and be merged, if required).
+          if [[ $all_checks_failed -eq 1 && ${#PR_NUMS[@]} -gt 1 ]]; then
+            rollup_ok=1
+
+            for ((i = 0; i < ${#PR_NUMS[@]}; i++)); do
+              if [[ "${PR_BASE_REFS[i]}" != "main" ]]; then
+                echo "::error::Original PR #${PR_NUMS[i]} does not target 'main' (baseRef: '${PR_BASE_REFS[i]}')"
+                rollup_ok=0
+              fi
+
+              if [[ "${HOTFIX_PR_NEEDS_MAIN_BRANCH_PR_MERGED}" == 'true' && "${PR_STATES[i]}" != "MERGED" ]]; then
+                echo "::error::Original PR #${PR_NUMS[i]} is not merged (state: '${PR_STATES[i]}')"
+                rollup_ok=0
+              fi
+            done
+
+            if [[ $rollup_ok -eq 1 ]]; then
+              echo "::notice::Rollup hotfix PR backports ${#PR_NUMS[@]} original PRs (${PR_NUMS[*]/#/#}); title and author match not applicable"
+              all_checks_failed=0
+            fi
+          fi
 
           if [[ $all_checks_failed -eq 1 ]]; then
 
@@ -162,11 +188,9 @@ jobs:
             fi
 
             # Print all Original PR's (number), (pr_title), (pr_author), (pr_base_ref) and (pr_state)
-            i=0
             echo "Original PR info:"
-            for pr_number in ${PR_NUMBERS}; do
-              echo "#${pr_number} - pr_title: '${PR_TITLES[i]}' - pr_author: '${PR_AUTHORS[i]}' - pr_base_ref: '${PR_BASE_REFS[i]}' - pr_state: '${PR_STATES[i]}'"
-              i+=1
+            for ((i = 0; i < ${#PR_NUMS[@]}; i++)); do
+              echo "#${PR_NUMS[i]} - pr_title: '${PR_TITLES[i]}' - pr_author: '${PR_AUTHORS[i]}' - pr_base_ref: '${PR_BASE_REFS[i]}' - pr_state: '${PR_STATES[i]}'"
             done
 
             exit 1
