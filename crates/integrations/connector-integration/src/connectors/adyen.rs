@@ -455,7 +455,7 @@ macros::macro_connector_implementation!(
                 req.resource_common_data.test_mode,
                 &req.connector_config,
             )?;
-            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments?art=1"))
         }
         fn get_5xx_error_response(
             &self,
