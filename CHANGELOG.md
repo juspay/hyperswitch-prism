@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.05.0
+
+### Features
+
+- **connector:** Payout support in stripe ([#1227](https://github.com/juspay/connector-service/pull/1227)) ([`97fb677`](https://github.com/juspay/connector-service/commit/97fb677ed460601eb251eb777cd8e614755bdcfa))
+
+**Full Changelog:** [`2026.10.01.0...2026.10.05.0`](https://github.com/juspay/connector-service/compare/2026.10.01.0...2026.10.05.0)
+
+- - -
+
 ## 2026.10.01.0
 
 ### Features
