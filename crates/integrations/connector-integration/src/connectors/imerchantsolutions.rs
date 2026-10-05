@@ -728,24 +728,31 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      Authorize,
     source:    imerchantsolutions::ImerchantsolutionsPaymentStatus,
-    success:   Captured => Charged,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Captured => [Charged],
     failure:   Failed   => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: ImerchantsolutionsPaymentsResponseData,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Authorised         => Authorized,
-        Authorized         => Authorized,
-        PendingCapture     => Authorized,
-        Pending3ds         => AuthenticationPending,
-        Cancelled          => Voided,
-        PartiallyCaptured  => PartialCharged,
-        PartiallyRefunded  => Charged,
-        Refunded           => Charged,
-        Pending            => Pending,
-        Refused            => Failure,
+        match status {
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorised
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorized
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::PendingCapture => common_enums::AttemptStatus::Authorized,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending3ds => common_enums::AttemptStatus::AuthenticationPending,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyRefunded
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => common_enums::AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => common_enums::AttemptStatus::Failure,
+        }
     }
 }
 
@@ -760,24 +767,31 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow:      RepeatPayment,
     source:    imerchantsolutions::ImerchantsolutionsPaymentStatus,
-    success:   Captured => Charged,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Captured => [Charged],
     failure:   Failed   => Failure,
     extractors: {
         request:  RepeatPaymentData<T>,
         response: ImerchantsolutionsRepeatPaymentResponse,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Authorised         => Authorized,
-        Authorized         => Authorized,
-        PendingCapture     => Authorized,
-        Pending3ds         => Authorized,
-        PartiallyCaptured  => PartialCharged,
-        PartiallyRefunded  => Charged,
-        Refunded           => Charged,
-        Pending            => Authorized,
-        Cancelled          => Failure,
-        Refused            => Failure,
+        match status {
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorised
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorized
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::PendingCapture
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending3ds
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => common_enums::AttemptStatus::Authorized,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyRefunded
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => common_enums::AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Cancelled
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => common_enums::AttemptStatus::Failure,
+        }
     }
 }
 
@@ -799,14 +813,14 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: ImerchantsolutionsPaymentSyncResponse,
-        source: |response| match response {
+        source: |_resource_common_data, _request, response| Ok(match response {
             ImerchantsolutionsPaymentSyncResponse::ImerchantsolutionsPSyncResponse(r) => {
                 imerchantsolutions::ImerchantsolutionsStatusSource::Payment(r.status.clone())
             }
             ImerchantsolutionsPaymentSyncResponse::ImerchantsolutionsWebhookResponse(r) => {
                 imerchantsolutions::ImerchantsolutionsStatusSource::Webhook(r.status.clone())
             }
-        },
+        }),
     },
     {
         use common_enums::AttemptStatus;
@@ -854,7 +868,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentVoidData,
         response: ImerchantsolutionsVoidResponseData,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -881,7 +895,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsCaptureData,
         response: ImerchantsolutionsCaptureResponseData,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
     },
     {
         use common_enums::AttemptStatus;
@@ -911,7 +925,7 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request:  RefundsData,
         response: ImerchantsolutionsRefundResponseData,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
     },
     {
         use common_enums::RefundStatus;
@@ -941,14 +955,14 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request:  RefundSyncData,
         response: ImerchantsolutionsRefundSyncResponse,
-        source: |response| match response {
+        source: |_resource_common_data, _request, response| Ok(match response {
             ImerchantsolutionsRefundSyncResponse::ImerchantsolutionsRsyncResponse(r) => {
                 imerchantsolutions::ImerchantsolutionsRefundStatusSource::Status(r.status.clone())
             }
             ImerchantsolutionsRefundSyncResponse::ImerchantsolutionsWebhookResponse(r) => {
                 imerchantsolutions::ImerchantsolutionsRefundStatusSource::Webhook(r.status.clone())
             }
-        },
+        }),
     },
     {
         use common_enums::RefundStatus;

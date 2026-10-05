@@ -460,7 +460,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: BoostPaymentSyncResponse,
-        source:   |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
     },
     {
         use boost::BoostPaymentStatus;
@@ -528,19 +528,26 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Boost<T>,
     flow:      Refund,
     source:    boost::BoostReversalStatus,
+    context:   (),
+    params:    [status, _ctx],
     success:   Succeeded => Success,
     failure:   Failed    => Failure,
     extractors: {
         request:  RefundsData,
         response: BoostReversalResponse,
-        source:   |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Pending         => Pending,
-        PendingApproval => Pending,
-        Expired         => Failure,
-        Denied          => Failure,
-        Unknown         => Pending,
+        match status {
+            boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
+            boost::BoostReversalStatus::Failed
+            | boost::BoostReversalStatus::Expired
+            | boost::BoostReversalStatus::Denied => common_enums::RefundStatus::Failure,
+            boost::BoostReversalStatus::Pending
+            | boost::BoostReversalStatus::PendingApproval
+            | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
+        }
     }
 }
 macros::macro_connector_implementation!(
@@ -584,19 +591,26 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Boost<T>,
     flow:      RSync,
     source:    boost::BoostReversalStatus,
+    context:   (),
+    params:    [status, _ctx],
     success:   Succeeded => Success,
     failure:   Failed    => Failure,
     extractors: {
         request:  RefundSyncData,
         response: BoostReversalSyncResponse,
-        source:   |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Pending         => Pending,
-        PendingApproval => Pending,
-        Expired         => Failure,
-        Denied          => Failure,
-        Unknown         => Pending,
+        match status {
+            boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
+            boost::BoostReversalStatus::Failed
+            | boost::BoostReversalStatus::Expired
+            | boost::BoostReversalStatus::Denied => common_enums::RefundStatus::Failure,
+            boost::BoostReversalStatus::Pending
+            | boost::BoostReversalStatus::PendingApproval
+            | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
+        }
     }
 }
 macros::macro_connector_implementation!(

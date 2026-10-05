@@ -448,17 +448,24 @@ domain_types::impl_flow_status_mapping! {
     connector: Multisafepay<T>,
     flow:      Authorize,
     source:    multisafepay::MultisafepayPaymentStatus,
-    success:   Completed  => Charged,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Completed  => [Charged],
     failure:   Declined   => Failure,
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: MultisafepayPaymentsResponse,
-        source: |response| response.data.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.data.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Initialized => AuthenticationPending,
-        Uncleared   => Pending,
-        Void        => Voided,
+        match status {
+            multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
+            multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
+            multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
+            multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
+            multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
+        }
     }
 }
 
@@ -470,17 +477,24 @@ domain_types::impl_flow_status_mapping! {
     connector: Multisafepay<T>,
     flow:      PSync,
     source:    multisafepay::MultisafepayPaymentStatus,
-    success:   Completed  => Charged,
+    context:   (),
+    params:    [status, _ctx],
+    success:   Completed  => [Charged],
     failure:   Declined   => Failure,
     extractors: {
         request:  PaymentsSyncData,
         response: MultisafepayPaymentsSyncResponse,
-        source: |response| response.data.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.data.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Initialized => AuthenticationPending,
-        Uncleared   => Pending,
-        Void        => Voided,
+        match status {
+            multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
+            multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
+            multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
+            multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
+            multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
+        }
     }
 }
 
@@ -499,13 +513,13 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request:  RefundsData,
         response: MultisafepayRefundResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.success {
                 multisafepay::MultisafepayRefundVerdict::Succeeded
             } else {
                 multisafepay::MultisafepayRefundVerdict::Failed
             }
-        },
+        }),
     },
     {
         use common_enums::RefundStatus;
@@ -531,13 +545,13 @@ domain_types::impl_refund_flow_status_mapping! {
     extractors: {
         request:  RefundSyncData,
         response: MultisafepayRefundSyncResponse,
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             if response.success {
                 multisafepay::MultisafepayRefundVerdict::Succeeded
             } else {
                 multisafepay::MultisafepayRefundVerdict::Failed
             }
-        },
+        }),
     },
     {
         use common_enums::RefundStatus;

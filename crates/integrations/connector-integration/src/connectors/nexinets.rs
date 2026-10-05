@@ -664,14 +664,14 @@ domain_types::impl_flow_status_mapping! {
         // The TryFrom takes the first `transactions` entry; the extractor must mirror
         // that. An empty list cannot be represented here (the TryFrom errors out) —
         // `Pending` only acts as an inert placeholder in that impossible case.
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             response
                 .transactions
                 .first()
                 .map(|t| t.status.clone())
                 .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
-        },
-        context: |_request, response| response.transaction_type.clone(),
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
 
     {
@@ -721,8 +721,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: NexinetsPaymentResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.transaction_type.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -784,8 +784,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsCaptureData,
         response: NexinetsCaptureResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.transaction_type.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -818,8 +818,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentVoidData,
         response: NexinetsVoidResponse,
-        source: |response| response.status.clone(),
-        context: |_request, response| response.transaction_type.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -855,14 +855,14 @@ domain_types::impl_flow_status_mapping! {
         // The TryFrom takes the first `transactions` entry; the extractor must mirror
         // that. An empty list cannot be represented here (the TryFrom errors out) —
         // `Pending` only acts as an inert placeholder in that impossible case.
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             response
                 .transactions
                 .first()
                 .map(|t| t.status.clone())
                 .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
-        },
-        context: |_request, response| response.transaction_type.clone(),
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -901,14 +901,14 @@ domain_types::impl_flow_status_mapping! {
         // The TryFrom takes the first `transactions` entry; the extractor must mirror
         // that. An empty list cannot be represented here (the TryFrom errors out) —
         // `Pending` only acts as an inert placeholder in that impossible case.
-        source: |response| {
+        source: |_resource_common_data, _request, response| Ok({
             response
                 .transactions
                 .first()
                 .map(|t| t.status.clone())
                 .unwrap_or(nexinets::NexinetsPaymentStatus::Pending)
-        },
-        context: |_request, response| response.transaction_type.clone(),
+        }),
+        context: |_resource_common_data, _request, response| response.transaction_type.clone(),
     },
     {
         use common_enums::AttemptStatus;
@@ -950,17 +950,24 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Nexinets<T>,
     flow:      Refund,
     source:    nexinets::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
     success:   Success => Success,
     failure:   Failure => Failure,
     extractors: {
         request:  RefundsData,
         response: NexinetsRefundResponse,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Declined   => Failure,
-        InProgress => Pending,
-        Ok         => Pending,
+        match status {
+            nexinets::RefundStatus::Success => common_enums::RefundStatus::Success,
+            nexinets::RefundStatus::Failure
+            | nexinets::RefundStatus::Declined => common_enums::RefundStatus::Failure,
+            nexinets::RefundStatus::InProgress
+            | nexinets::RefundStatus::Ok => common_enums::RefundStatus::Pending,
+        }
     }
 }
 
@@ -971,17 +978,24 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Nexinets<T>,
     flow:      RSync,
     source:    nexinets::RefundStatus,
+    context:   (),
+    params:    [status, _ctx],
     success:   Success => Success,
     failure:   Failure => Failure,
     extractors: {
         request:  RefundSyncData,
         response: RefundSyncResponse,
-        source: |response| response.status.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
+        context: |_resource_common_data, _request, _response| (),
     },
     {
-        Declined   => Failure,
-        InProgress => Pending,
-        Ok         => Pending,
+        match status {
+            nexinets::RefundStatus::Success => common_enums::RefundStatus::Success,
+            nexinets::RefundStatus::Failure
+            | nexinets::RefundStatus::Declined => common_enums::RefundStatus::Failure,
+            nexinets::RefundStatus::InProgress
+            | nexinets::RefundStatus::Ok => common_enums::RefundStatus::Pending,
+        }
     }
 }
 

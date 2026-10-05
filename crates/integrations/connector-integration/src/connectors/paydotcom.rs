@@ -95,7 +95,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsAuthorizeData<T>,
         response: PaydotcomAuthorizeResponse,
-        source:   |response| response.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
     },
     {
         status.attempt_status()
@@ -137,7 +137,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsSyncData,
         response: PaydotcomPSyncResponse,
-        source:   |response| response.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
     },
     {
         status.attempt_status()
@@ -155,7 +155,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentVoidData,
         response: PaydotcomVoidResponse,
-        source:   |response| response.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
     },
     {
         status.attempt_status()
@@ -174,7 +174,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  SetupMandateRequestData<T>,
         response: PaydotcomSetupMandateResponse,
-        source:   |response| response.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
     },
     {
         status.attempt_status()
@@ -192,7 +192,7 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  RepeatPaymentData<T>,
         response: PaydotcomRepeatPaymentResponse,
-        source:   |response| response.clone(),
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
     },
     {
         status.attempt_status()
@@ -212,8 +212,8 @@ domain_types::impl_flow_status_mapping! {
     extractors: {
         request:  PaymentsCaptureData,
         response: PaydotcomCaptureResponse,
-        source:   |response| response.clone(),
-        context:  |_request, _response| None,
+        source: |_resource_common_data, _request, response| Ok(response.clone()),
+        context: |_resource_common_data, _request, _response| None,
     },
     {
         use common_enums::AttemptStatus;
@@ -234,14 +234,23 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Refund,
     source: transformers::PaydotcomRefundStatus,
+    context:   (),
+    params:    [status, _ctx],
     success: Succeeded => Success,
     failure: Failed => Failure,
     extractors: {
         request:  RefundsData,
         response: PaydotcomRefundResponse,
-        source:   |response| response.status,
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response| (),
     },
-    { Pending => Pending }
+    {
+        match status {
+            transformers::PaydotcomRefundStatus::Succeeded => common_enums::RefundStatus::Success,
+            transformers::PaydotcomRefundStatus::Failed => common_enums::RefundStatus::Failure,
+            transformers::PaydotcomRefundStatus::Pending => common_enums::RefundStatus::Pending,
+        }
+    }
 }
 
 domain_types::impl_refund_flow_status_mapping! {
@@ -249,14 +258,23 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: RSync,
     source: transformers::PaydotcomRefundStatus,
+    context:   (),
+    params:    [status, _ctx],
     success: Succeeded => Success,
     failure: Failed => Failure,
     extractors: {
         request:  RefundSyncData,
         response: PaydotcomRefundSyncResponse,
-        source:   |response| response.status,
+        source: |_resource_common_data, _request, response| Ok(response.status),
+        context: |_resource_common_data, _request, _response| (),
     },
-    { Pending => Pending }
+    {
+        match status {
+            transformers::PaydotcomRefundStatus::Succeeded => common_enums::RefundStatus::Success,
+            transformers::PaydotcomRefundStatus::Failed => common_enums::RefundStatus::Failure,
+            transformers::PaydotcomRefundStatus::Pending => common_enums::RefundStatus::Pending,
+        }
+    }
 }
 
 use std::fmt::Debug;
