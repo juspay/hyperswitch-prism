@@ -396,7 +396,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutMethodEligibilityResponse: ["connectorMetadata"],
   FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData", "paymentConnectorMetadata"],
   FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
-  FrmServicePrePayoutRiskCheckRequest: ["payoutConnectorMetadata"],
+  FrmServicePrePayoutRiskCheckRequest: ["payoutConnectorMetadata", "metadata"],
   FrmServicePrePayoutRiskCheckResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
   FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
   FrmServicePostRiskCheckResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
