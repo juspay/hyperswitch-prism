@@ -637,6 +637,10 @@ macros::macro_connector_implementation!(
 
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+            header.push((
+                "X-Art-Probe".to_string(),
+                common_utils::fp_utils::generate_uuid_v4().into(),
+            ));
 
             let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
 
