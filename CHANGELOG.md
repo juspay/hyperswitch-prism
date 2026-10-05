@@ -19,6 +19,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.05.1
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Add payout benificiary reference validation ([#2420](https://github.com/juspay/connector-service/pull/2420)) ([`b0a0ba0`](https://github.com/juspay/connector-service/commit/b0a0ba078bc1597f5f4eefb4eb8de9528afe95b3))
+
+**Full Changelog:** [`2026.10.05.0...2026.10.05.1`](https://github.com/juspay/connector-service/compare/2026.10.05.0...2026.10.05.1)
+
+- - -
+
+## 2026.10.05.0
+
+### Features
+
+- **connector:** Payout support in stripe ([#1227](https://github.com/juspay/connector-service/pull/1227)) ([`97fb677`](https://github.com/juspay/connector-service/commit/97fb677ed460601eb251eb777cd8e614755bdcfa))
+
+**Full Changelog:** [`2026.10.01.0...2026.10.05.0`](https://github.com/juspay/connector-service/compare/2026.10.01.0...2026.10.05.0)
+
+- - -
+
+## 2026.10.01.0
+
+### Features
+
+- **vault:** Thread optional egress proxy_url into HyperswitchVault injector calls ([#1995](https://github.com/juspay/connector-service/pull/1995)) ([`5cfd8c2`](https://github.com/juspay/connector-service/commit/5cfd8c24b2aaae5f150f4f9d27008c281c2fe2ae))
+
+### Bug Fixes
+
+- **adyen:** Align webhook parsing with hyperswitch ([#2380](https://github.com/juspay/connector-service/pull/2380)) ([`adfc349`](https://github.com/juspay/connector-service/commit/adfc349a588c114579629d34df62b0bb16eaa578))
+
+### Miscellaneous Tasks
+
+- **grace:** Add deja-art label only on READY GRACE PRs ([#2426](https://github.com/juspay/connector-service/pull/2426)) ([`ba433f3`](https://github.com/juspay/connector-service/commit/ba433f3f90d077dab2de87ed724d2e081d9aec62))
+
+### Build System / Dependencies
+
+- Fix the arm64 GHCR image build (codegen units, scoped chef cook, tag-only publish) ([#2360](https://github.com/juspay/connector-service/pull/2360)) ([`c4e7fb1`](https://github.com/juspay/connector-service/commit/c4e7fb19c1e6cb1e0411fd4d492e40e92f9a5c9d))
+
+**Full Changelog:** [`2026.09.30.2...2026.10.01.0`](https://github.com/juspay/connector-service/compare/2026.09.30.2...2026.10.01.0)
+
+- - -
+
+## 2026.09.30.2
+
+### Features
+
+- **connector:** [Stripe] port error_on_requires_action and dispute RDR details ([#2392](https://github.com/juspay/connector-service/pull/2392)) ([`32452be`](https://github.com/juspay/connector-service/commit/32452be72bcd53e0b8d0af4ef32dd9fd0a0f2478))
+- **grace:** Techspec-driven grpcurl test agent, curl E2E, doubled rework caps ([#2422](https://github.com/juspay/connector-service/pull/2422)) ([`6cd99c6`](https://github.com/juspay/connector-service/commit/6cd99c6c667556f74ea18d17b1d840283b400024))
+
+**Full Changelog:** [`2026.09.30.1...2026.09.30.2`](https://github.com/juspay/connector-service/compare/2026.09.30.1...2026.09.30.2)
+
+- - -
+
+## 2026.09.30.1
+
+### Features
+
+- **config:** Split raw and typed connector data flags ([#2386](https://github.com/juspay/connector-service/pull/2386)) ([`77ee0e3`](https://github.com/juspay/connector-service/commit/77ee0e39ee764321852eea6e5b095995db48ebe9))
+- **connector:** Add payout flows to gigadat ([#1181](https://github.com/juspay/connector-service/pull/1181)) ([`0afc343`](https://github.com/juspay/connector-service/commit/0afc34339671794d464298871bb3b4a7cbce601e))
+- Add raw_connector_status for Tamara ([#2387](https://github.com/juspay/connector-service/pull/2387)) ([`7a4c83a`](https://github.com/juspay/connector-service/commit/7a4c83a35c0c4050e8b67a7c96e4b85b6cc4140d))
+
+### Bug Fixes
+
+- **connectors:** [Adyen] shopperInteraction MOTO, [Stripe] wallet billing details ([#2404](https://github.com/juspay/connector-service/pull/2404)) ([`91d3327`](https://github.com/juspay/connector-service/commit/91d33279571c96eaa0adb45241df7ffed3a9cc4a))
+- **qwikcilver:** Retain wallet details in eligibility ([#2421](https://github.com/juspay/connector-service/pull/2421)) ([`6170d62`](https://github.com/juspay/connector-service/commit/6170d62f18ebb042acd17945ea799421d61e99e6))
+
+**Full Changelog:** [`2026.09.30.0...2026.09.30.1`](https://github.com/juspay/connector-service/compare/2026.09.30.0...2026.09.30.1)
+
+- - -
+
+## 2026.09.30.0
+
+### Bug Fixes
+
+- **core:** Use Unspecified for placeholder attempt status ([#2375](https://github.com/juspay/connector-service/pull/2375)) ([`91f64db`](https://github.com/juspay/connector-service/commit/91f64db533ad06eda61435a83bec608a44abaeb3))
+- **data:** Close the GlobalpaymentsRealex array in integration-source-links.json ([#2381](https://github.com/juspay/connector-service/pull/2381)) ([`d7847f9`](https://github.com/juspay/connector-service/commit/d7847f93c82109d24fc5fbf2dcd5f3704af9e8e4))
+- **domain_types:** Convert non-US/CA state names to subdivision codes ([#2374](https://github.com/juspay/connector-service/pull/2374)) ([`393a0ad`](https://github.com/juspay/connector-service/commit/393a0addf28176a70331599f0c9f8eca08e0b7e7))
+- **framework:** Give UCS internal-processing latency its own histogram buckets ([#2383](https://github.com/juspay/connector-service/pull/2383)) ([`8ca6d78`](https://github.com/juspay/connector-service/commit/8ca6d78975fe15f40f178625d0de25735ec5c4b3))
+
+### Documentation
+
+- **grace:** Update FRM, integrity, and authenticator rules ([#2399](https://github.com/juspay/connector-service/pull/2399)) ([`0033e47`](https://github.com/juspay/connector-service/commit/0033e47e5f6395b3efdd95cd27b90f5476e919d0))
+
+### Revert
+
+- **grace:**
+  - Roll back #2332 and #2366 prose, keep the enforcement gate and close two holes in it ([#2401](https://github.com/juspay/connector-service/pull/2401)) ([`636364b`](https://github.com/juspay/connector-service/commit/636364bcc2ba0ad2bbe8f188bac9ce3da5e5147a))
+  - Drop the Payments/Refunds/Mandates flow groups, keep the gate ([#2406](https://github.com/juspay/connector-service/pull/2406)) ([`3f96f17`](https://github.com/juspay/connector-service/commit/3f96f17720baa5a3d056df65ba02ece7724543df))
+
+**Full Changelog:** [`2026.09.29.2...2026.09.30.0`](https://github.com/juspay/connector-service/compare/2026.09.29.2...2026.09.30.0)
+
+- - -
+
 ## 2026.09.29.2
 
 ### Features

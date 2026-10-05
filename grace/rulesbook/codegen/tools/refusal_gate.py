@@ -85,14 +85,22 @@ MARKER_TO_SUITES = {
 REFUSED = ("not_implemented", "not_supported")
 
 
+UNREADABLE = object()   # distinct from None ("not given"): given but could not be read
+
+
 def load(path):
+    """Parsed JSON, None when the path is absent, UNREADABLE when it exists but will not parse.
+
+    The two must not collapse: a corrupt plan that reads as "not given" makes every
+    plan-driven check iterate nothing and the gate report pass.
+    """
     if not os.path.isfile(path):
         return None
     try:
         with open(path, "r", encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
-        return None
+        return UNREADABLE
 
 
 def flow_arms(probe, marker):
@@ -144,6 +152,22 @@ def inconclusive_row(check, unit, marker, arm, probe):
             "probe_arms": sorted(arms) if arms else []}
 
 
+def resolve_markers(plan, hook, unit):
+    """Markers for a unit: from the hook, else the plan's units[], else the unit name.
+
+    `test_hooks[]` carries no `markers` field -- `units[]` does (2.3a "plan.json") -- so
+    reading only the hook left every non-marker unit (`ThreeDS`, any `Marker/PaymentMethod`)
+    with an empty list, and those are exactly the units whose negatives carry arms.
+    """
+    markers = hook.get("markers")
+    if markers:
+        return markers
+    for entry in (plan or {}).get("units") or []:
+        if entry.get("unit") == unit and entry.get("markers"):
+            return entry["markers"]
+    return [unit] if unit in MARKER_TO_PROBE else []
+
+
 def check_ref01(probe, plan):
     """A claimed payment-method refusal must be visible in the probe."""
     evidence, notes, inconclusive = [], [], []
@@ -155,7 +179,14 @@ def check_ref01(probe, plan):
             # currency cells are not a dimension field_probe varies.
             if not arm or neg.get("capture_method") or neg.get("auth_type"):
                 continue
-            markers = hook.get("markers") or ([unit] if unit in MARKER_TO_PROBE else [])
+            markers = resolve_markers(plan, hook, unit)
+            if not markers:
+                # Without markers there is no probe to look the arm up in, so this
+                # refusal claim is unverified -- say so rather than passing silently.
+                inconclusive.append(inconclusive_row("REF-01", unit, None, arm, probe))
+                notes.append("%s: no markers resolved for arm %s; REF-01 not checked"
+                             % (unit, arm))
+                continue
             for marker in markers:
                 status = arm_status(probe, marker, arm)
                 if status is None:
@@ -231,7 +262,10 @@ def check_cap02(probe, plan):
                              % (unit, arm, name))
                 continue
             checked += 1
-            if name and name not in body:
+            # Match the field as a JSON key, not as a bare substring: `merchant_id`
+            # would otherwise be satisfied by `sub_merchant_id`, or by any value
+            # containing that text.
+            if name and ('"%s"' % name.rsplit(".", 1)[-1]) not in json.dumps(body):
                 evidence.append({
                     "unit": unit, "field": name, "arm": arm,
                     "detail": "plan §8 wire_fields names %r but it does not appear in the probed "
@@ -256,6 +290,14 @@ def main():
 
     report = {"connector": args.connector, "pass": True, "checks": [],
               "unparsed": [], "needs_human": []}
+
+    if plan is UNREADABLE:
+        # Every plan-driven check iterates nothing without it, which would report pass.
+        report["unparsed"].append({
+            "what": "--plan %s" % args.plan,
+            "why": "exists but is not readable JSON; REF-01 and CAP-02 cannot run, and a gate "
+                   "that cannot run its checks does not pass"})
+        plan = None
 
     if probe is None:
         report["unparsed"].append({
@@ -290,7 +332,7 @@ def main():
          "message": "A field the plan says was added never reaches the built request."
                     if cap02 else "ok"},
     ]
-    report["pass"] = all(c["pass"] for c in report["checks"])
+    report["pass"] = all(c["pass"] for c in report["checks"]) and not report["unparsed"]
     # An arm the probe does not build is not a pass -- it is an unanswered question. Counted here
     # so it stays visible rather than passing silently; it never changes `pass` or the exit code.
     report["summary"] = {

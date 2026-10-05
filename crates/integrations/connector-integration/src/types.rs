@@ -246,6 +246,9 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
             PayoutConnectorEnum::Deutschebank => {
                 Box::new(payout_connectors::DeutschebankPayouts::<
                     domain_types::payment_method_data::DefaultPCIHolder,
@@ -257,6 +260,9 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
+            PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
             PayoutConnectorEnum::Mifinity => Box::new(payout_connectors::MifinityPayouts::<

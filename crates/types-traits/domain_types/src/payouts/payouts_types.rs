@@ -4,7 +4,7 @@ use crate::{
         ConnectorResponseHeaders, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
-    errors::IntegrationError,
+    errors::{IntegrationError, IntegrationErrorContext},
     payment_address::Address,
     types::Connectors,
     utils::{missing_field_err, Error},
@@ -110,6 +110,8 @@ pub struct PayoutCreateRequest {
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
+    pub customer: Option<PayoutCustomer>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +145,7 @@ pub struct PayoutTransferRequest {
     pub customer: Option<PayoutCustomer>,
     pub connector_eligibility_reference_id: Option<String>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
 }
 
 impl PayoutTransferRequest {
@@ -311,6 +314,35 @@ pub struct PayoutCustomer {
     pub phone_country_code: Option<String>,
 }
 
+impl PayoutCustomer {
+    pub fn get_merchant_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        let id = self
+            .merchant_customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer.merchant_customer_id"))?;
+        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id)).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "customer.merchant_customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse customer id as a valid CustomerId".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure the customer id is a valid non-empty string".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PayoutTransferResponse {
     pub merchant_payout_id: Option<String>,
@@ -323,6 +355,7 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    pub customer: Option<PayoutCustomer>,
     /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
     /// that need the debtor account to perform a status enquiry.
     pub source_bank_data: Option<Bank>,
@@ -343,6 +376,26 @@ pub struct PayoutStageRequest {
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
+    pub payout_method_data: Option<crate::payouts::payout_method_data::PayoutMethodData>,
+    pub customer: Option<PayoutCustomer>,
+    pub browser_info: Option<crate::router_request_types::BrowserInformation>,
+    pub address: Option<PayoutAddress>,
+}
+
+impl PayoutStageRequest {
+    pub fn get_customer(&self) -> Result<&PayoutCustomer, Error> {
+        self.customer
+            .as_ref()
+            .ok_or_else(missing_field_err("customer"))
+    }
+
+    pub fn get_browser_info(
+        &self,
+    ) -> Result<&crate::router_request_types::BrowserInformation, Error> {
+        self.browser_info
+            .as_ref()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -351,6 +404,7 @@ pub struct PayoutStageResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub payout_connector_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -396,9 +450,54 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
-    pub customer: Option<PayoutCustomer>,
     pub address: Option<PayoutAddress>,
+    pub customer: Option<PayoutCustomer>,
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
+
+/// Day, month and year parts of a date of birth.
+pub type DateOfBirthParts = (Secret<String>, Secret<String>, Secret<String>);
+
+/// Connected-account type for connectors that distinguish them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayoutAccountType {
+    Custom,
+    Express,
+    Standard,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorAccountDetails {
+    pub vendor_details: Option<PayoutVendorDetails>,
+    pub individual_details: Option<PayoutIndividualDetails>,
+}
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorDetails {
+    pub account_type: Option<PayoutAccountType>,
+    pub vendor_type: Option<common_enums::BankHolderType>,
+    pub vendor_category_code: Option<String>,
+    pub vendor_url: Option<Secret<String>>,
+    pub vendor_name: Option<Secret<String>>,
+    pub statement_descriptor: Option<Secret<String>>,
+    pub owners_provided: Option<bool>,
+    pub card_payments_enabled: Option<bool>,
+    pub transfers_enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutIndividualDetails {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub ssn_last_4: Option<Secret<String>>,
+    pub id_number: Option<Secret<String>>,
+    pub date_of_birth: Option<Secret<String>>,
+    pub tos_acceptance_date: Option<i64>,
+    pub tos_acceptance_ip: Option<Secret<String>>,
+    pub external_account_account_holder_type: Option<common_enums::BankHolderType>,
+}
+
+pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
 
 impl PayoutCreateRecipientRequest {
     /// Navigate to the billing `AddressDetails`; per-field accessors live on
@@ -408,6 +507,182 @@ impl PayoutCreateRecipientRequest {
             .as_ref()
             .and_then(|a| a.billing_address.as_ref())
             .and_then(|b| b.address.as_ref())
+    }
+
+    fn vendor_details(&self) -> Option<&PayoutVendorDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.vendor_details.as_ref())
+    }
+
+    fn individual_details(&self) -> Option<&PayoutIndividualDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.individual_details.as_ref())
+    }
+
+    pub fn get_phone(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.phone.clone())
+    }
+
+    pub fn get_first_name(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.first_name.clone())
+    }
+
+    pub fn get_last_name(&self) -> Option<Secret<String>> {
+        self.individual_details().and_then(|i| i.last_name.clone())
+    }
+
+    /// Split `date_of_birth` (ISO 8601, `yyyy-MM-dd`) into day, month and year.
+    pub fn get_date_of_birth_parts(&self) -> Result<Option<DateOfBirthParts>, Error> {
+        let Some(date_of_birth) = self
+            .individual_details()
+            .and_then(|i| i.date_of_birth.clone())
+        else {
+            return Ok(None);
+        };
+        let date = time::Date::parse(
+            date_of_birth.peek(),
+            &time::macros::format_description!("[year]-[month]-[day]"),
+        )
+        .map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "date_of_birth",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "date_of_birth must be an ISO 8601 date, yyyy-MM-dd".to_string(),
+                    ),
+                    suggested_action: Some("Send the date of birth as yyyy-MM-dd".to_string()),
+                    doc_url: None,
+                },
+            })
+        })?;
+        Ok(Some((
+            Secret::new(format!("{:02}", date.day())),
+            Secret::new(format!("{:02}", u8::from(date.month()))),
+            Secret::new(date.year().to_string()),
+        )))
+    }
+
+    pub fn get_account_type(&self) -> Option<PayoutAccountType> {
+        self.vendor_details().and_then(|v| v.account_type)
+    }
+
+    pub fn get_vendor_type(&self) -> Option<common_enums::BankHolderType> {
+        self.vendor_details().and_then(|v| v.vendor_type)
+    }
+
+    pub fn get_vendor_url(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.vendor_url.clone())
+    }
+
+    pub fn get_vendor_name(&self) -> Option<Secret<String>> {
+        self.vendor_details().and_then(|v| v.vendor_name.clone())
+    }
+
+    pub fn get_statement_descriptor(&self) -> Option<Secret<String>> {
+        self.vendor_details()
+            .and_then(|v| v.statement_descriptor.clone())
+    }
+
+    pub fn get_owners_provided(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.owners_provided)
+    }
+
+    pub fn get_card_payments_enabled(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.card_payments_enabled)
+    }
+
+    pub fn get_transfers_enabled(&self) -> Option<bool> {
+        self.vendor_details().and_then(|v| v.transfers_enabled)
+    }
+
+    pub fn get_tos_acceptance_ip(&self) -> Option<Secret<String>> {
+        self.individual_details()
+            .and_then(|i| i.tos_acceptance_ip.clone())
+    }
+
+    pub fn get_tos_acceptance_date(&self) -> Option<i64> {
+        self.individual_details()
+            .and_then(|i| i.tos_acceptance_date)
+    }
+
+    pub fn get_vendor_category_code_i32(&self) -> Result<Option<i32>, Error> {
+        let Some(raw) = self
+            .vendor_details()
+            .and_then(|v| v.vendor_category_code.as_deref())
+        else {
+            return Ok(None);
+        };
+        raw.parse::<i32>().map(Some).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "vendor_category_code",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "vendor_category_code must be a 4-digit numeric MCC".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the category code as digits only, for example 5734".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })
+        })
+    }
+
+    pub fn get_id_number_or_ssn_last_4(&self) -> IdNumberOrSsnLast4 {
+        let individual = self.individual_details();
+        match individual.and_then(|i| i.id_number.clone()) {
+            Some(id) => (Some(id), None),
+            None => (None, individual.and_then(|i| i.ssn_last_4.clone())),
+        }
+    }
+
+    pub fn get_email_from_customer_or_billing(&self) -> Option<common_utils::pii::Email> {
+        self.customer
+            .as_ref()
+            .and_then(|c| c.email.clone())
+            .or_else(|| {
+                self.address
+                    .as_ref()
+                    .and_then(|a| a.billing_address.as_ref())
+                    .and_then(|b| b.email.clone())
+            })
+    }
+
+    pub fn is_company(&self) -> bool {
+        matches!(
+            self.recipient_type,
+            common_enums::PayoutRecipientType::Company
+                | common_enums::PayoutRecipientType::NonProfit
+                | common_enums::PayoutRecipientType::PublicSector
+                | common_enums::PayoutRecipientType::Business
+        )
+    }
+}
+
+impl PayoutEnrollDisburseAccountRequest {
+    pub fn get_payout_method_data(&self) -> Result<&PayoutMethodData, Error> {
+        self.payout_method_data
+            .as_ref()
+            .ok_or_else(missing_field_err("payout_method_data"))
+    }
+
+    pub fn get_customer_name(&self) -> Option<Secret<String>> {
+        self.customer
+            .as_ref()
+            .and_then(|c| c.name.clone())
+            .map(Secret::new)
+    }
+
+    pub fn get_external_account_account_holder_type(
+        &self,
+    ) -> Result<common_enums::BankHolderType, Error> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.individual_details.as_ref())
+            .and_then(|i| i.external_account_account_holder_type)
+            .ok_or_else(missing_field_err("external_account_account_holder_type"))
     }
 }
 
@@ -425,7 +700,12 @@ pub struct PayoutEnrollDisburseAccountRequest {
     pub merchant_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
+    /// Currency in which the payout will be received. Optional because callers
+    /// may only send the amount currency.
+    pub destination_currency: Option<common_enums::Currency>,
     pub payout_method_data: Option<PayoutMethodData>,
+    pub customer: Option<PayoutCustomer>,
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
 
 #[derive(Debug, Clone)]
