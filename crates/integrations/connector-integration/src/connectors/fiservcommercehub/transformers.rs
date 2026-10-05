@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
@@ -178,7 +179,7 @@ struct DecryptedWalletEncryptedBlock {
 ///
 /// Grouping these three adjacent args prevents silent positional swaps at call sites.
 struct DecryptedWalletCardFields {
-    dpan: Secret<String>,
+    dpan: CardNumber,
     exp_month: Secret<String>,
     exp_year: Secret<String>,
 }
@@ -385,12 +386,7 @@ fn build_decrypted_wallet_source(
                 Some(&payment_cryptogram),
                 None,
                 DecryptedWalletCardFields {
-                    dpan: Secret::new(
-                        decrypted_apple_pay
-                            .application_primary_account_number
-                            .peek()
-                            .to_string(),
-                    ),
+                    dpan: decrypted_apple_pay.application_primary_account_number.clone(),
                     exp_month: expiration_month,
                     exp_year: expiration_year,
                 },
@@ -472,12 +468,7 @@ fn build_decrypted_wallet_source(
                 decrypted_gpay.cryptogram.as_ref(),
                 None,
                 DecryptedWalletCardFields {
-                    dpan: Secret::new(
-                        decrypted_gpay
-                            .application_primary_account_number
-                            .peek()
-                            .to_string(),
-                    ),
+                    dpan: decrypted_gpay.application_primary_account_number.clone(),
                     exp_month: expiration_month,
                     exp_year: expiration_year,
                 },
