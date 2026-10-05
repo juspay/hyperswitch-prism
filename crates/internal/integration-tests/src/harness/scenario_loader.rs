@@ -114,6 +114,29 @@ pub fn load_scenario(suite: &str, scenario: &str) -> Result<ScenarioDef, Scenari
         })
 }
 
+/// Loads one named scenario for a connector: the global suite entry when present,
+/// otherwise the connector's own `connector_specific_scenarios.json` entry.
+///
+/// Global wins; a name defined in both is already rejected by
+/// `merge_connector_specific_scenarios_in`. Connectors without that file resolve
+/// exactly like [`load_scenario`].
+pub fn load_scenario_for_connector(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    if let Some(def) = load_suite_scenarios(suite)?.get(scenario) {
+        return Ok(def.clone());
+    }
+    load_connector_specific_scenarios(connector, suite)?
+        .get(scenario)
+        .cloned()
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })
+}
+
 /// Loads suite execution metadata including dependency graph and scope.
 pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
     let path = suite_spec_file_path(suite);

@@ -41,6 +41,9 @@ pub fn generate_signature(
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        // Xendit signs nothing: its `x-callback-token` header is the account's static webhook
+        // token, compared verbatim with the configured secret, so the "signature" is the secret.
+        "xendit" => Ok(secret.to_string()),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
 }

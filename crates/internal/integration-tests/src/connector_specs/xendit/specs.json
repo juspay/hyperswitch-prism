@@ -3,8 +3,38 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
+    "PaymentService/Void",
     "PaymentService/Refund",
     "RefundService/Get",
-    "PaymentService/Get"
-  ]
+    "PaymentService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_google_pay_encrypted": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Google Pay arm returns NotImplemented",
+      "no3ds_auto_capture_ideal": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; ideal is not a Xendit payment channel",
+      "no3ds_auto_capture_giropay": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; giropay is not a Xendit payment channel",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; bancontact is not a Xendit payment channel",
+      "no3ds_auto_capture_klarna": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; klarna is not a Xendit payment channel",
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; affirm is not a Xendit payment channel",
+      "no3ds_auto_capture_afterpay_clearpay": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; afterpay_clearpay is not a Xendit payment channel",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; przelewy24 is not a Xendit payment channel",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; alipay is not a Xendit payment channel",
+      "no3ds_auto_capture_eps": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; eps is not a Xendit payment channel",
+      "no3ds_auto_capture_sepa_bank_transfer": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; sepa_bank_transfer is not a Xendit payment channel",
+      "no3ds_auto_capture_ach_bank_transfer": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; ach_bank_transfer is not a Xendit payment channel",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; bacs_bank_transfer is not a Xendit payment channel",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; upi_collect is not a Xendit payment channel",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; upi_intent is not a Xendit payment channel",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; upi_qr is not a Xendit payment channel",
+      "no3ds_manual_capture_incremental_auth": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory — Xendit documents no incremental-authorization endpoint (IncrementalAuthorization is not_supported)"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: spec:## Overview — UPI is not a Xendit payment channel; sync_upi_collect syncs a UPI payment",
+      "sync_upi_intent": "PM_NOT_OFFERED: spec:## Overview — UPI is not a Xendit payment channel; sync_upi_intent syncs a UPI payment",
+      "sync_upi_qr": "PM_NOT_OFFERED: spec:## Overview — UPI is not a Xendit payment channel; sync_upi_qr syncs a UPI payment"
+    }
+  }
 }
