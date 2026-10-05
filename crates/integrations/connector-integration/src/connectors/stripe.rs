@@ -587,7 +587,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .error
                 .message
                 .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| String::from(NO_ERROR_MESSAGE)),
             reason: response.error.message.map(|message| {
                 response
                     .error
