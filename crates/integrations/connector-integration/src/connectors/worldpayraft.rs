@@ -52,7 +52,7 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: Authorize,
-            request_body: WorldpayraftAuthorizeRequest<T>,
+            request_body: WorldpayraftAuthorizeRequest,
             response_body: WorldpayraftAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
@@ -275,14 +275,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            use domain_types::payment_method_data::PaymentMethodData;
             let base_url = self.connector_base_url_payments(req);
-            let is_debit = matches!(
-                &req.request.payment_method_data,
-                PaymentMethodData::Card(c) if c.card_type.as_deref()
-                    .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
-                    .unwrap_or(false)
-            );
+            let is_debit = worldpayraft::is_debit_card(&req.request.payment_method_data);
             let path = match (is_debit, req.request.is_auto_capture()) {
                 (true, true) => "debit/purchase",
                 (true, false) => "debit/preauth",

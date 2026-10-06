@@ -8,7 +8,7 @@ use domain_types::{
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{Card, CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -49,6 +49,30 @@ const ECOMMERCE_INDICATOR_SECURE: &str = "07";
 const CVV_INDICATOR_PRESENT: &str = "1";
 /// Flag value indicating yes/enabled for proc flag fields.
 const MIT_YES: &str = "Y";
+
+// =============================================================================
+// SHARED HELPERS
+// =============================================================================
+
+/// Returns true when the payment method data indicates a debit card.
+/// Checks both `Card` and `CardWithNoCvc` variants.
+pub fn is_debit_card<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> bool {
+    match payment_method_data {
+        PaymentMethodData::Card(c) => c
+            .card_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
+            .unwrap_or(false),
+        PaymentMethodData::CardWithNoCvc(c) => c
+            .card_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
+            .unwrap_or(false),
+        _ => false,
+    }
+}
 
 // =============================================================================
 // VOID ENUMS
@@ -208,11 +232,9 @@ pub struct WorldpayraftAmounts {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftCardInfo<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
-> {
+pub struct WorldpayraftCardInfo {
     #[serde(rename = "PAN")]
-    pub pan: RawCardNumber<T>,
+    pub pan: Secret<String>,
     pub expiration_date: Secret<String>,
 }
 
@@ -260,11 +282,9 @@ pub struct WorldpayraftRequestTraceNumbers {
 /// Inner fields shared by both creditauth and debitpreauth requests.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftCardAuthInner<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
-> {
+pub struct WorldpayraftCardAuthInner {
     pub misc_amounts_balances: WorldpayraftAmounts,
-    pub card_info: WorldpayraftCardInfo<T>,
+    pub card_info: WorldpayraftCardInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_verification_data: Option<WorldpayraftCardVerificationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -289,20 +309,18 @@ pub struct WorldpayraftCardAuthInner<
 /// Debit cards (auto-capture):    `{ "debitpurchase": { ... } }` → POST /debit/purchase
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum WorldpayraftAuthorizeRequest<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
-> {
+pub enum WorldpayraftAuthorizeRequest {
     Credit {
-        creditauth: WorldpayraftCardAuthInner<T>,
+        creditauth: WorldpayraftCardAuthInner,
     },
     Debit {
-        debitpreauth: WorldpayraftCardAuthInner<T>,
+        debitpreauth: WorldpayraftCardAuthInner,
     },
     CreditPurchase {
-        creditpurchase: WorldpayraftCardAuthInner<T>,
+        creditpurchase: WorldpayraftCardAuthInner,
     },
     DebitPurchase {
-        debitpurchase: WorldpayraftCardAuthInner<T>,
+        debitpurchase: WorldpayraftCardAuthInner,
     },
 }
 
@@ -363,6 +381,99 @@ pub enum WorldpayraftAuthorizeResponse {
 // TryFrom: RouterDataV2 → WorldpayraftAuthorizeRequest
 // =============================================================================
 
+/// Extracted card fields used to build the Authorize request inner struct.
+struct CardFields {
+    pan: Secret<String>,
+    expiration_date: Secret<String>,
+    is_debit: bool,
+    card_verification_data: Option<WorldpayraftCardVerificationData>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<&Card<T>> for CardFields
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(card: &Card<T>) -> Result<Self, Self::Error> {
+        let pan = Secret::new(card.card_number.peek().to_string());
+        let expiration_date = card.get_expiry_date_as_yymm().change_context(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "card.card_exp_year / card.card_exp_month",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let is_debit = card
+            .card_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
+            .unwrap_or(false);
+        let card_verification_data = {
+            let cvv_str = card.card_cvc.peek();
+            if !cvv_str.is_empty() {
+                Some(WorldpayraftCardVerificationData {
+                    cvv_indicator: CVV_INDICATOR_PRESENT.to_string(),
+                    cvv2_cvc2: card.card_cvc.clone(),
+                })
+            } else {
+                None
+            }
+        };
+        Ok(Self {
+            pan,
+            expiration_date,
+            is_debit,
+            card_verification_data,
+        })
+    }
+}
+
+impl TryFrom<&CardWithNoCvc> for CardFields {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(card: &CardWithNoCvc) -> Result<Self, Self::Error> {
+        let pan = Secret::new(card.card_number.get_card_no());
+        let year = card.get_card_expiry_year_2_digit().change_context(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "card.card_exp_year",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let month = card.get_card_expiry_month_2_digit().change_context(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "card.card_exp_month",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let expiration_date = Secret::new(format!("{}{}", year.peek(), month.peek()));
+        let is_debit = card
+            .card_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
+            .unwrap_or(false);
+        Ok(Self {
+            pan,
+            expiration_date,
+            is_debit,
+            card_verification_data: None,
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayraftRouterData<
@@ -374,7 +485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayraftAuthorizeRequest<T>
+    > for WorldpayraftAuthorizeRequest
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
@@ -409,12 +520,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let card: &Card<T> = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => card,
+        let CardFields {
+            pan,
+            expiration_date,
+            is_debit,
+            card_verification_data,
+        } = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => CardFields::try_from(card)?,
+            PaymentMethodData::CardWithNoCvc(card) => CardFields::try_from(card)?,
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
-                        "Only Card payment method is supported for Worldpay RAFT Authorize"
+                        "Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
                             .to_string(),
                         errors::IntegrationErrorContext::default(),
                     )
@@ -422,37 +539,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let is_debit = card
-            .card_type
-            .as_deref()
-            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
-            .unwrap_or(false);
-
-        let expiration_date = card.get_expiry_date_as_yymm().change_context(
-            errors::IntegrationError::InvalidDataFormat {
-                field_name: "card.card_exp_year / card.card_exp_month",
-                context: errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
-                    ),
-                    ..Default::default()
-                },
-            },
-        )?;
-
         let is_auto_capture = router_data.request.is_auto_capture();
-
-        let card_verification_data = {
-            let cvv_str = card.card_cvc.peek();
-            if !cvv_str.is_empty() {
-                Some(WorldpayraftCardVerificationData {
-                    cvv_indicator: CVV_INDICATOR_PRESENT.to_string(),
-                    cvv2_cvc2: card.card_cvc.clone(),
-                })
-            } else {
-                None
-            }
-        };
 
         // AVS is only sent for credit cards (debit doesn't support it)
         let address_verification_data = if is_debit {
@@ -505,7 +592,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
             card_info: WorldpayraftCardInfo {
-                pan: card.card_number.clone(),
+                pan,
                 expiration_date,
             },
             card_verification_data,
