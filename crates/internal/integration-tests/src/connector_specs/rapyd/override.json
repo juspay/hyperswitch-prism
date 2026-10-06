@@ -2,6 +2,214 @@
   "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "setup_future_usage": "OFF_SESSION",
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "GRACE TEST 01"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
+        },
+        "captured_amount": {
+          "equals": 6000
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "address": {
+          "billing_address": {
+            "first_name": null,
+            "last_name": null
+          }
+        },
+        "customer": {
+          "name": null,
+          "email": null
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "authentication_data": {
+          "eci": "05",
+          "cavv": "BwABBYcyOCdlg0QChDI4EHUURgE",
+          "message_version": "2.2.0",
+          "ds_transaction_id": "1b20b229-8676-5812-8000-000000617fbb"
+        }
+      },
+      "assert": {
+        "redirection_data": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "redirection_data": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "capture_partial_amount": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "captured_amount": {
+          "equals": 3000
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return",
+        "amount": {
+          "minor_amount": 0
+        }
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_not_exist": true
+        },
+        "network_transaction_id": {
+          "must_not_exist": true
+        },
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "connector_recurring_payment_id": {
+          "must_exist": true
+        },
+        "redirection_data": {
+          "must_exist": true
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "capture_method": "MANUAL",
+        "mit_category": "RECURRING_MIT"
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED"
+          ]
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "payment_3057b4bfb673b3830eff6d7e996c9512"
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "payment_02e5ecc4b7e0395148e8eba68ad63120"
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.refunds_response.connector_refund_id": {
+          "equals": "refund_102ae6d1286b07ce8b3768b93eab9a24"
+        },
+        "event_content.refunds_response.status": {
+          "one_of": [
+            "REFUND_SUCCESS"
+          ]
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS"
+          ]
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "payment_3057b4bfb673b3830eff6d7e996c9512"
+        }
+      }
     }
   }
 }

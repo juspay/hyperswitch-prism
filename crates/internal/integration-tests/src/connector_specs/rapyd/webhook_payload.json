@@ -1,0 +1,275 @@
+{
+  "_webhook_config": {
+    "signature_algorithm": "BASE64(hex(HMAC-SHA256(secret_key, webhook_url + salt + timestamp + access_key + secret_key + body)))",
+    "signature_location": "header signature (with headers salt and timestamp)",
+    "note": "Bodies are Rapyd's documented example notifications; no delivery could be captured. The fixtures are pre-signed with the dummy keys carried in webhook_secrets (not credentials): the harness has no Rapyd signer, so no signature_header is declared and nothing is re-signed. The dispute_opened, dispute_challenged, dispute_lost and dispute_won entries are fixtures for the gRPC matrix rows IncomingWebhook/-/handle_dispute_* and are picked up by the harness only once a global scenario of the same name exists."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "NTI0ZjEzODE0ZDIwMjFkNTAyYWYxNThlNzI5NjRjZDJkZDA2Nzc3Yjk0ZTBjYzA0NmI4MzA3ZDliYzIyYzQ5Nw=="
+        },
+        "body": "eyJpZCI6IndoXzYwOWNjN2NhNjk4MGM1NzRkZmFkOWVkZTRlZGNlYWZmIiwidHlwZSI6IlBBWU1FTlRfQ0FQVFVSRUQiLCJkYXRhIjp7ImlkIjoicGF5bWVudF8zMDU3YjRiZmI2NzNiMzgzMGVmZjZkN2U5OTZjOTUxMiIsIm1pZCI6IiIsInBhaWQiOnRydWUsIm9yZGVyIjpudWxsLCJhbW91bnQiOjEwLjc0LCJlc2Nyb3ciOm51bGwsInN0YXR1cyI6IkNMTyIsImFkZHJlc3MiOm51bGwsImRpc3B1dGUiOm51bGwsImZ4X3JhdGUiOjEsImludm9pY2UiOiIiLCJvdXRjb21lIjpudWxsLCJwYWlkX2F0IjoxNjQwMDg4MzQ2LCJyZWZ1bmRzIjpudWxsLCJjYXB0dXJlZCI6dHJ1ZSwiZXdhbGxldHMiOlt7ImFtb3VudCI6MTAuNzQsInBlcmNlbnQiOjEwMCwiZXdhbGxldF9pZCI6ImV3YWxsZXRfZTY3YzhhZDYzMjAwZDc4MTQ3MGEwNDEwN2ZiZDdjNTkiLCJyZWZ1bmRlZF9hbW91bnQiOjB9XSwibWV0YWRhdGEiOnsibWVyY2hhbnRfZGVmaW5lZCI6ImNyZWF0ZWQifSwicmVmdW5kZWQiOmZhbHNlLCJmbG93X3R5cGUiOiIiLCJjcmVhdGVkX2F0IjoxNjQwMDg4Mjk1LCJlcnJvcl9jb2RlIjoiIiwiZXdhbGxldF9pZCI6ImV3YWxsZXRfZTY3YzhhZDYzMjAwZDc4MTQ3MGEwNDEwN2ZiZDdjNTkiLCJleHBpcmF0aW9uIjoxNjQwNjkzMDk1LCJmaXhlZF9zaWRlIjoiIiwiaXNfcGFydGlhbCI6ZmFsc2UsImRlc2NyaXB0aW9uIjoiIiwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsImNvdW50cnlfY29kZSI6IlVTIiwiZmFpbHVyZV9jb2RlIjoiIiwiaW5zdHJ1Y3Rpb25zIjpbXSwicGF5bWVudF9mZWVzIjpudWxsLCJyZWRpcmVjdF91cmwiOiIiLCJ2aXN1YWxfY29kZXMiOnt9LCJjYW5jZWxfcmVhc29uIjpudWxsLCJjdXJyZW5jeV9jb2RlIjoiVVNEIiwiZ3JvdXBfcGF5bWVudCI6IiIsInJlY2VpcHRfZW1haWwiOiIiLCJ0ZXh0dWFsX2NvZGVzIjp7fSwiY3VzdG9tZXJfdG9rZW4iOiJjdXNfNTNlYTFhOTNiMjkwODFhZGMwMzYzOTJmOTI4MDE0NWEiLCJwYXltZW50X21ldGhvZCI6ImNhcmRfMDlmYWRhZWZkOTc2NGJjODlhNDVhNTgxMmZjOTAxOWIiLCJyZWNlaXB0X251bWJlciI6IiIsInRyYW5zYWN0aW9uX2lkIjoiIiwiZmFpbHVyZV9tZXNzYWdlIjoiIiwiaW5pdGlhdGlvbl90eXBlIjoiY3VzdG9tZXJfcHJlc2VudCIsIm9yaWdpbmFsX2Ftb3VudCI6MTAuNzQsInJlZnVuZGVkX2Ftb3VudCI6MCwiZXJyb3JfcGF5bWVudF91cmwiOiIiLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8wOWZhZGFlZmQ5NzY0YmM4OWE0NWE1ODEyZmM5MDE5YiIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJ1c192aXNhX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMTExMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjpudWxsLCJicmFuZCI6bnVsbCwiY291bnRyeSI6bnVsbCwiYmluX251bWJlciI6IjQxMTExMSJ9LCJuZXh0X2FjdGlvbiI6Im5vdF9hcHBsaWNhYmxlIiwid2ViaG9va191cmwiOiIiLCJleHBpcmF0aW9uX3llYXIiOiIyMyIsImV4cGlyYXRpb25fbW9udGgiOiIxMiIsImZpbmdlcnByaW50X3Rva2VuIjoib2NmcF9lNTk5Zjk5MDY3NDQ3M2NlNjI4M2IyNDVlOWFkMjQ2NyIsInN1cHBvcnRpbmdfZG9jdW1lbnRhdGlvbiI6IiIsInBheW1lbnRfYWNjb3VudF9yZWZlcmVuY2UiOiJWMDAxMDAxMzAxODAzNjc4Mjk5MTYyMjk2NTA3NiJ9LCJhdXRoX2NvZGUiOiIxMTIyMzMiLCJwYXltZW50X21ldGhvZF90eXBlIjoidXNfdmlzYV9jYXJkIiwiY29tcGxldGVfcGF5bWVudF91cmwiOiIiLCJzdGF0ZW1lbnRfZGVzY3JpcHRvciI6IlJhcHlkIiwibWVyY2hhbnRfcmVmZXJlbmNlX2lkIjoiIiwicGF5bWVudF9tZXRob2Rfb3B0aW9ucyI6e30sIm1lcmNoYW50X3JlcXVlc3RlZF9hbW91bnQiOm51bGwsIm1lcmNoYW50X3JlcXVlc3RlZF9jdXJyZW5jeSI6bnVsbCwicGF5bWVudF9tZXRob2RfdHlwZV9jYXRlZ29yeSI6ImNhcmQiLCJtZXJjaGFudF9hZHZpY2VfY29kZSI6bnVsbCwibWVyY2hhbnRfYWR2aWNlX21lc3NhZ2UiOm51bGwsIm1lcmNoYW50X2V3YWxsZXQiOm51bGwsInRyYW5zYWN0aW9uX2xpbmtfaWQiOm51bGx9LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6IjJjYmQ0N2MzLTQxMTAtNDAzNy05NjZiLWYwMzkyZGQ2NWUwZCIsInN0YXR1cyI6Ik5FVyIsImNyZWF0ZWRfYXQiOjE2NDAwODgzNDYsImV4dGVuZGVkX3RpbWVzdGFtcCI6MTY0MDA4ODM0NjEyM30="
+      },
+      "merchant_event_id": "rapyd_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "Mjk2MzhhNTc1NzQ3ZGVjMDY3N2ZhYjNjYjNjNmNlNmJlZDE0OTdmNTljOWMzODcxNjRhNTRmMTg4YWRmNDBkNQ=="
+        },
+        "body": "eyJpZCI6IndoXzZkMGIxZWZjMzk0MjRmMzM1NTZhMzAwNDM0Y2NjYzc0IiwidHlwZSI6IlBBWU1FTlRfRkFJTEVEIiwiZGF0YSI6eyJpZCI6InBheW1lbnRfMDJlNWVjYzRiN2UwMzk1MTQ4ZThlYmE2OGFkNjMxMjAiLCJtaWQiOiJtaWRfNWM1ZDYxODdjY2Q0ZGQ1YzE2MTQyNDU5ZTg5MTEzNTAiLCJwYWlkIjpmYWxzZSwib3JkZXIiOm51bGwsImFtb3VudCI6MCwiZXNjcm93IjpudWxsLCJzdGF0dXMiOiJFUlIiLCJhZGRyZXNzIjpudWxsLCJkaXNwdXRlIjpudWxsLCJmeF9yYXRlIjoxLCJpbnZvaWNlIjoiIiwib3V0Y29tZSI6bnVsbCwicGFpZF9hdCI6MCwicmVmdW5kcyI6bnVsbCwiY2FwdHVyZWQiOnRydWUsImV3YWxsZXRzIjpbeyJhbW91bnQiOjEwNjUsInBlcmNlbnQiOjEwMCwiZXdhbGxldF9pZCI6ImV3YWxsZXRfZDk0ZTU0ZjcwYzNjNDAxZjE1NDMwY2Q2ZWIzYzIzZDIiLCJyZWZ1bmRlZF9hbW91bnQiOjB9XSwibWV0YWRhdGEiOnt9LCJyZWZ1bmRlZCI6ZmFsc2UsImF1dGhfY29kZSI6bnVsbCwiZmxvd190eXBlIjoiIiwiY3JlYXRlZF9hdCI6MTczNjI2MjE2MSwiZXJyb3JfY29kZSI6IkVSUk9SX1BST0NFU1NJTkdfQ0FSRCAtIFs2NV0iLCJld2FsbGV0X2lkIjoiZXdhbGxldF9kOTRlNTRmNzBjM2M0MDFmMTU0MzBjZDZlYjNjMjNkMiIsImV4cGlyYXRpb24iOjE3Mzg4NTQyOTYsImZpeGVkX3NpZGUiOiIiLCJpc19wYXJ0aWFsIjpmYWxzZSwiZGVzY3JpcHRpb24iOiIiLCJjYXB0dXJlIjp0cnVlLCJuZXh0X2FjdGlvbiI6Im5vdF9hcHBsaWNhYmxlIiwiY291bnRyeV9jb2RlIjoiR0IiLCJpbnN0cnVjdGlvbnMiOnt9LCJwYXltZW50X2ZlZXMiOm51bGwsInJlZGlyZWN0X3VybCI6Imh0dHBzOi8vc2JveGNoZWNrb3V0LnJhcHlkLm5ldC8zZHMvY2hhbGxlbmdlLmh0bWw/cmVkaXJlY3Rpb25fZGF0YT0lTWpNMTIlMjJiY3NfYWN0aW9uX3VybCUyMmh0dHBzJTJGc2JveGFwaS5yYXB5ZC5uZXQlMkZ2MSUyRnNpbXVsYXRlJTJGYWNzJTJGY2hhbGxlbmdlJTJGIiwidmlzdWFsX2NvZGVzIjp7fSwiY2FuY2VsX3JlYXNvbiI6bnVsbCwiY3VycmVuY3lfY29kZSI6IklTSyIsImdyb3VwX3BheW1lbnQiOiIiLCJyZWNlaXB0X2VtYWlsIjoiIiwidGV4dHVhbF9jb2RlcyI6e30sImN1c3RvbWVyX3Rva2VuIjoiY3VzX2FkMjEyYTFiMzI2YmIwMGRkNmE2NjNiNDRlNTc0YWQzIiwicGF5bWVudF9tZXRob2QiOm51bGwsInJlY2VpcHRfbnVtYmVyIjoiIiwidHJhbnNhY3Rpb25faWQiOiIiLCJmYWlsdXJlX2NvZGUiOiI2NSIsImZhaWx1cmVfbWVzc2FnZSI6IkF1dGhlbnRpY2F0aW9uIFJlcXVpcmVkIG9yIEFjdGl2aXR5IExpbWl0IEV4Y2VlZGVkIiwiaW5pdGlhdGlvbl90eXBlIjoiY3VzdG9tZXJfcHJlc2VudCIsIm9yaWdpbmFsX2Ftb3VudCI6MTA2NSwicmVmdW5kZWRfYW1vdW50IjowLCJlcnJvcl9wYXltZW50X3VybCI6Imh0dHA6Ly93d3cucmFweWQubmV0L2Vycm9yLmh0bWwiLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjpudWxsLCJuYW1lIjoiSm9obiBEb2UiLCJ0eXBlIjoiZ2JfbWFzdGVyY2FyZF9jYXJkIiwiaW1hZ2UiOiIiLCJsYXN0NCI6IjI4NjciLCJjYXRlZ29yeSI6ImNhcmQiLCJtZXRhZGF0YSI6bnVsbCwiYWNzX2NoZWNrIjoidW5hdmFpbGFibGUiLCJjdnZfY2hlY2siOiJmYWlsIiwiYmluX2RldGFpbHMiOnsidHlwZSI6IkRFQklUIiwiYnJhbmQiOiJWSVNBIiwibGV2ZWwiOiJDTEFTU0lDIiwiaXNzdWVyIjoiTExPWURTIEJBTksgUExDIiwiY291bnRyeSI6IkdCIiwiYmluX251bWJlciI6IjQ5MjE4MSJ9LCJuZXh0X2FjdGlvbiI6Im5vdF9hcHBsaWNhYmxlIiwid2ViaG9va191cmwiOiIiLCJleHBpcmF0aW9uX3llYXIiOiIyNyIsImV4cGlyYXRpb25fbW9udGgiOiIxMiIsImZpbmdlcnByaW50X3Rva2VuIjoib2NmcF85ZjcyOTY5ZjhkZjM4NzY0ZTY5OGQ1N2JjYTBlYzc1YSIsInBheW1lbnRfYWNjb3VudF9yZWZlcmVuY2UiOiJWMDAxMDAxMzAxODAzNjc4Mjk5MTYyMjk2NTA3NiIsInN1cHBvcnRpbmdfZG9jdW1lbnRhdGlvbiI6IiJ9LCJwYXltZW50X21ldGhvZF90eXBlIjoiZ2JfbWFzdGVyY2FyZF9jYXJkIiwiY29tcGxldGVfcGF5bWVudF91cmwiOiJodHRwOi8vd3d3LnJhcHlkLm5ldCIsInJlbWl0dGVyX2luZm9ybWF0aW9uIjp7fSwic3RhdGVtZW50X2Rlc2NyaXB0b3IiOiJEb2MgVGVhbSIsImF1dGhlbnRpY2F0aW9uX3Jlc3VsdCI6eyJlY2kiOiIwNyIsInJlc3VsdCI6Ik4iLCJ2ZXJzaW9uIjoiMi4yLjAiLCJjYXJkaG9sZGVyX2luZm8iOiJUaGUgcHVyY2hhc2UgY29ubm90IGJlIGNvbXBsZXRlZCBhdCB0aGlzIHRpbWUuIEZvciBhZGRpdGlvbmFsIGluZm9ybWF0aW9uIHBsZWFzZSBjb250YWN0IHlvdXIgY2FyZCBpc3N1ZXIuIn0sIm1lcmNoYW50X3JlZmVyZW5jZV9pZCI6IiIsInBheW1lbnRfbWV0aG9kX29wdGlvbnMiOnsiM2RfcmVxdWlyZWQiOnRydWV9LCJtZXJjaGFudF9yZXF1ZXN0ZWRfYW1vdW50IjpudWxsLCJtZXJjaGFudF9yZXF1ZXN0ZWRfY3VycmVuY3kiOm51bGwsInBheW1lbnRfbWV0aG9kX3R5cGVfY2F0ZWdvcnkiOiJjYXJkIiwibWVyY2hhbnRfYWR2aWNlX2NvZGUiOiIwMiIsIm1lcmNoYW50X2FkdmljZV9tZXNzYWdlIjoiVHJ5IGFnYWluIGxhdGVyIiwibWVyY2hhbnRfZXdhbGxldCI6bnVsbCwidHJhbnNhY3Rpb25fbGlua19pZCI6IkU3aUFjLTdTcjVOdDdzUHNfT1gzWHkifSwidHJpZ2dlcl9vcGVyYXRpb25faWQiOiI5ODQ2Y2YxMy02OTgzLTQ4ODgtODhkNC1jMGIzNzhkZWMzNzIiLCJzdGF0dXMiOiJORVciLCJjcmVhdGVkX2F0IjoxNzM2MjYyMjk2LCJleHRlbmRlZF90aW1lc3RhbXAiOjE3MzYyNjIyOTY5ODF9"
+      },
+      "merchant_event_id": "rapyd_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "NTIyNTFjMjMzMzE1N2Q1NTFmZWI2YzgyOWNiNzYzZjY0OTI1MWRlODdkODAzM2I3Mzc4OWE4YmY1MmMwNDE5MA=="
+        },
+        "body": "eyJpZCI6ImM3M2NkNjVlLTk4OGMtNDczYS04ZDAzLTA2YTE1ZDUyYTNlNyIsInRva2VuIjoid2hfMWFiZTdmZDE5Zjk2ZmU1NTNmYzYxM2ExZjNmZjIwY2EiLCJvcmdhbml6YXRpb25faWQiOiJkZjMwMWI2MC04YTlkLTRhNWEtYTMxNS0zOWI2OTkyMzBjYjEiLCJvcmdfcGsiOjAsInR5cGUiOiJSRUZVTkRfQ09NUExFVEVEIiwiZGF0YSI6eyJpZCI6InJlZnVuZF8xMDJhZTZkMTI4NmIwN2NlOGIzNzY4YjkzZWFiOWEyNCIsImFtb3VudCI6ODcuMzYsInBheW1lbnQiOiJwYXltZW50X2NjYzA0NzE1YTEwMjFiODIxMDI1YjhkOGMwYTBlZWQ4IiwiY3VycmVuY3kiOiJJTFMiLCJmYWlsdXJlX3JlYXNvbiI6IiIsImZhaWx1cmVfY29kZSI6IiIsIm1ldGFkYXRhIjp7fSwicmVhc29uIjoiRGlyZWN0IFJlZnVuZCIsInN0YXR1cyI6IkNvbXBsZXRlZCIsInJlY2VpcHRfbnVtYmVyIjowLCJjcmVhdGVkX2F0IjoxNzY4OTU5LCJ1cGRhdGVkX2F0IjoxNzY4OTYwLCJtZXJjaGFudF9ld2FsbGV0IjpudWxsLCJtZXJjaGFudF9yZWZlcmVuY2VfaWQiOiIwMzAwMTYiLCJwYXltZW50X2NyZWF0ZWRfYXQiOjE3Njg5NTgsInBheW1lbnRfbWV0aG9kX3R5cGUiOiJpbF9tYXN0ZXJjYXJkX2NhcmQiLCJld2FsbGV0cyI6W3siZXdhbGxldCI6ImV3YWxsZXRfY2Q1OWZhZTU2Y2U1Yjk1NjRlY2I1MmQ3ZjllYjBjMzciLCJhbW91bnQiOjg3LjM2fV0sInByb3BvcnRpb25hbF9yZWZ1bmQiOnRydWUsIm1lcmNoYW50X2RlYml0ZWRfYW1vdW50IjpudWxsLCJtZXJjaGFudF9kZWJpdGVkX2N1cnJlbmN5IjpudWxsLCJmeF9yYXRlIjpudWxsLCJmaXhlZF9zaWRlIjpudWxsfSwiYXR0ZW1wdHMiOltdLCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6IjM1NjdiMzE1LWE3M2MtNDQxNS04MjA2LWM1OThkNzBhYzY2NSIsImZpcnN0X2F0dGVtcHRfYXQiOjAsImxhc3RfYXR0ZW1wdF9hdCI6MCwic3RhdHVzIjoiIiwiY3JlYXRlZF9hdCI6MCwibmV4dF9hdHRlbXB0X2F0IjowLCJ1cmkiOiIifQ=="
+      },
+      "merchant_event_id": "rapyd_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "dispute_opened": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "MjU0MTRhMzIwMjFmYzY5NzQxMGIxZjVkNWEwMGE1N2RmMDY2YTZkMTMxODJjYjQ2N2VmOWI2NWZjNDU4YmI2Yw=="
+        },
+        "body": "eyJpZCI6IndoXzdhMTRlZjI1OGIzY2Q5MWYwNGU3ZDUyODAzYTZkZTIyIiwiZGF0YSI6eyJpZCI6ImM4MmY0YTE3LTNlNWQtNDFiYy1iMDdhLTk5ZDEzNDI1OGVmMSIsInJhdGUiOjEsInRva2VuIjoiZGlzcHV0ZV9hOTNjN2YwMmUxZGQ0OGI2ZjAzNWM3ODQ1MmExYjlkNCIsImFtb3VudCI6MTAsInN0YXR1cyI6IkFDVCIsImN1cnJlbmN5IjoiVVNEIiwiZHVlX2RhdGUiOjE2NTE3MjY4OTgsImV2aWRlbmNlIjpudWxsLCJjcmVhdGVkX2F0IjoxNjUwOTQ5Mjk4LCJld2FsbGV0X2lkIjoiZXdhbGxldF9lMjE1MGY0NzhjMTVkOTdiODA3YjllZDE3OWI3OThhMCIsInVwZGF0ZWRfYXQiOjE2NTA5NDkyOTgsInByZV9kaXNwdXRlIjpmYWxzZSwicGF5bWVudF9tZXRob2QiOiJjYXJkXzFiZGVkZDViOTQ2NzQwOWFjY2QyNmVkYmUwMzU4YThjIiwiZGlzcHV0ZV9jYXRlZ29yeSI6IkF1dGhvcml6YXRpb24iLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8xYmRlZGQ1Yjk0Njc0MDlhY2NkMjZlZGJlMDM1OGE4YyIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJhdF9tYXN0ZXJjYXJkX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMDEwMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjoiQ1JFRElUIiwiYnJhbmQiOiJNQVNURVJDQVJEIiwibGV2ZWwiOiJQTEFUSU5VTSIsImNvdW50cnkiOiJVUyIsImJpbl9udW1iZXIiOiI1MjM5MjkifSwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsIndlYmhvb2tfdXJsIjoiIiwiZXhwaXJhdGlvbl95ZWFyIjoiMjUiLCJleHBpcmF0aW9uX21vbnRoIjoiMDQiLCJmaW5nZXJwcmludF90b2tlbiI6Im9jZnBfMzM1YjQwZjY0ZDViYjg3ZDliNWQxZjJjZGZmY2VkNmQiLCJzdXBwb3J0aW5nX2RvY3VtZW50YXRpb24iOiIifSwiZXZpZGVuY2VfcmVhc29uX2NvZGUiOm51bGwsImNlbnRyYWxfcHJvY2Vzc2luZ19kYXRlIjowLCJvcmlnaW5hbF9kaXNwdXRlX2Ftb3VudCI6MTAsIm9yaWdpbmFsX3RyYW5zYWN0aW9uX2lkIjoicGF5bWVudF8xODViOGVmOTJlZjZmM2EyNmVmMGFjNWZlNDFlNjI2MyIsIm9yaWdpbmFsX2Rpc3B1dGVfY3VycmVuY3kiOiJVU0QiLCJkaXNwdXRlX3JlYXNvbl9kZXNjcmlwdGlvbiI6IkF1dGhvcml6YXRpb24gRXJyb3JzIiwib3JpZ2luYWxfdHJhbnNhY3Rpb25fYW1vdW50IjoxMCwib3JpZ2luYWxfdHJhbnNhY3Rpb25fY3VycmVuY3kiOiJVU0QiLCJtZXJjaGFudF9yZWZlcmVuY2VfaWQiOiJtZXJjaGFudF9yZWZfMDAxIiwibWVyY2hhbnRfZXdhbGxldCI6ImV3YWxsZXRfNDJkYmZiN2ZkNzYzOGE5NWQ2YmEwODRhYzA3ZGVjMWUifSwidHlwZSI6IlBBWU1FTlRfRElTUFVURV9DUkVBVEVEIiwic3RhdHVzIjoiTkVXIiwiY3JlYXRlZF9hdCI6MTY1MDk0OTI5OCwiZXh0ZW5kZWRfdGltZXN0YW1wIjoxNjUwOTQ5Mjk4OTM2LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6ImYxYzNiODJlLTcwNDEtNDlkYS1iMzU4LTE2ZTRkYzkwMmY4MSJ9"
+      },
+      "merchant_event_id": "rapyd_webhook_dispute_opened",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "WEBHOOK_DISPUTE_OPENED"
+        ]
+      },
+      "event_content.disputes_response.connector_dispute_id": {
+        "equals": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4"
+      },
+      "event_content.disputes_response.dispute_status": {
+        "one_of": [
+          "DISPUTE_OPENED"
+        ]
+      },
+      "event_content.disputes_response.dispute_stage": {
+        "one_of": [
+          "ACTIVE_DISPUTE"
+        ]
+      },
+      "event_content.disputes_response.connector_reference_id": {
+        "equals": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263"
+      },
+      "event_content.disputes_response.dispute_message": {
+        "equals": "Authorization Errors"
+      }
+    }
+  },
+  "dispute_challenged": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "Mjk3ZjQxMjI3MzI3Yzg2ZTQ0NGM0ZDE4ZmQyNjlkMWUzMjNiNjEzODIyYmE5ZWRjOWQ0ZWZlMjBhNzQ5N2JkYQ=="
+        },
+        "body": "eyJpZCI6IndoXzdhMTRlZjI1OGIzY2Q5MWYwNGU3ZDUyODAzYTZkZTIzIiwiZGF0YSI6eyJpZCI6ImM4MmY0YTE3LTNlNWQtNDFiYy1iMDdhLTk5ZDEzNDI1OGVmMSIsInJhdGUiOjEsInRva2VuIjoiZGlzcHV0ZV9hOTNjN2YwMmUxZGQ0OGI2ZjAzNWM3ODQ1MmExYjlkNCIsImFtb3VudCI6MTAsInN0YXR1cyI6IlJWVyIsImN1cnJlbmN5IjoiVVNEIiwiZHVlX2RhdGUiOjE2NTE3MjY4OTgsImV2aWRlbmNlIjpudWxsLCJjcmVhdGVkX2F0IjoxNjUwOTQ5Mjk4LCJld2FsbGV0X2lkIjoiZXdhbGxldF9lMjE1MGY0NzhjMTVkOTdiODA3YjllZDE3OWI3OThhMCIsInVwZGF0ZWRfYXQiOjE2NTEwMzU2OTgsInByZV9kaXNwdXRlIjpmYWxzZSwicGF5bWVudF9tZXRob2QiOiJjYXJkXzFiZGVkZDViOTQ2NzQwOWFjY2QyNmVkYmUwMzU4YThjIiwiZGlzcHV0ZV9jYXRlZ29yeSI6IkF1dGhvcml6YXRpb24iLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8xYmRlZGQ1Yjk0Njc0MDlhY2NkMjZlZGJlMDM1OGE4YyIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJhdF9tYXN0ZXJjYXJkX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMDEwMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjoiQ1JFRElUIiwiYnJhbmQiOiJNQVNURVJDQVJEIiwibGV2ZWwiOiJQTEFUSU5VTSIsImNvdW50cnkiOiJVUyIsImJpbl9udW1iZXIiOiI1MjM5MjkifSwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsIndlYmhvb2tfdXJsIjoiIiwiZXhwaXJhdGlvbl95ZWFyIjoiMjUiLCJleHBpcmF0aW9uX21vbnRoIjoiMDQiLCJmaW5nZXJwcmludF90b2tlbiI6Im9jZnBfMzM1YjQwZjY0ZDViYjg3ZDliNWQxZjJjZGZmY2VkNmQiLCJzdXBwb3J0aW5nX2RvY3VtZW50YXRpb24iOiIifSwiZXZpZGVuY2VfcmVhc29uX2NvZGUiOm51bGwsImNlbnRyYWxfcHJvY2Vzc2luZ19kYXRlIjowLCJvcmlnaW5hbF9kaXNwdXRlX2Ftb3VudCI6MTAsIm9yaWdpbmFsX3RyYW5zYWN0aW9uX2lkIjoicGF5bWVudF8xODViOGVmOTJlZjZmM2EyNmVmMGFjNWZlNDFlNjI2MyIsIm9yaWdpbmFsX2Rpc3B1dGVfY3VycmVuY3kiOiJVU0QiLCJkaXNwdXRlX3JlYXNvbl9kZXNjcmlwdGlvbiI6IkF1dGhvcml6YXRpb24gRXJyb3JzIiwib3JpZ2luYWxfdHJhbnNhY3Rpb25fYW1vdW50IjoxMCwib3JpZ2luYWxfdHJhbnNhY3Rpb25fY3VycmVuY3kiOiJVU0QiLCJtZXJjaGFudF9yZWZlcmVuY2VfaWQiOiJtZXJjaGFudF9yZWZfMDAxIiwibWVyY2hhbnRfZXdhbGxldCI6ImV3YWxsZXRfNDJkYmZiN2ZkNzYzOGE5NWQ2YmEwODRhYzA3ZGVjMWUifSwidHlwZSI6IlBBWU1FTlRfRElTUFVURV9VUERBVEVEIiwic3RhdHVzIjoiTkVXIiwiY3JlYXRlZF9hdCI6MTY1MDk0OTI5OCwiZXh0ZW5kZWRfdGltZXN0YW1wIjoxNjUwOTQ5Mjk4OTM2LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6ImYxYzNiODJlLTcwNDEtNDlkYS1iMzU4LTE2ZTRkYzkwMmY4MSJ9"
+      },
+      "merchant_event_id": "rapyd_webhook_dispute_challenged",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "WEBHOOK_DISPUTE_CHALLENGED"
+        ]
+      },
+      "event_content.disputes_response.connector_dispute_id": {
+        "equals": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4"
+      },
+      "event_content.disputes_response.dispute_status": {
+        "one_of": [
+          "DISPUTE_CHALLENGED"
+        ]
+      },
+      "event_content.disputes_response.dispute_stage": {
+        "one_of": [
+          "ACTIVE_DISPUTE"
+        ]
+      },
+      "event_content.disputes_response.connector_reference_id": {
+        "equals": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263"
+      },
+      "event_content.disputes_response.dispute_message": {
+        "equals": "Authorization Errors"
+      }
+    }
+  },
+  "dispute_lost": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "MmZmMWExMTJmY2Q2NTIxYmZhMTFiMjMyMGYzNmFjNjkyY2RjZDhjMzA2ZDM1NjM5ODVkODE1ZmIwNGFlY2Y4NA=="
+        },
+        "body": "eyJpZCI6IndoXzdhMTRlZjI1OGIzY2Q5MWYwNGU3ZDUyODAzYTZkZTI0IiwiZGF0YSI6eyJpZCI6ImM4MmY0YTE3LTNlNWQtNDFiYy1iMDdhLTk5ZDEzNDI1OGVmMSIsInJhdGUiOjEsInRva2VuIjoiZGlzcHV0ZV9hOTNjN2YwMmUxZGQ0OGI2ZjAzNWM3ODQ1MmExYjlkNCIsImFtb3VudCI6MTAsInN0YXR1cyI6IkxPUyIsImN1cnJlbmN5IjoiVVNEIiwiZHVlX2RhdGUiOjE2NTE3MjY4OTgsImV2aWRlbmNlIjpudWxsLCJjcmVhdGVkX2F0IjoxNjUwOTQ5Mjk4LCJld2FsbGV0X2lkIjoiZXdhbGxldF9lMjE1MGY0NzhjMTVkOTdiODA3YjllZDE3OWI3OThhMCIsInVwZGF0ZWRfYXQiOjE2NTExMjIwOTgsInByZV9kaXNwdXRlIjpmYWxzZSwicGF5bWVudF9tZXRob2QiOiJjYXJkXzFiZGVkZDViOTQ2NzQwOWFjY2QyNmVkYmUwMzU4YThjIiwiZGlzcHV0ZV9jYXRlZ29yeSI6IkF1dGhvcml6YXRpb24iLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8xYmRlZGQ1Yjk0Njc0MDlhY2NkMjZlZGJlMDM1OGE4YyIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJhdF9tYXN0ZXJjYXJkX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMDEwMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjoiQ1JFRElUIiwiYnJhbmQiOiJNQVNURVJDQVJEIiwibGV2ZWwiOiJQTEFUSU5VTSIsImNvdW50cnkiOiJVUyIsImJpbl9udW1iZXIiOiI1MjM5MjkifSwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsIndlYmhvb2tfdXJsIjoiIiwiZXhwaXJhdGlvbl95ZWFyIjoiMjUiLCJleHBpcmF0aW9uX21vbnRoIjoiMDQiLCJmaW5nZXJwcmludF90b2tlbiI6Im9jZnBfMzM1YjQwZjY0ZDViYjg3ZDliNWQxZjJjZGZmY2VkNmQiLCJzdXBwb3J0aW5nX2RvY3VtZW50YXRpb24iOiIifSwiZXZpZGVuY2VfcmVhc29uX2NvZGUiOm51bGwsImNlbnRyYWxfcHJvY2Vzc2luZ19kYXRlIjowLCJvcmlnaW5hbF9kaXNwdXRlX2Ftb3VudCI6MTAsIm9yaWdpbmFsX3RyYW5zYWN0aW9uX2lkIjoicGF5bWVudF8xODViOGVmOTJlZjZmM2EyNmVmMGFjNWZlNDFlNjI2MyIsIm9yaWdpbmFsX2Rpc3B1dGVfY3VycmVuY3kiOiJVU0QiLCJkaXNwdXRlX3JlYXNvbl9kZXNjcmlwdGlvbiI6IkF1dGhvcml6YXRpb24gRXJyb3JzIiwib3JpZ2luYWxfdHJhbnNhY3Rpb25fYW1vdW50IjoxMCwib3JpZ2luYWxfdHJhbnNhY3Rpb25fY3VycmVuY3kiOiJVU0QiLCJtZXJjaGFudF9yZWZlcmVuY2VfaWQiOiJtZXJjaGFudF9yZWZfMDAxIiwibWVyY2hhbnRfZXdhbGxldCI6ImV3YWxsZXRfNDJkYmZiN2ZkNzYzOGE5NWQ2YmEwODRhYzA3ZGVjMWUifSwidHlwZSI6IlBBWU1FTlRfRElTUFVURV9VUERBVEVEIiwic3RhdHVzIjoiTkVXIiwiY3JlYXRlZF9hdCI6MTY1MDk0OTI5OCwiZXh0ZW5kZWRfdGltZXN0YW1wIjoxNjUwOTQ5Mjk4OTM2LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6ImYxYzNiODJlLTcwNDEtNDlkYS1iMzU4LTE2ZTRkYzkwMmY4MSJ9"
+      },
+      "merchant_event_id": "rapyd_webhook_dispute_lost",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "WEBHOOK_DISPUTE_LOST"
+        ]
+      },
+      "event_content.disputes_response.connector_dispute_id": {
+        "equals": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4"
+      },
+      "event_content.disputes_response.dispute_status": {
+        "one_of": [
+          "DISPUTE_LOST"
+        ]
+      },
+      "event_content.disputes_response.dispute_stage": {
+        "one_of": [
+          "ACTIVE_DISPUTE"
+        ]
+      },
+      "event_content.disputes_response.connector_reference_id": {
+        "equals": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263"
+      },
+      "event_content.disputes_response.dispute_message": {
+        "equals": "Authorization Errors"
+      }
+    }
+  },
+  "dispute_won": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "NDY5MzM0MzEwZTNhNDE3NmZjY2MxZDBiYjNhNmM2MTlmNzdhMWJkOTg5YmExYjFhZmVhODYwNWFhZGI3YTNhYw=="
+        },
+        "body": "eyJpZCI6IndoXzdhMTRlZjI1OGIzY2Q5MWYwNGU3ZDUyODAzYTZkZTI1IiwiZGF0YSI6eyJpZCI6ImM4MmY0YTE3LTNlNWQtNDFiYy1iMDdhLTk5ZDEzNDI1OGVmMSIsInJhdGUiOjEsInRva2VuIjoiZGlzcHV0ZV9hOTNjN2YwMmUxZGQ0OGI2ZjAzNWM3ODQ1MmExYjlkNCIsImFtb3VudCI6MTAsInN0YXR1cyI6IldJTiIsImN1cnJlbmN5IjoiVVNEIiwiZHVlX2RhdGUiOjE2NTE3MjY4OTgsImV2aWRlbmNlIjpudWxsLCJjcmVhdGVkX2F0IjoxNjUwOTQ5Mjk4LCJld2FsbGV0X2lkIjoiZXdhbGxldF9lMjE1MGY0NzhjMTVkOTdiODA3YjllZDE3OWI3OThhMCIsInVwZGF0ZWRfYXQiOjE2NTExMjIwOTgsInByZV9kaXNwdXRlIjpmYWxzZSwicGF5bWVudF9tZXRob2QiOiJjYXJkXzFiZGVkZDViOTQ2NzQwOWFjY2QyNmVkYmUwMzU4YThjIiwiZGlzcHV0ZV9jYXRlZ29yeSI6IkF1dGhvcml6YXRpb24iLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8xYmRlZGQ1Yjk0Njc0MDlhY2NkMjZlZGJlMDM1OGE4YyIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJhdF9tYXN0ZXJjYXJkX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMDEwMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjoiQ1JFRElUIiwiYnJhbmQiOiJNQVNURVJDQVJEIiwibGV2ZWwiOiJQTEFUSU5VTSIsImNvdW50cnkiOiJVUyIsImJpbl9udW1iZXIiOiI1MjM5MjkifSwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsIndlYmhvb2tfdXJsIjoiIiwiZXhwaXJhdGlvbl95ZWFyIjoiMjUiLCJleHBpcmF0aW9uX21vbnRoIjoiMDQiLCJmaW5nZXJwcmludF90b2tlbiI6Im9jZnBfMzM1YjQwZjY0ZDViYjg3ZDliNWQxZjJjZGZmY2VkNmQiLCJzdXBwb3J0aW5nX2RvY3VtZW50YXRpb24iOiIifSwiZXZpZGVuY2VfcmVhc29uX2NvZGUiOm51bGwsImNlbnRyYWxfcHJvY2Vzc2luZ19kYXRlIjowLCJvcmlnaW5hbF9kaXNwdXRlX2Ftb3VudCI6MTAsIm9yaWdpbmFsX3RyYW5zYWN0aW9uX2lkIjoicGF5bWVudF8xODViOGVmOTJlZjZmM2EyNmVmMGFjNWZlNDFlNjI2MyIsIm9yaWdpbmFsX2Rpc3B1dGVfY3VycmVuY3kiOiJVU0QiLCJkaXNwdXRlX3JlYXNvbl9kZXNjcmlwdGlvbiI6IkF1dGhvcml6YXRpb24gRXJyb3JzIiwib3JpZ2luYWxfdHJhbnNhY3Rpb25fYW1vdW50IjoxMCwib3JpZ2luYWxfdHJhbnNhY3Rpb25fY3VycmVuY3kiOiJVU0QiLCJtZXJjaGFudF9yZWZlcmVuY2VfaWQiOiJtZXJjaGFudF9yZWZfMDAxIiwibWVyY2hhbnRfZXdhbGxldCI6ImV3YWxsZXRfNDJkYmZiN2ZkNzYzOGE5NWQ2YmEwODRhYzA3ZGVjMWUifSwidHlwZSI6IlBBWU1FTlRfRElTUFVURV9VUERBVEVEIiwic3RhdHVzIjoiTkVXIiwiY3JlYXRlZF9hdCI6MTY1MDk0OTI5OCwiZXh0ZW5kZWRfdGltZXN0YW1wIjoxNjUwOTQ5Mjk4OTM2LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6ImYxYzNiODJlLTcwNDEtNDlkYS1iMzU4LTE2ZTRkYzkwMmY4MSJ9"
+      },
+      "merchant_event_id": "rapyd_webhook_dispute_won",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "WEBHOOK_DISPUTE_WON"
+        ]
+      },
+      "event_content.disputes_response.connector_dispute_id": {
+        "equals": "dispute_a93c7f02e1dd48b6f035c78452a1b9d4"
+      },
+      "event_content.disputes_response.dispute_status": {
+        "one_of": [
+          "DISPUTE_WON"
+        ]
+      },
+      "event_content.disputes_response.dispute_stage": {
+        "one_of": [
+          "ACTIVE_DISPUTE"
+        ]
+      },
+      "event_content.disputes_response.connector_reference_id": {
+        "equals": "payment_185b8ef92ef6f3a26ef0ac5fe41e6263"
+      },
+      "event_content.disputes_response.dispute_message": {
+        "equals": "Authorization Errors"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1791231425",
+          "signature": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA=="
+        },
+        "body": "eyJpZCI6IndoXzYwOWNjN2NhNjk4MGM1NzRkZmFkOWVkZTRlZGNlYWZmIiwidHlwZSI6IlBBWU1FTlRfQ0FQVFVSRUQiLCJkYXRhIjp7ImlkIjoicGF5bWVudF8zMDU3YjRiZmI2NzNiMzgzMGVmZjZkN2U5OTZjOTUxMiIsIm1pZCI6IiIsInBhaWQiOnRydWUsIm9yZGVyIjpudWxsLCJhbW91bnQiOjEwLjc0LCJlc2Nyb3ciOm51bGwsInN0YXR1cyI6IkNMTyIsImFkZHJlc3MiOm51bGwsImRpc3B1dGUiOm51bGwsImZ4X3JhdGUiOjEsImludm9pY2UiOiIiLCJvdXRjb21lIjpudWxsLCJwYWlkX2F0IjoxNjQwMDg4MzQ2LCJyZWZ1bmRzIjpudWxsLCJjYXB0dXJlZCI6dHJ1ZSwiZXdhbGxldHMiOlt7ImFtb3VudCI6MTAuNzQsInBlcmNlbnQiOjEwMCwiZXdhbGxldF9pZCI6ImV3YWxsZXRfZTY3YzhhZDYzMjAwZDc4MTQ3MGEwNDEwN2ZiZDdjNTkiLCJyZWZ1bmRlZF9hbW91bnQiOjB9XSwibWV0YWRhdGEiOnsibWVyY2hhbnRfZGVmaW5lZCI6ImNyZWF0ZWQifSwicmVmdW5kZWQiOmZhbHNlLCJmbG93X3R5cGUiOiIiLCJjcmVhdGVkX2F0IjoxNjQwMDg4Mjk1LCJlcnJvcl9jb2RlIjoiIiwiZXdhbGxldF9pZCI6ImV3YWxsZXRfZTY3YzhhZDYzMjAwZDc4MTQ3MGEwNDEwN2ZiZDdjNTkiLCJleHBpcmF0aW9uIjoxNjQwNjkzMDk1LCJmaXhlZF9zaWRlIjoiIiwiaXNfcGFydGlhbCI6ZmFsc2UsImRlc2NyaXB0aW9uIjoiIiwibmV4dF9hY3Rpb24iOiJub3RfYXBwbGljYWJsZSIsImNvdW50cnlfY29kZSI6IlVTIiwiZmFpbHVyZV9jb2RlIjoiIiwiaW5zdHJ1Y3Rpb25zIjpbXSwicGF5bWVudF9mZWVzIjpudWxsLCJyZWRpcmVjdF91cmwiOiIiLCJ2aXN1YWxfY29kZXMiOnt9LCJjYW5jZWxfcmVhc29uIjpudWxsLCJjdXJyZW5jeV9jb2RlIjoiVVNEIiwiZ3JvdXBfcGF5bWVudCI6IiIsInJlY2VpcHRfZW1haWwiOiIiLCJ0ZXh0dWFsX2NvZGVzIjp7fSwiY3VzdG9tZXJfdG9rZW4iOiJjdXNfNTNlYTFhOTNiMjkwODFhZGMwMzYzOTJmOTI4MDE0NWEiLCJwYXltZW50X21ldGhvZCI6ImNhcmRfMDlmYWRhZWZkOTc2NGJjODlhNDVhNTgxMmZjOTAxOWIiLCJyZWNlaXB0X251bWJlciI6IiIsInRyYW5zYWN0aW9uX2lkIjoiIiwiZmFpbHVyZV9tZXNzYWdlIjoiIiwiaW5pdGlhdGlvbl90eXBlIjoiY3VzdG9tZXJfcHJlc2VudCIsIm9yaWdpbmFsX2Ftb3VudCI6MTAuNzQsInJlZnVuZGVkX2Ftb3VudCI6MCwiZXJyb3JfcGF5bWVudF91cmwiOiIiLCJwYXltZW50X21ldGhvZF9kYXRhIjp7ImlkIjoiY2FyZF8wOWZhZGFlZmQ5NzY0YmM4OWE0NWE1ODEyZmM5MDE5YiIsIm5hbWUiOiJKb2huIERvZSIsInR5cGUiOiJ1c192aXNhX2NhcmQiLCJpbWFnZSI6IiIsImxhc3Q0IjoiMTExMSIsImNhdGVnb3J5IjoiY2FyZCIsIm1ldGFkYXRhIjpudWxsLCJhY3NfY2hlY2siOiJ1bmNoZWNrZWQiLCJjdnZfY2hlY2siOiJ1bmNoZWNrZWQiLCJiaW5fZGV0YWlscyI6eyJ0eXBlIjpudWxsLCJicmFuZCI6bnVsbCwiY291bnRyeSI6bnVsbCwiYmluX251bWJlciI6IjQxMTExMSJ9LCJuZXh0X2FjdGlvbiI6Im5vdF9hcHBsaWNhYmxlIiwid2ViaG9va191cmwiOiIiLCJleHBpcmF0aW9uX3llYXIiOiIyMyIsImV4cGlyYXRpb25fbW9udGgiOiIxMiIsImZpbmdlcnByaW50X3Rva2VuIjoib2NmcF9lNTk5Zjk5MDY3NDQ3M2NlNjI4M2IyNDVlOWFkMjQ2NyIsInN1cHBvcnRpbmdfZG9jdW1lbnRhdGlvbiI6IiIsInBheW1lbnRfYWNjb3VudF9yZWZlcmVuY2UiOiJWMDAxMDAxMzAxODAzNjc4Mjk5MTYyMjk2NTA3NiJ9LCJhdXRoX2NvZGUiOiIxMTIyMzMiLCJwYXltZW50X21ldGhvZF90eXBlIjoidXNfdmlzYV9jYXJkIiwiY29tcGxldGVfcGF5bWVudF91cmwiOiIiLCJzdGF0ZW1lbnRfZGVzY3JpcHRvciI6IlJhcHlkIiwibWVyY2hhbnRfcmVmZXJlbmNlX2lkIjoiIiwicGF5bWVudF9tZXRob2Rfb3B0aW9ucyI6e30sIm1lcmNoYW50X3JlcXVlc3RlZF9hbW91bnQiOm51bGwsIm1lcmNoYW50X3JlcXVlc3RlZF9jdXJyZW5jeSI6bnVsbCwicGF5bWVudF9tZXRob2RfdHlwZV9jYXRlZ29yeSI6ImNhcmQiLCJtZXJjaGFudF9hZHZpY2VfY29kZSI6bnVsbCwibWVyY2hhbnRfYWR2aWNlX21lc3NhZ2UiOm51bGwsIm1lcmNoYW50X2V3YWxsZXQiOm51bGwsInRyYW5zYWN0aW9uX2xpbmtfaWQiOm51bGx9LCJ0cmlnZ2VyX29wZXJhdGlvbl9pZCI6IjJjYmQ0N2MzLTQxMTAtNDAzNy05NjZiLWYwMzkyZGQ2NWUwZCIsInN0YXR1cyI6Ik5FVyIsImNyZWF0ZWRfYXQiOjE2NDAwODgzNDYsImV4dGVuZGVkX3RpbWVzdGFtcCI6MTY0MDA4ODM0NjEyM30="
+      },
+      "merchant_event_id": "rapyd_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rapyd_test_access_key_NOT_A_CREDENTIAL\",\"secret_key\":\"rapyd_test_secret_key_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  }
+}
