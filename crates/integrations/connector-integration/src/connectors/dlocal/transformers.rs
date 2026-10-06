@@ -911,6 +911,12 @@ pub struct DlocalSetupMandateResponse {
     pub card: Option<DlocalSetupMandateCardData>,
 }
 
+impl DlocalSetupMandateResponse {
+    pub fn flow_status(&self) -> DlocalPaymentStatus {
+        self.status.clone()
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<DlocalSetupMandateResponse, Self>>
     for RouterDataV2<

@@ -169,11 +169,11 @@ domain_types::impl_flow_status_mapping! {
         use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::VoidFailed,
-            (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::Pending,
-            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::VoidInitiated,
+            (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
+            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Authorized,
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Voided,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::VoidFailed,
-            (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,
+            (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Authorizing,
         }
     }
 }
@@ -236,7 +236,8 @@ domain_types::impl_flow_status_mapping! {
         use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
-            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Pending,
+            (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::Pending,
+            (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Authorized,
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::CaptureFailed,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::CaptureFailed,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,

@@ -486,11 +486,11 @@ domain_types::impl_flow_status_mapping! {
         ProcessorDeclined     => Failure,
         GatewayRejected       => Failure,
         Voided                => Failure,
-        Settling              => Pending,
-        SettlementPending     => Pending,
+        Settling              => Charged,
+        SettlementPending     => Charged,
         SettlementDeclined    => Failure,
         SettlementConfirmed   => Charged,
-        SubmittedForSettlement => Pending,
+        SubmittedForSettlement => Charged,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -521,11 +521,11 @@ domain_types::impl_flow_status_mapping! {
         ProcessorDeclined     => Failure,
         GatewayRejected       => Failure,
         Voided                => Failure,
-        Settling              => Pending,
-        SettlementPending     => Pending,
+        Settling              => Charged,
+        SettlementPending     => Charged,
         SettlementDeclined    => Failure,
         SettlementConfirmed   => Charged,
-        SubmittedForSettlement => Pending,
+        SubmittedForSettlement => Charged,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

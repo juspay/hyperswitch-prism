@@ -537,7 +537,36 @@ impl TrustpayAuthorizeStatus {
             },
             Self::BankRedirectInitiated => enums::AttemptStatus::AuthenticationPending,
             Self::BankRedirect(bank_status) => enums::AttemptStatus::from(bank_status),
-            Self::BankRedirectErrorRetainPrevious => previous_attempt_status,
+            // The runtime status framework rejects any status outside the flow's ALLOWED
+            // set, so bound the retained prior status to values Authorize and PSync both
+            // accept. Anything else (e.g. a stale CaptureInitiated / VoidedPostCapture on
+            // retry) becomes Pending rather than a ConnectorError.
+            Self::BankRedirectErrorRetainPrevious => match previous_attempt_status {
+                enums::AttemptStatus::Started
+                | enums::AttemptStatus::AuthenticationPending
+                | enums::AttemptStatus::AuthenticationSuccessful
+                | enums::AttemptStatus::AuthenticationFailed
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::PartiallyAuthorized
+                | enums::AttemptStatus::AuthorizationFailed
+                | enums::AttemptStatus::Authorizing
+                | enums::AttemptStatus::Charged
+                | enums::AttemptStatus::PartialCharged
+                | enums::AttemptStatus::PartialChargedAndChargeable
+                | enums::AttemptStatus::Voided
+                | enums::AttemptStatus::AutoRefunded
+                | enums::AttemptStatus::Expired
+                | enums::AttemptStatus::Unresolved
+                | enums::AttemptStatus::Unspecified
+                | enums::AttemptStatus::Unknown
+                | enums::AttemptStatus::Pending
+                | enums::AttemptStatus::Failure
+                | enums::AttemptStatus::PaymentMethodAwaited
+                | enums::AttemptStatus::ConfirmationAwaited
+                | enums::AttemptStatus::DeviceDataCollectionPending
+                | enums::AttemptStatus::IntegrityFailure => previous_attempt_status,
+                _ => enums::AttemptStatus::Pending,
+            },
             Self::BankRedirectErrorRejected => enums::AttemptStatus::AuthorizationFailed,
             Self::Webhook(webhook_status) => match webhook_status {
                 WebhookStatus::Paid => enums::AttemptStatus::Charged,

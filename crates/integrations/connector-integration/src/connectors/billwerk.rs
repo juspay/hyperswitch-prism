@@ -136,9 +136,9 @@ domain_types::impl_flow_status_mapping! {
         context: |_resource_common_data, _request, _response | (),
     },
     {
-        Created    => VoidInitiated,
-        Pending    => VoidInitiated,
-        Authorized => VoidInitiated,
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Authorized,
         Settled    => VoidFailed,
     }
 }
@@ -161,9 +161,9 @@ domain_types::impl_flow_status_mapping! {
         context: |_resource_common_data, _request, _response | (),
     },
     {
-        Created    => CaptureInitiated,
-        Pending    => CaptureInitiated,
-        Authorized => CaptureInitiated,
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Authorized,
         Cancelled  => CaptureFailed,
     }
 }
@@ -232,8 +232,8 @@ domain_types::impl_flow_status_mapping! {
     {
         Created    => Pending,
         Pending    => Pending,
-        Authorized => Pending,
-        Cancelled  => Failure,
+        Authorized => Authorized,
+        Cancelled  => Voided,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -258,7 +258,7 @@ domain_types::impl_flow_status_mapping! {
         Created    => Pending,
         Pending    => Pending,
         Authorized => Authorized,
-        Cancelled  => Failure,
+        Cancelled  => Voided,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

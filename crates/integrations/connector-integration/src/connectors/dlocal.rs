@@ -144,7 +144,7 @@ domain_types::impl_refund_flow_status_mapping! {
     success:   Success    => Success,
     failure:   Rejected   => Failure,
     extractors: {
-        request: RefundsData,
+        request: RefundSyncData,
         response: RefundSyncResponse,
         source: |_resource_common_data, _request, response| Ok(response.flow_status()),
         context: |_resource_common_data, _request, _response | (),
@@ -217,8 +217,8 @@ domain_types::impl_flow_status_mapping! {
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
     extractors: {
-        request: RepeatPaymentData<T>,
-        response: DlocalRepeatPaymentResponse,
+        request: SetupMandateRequestData<T>,
+        response: DlocalSetupMandateResponse,
         source: |_resource_common_data, _request, response| Ok(response.flow_status()),
         context: |_resource_common_data, _request, _response | (),
     },

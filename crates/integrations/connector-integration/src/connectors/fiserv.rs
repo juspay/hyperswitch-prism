@@ -153,7 +153,7 @@ domain_types::impl_refund_flow_status_mapping! {
     success:   Succeeded   => Success,
     failure:   Failed      => Failure,
     extractors: {
-        request: RefundsData,
+        request: RefundSyncData,
         response: FiservRefundSyncResponse,
         source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
         context: |_resource_common_data, _request, _response | (),
