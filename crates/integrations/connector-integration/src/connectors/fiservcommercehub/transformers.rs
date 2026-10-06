@@ -2461,7 +2461,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount
             .as_ref()
             .map(|money| money.amount)
-            .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
+            .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(error_stack::report!(
                 errors::IntegrationError::NotSupported {
