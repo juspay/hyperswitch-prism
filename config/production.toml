@@ -4,12 +4,17 @@ environment = "production"
 # WARNING: Enabling this can produce large gRPC error trailers. Client applications
 # and intermediate proxies must support a sufficiently large HTTP/2 maximum
 # header-list size.
-return_raw_and_typed_connector_data = true
+return_raw_connector_data = true
+return_typed_connector_data = true
 
 [log.console]
 enabled = true
-level = "TRACE"
-log_format = "default"
+# TRACE emits every span and event on every request, which is far more than a
+# deployed environment needs and expensive at payment volumes. `json` keeps the
+# output parseable by log aggregators; `default` is the human-readable format
+# and is kept in development.toml.
+level = "DEBUG"
+log_format = "json"
 
 [server]
 host = "0.0.0.0"
@@ -34,7 +39,7 @@ citigate.base_url = "https://gw.cgate.tech"
 paynearme.base_url = "https://api.paynearme.com/json-api"
 saferpay.base_url = "https://www.saferpay.com/api"
 paydotcom.base_url = "https://api.pay.com"
-ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
+ilixium.base_url = "https://processing.ilixium.com/platform/itix"
 globalpayments_heartland.base_url = "https://api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"

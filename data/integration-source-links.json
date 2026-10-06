@@ -1,4 +1,14 @@
 {
+  "Mifinity": [
+    "https://mifinity.readme.io/reference/account-to-account-transfer",
+    "https://mifinity.readme.io/docs/withdrawals-to-client-account",
+    "https://mifinity.readme.io/reference/pay-my-card",
+    "https://mifinity.readme.io/reference/get-transaction-status-traceid",
+    "https://mifinity.readme.io/docs/notification-callbacks",
+    "https://mifinity.readme.io/docs/merchant-signature-verification",
+    "https://mifinity.readme.io/docs/security-requirements",
+    "https://mifinity.readme.io/docs/environment"
+  ],
   "Hyperswitch": [
     "https://raw.githubusercontent.com/juspay/hyperswitch/connector-integration-hs/api-reference/v1/openapi_spec_v1.json",
     "https://api-reference.hyperswitch.io/introduction",
@@ -359,6 +369,7 @@
     "https://developer.globalpayments.com/api/3d-secure-two",
     "https://developer.globalpayments.com/resources/messages",
     "https://developer.globalpayments.com/resources/test-cards"
+  ],
   "D24": [
     "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
     "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",

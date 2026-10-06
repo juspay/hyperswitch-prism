@@ -115,7 +115,12 @@ pub fn handle_json_response_deserialization_failure(
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+    deja::id(
+        component = "domain_types",
+        operation = "generate_random_bytes",
+        codec = SerdeCodec,
+        on_miss = common_utils::synth_shape::byte_vec(&__deja_miss, length),
+    )
 )]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n

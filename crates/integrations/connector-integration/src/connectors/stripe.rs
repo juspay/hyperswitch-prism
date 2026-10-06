@@ -71,12 +71,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::macro_connector_payout_implementation!(
-    connector: Stripe,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Stripe<T>
 {
@@ -851,6 +845,36 @@ macros::macro_connector_implementation!(
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
             )];
+
+            // A Stripe *direct* charge routes by the `Stripe-Account` header, not by
+            // `on_behalf_of`, so a SetupMandate on a connected account has to carry it -- the
+            // sibling CreateConnectorCustomer flow below already does.
+            let transfer_account_id = req
+                .request
+                .split_payments
+                .as_ref()
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
+                })
+                .filter(|stripe_split_payment| {
+                    matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
+                })
+                .map(|stripe_split_payment| stripe_split_payment.transfer_account_id.clone());
+
+            if let Some(transfer_account_id) = transfer_account_id {
+                let mut customer_account_header = vec![(
+                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    transfer_account_id.clone().into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            };
+
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
