@@ -61,13 +61,41 @@ pub(crate) fn prepare_payout_request<T: PayoutProxyRequest>(
         .payout_method()
         .and_then(|method| method.payout_method_data.as_ref());
     let vault_header = headers.get(X_EXTERNAL_VAULT_METADATA);
-    let card = match (method, vault_header) {
+    match (method, vault_header) {
         (Some(PayoutMethodData::CardProxy(card)), Some(header)) => {
             validate_vault_config(header.peek(), metadata, &flow)?;
-            card
+            let connector = metadata.connector.as_payout().or_else(|| {
+                metadata
+                    .connector
+                    .as_payment()
+                    .and_then(|connector| PayoutConnectorEnum::try_from(connector).ok())
+            });
+            match (metadata.shadow_mode, &flow, connector) {
+                (true, _, _) => Err(unsupported(
+                    "Shadow execution is not supported for proxy payouts",
+                    metadata,
+                    &flow,
+                    "Disable shadow execution for external-vault proxy payouts",
+                )),
+                (false, FlowName::PayoutTransfer, Some(PayoutConnectorEnum::Nuvei)) => Ok(Some(
+                    crate::types::InjectorTokenData::foreign_try_from(card)?.0,
+                )),
+                (false, FlowName::PayoutTransfer, _) => Err(unsupported(
+                    "This payout connector does not support external-vault proxy execution",
+                    metadata,
+                    &flow,
+                    "Select Nuvei for the supported external-vault proxy transfer flow",
+                )),
+                (false, _, _) => Err(unsupported(
+                    "This payout subflow does not support external-vault proxy execution",
+                    metadata,
+                    &flow,
+                    "Use PayoutTransfer for external-vault proxy execution",
+                )),
+            }
         }
         (Some(PayoutMethodData::CardProxy(_)), None) => {
-            return Err(IntegrationError::MissingRequiredField {
+            Err(IntegrationError::MissingRequiredField {
                 field_name: X_EXTERNAL_VAULT_METADATA,
                 context: proxy_error_context(
                     metadata,
@@ -76,56 +104,20 @@ pub(crate) fn prepare_payout_request<T: PayoutProxyRequest>(
                     "Supply the external-vault metadata header with CardProxy",
                 ),
             }
-            .into());
-        }
-        (_, Some(_)) => {
-            return Err(IntegrationError::InvalidDataFormat {
-                field_name: "payout_method_data",
-                context: proxy_error_context(
-                    metadata,
-                    &flow,
-                    "External-vault metadata requires a CardProxy payout method",
-                    "Use CardProxy, or omit the vault header for normal payouts",
-                ),
-            }
             .into())
         }
-        (_, None) => return Ok(None),
-    };
-
-    if metadata.shadow_mode {
-        return Err(unsupported(
-            "Shadow execution is not supported for proxy payouts",
-            metadata,
-            &flow,
-            "Disable shadow execution for external-vault proxy payouts",
-        ));
+        (_, Some(_)) => Err(IntegrationError::InvalidDataFormat {
+            field_name: "payout_method_data",
+            context: proxy_error_context(
+                metadata,
+                &flow,
+                "External-vault metadata requires a CardProxy payout method",
+                "Use CardProxy, or omit the vault header for normal payouts",
+            ),
+        }
+        .into()),
+        (_, None) => Ok(None),
     }
-    if !matches!(flow, FlowName::PayoutTransfer) {
-        return Err(unsupported(
-            "This payout subflow does not support external-vault proxy execution",
-            metadata,
-            &flow,
-            "Use PayoutTransfer for external-vault proxy execution",
-        ));
-    }
-    let connector = metadata.connector.as_payout().or_else(|| {
-        metadata
-            .connector
-            .as_payment()
-            .and_then(|connector| PayoutConnectorEnum::try_from(connector).ok())
-    });
-    if connector != Some(PayoutConnectorEnum::Nuvei) {
-        return Err(unsupported(
-            "This payout connector does not support external-vault proxy execution",
-            metadata,
-            &flow,
-            "Select Nuvei for the supported external-vault proxy transfer flow",
-        ));
-    }
-    Ok(Some(
-        crate::types::InjectorTokenData::foreign_try_from(card)?.0,
-    ))
 }
 
 fn proxy_error_context(

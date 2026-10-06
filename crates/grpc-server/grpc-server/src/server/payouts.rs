@@ -614,14 +614,11 @@ impl PayoutOperationsInternal for Payouts {
                 {
                     Some(grpc_api_types::payouts::payout_method::PayoutMethodData::CardProxy(
                         card,
-                    )) => card.clone(),
-                    _ => {
-                        return Err(GrpcError::from(IntegrationError::MismatchedPaymentData {
-                            context: Default::default(),
-                        })
-                        .into())
-                    }
-                };
+                    )) => Ok(card.clone()),
+                    _ => Err(GrpcError::from(IntegrationError::MismatchedPaymentData {
+                        context: Default::default(),
+                    })),
+                }?;
                 let method = PayoutMethodData::Card(
                     CardPayout::<VaultTokenHolder>::foreign_try_from(card).to_grpc_error()?,
                 );

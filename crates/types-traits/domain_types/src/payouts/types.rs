@@ -1435,19 +1435,17 @@ impl<T: PaymentMethodDataTypes>
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)

@@ -98,17 +98,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let data = &item.router_data;
         let auth = NuveiAuthType::try_from(&data.connector_config)?;
-        let ConnectorSpecificConfig::Nuvei {
-            merchant_id,
-            merchant_site_id,
-            ..
-        } = &data.connector_config
-        else {
-            return Err(IntegrationError::FailedToObtainAuthType {
+        let (merchant_id, merchant_site_id) = match &data.connector_config {
+            ConnectorSpecificConfig::Nuvei {
+                merchant_id,
+                merchant_site_id,
+                ..
+            } => Ok((merchant_id, merchant_site_id)),
+            _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
-            }
-            .into());
-        };
+            })),
+        }?;
         let request = &data.request;
         let amount = StringMajorUnitForConnector
             .convert(request.amount, request.destination_currency)
@@ -118,10 +117,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let currency = request.destination_currency.to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
-        let reference = &data.resource_common_data.connector_request_reference_id;
-        if reference.trim().is_empty() {
-            return Err(missing("merchant_payout_id"));
-        }
+        let reference = match &data.resource_common_data.connector_request_reference_id {
+            reference if !reference.trim().is_empty() => Ok(reference),
+            _ => Err(missing("merchant_payout_id")),
+        }?;
         let user_token_id = request
             .customer
             .as_ref()
@@ -137,7 +136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .ok_or_else(|| missing("payout_method_data"))?
         {
-            PayoutMethodData::Card(card) => NuveiPayoutMethod::Card {
+            PayoutMethodData::Card(card) => Ok(NuveiPayoutMethod::Card {
                 card_data: NuveiPayoutCard {
                     card_number: card.card_number.clone(),
                     card_holder_name: card
@@ -148,21 +147,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     expiration_month: card.expiry_month.clone(),
                     expiration_year: card.expiry_year.clone(),
                 },
-            },
-            PayoutMethodData::Passthrough(token) => NuveiPayoutMethod::Passthrough {
+            }),
+            PayoutMethodData::Passthrough(token) => Ok(NuveiPayoutMethod::Passthrough {
                 user_payment_option: NuveiPayoutPaymentOption {
                     user_payment_option_id: token.psp_token.clone(),
                 },
-            },
-            _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payout method".to_owned(),
-                    connector: "nuvei",
-                    context: Default::default(),
-                }
-                .into())
-            }
-        };
+            }),
+            _ => Err(Report::new(IntegrationError::NotSupported {
+                message: "Payout method".to_owned(),
+                connector: "nuvei",
+                context: Default::default(),
+            })),
+        }?;
         // Nuvei signs only these non-card fields, so vault substitution does not invalidate the checksum.
         let checksum = auth.generate_checksum(&[
             merchant_id.peek(),
@@ -247,44 +243,43 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, 
             http_code,
         } = item;
         let status = match response.status {
-            NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => PayoutStatus::Failure,
-            NuveiPaymentStatus::Processing => PayoutStatus::Pending,
+            NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Ok(PayoutStatus::Failure),
+            NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
             NuveiPaymentStatus::Success => match response.transaction_status {
-                Some(NuveiTransactionStatus::Approved) => PayoutStatus::Success,
+                Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
                 Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
-                    PayoutStatus::Failure
+                    Ok(PayoutStatus::Failure)
                 }
                 Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
-                    PayoutStatus::Pending
+                    Ok(PayoutStatus::Pending)
                 }
-                Some(NuveiTransactionStatus::Redirect) => PayoutStatus::Ineligible,
-                None => {
-                    return Err(crate::utils::response_handling_fail_for_connector(
-                        http_code, "nuvei",
-                    )
-                    .into())
-                }
+                Some(NuveiTransactionStatus::Redirect) => Ok(PayoutStatus::Ineligible),
+                None => Err(Report::new(
+                    crate::utils::response_handling_fail_for_connector(http_code, "nuvei"),
+                )),
             },
-        };
-        router_data.response = if status == PayoutStatus::Failure {
-            Err(response.error_response(http_code))
-        } else {
-            let transaction_id = response
-                .transaction_id
-                .as_ref()
-                .filter(|id| !id.is_empty())
-                .cloned();
-            if status == PayoutStatus::Success && transaction_id.is_none() {
-                return Err(
-                    crate::utils::response_handling_fail_for_connector(http_code, "nuvei").into(),
-                );
+        }?;
+        router_data.response = match status {
+            PayoutStatus::Failure => Err(response.error_response(http_code)),
+            status => {
+                let transaction_id = response
+                    .transaction_id
+                    .as_ref()
+                    .filter(|id| !id.is_empty())
+                    .cloned();
+                let connector_payout_id = match (status, transaction_id) {
+                    (PayoutStatus::Success, None) => Err(Report::new(
+                        crate::utils::response_handling_fail_for_connector(http_code, "nuvei"),
+                    )),
+                    (_, transaction_id) => Ok(transaction_id),
+                }?;
+                Ok(PayoutTransferResponse {
+                    merchant_payout_id: router_data.request.merchant_payout_id.clone(),
+                    payout_status: status,
+                    connector_payout_id,
+                    status_code: http_code,
+                })
             }
-            Ok(PayoutTransferResponse {
-                merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: status,
-                connector_payout_id: transaction_id,
-                status_code: http_code,
-            })
         };
         Ok(router_data)
     }
