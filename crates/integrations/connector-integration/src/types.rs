@@ -264,6 +264,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<T>::new()),
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
+            PayoutConnectorEnum::Mifinity => {
+                Box::new(payout_connectors::MifinityPayouts::<T>::new())
+            }
             PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<T>::new()),
             PayoutConnectorEnum::GotymeSanlam => {
                 Box::new(payout_connectors::GotymeSanlamPayouts::<T>::new())

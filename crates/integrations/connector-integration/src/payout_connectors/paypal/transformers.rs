@@ -371,6 +371,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                         doc_url: None,
                     },
                 })?,
+                PayoutWallet::Mifinity(_) => Err(IntegrationError::NotSupported {
+                    message: "Mifinity PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayPal Payout Transfer - MiFinity wallet is not supported for payouts"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use PayPal or Venmo wallet for payouts".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?,
             },
             _ => Err(IntegrationError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
