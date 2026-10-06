@@ -393,7 +393,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -405,7 +405,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     doc_url: None,
                     additional_context: Some(
-                        "Merchante Authorize: failed to convert PaymentsAuthorizeData.minor_amount \
+                        "Merchante Authorize: failed to convert PaymentsAuthorizeData.amount.amount \
                          into Merchante's decimal-string amount (StringMajorUnit)."
                             .to_string(),
                     ),
@@ -731,7 +731,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -744,7 +744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     doc_url: None,
                     additional_context: Some(
                         "Merchante Capture (transaction_type=S): failed to convert \
-                         PaymentsCaptureData.minor_amount_to_capture into Merchante's \
+                         PaymentsCaptureData.amount_to_capture.amount into Merchante's \
                          decimal-string amount (StringMajorUnit)."
                             .to_string(),
                     ),
@@ -951,7 +951,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Full refund when refund_amount == payment_amount; partial otherwise.
         let is_full_refund =
-            router_data.request.minor_refund_amount == router_data.request.minor_payment_amount;
+            router_data.request.refund_amount.amount == router_data.request.payment_amount.amount;
 
         let amount = if is_full_refund {
             None
@@ -960,7 +960,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector
                     .amount_converter
                     .convert(
-                        router_data.request.minor_refund_amount,
+                        router_data.request.refund_amount.amount,
                         router_data.request.currency,
                     )
                     .change_context(IntegrationError::AmountConversionFailed {
@@ -973,7 +973,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             doc_url: None,
                             additional_context: Some(
                                 "Merchante Refund (transaction_type=U, partial): failed to convert \
-                                 RefundsData.minor_refund_amount into Merchante's decimal-string \
+                                 RefundsData.refund_amount.amount into Merchante's decimal-string \
                                  amount."
                                     .to_string(),
                             ),
@@ -1084,7 +1084,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1097,7 +1097,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     doc_url: None,
                     additional_context: Some(
                         "Merchante RepeatPayment (MIT): failed to convert \
-                         RepeatPaymentData.minor_amount into Merchante's decimal-string amount."
+                         RepeatPaymentData.amount.amount into Merchante's decimal-string amount."
                             .to_string(),
                     ),
                 },

@@ -354,7 +354,7 @@ impl<T: PaymentMethodDataTypes>
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -468,7 +468,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .convert(item.request.amount_to_capture.amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -629,7 +629,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(item.request.refund_amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -733,13 +733,14 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
 
         // Get the amount from the original transaction
         // For void, we typically void the full amount
-        let minor_amount = item
-            .request
-            .amount
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "amount",
-                context: Default::default(),
-            })?;
+        let minor_amount =
+            item.request
+                .amount
+                .as_ref()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: Default::default(),
+                })?;
 
         // Get currency from request
         let currency = item
@@ -753,7 +754,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(minor_amount, currency)
+            .convert(minor_amount.amount, currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })

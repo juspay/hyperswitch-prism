@@ -568,7 +568,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             instruction: Instruction {
                 settlement: get_settlement_info(
                     &item.router_data,
-                    item.router_data.request.minor_amount,
+                    item.router_data.request.amount.amount,
                 ),
                 method: PaymentMethod::try_from((
                     item.router_data.resource_common_data.payment_method,
@@ -582,7 +582,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -736,7 +736,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -904,7 +904,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -926,7 +926,7 @@ impl<
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -1175,7 +1175,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount: item.router_data.request.amount_to_capture.amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1308,7 +1308,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_refund_amount,
+                amount: item.router_data.request.refund_amount.amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1785,7 +1785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount,
+                amount: item.router_data.request.amount.amount,
                 currency: item.router_data.request.currency,
             },
         })

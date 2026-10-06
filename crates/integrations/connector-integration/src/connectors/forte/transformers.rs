@@ -226,7 +226,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector
                     .amount_converter
                     .convert(
-                        item.router_data.request.minor_amount,
+                        item.router_data.request.amount.amount,
                         item.router_data.request.currency,
                     )
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .connector
                         .amount_converter
                         .convert(
-                            item.router_data.request.minor_amount,
+                            item.router_data.request.amount.amount,
                             item.router_data.request.currency,
                         )
                         .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
@@ -646,16 +646,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let minor_amount_authorized = item
+        let amount_authorized = item
             .router_data
             .resource_common_data
-            .minor_amount_capturable
+            .amount_capturable
+            .map(|amount| amount.amount)
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
             })?;
 
-        if item.router_data.request.minor_amount_to_capture != minor_amount_authorized {
+        if item.router_data.request.amount_to_capture.amount != amount_authorized {
             return Err(IntegrationError::NotSupported {
                 message: "Forte only supports full captures.".to_string(),
                 connector: "Forte",
@@ -877,7 +878,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

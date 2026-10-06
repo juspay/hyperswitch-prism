@@ -386,7 +386,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            minor_amount_captured: None,
+            amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: details.params.data.accountid.clone(),

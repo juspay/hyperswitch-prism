@@ -133,7 +133,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             response_headers: None,
-            minor_amount_captured: None,
+            amount_captured: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

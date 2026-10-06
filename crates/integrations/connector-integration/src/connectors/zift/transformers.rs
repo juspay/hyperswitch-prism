@@ -2,7 +2,7 @@ use crate::{connectors::zift::ZiftRouterData, types::ResponseRouterData};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
-    types::{MinorUnit, StringMinorUnit},
+    types::StringMinorUnit,
 };
 use error_stack::{report, Report, ResultExt};
 use std::fmt::Debug;
@@ -501,7 +501,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.minor_amount, request_data.currency)
+            .convert(request_data.amount.amount, request_data.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -726,7 +726,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.minor_amount, request_data.currency)
+            .convert(request_data.amount.amount, request_data.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -978,7 +978,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1080,7 +1080,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if item
             .router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1309,7 +1311,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

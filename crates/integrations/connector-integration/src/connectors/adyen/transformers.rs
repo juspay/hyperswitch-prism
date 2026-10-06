@@ -1369,7 +1369,7 @@ fn get_amount_data<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: item.router_data.request.minor_amount.to_owned(),
+        value: item.router_data.request.amount.amount.to_owned(),
     }
 }
 
@@ -4410,12 +4410,21 @@ where
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| common_utils::types::Money {
+            amount,
+            currency: router_data
+                .resource_common_data
+                .amount
+                .as_ref()
+                .map(|money| money.currency)
+                .unwrap_or_default(),
+        });
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -4424,7 +4433,7 @@ where
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -4532,12 +4541,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| common_utils::types::Money {
+            amount,
+            currency: router_data.request.currency,
+        });
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -4546,7 +4559,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -6357,7 +6370,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_refund_amount,
+                value: item.router_data.request.refund_amount.amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -6437,7 +6450,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount_to_capture.to_owned(),
+                value: item.router_data.request.amount_to_capture.amount.to_owned(),
             },
         })
     }
@@ -6967,12 +6980,16 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| common_utils::types::Money {
+            amount,
+            currency: router_data.request.currency,
+        });
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -6981,7 +6998,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -7005,7 +7022,13 @@ fn get_amount_data_for_setup_mandate<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: MinorUnit::new(item.router_data.request.amount.unwrap_or(0)),
+        value: item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+            .unwrap_or_else(MinorUnit::zero),
     }
 }
 
@@ -7178,7 +7201,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.router_data.request.minor_amount,
+            value: item.router_data.request.amount.amount,
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
@@ -8142,8 +8165,8 @@ fn get_line_items<
             .collect(),
         None => {
             let line_item = LineItem {
-                amount_including_tax: Some(item.router_data.request.amount),
-                amount_excluding_tax: Some(item.router_data.request.amount),
+                amount_including_tax: Some(item.router_data.request.amount.amount),
+                amount_excluding_tax: Some(item.router_data.request.amount.amount),
                 description: item.router_data.resource_common_data.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
@@ -8344,7 +8367,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
@@ -8468,7 +8491,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
@@ -8598,7 +8621,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount.to_owned(),
+                value: item.router_data.request.amount.amount.to_owned(),
             },
             reference: Some(
                 item.router_data

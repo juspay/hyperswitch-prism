@@ -729,7 +729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(request.amount.amount, request.currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -737,7 +737,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount.get_amount_as_i64(),
+                        request.amount.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -830,7 +830,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount, currency)
+            .convert(request.amount.amount, currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -838,7 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert amount {} {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.amount.get_amount_as_i64(),
+                        request.amount.amount.get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1048,7 +1048,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount_to_capture, request.currency)
+            .convert(request.amount_to_capture.amount, request.currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1056,7 +1056,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount_to_capture.get_amount_as_i64(),
+                        request.amount_to_capture.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1117,7 +1117,7 @@ pub struct IlixiumVoidRequest {
 /// wire — a caller may legitimately omit it. Ilixium, however, makes `transaction.amount`
 /// mandatory *and* requires it to equal the original transaction's amount exactly. There is no
 /// second source to fall back on: `PaymentFlowData` is built for the Void flow with `amount`,
-/// `minor_amount_captured`, `minor_amount_capturable` and `minor_amount_authorized` all set to
+/// `amount_captured`, `amount_capturable` and `amount_authorized` all set to
 /// `None`, so `resource_common_data` knows nothing about the payment's value either.
 ///
 /// Every way of papering over that would be worse than failing:
@@ -1175,7 +1175,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         };
 
-        let minor_amount = request.amount.ok_or_else(|| missing("amount", "amount"))?;
+        let minor_amount = request
+            .amount
+            .as_ref()
+            .ok_or_else(|| missing("amount", "amount"))?;
         let currency = request
             .currency
             .ok_or_else(|| missing("currency", "currency"))?;
@@ -1183,7 +1186,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(minor_amount, currency)
+            .convert(minor_amount.amount, currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1191,7 +1194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert void amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.get_amount_as_i64(),
+                        minor_amount.amount.get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1398,7 +1401,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_refund_amount, request.currency)
+            .convert(request.refund_amount.amount, request.currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1406,7 +1409,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_refund_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_refund_amount.get_amount_as_i64(),
+                        request.refund_amount.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },

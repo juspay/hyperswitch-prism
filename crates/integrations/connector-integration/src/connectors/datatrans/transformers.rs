@@ -516,7 +516,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.minor_amount),
+            amount: Some(router_data.request.amount.amount),
             card,
             auto_settle,
             redirect,
@@ -1177,7 +1177,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.minor_amount),
+            amount: Some(router_data.request.amount.amount),
             card: Some(card),
             // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
             // Manual/ManualMultiple/Scheduled -> false.
@@ -1589,7 +1589,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         // Get the amount to capture from minor_amount_to_capture
-        let amount = router_data.request.minor_amount_to_capture;
+        let amount = router_data.request.amount_to_capture.amount;
 
         Ok(Self {
             amount,
@@ -1688,7 +1688,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         // Get the refund amount from RefundsData
-        let amount = router_data.request.minor_refund_amount;
+        let amount = router_data.request.refund_amount.amount;
 
         Ok(Self {
             amount,
@@ -2033,7 +2033,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: router_data.request.amount.amount,
             currency: router_data.request.currency,
             return_url: router_data
                 .resource_common_data

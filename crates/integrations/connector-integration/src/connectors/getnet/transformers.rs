@@ -699,7 +699,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 let payment_id = common_utils::fp_utils::generate_uuid_v4();
                 let customer = build_boleto_customer(item, boleto_data)?;
                 let data = GetnetBoletoData {
-                    amount: item.request.minor_amount,
+                    amount: item.request.amount.amount,
                     // Globalgetnet's boleto endpoint requires BRL — the seller config
                     // dictates this; we don't have a path to remap so propagate as-is
                     // and trust the upstream `currency` choice (the gateway will reject
@@ -758,7 +758,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         .get_string_repr()
                         .to_string();
                     return Ok(Self::Pix(GetnetPixAuthorize {
-                        amount: item.request.minor_amount,
+                        amount: item.request.amount.amount,
                         currency: item.request.currency,
                         order_id: request_ref_id,
                         customer_id,
@@ -891,7 +891,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 
         let data = GetnetPaymentData {
             customer_id,
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             currency: item.request.currency,
             customer: None,
             payment,
@@ -1150,7 +1150,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        let capture_amount_minor = router_data.request.minor_amount_to_capture;
+        let capture_amount_minor = router_data.request.amount_to_capture.amount;
 
         Ok(Self {
             idempotency_key: router_data
@@ -1317,7 +1317,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .connector_request_reference_id
                 .clone(),
             payment_id,
-            amount: router_data.request.minor_refund_amount,
+            amount: router_data.request.refund_amount.amount,
             payment_method: payment_method.to_string(),
         })
     }
@@ -1474,6 +1474,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             router_data
                 .request
                 .amount
+                .as_ref()
                 .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -1492,7 +1493,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .connector_request_reference_id
                 .clone(),
             payment_id,
-            amount: void_amount,
+            amount: void_amount.amount,
             payment_method: GetnetPaymentMethod::DirectCreditAuthorization.to_string(),
         })
     }
@@ -1758,7 +1759,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             operation,
             currency: item.request.currency,
-            amount: Some(item.request.amount),
+            amount: Some(item.request.amount.amount),
             term_url: item
                 .request
                 .router_return_url

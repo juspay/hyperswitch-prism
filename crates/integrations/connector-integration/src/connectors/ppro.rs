@@ -281,7 +281,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             mandate_reference: None,
             response_headers: None,
-            minor_amount_captured: None,
+            amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

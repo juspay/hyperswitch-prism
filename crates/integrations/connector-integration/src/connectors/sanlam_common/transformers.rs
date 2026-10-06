@@ -288,7 +288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }?;
 
         Ok(Self {
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
             currency: item.router_data.request.currency,
             payment_method,
             user_reference: item
@@ -547,7 +547,7 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         network_txn_id: None,
                         raw_connector_response: None,
                         response_headers: None,
-                        minor_amount_captured: None,
+                        amount_captured: None,
                         payment_method_update: None,
                         status_code: 200,
                         sender_payment_instrument_id: None,
@@ -567,7 +567,7 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         connector_request_reference_id: Some(payment_event.payment.user_reference),
                         raw_connector_response: None,
                         response_headers: None,
-                        minor_amount_captured: None,
+                        amount_captured: None,
                         payment_method_update: None,
                         error_code: None,
                         error_message: None,

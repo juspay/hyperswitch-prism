@@ -533,7 +533,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: router_data.request.amount.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -809,7 +809,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: item.router_data.request.minor_amount_to_capture,
+            capture_amount: item.router_data.request.amount_to_capture.amount,
             idempotency_id: None,
         })
     }
@@ -1052,7 +1052,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.minor_refund_amount,
+            refund_amount: item.router_data.request.refund_amount.amount,
             idempotency_id: None,
         })
     }
@@ -1771,7 +1771,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.minor_amount,
+            amount: router_data.request.amount.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -2317,7 +2317,12 @@ pub(super) fn build_finix_payment_webhook_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        minor_amount_captured: resource.captured_amount,
+        amount_captured: resource
+            .captured_amount
+            .map(|amount| common_utils::types::Money {
+                amount,
+                currency: resource.currency,
+            }),
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,

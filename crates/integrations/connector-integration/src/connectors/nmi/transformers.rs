@@ -416,7 +416,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let converter = FloatMajorUnitForConnector;
             let amount = converter
                 .convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -519,7 +519,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let converter = FloatMajorUnitForConnector;
             let amount = converter
                 .convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -973,7 +973,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1089,7 +1089,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1505,7 +1505,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = item.router_data.request.amount;
+                let amount_data = item.router_data.request.amount.amount;
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1706,7 +1706,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Hyperswitch parity: NMI SetupMandate (Validate) only supports zero amount.
         if router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
         {
             return Err(IntegrationError::NotSupported {
@@ -1967,7 +1969,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = FloatMajorUnitForConnector
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

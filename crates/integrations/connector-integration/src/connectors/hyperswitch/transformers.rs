@@ -124,7 +124,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -475,7 +475,7 @@ pub fn build_webhook_payment_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        minor_amount_captured: None,
+        amount_captured: None,
         network_txn_id: payment.connector_transaction_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,

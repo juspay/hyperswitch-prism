@@ -660,7 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1254,7 +1254,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
@@ -1460,7 +1460,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = match (router_data.request.amount, router_data.request.currency) {
+        let amount = match (
+            router_data
+                .request
+                .amount
+                .as_ref()
+                .map(|money| money.amount),
+            router_data.request.currency,
+        ) {
             (Some(minor_amount), Some(currency)) => {
                 let total =
                     utils::convert_amount(item.connector.amount_converter, minor_amount, currency)?;
@@ -1679,7 +1686,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
@@ -1817,7 +1824,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -2018,7 +2025,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // SetupMandate (tokenization) should not have an amount - it's for storing cards without charging
         if router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
         {
             return Err(error_stack::report!(

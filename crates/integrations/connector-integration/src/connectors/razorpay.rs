@@ -315,7 +315,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -656,7 +656,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -785,7 +785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -981,7 +981,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            minor_amount_captured: None,
+            amount_captured: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
@@ -1060,7 +1060,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_refund_amount, req.request.currency)
+            .convert(req.request.refund_amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1170,7 +1170,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_amount_to_capture, req.request.currency)
+            .convert(req.request.amount_to_capture.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

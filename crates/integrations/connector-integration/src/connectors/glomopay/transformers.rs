@@ -252,7 +252,7 @@ impl GlomopayWebhookPayload {
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
-            minor_amount_captured: None,
+            amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -596,7 +596,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
 
         let amount = GlomopayAmountConvertor::convert(
-            router_data.request.amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1083,7 +1083,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
 
         let amount = GlomopayAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 
