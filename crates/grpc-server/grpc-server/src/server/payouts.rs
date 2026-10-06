@@ -32,7 +32,7 @@ use grpc_api_types::payouts::{
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
-use ucs_env::error::{GrpcError, ResultExtGrpc};
+use ucs_env::error::ResultExtGrpc;
 
 use crate::{
     implement_connector_operation,
@@ -375,7 +375,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -385,7 +385,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceTransferResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -393,14 +393,20 @@ pub(crate) trait PayoutOperationsInternal {
         &self,
         request: RequestData<PayoutServiceGetRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceGetResponse>, error_stack::Report<GrpcError>>,
+        Output = Result<
+            tonic::Response<PayoutServiceGetResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_void(
         &self,
         request: RequestData<PayoutServiceVoidRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceVoidResponse>, error_stack::Report<GrpcError>>,
+        Output = Result<
+            tonic::Response<PayoutServiceVoidResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_stage(
@@ -409,7 +415,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceStageResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -419,7 +425,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateLinkResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -429,7 +435,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateRecipientResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -439,7 +445,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceEnrollDisburseAccountResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 
@@ -449,7 +455,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutMethodEligibilityResponse>,
-            error_stack::Report<GrpcError>,
+            error_stack::Report<ucs_env::error::GrpcError>,
         >,
     > + Send;
 }

@@ -1106,6 +1106,7 @@ macro_rules! implement_connector_operation {
         generate_response_fn: $generate_response_fn:path,
         connector_data_types: [$connector_data:ident],
         all_keys_required: $all_keys_required:expr,
+        // Payouts select the holder from payout_method_data; payments use payment_method.
         has_payout_method_data: option
     ) => {
         async fn $fn_name(
@@ -1138,7 +1139,7 @@ macro_rules! implement_connector_operation {
                 } = request;
                 let flow_name =
                     $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
-                let method = $crate::server::payouts::proxy::convert_payout_method_data(
+                let method_action = $crate::server::payouts::proxy::get_payout_method_data_action(
                     &payload,
                     &masked_metadata,
                     &metadata,
@@ -1205,7 +1206,6 @@ macro_rules! implement_connector_operation {
                         + serde::Serialize,
                 >(
                     payload: $request_type,
-                    method: Option<domain_types::payouts::payout_method_data::PayoutMethodData<T>>,
                     common_data: $resource_common_data_type,
                     metadata: &ucs_interface_common::metadata::MetadataPayload,
                     token_data: Option<injector::TokenData>,
@@ -1214,6 +1214,12 @@ macro_rules! implement_connector_operation {
                     test_context: Option<external_services::service::TestContext>,
                     api_tag: Option<String>,
                 ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>>
+                where
+                    domain_types::payouts::payout_method_data::PayoutMethodData<T>:
+                        domain_types::utils::ForeignTryFrom<
+                            grpc_api_types::payouts::PayoutMethod,
+                            Error = domain_types::errors::IntegrationError,
+                        >,
                 {
                     let integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                         'static,
@@ -1235,7 +1241,7 @@ macro_rules! implement_connector_operation {
                         ))
                     })?;
                     let request: $request_data_type<T> =
-                        $request_data_constructor((payload, method)).to_grpc_error()?;
+                        $request_data_constructor(payload).to_grpc_error()?;
                     let router_data = domain_types::router_data_v2::RouterDataV2::<
                         $flow_marker,
                         $resource_common_data_type,
@@ -1267,13 +1273,12 @@ macro_rules! implement_connector_operation {
                     $generate_response_fn(response).to_grpc_error()
                 }
 
-                let response = match method {
-                    $crate::server::payouts::proxy::ConvertedPayoutMethodData::Normal(method) => {
+                let response = match method_action {
+                    $crate::server::payouts::proxy::PayoutMethodDataAction::Normal => {
                         Box::pin(run_holder_flow::<
                             domain_types::payment_method_data::DefaultPCIHolder,
                         >(
                             payload,
-                            method,
                             common_data,
                             &metadata,
                             None,
@@ -1284,15 +1289,11 @@ macro_rules! implement_connector_operation {
                         ))
                         .await?
                     }
-                    $crate::server::payouts::proxy::ConvertedPayoutMethodData::Proxy(
-                        method,
-                        tokens,
-                    ) => {
+                    $crate::server::payouts::proxy::PayoutMethodDataAction::CardProxy(tokens) => {
                         Box::pin(run_holder_flow::<
                             domain_types::payment_method_data::VaultTokenHolder,
                         >(
                             payload,
-                            Some(method),
                             common_data,
                             &metadata,
                             Some(tokens),

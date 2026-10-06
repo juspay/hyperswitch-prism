@@ -2,8 +2,6 @@ use base64::Engine;
 use common_utils::{consts::X_EXTERNAL_VAULT_METADATA, events::FlowName, metadata::MaskedMetadata};
 use domain_types::{
     errors::{IntegrationError, IntegrationErrorContext},
-    payment_method_data::{DefaultPCIHolder, VaultTokenHolder},
-    payouts::payout_method_data::{CardPayout, PayoutMethodData as DomainPayoutMethodData},
     utils::ForeignTryFrom,
 };
 use external_services::service::{
@@ -52,51 +50,17 @@ reference_request!(
     payouts::PayoutServiceVoidRequest
 );
 
-pub(crate) enum ConvertedPayoutMethodData {
-    Normal(Option<DomainPayoutMethodData<DefaultPCIHolder>>),
-    Proxy(
-        DomainPayoutMethodData<VaultTokenHolder>,
-        injector::TokenData,
-    ),
+pub(crate) enum PayoutMethodDataAction {
+    Normal,
+    CardProxy(injector::TokenData),
 }
 
-pub(crate) fn convert_payout_method_data<T: PayoutProxyRequest>(
+pub(crate) fn get_payout_method_data_action<T: PayoutProxyRequest>(
     request: &T,
     headers: &MaskedMetadata,
     metadata: &MetadataPayload,
     flow: FlowName,
-) -> Result<ConvertedPayoutMethodData, error_stack::Report<IntegrationError>> {
-    let token_data = extract_payout_token_data(request, headers, metadata, flow)?;
-    match request
-        .payout_method()
-        .and_then(|method| method.payout_method_data.as_ref())
-    {
-        Some(PayoutMethodData::CardProxy(card)) => {
-            let card = CardPayout::<VaultTokenHolder>::foreign_try_from(card.clone())?;
-            let tokens = token_data.ok_or_else(|| IntegrationError::MismatchedPaymentData {
-                context: Default::default(),
-            })?;
-            Ok(ConvertedPayoutMethodData::Proxy(
-                DomainPayoutMethodData::Card(card),
-                tokens,
-            ))
-        }
-        _ => Ok(ConvertedPayoutMethodData::Normal(
-            request
-                .payout_method()
-                .cloned()
-                .map(DomainPayoutMethodData::foreign_try_from)
-                .transpose()?,
-        )),
-    }
-}
-
-pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
-    request: &T,
-    headers: &MaskedMetadata,
-    metadata: &MetadataPayload,
-    flow: FlowName,
-) -> Result<Option<injector::TokenData>, error_stack::Report<IntegrationError>> {
+) -> Result<PayoutMethodDataAction, error_stack::Report<IntegrationError>> {
     let method = request
         .payout_method()
         .and_then(|method| method.payout_method_data.as_ref());
@@ -111,7 +75,7 @@ pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
                     &flow,
                     "Disable shadow execution for external-vault proxy payouts",
                 )),
-                false => Ok(Some(
+                false => Ok(PayoutMethodDataAction::CardProxy(
                     crate::types::InjectorTokenData::foreign_try_from(card)?.0,
                 )),
             }
@@ -138,8 +102,20 @@ pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
             ),
         }
         .into()),
-        (_, None) => Ok(None),
+        (_, None) => Ok(PayoutMethodDataAction::Normal),
     }
+}
+
+pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
+    request: &T,
+    headers: &MaskedMetadata,
+    metadata: &MetadataPayload,
+    flow: FlowName,
+) -> Result<Option<injector::TokenData>, error_stack::Report<IntegrationError>> {
+    get_payout_method_data_action(request, headers, metadata, flow).map(|action| match action {
+        PayoutMethodDataAction::Normal => None,
+        PayoutMethodDataAction::CardProxy(tokens) => Some(tokens),
+    })
 }
 
 fn proxy_error_context(
