@@ -29,7 +29,9 @@ fn install_empty_replay_hook() {
     let table = deja::LookupTable {
         recording_id: "superposition-boundary-test".to_string(),
         policy_version: deja::POLICY_VERSION,
+        event_schema_version: Some(deja::CURRENT_EVENT_SCHEMA_VERSION),
         entries: vec![],
+        identity_entries: vec![],
     };
     let path = std::env::temp_dir().join(format!(
         "deja-superposition-boundary-{}.json",
