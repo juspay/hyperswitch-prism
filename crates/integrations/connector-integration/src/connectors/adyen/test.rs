@@ -427,7 +427,7 @@ mod tests {
         //             auth_type: common_enums::AuthenticationType::ThreeDs,
         //             connector_meta_data: None,
         //             amount_captured: None,
-        //             amount_captured: None,
+        //             amount_authorized: None,
         //             access_token: None,
         //             session_token: None,
         //             reference_id: None,
