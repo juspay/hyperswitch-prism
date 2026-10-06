@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded-judgement helper backed by TypeSafe System One ("Jev").
 
-Four sites, chosen with --site. Every option set is a vocabulary this repo already
+Five sites, chosen with --site. Every option set is a vocabulary this repo already
 defines, and every answer has a consumer that already reads it. Nothing here invents a
 taxonomy: an earlier version did, classifying spec claims as live_probed/doc_example/
 inherited, and no stage read those labels -- `grep -rniE 'confirmed[ _-]?live|warrant'`
@@ -21,6 +21,11 @@ over grace/workflow, the codegen guides and the native techspec workflow returns
               `2.3a` Phase 7's own five-rung precedence walk. The walk and its
               fail-closed terminal rung stay deterministic here; only the leaf
               "does this source decide it" is asked.                    ~20-120 items
+  brief       is this per-item brief entry sufficient to implement the item with no
+              further file reads? `2.3b` Phase 1 writes the brief; the implementing
+              step reads nothing else. Non-blocking: a false widens the brief. The
+              only self-calibrating site -- a file read inside the implementing
+              step is a recorded false positive.                           ~43 items
 
 Connector-agnostic by construction: it reads GRACE artefact schemas and the repo's own
 vocabularies. No connector name appears in its logic.
@@ -120,6 +125,28 @@ SITES = {
             "An open design question about a connector's request field is being resolved "
             "by consulting sources in a fixed order. Decide whether THIS source settles "
             "THIS field. Judge only the evidence given for this source."},
+    # 2.3b Phase 1 writes a brief per plan item so Phase 2 can implement it without
+    # re-reading the techspec, the pattern guides or the domain-type files. This asks
+    # whether that brief actually suffices. Non-blocking by design: a `false` widens the
+    # brief, it never fails a unit. It is the only site that calibrates itself -- a Bash
+    # call inside the implementing spawn is a recorded false positive.
+    "brief": {
+        "type": "noul", "blocks": False,
+        "criteria": {"true": "sufficient: every name, signature and line this item needs "
+                             "to be implemented is present in the brief entry",
+                     "false": "insufficient: implementing this item would require opening "
+                              "a file the brief does not quote"},
+        "instructions":
+            "A plan item is about to be implemented by a step that may read NOTHING but "
+            "the brief entry given here. Decide whether the entry is sufficient. It is "
+            "sufficient when the anchor text to be changed is quoted, and every type, "
+            "field, variant or helper the change must name is present with its real "
+            "signature -- not merely referenced by path. Answer `false` when the item "
+            "names a type whose definition is absent, when the quoted anchor does not "
+            "contain the code the action describes, or when the action requires a "
+            "convention (an amount unit, a status mapping, an error envelope) that "
+            "neither the item nor the brief states. Judge only what is given: a path, a "
+            "file name or a heading reference is not the content it points at."},
 }
 
 # 2.3a Phase 7's precedence walk, in order. The fifth rung is the fail-closed terminal
@@ -590,13 +617,30 @@ def _replay():
         assert "> 1: line1" in with_context(
             [{"file": "x/a.rs", "line": 1}], td, 3)[0]["surrounding_code"]
 
+    # brief: a noul site that must never block -- an insufficient brief widens the
+    # brief, it never fails a unit. theme stays the only blocking site.
+    assert SITES["brief"]["type"] == "noul" and SITES["brief"]["blocks"] is False
+    assert [k for k, v in SITES.items() if v["blocks"]] == ["theme"], \
+        "theme must remain the only blocking site"
+    for p_ in (0.04, 0.5, 0.96):
+        v, got, blk = decide("brief", {"noul": p_}, 0.5)
+        assert v is (p_ >= 0.5) and got == p_ and blk is False, (p_, v, got, blk)
+    # one question per item, keyed, with the item embedded (never positionally referenced)
+    bq = build("brief", [{"item_id": "P-Authorize-04", "current": "fn a() {}"},
+                         {"item_id": "P-Refund-01", "current": "fn b() {}"}])
+    assert sorted(bq) == ["k0", "k1"] and len(bq) == 2, bq
+    assert "P-Authorize-04" in bq["k0"]["instructions"], bq["k0"]
+    assert "P-Refund-01" in bq["k1"]["instructions"], bq["k1"]
+    assert bq["k0"]["criteria"] == SITES["brief"]["criteria"]
+
     # batching stays inside the documented budget
     big = chunks(build("links", els * 400), MAX_STATE_CHARS - 5_000)
     assert len(big) > 1 and all(len(c) <= MAX_QUESTIONS_PER_CALL for c in big)
 
     print("replay OK: link levels map to 0/0.5/1 and feed the file's own threshold, "
           "theme is the only blocking site, the undecided walk honours precedence over "
-          "probability and falls closed, keyed ids and batching hold")
+          "probability and falls closed, brief never blocks, keyed ids and "
+          "batching hold")
     return 0
 
 
