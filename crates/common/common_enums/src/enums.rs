@@ -30,6 +30,8 @@ pub enum CurrencyError {
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Currency {
+    #[default]
+    Unspecified,
     AED,
     AFN,
     ALL,
@@ -175,7 +177,6 @@ pub enum Currency {
     TZS,
     UAH,
     UGX,
-    #[default]
     USD,
     UYU,
     UZS,
@@ -1043,6 +1044,7 @@ impl Currency {
 
     pub fn iso_4217(self) -> &'static str {
         match self {
+            Self::Unspecified => "000",
             Self::AED => "784",
             Self::AFN => "971",
             Self::ALL => "008",

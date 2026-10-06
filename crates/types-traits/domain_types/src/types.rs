@@ -4304,6 +4304,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Currency> for common_enums::Curren
         value: grpc_api_types::payments::Currency,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value {
+            grpc_api_types::payments::Currency::Unspecified => Ok(Self::Unspecified),
             grpc_api_types::payments::Currency::Aed => Ok(Self::AED),
             grpc_api_types::payments::Currency::All => Ok(Self::ALL),
             grpc_api_types::payments::Currency::Amd => Ok(Self::AMD),
@@ -5408,6 +5409,10 @@ impl ForeignTryFrom<common_enums::Currency> for grpc_api_types::payments::Curren
     fn foreign_try_from(
         currency: common_enums::Currency,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        if matches!(currency, common_enums::Currency::Unspecified) {
+            return Ok(Self::Unspecified);
+        }
+
         let grpc_currency = Self::from_str_name(&currency.to_string()).ok_or_else(|| {
             ConnectorError::UnexpectedResponseError {
                 context: ResponseTransformationErrorContext {

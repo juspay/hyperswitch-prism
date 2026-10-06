@@ -1700,7 +1700,7 @@ mod tests {
                         amount: MinorUnit::new(0),
                         currency: Currency::USD,
                     },
-                    currency: Currency::default(),
+                    currency: Currency::USD,
                     integrity_object: None,
                     metadata: None,
                     webhook_url: None,
