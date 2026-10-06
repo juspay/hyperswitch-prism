@@ -47,7 +47,7 @@ regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
 openssl = { version = "0.10", features = ["vendored"] }
 josekit = "0.8.7"
-deja = { git = "https://github.com/juspay/deja", rev = "d587865d876a8e57a7c9a4d52f2293eb6fd8b97e", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
 
 # Optional features
 [features]
@@ -63,7 +63,7 @@ log-transformations = ["logging"]
 deja = ["dep:deja", "time/serde"]
 
 [dependencies.async-trait]
-version = "0.1.74"
+version = "0.1.92"
 optional = true
 
 [dependencies.futures]

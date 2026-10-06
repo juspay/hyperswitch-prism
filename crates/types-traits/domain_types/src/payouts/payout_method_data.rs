@@ -270,6 +270,7 @@ pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
+    Mifinity(Mifinity),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -328,6 +329,13 @@ pub struct Paypal {
 pub struct Venmo {
     /// mobile number linked to venmo account
     pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct Mifinity {
+    /// The recipient's MiFinity wallet identifier: an email address or a
+    /// MiFinity account number that will receive the funds.
+    pub destination_account: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

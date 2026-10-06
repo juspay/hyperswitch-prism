@@ -606,12 +606,18 @@ connector_base_url = "https://api.zift.io/"
 _context_ = { connector = "boost" }
 connector_base_url = "https://stage-api.boostconnect.biz/gateway"
 
-# Ilixium Direct API — sandbox host. Ilixium does not publish a production
-# host; it is supplied per merchant at onboarding, so there is deliberately no
-# production override here (see tech spec UNDECIDED #4).
+# Ilixium Direct API — pre-production host (`prprocessing`), the
+# sandbox/development default. The platform segment of the path differs per
+# environment (`ili` on pre-prod, `itix` on production), so it is carried in the
+# base URL and the connector only appends `/direct/*` and `/history/*`.
 [[overrides]]
 _context_ = { connector = "ilixium" }
 connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
+
+# Ilixium Direct API Production
+[[overrides]]
+_context_ = { connector = "ilixium", environment = "production" }
+connector_base_url = "https://processing.ilixium.com/platform/itix"
 
 # Global Payments Ecommerce XML API (legacy Realex). Distinct from the `globalpay`
 # GP-API product. A single CGI endpoint serves every operation; the connector

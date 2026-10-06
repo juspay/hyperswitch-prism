@@ -7,6 +7,9 @@ pub use self::loonio::LoonioPayouts;
 pub mod paypal;
 pub use self::paypal::PaypalPayouts;
 
+pub mod stripe;
+pub use self::stripe::StripePayouts;
+
 pub mod deutschebank;
 pub use self::deutschebank::DeutschebankPayouts;
 
@@ -30,6 +33,9 @@ pub use self::trustly::TrustlyPayouts;
 
 pub mod gotyme_sanlam;
 pub use self::gotyme_sanlam::GotymeSanlamPayouts;
+
+pub mod mifinity;
+pub use self::mifinity::MifinityPayouts;
 
 pub mod paysafe;
 pub use self::paysafe::PaysafePayouts;

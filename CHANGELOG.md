@@ -19,6 +19,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.06.0
+
+### Features
+
+- **connector:** Fiserv Commerce Hub applepay, googlepay decrypted flow ([#2344](https://github.com/juspay/connector-service/pull/2344)) ([`2bcf629`](https://github.com/juspay/connector-service/commit/2bcf62930937bca835f8a329ec497db7570d1024))
+
+### Bug Fixes
+
+- **ci:** Resolve Rust 1.99 workspace clippy failures ([#2436](https://github.com/juspay/connector-service/pull/2436)) ([`c2f6542`](https://github.com/juspay/connector-service/commit/c2f654218dedf899925dc801c1d675dffea3cfed))
+- **connector:**
+  - [Datatrans] enroll Google Pay aliases as card-on-file and thread COF id through CIT/MIT ([#2415](https://github.com/juspay/connector-service/pull/2415)) ([`3bbe0bf`](https://github.com/juspay/connector-service/commit/3bbe0bfb205a83e7a314eb4680cd92ef2fc8d453))
+  - [Ilixium] point production at the live host and platform path ([#2444](https://github.com/juspay/connector-service/pull/2444)) ([`244f46d`](https://github.com/juspay/connector-service/commit/244f46d3f6309ffc04cb94852e7f68aafed00766))
+- **framework:** Forward original_payment_authorized_amount into PaymentFlowData for RepeatPayment ([#2437](https://github.com/juspay/connector-service/pull/2437)) ([`480e33c`](https://github.com/juspay/connector-service/commit/480e33c0e14ecf3f8519c829a834f6eef372ea86))
+
+### Miscellaneous Tasks
+
+- **deja:** Pin deja at the moved-arguments serve; answer id and clock misses ([#2414](https://github.com/juspay/connector-service/pull/2414)) ([`a43291a`](https://github.com/juspay/connector-service/commit/a43291a62953fabc8862824cd093fc9e2092122b))
+
+**Full Changelog:** [`2026.10.05.1...2026.10.06.0`](https://github.com/juspay/connector-service/compare/2026.10.05.1...2026.10.06.0)
+
+- - -
+
+## 2026.10.05.1
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Add payout benificiary reference validation ([#2420](https://github.com/juspay/connector-service/pull/2420)) ([`b0a0ba0`](https://github.com/juspay/connector-service/commit/b0a0ba078bc1597f5f4eefb4eb8de9528afe95b3))
+
+**Full Changelog:** [`2026.10.05.0...2026.10.05.1`](https://github.com/juspay/connector-service/compare/2026.10.05.0...2026.10.05.1)
+
+- - -
+
+## 2026.10.05.0
+
+### Features
+
+- **connector:** Payout support in stripe ([#1227](https://github.com/juspay/connector-service/pull/1227)) ([`97fb677`](https://github.com/juspay/connector-service/commit/97fb677ed460601eb251eb777cd8e614755bdcfa))
+
+**Full Changelog:** [`2026.10.01.0...2026.10.05.0`](https://github.com/juspay/connector-service/compare/2026.10.01.0...2026.10.05.0)
+
+- - -
+
 ## 2026.10.01.0
 
 ### Features

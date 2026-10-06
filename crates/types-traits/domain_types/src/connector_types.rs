@@ -257,6 +257,7 @@ pub enum PayoutConnectorEnum {
     Loonio,
     Paypal,
     Itaubank,
+    Stripe,
     Deutschebank,
     Worldpayxml,
     Cybersource,
@@ -265,6 +266,7 @@ pub enum PayoutConnectorEnum {
     Truelayer,
     Trustly,
     GotymeSanlam,
+    Mifinity,
     Paysafe,
 }
 
@@ -276,11 +278,13 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            ConnectorEnum::Stripe => Ok(Self::Stripe),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
             ConnectorEnum::Gigadat => Ok(Self::Gigadat),
             ConnectorEnum::Truelayer => Ok(Self::Truelayer),
             ConnectorEnum::Trustly => Ok(Self::Trustly),
+            ConnectorEnum::Mifinity => Ok(Self::Mifinity),
             ConnectorEnum::Paysafe => Ok(Self::Paysafe),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
@@ -319,6 +323,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Paypal(_) => Ok(Self::Paypal),
             AuthType::Loonio(_) => Ok(Self::Loonio),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            AuthType::Stripe(_) => Ok(Self::Stripe),
             AuthType::Deutschebank(_) => Ok(Self::Deutschebank),
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
@@ -327,6 +332,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Trustly(_) => Ok(Self::Trustly),
             AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
+            AuthType::Mifinity(_) => Ok(Self::Mifinity),
             AuthType::Paysafe(_) => Ok(Self::Paysafe),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
