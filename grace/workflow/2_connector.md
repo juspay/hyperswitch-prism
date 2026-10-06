@@ -422,7 +422,31 @@ AMEND, from S4, S4z, S5, loop-back or promotion) uses this template with a fresh
   SMOKE: 1                                     (plan.json .foundation_smoke != null, UNIT = its .unit: the NEW spawn and every o-smoke, o-gate or o-resume AMEND)
   HS_REPO_PATH: {HS_REPO_PATH}                 (every __hs__ spawn, NEW or AMEND)
   ROW_ID: <row id>                             (every __hs__ spawn)
+  PHASE: READ | ITEM | GATE | ASSEMBLE         (code units in MODE: NEW; omit for __hs__, __finalize__ and AMEND)
+  ITEM_ID: <plan item id>                      (PHASE: ITEM only)
 ```
+
+**A code unit in `MODE: NEW` is spawned as a sequence of short spawns, not one long one.** Context grows
+monotonically inside an agent, so a 33-turn unit re-sends its own probe output on every later turn; measured on
+`rapyd-5ece81`, that re-transmission was essentially all of codegen's context cost. Spawning is close to free by
+comparison (a new prefix costs ~10k cached tokens), so the same work split across more, shorter spawns is
+cheaper for the same output. The phases hand state to each other through `$BRIEF`, `claimed.tsv` and `$FIXLOG` —
+never through a conversation — which is the same discipline R7 already imposes between stages.
+
+Per unit, in order, each its own message, reusing the unit's `NN` throughout:
+
+1. `PHASE: READ` → one spawn. `DONE` with `code/<NN>-<unit_fs>.brief.json` → 2. `NO_CHANGE` → the unit is done,
+   no further phase. `PLAN_CONFLICT`/`FAILED`/`BLOCKED` → the S4 table as usual.
+2. `PHASE: ITEM` → one spawn per entry of `jq -r '.items[].item_id' <brief>`, **in file order** (R3: the UCS tree
+   is sequential). A `FAILED` ends the unit; remaining items are not spawned.
+3. `PHASE: GATE` → spawn, and re-spawn while it returns `PARTIAL`, up to `caps.gate_iterations_codegen`. The
+   iteration count lives in `$FIXLOG` (`wc -l`), not in the row, so a re-spawn resumes the loop exactly.
+4. `PHASE: ASSEMBLE` → one spawn. `DONE` with `code/<NN>-<unit_fs>.json` closes the unit.
+
+Row ids carry the phase: `S4:<NN>:<unit_fs>:READ`, `:ITEM:<item_id>`, `:GATE:<k>`, `:ASSEMBLE`. The unit's own
+row (`S4:<NN>:<unit_fs>`) is stamped `done` when ASSEMBLE returns, so the S4 table, the `__finalize__` trigger
+and Resume rule 4a all keep working on it unchanged. **Omitting `PHASE` runs every phase in one spawn** — the
+pre-decomposition behaviour, and the fallback if a phase split proves lossy for a unit.
 
 R10 spawn `DISK:<tag>` (`2.0_preflight.md`): `CONNECTOR`, `UNITS` (JSON array), `HS_REPO_PATH`, `RUN_DIR`,
 `MODE: DISK_ONLY`, `DISK_TAG: <pre-S4 | pre-S4z-<k> | pre-r<N>>`, `MIN_FREE_GB_RUNTIME`, `STALE_DAYS: {STALE_DAYS}`,
