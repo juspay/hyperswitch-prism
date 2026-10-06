@@ -218,6 +218,15 @@ pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
+pub type BoxedPayoutTransferConnector<T> =
+    crate::connector_integration_v2::BoxedConnectorIntegrationV2<
+        'static,
+        connector_flow::PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >;
+
 pub type BoxedAuthenticatorConnector = Box<
     &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
                   + Sync),
@@ -908,11 +917,13 @@ pub fn is_mandate_supported<T: PaymentMethodDataTypes>(
 
 // --- GENERATED PAYOUT TRAITS ---
 
-pub trait PayoutTransferV2:
+pub trait PayoutTransferV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutTransfer,
     PayoutFlowData,
-    PayoutTransferRequest,
+    PayoutTransferRequest<T>,
     PayoutTransferResponse,
 >
 {

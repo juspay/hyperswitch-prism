@@ -202,7 +202,7 @@ impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
 impl_check_integrity!(PayoutCreateRequest);
-impl_check_integrity!(PayoutTransferRequest);
+impl_check_integrity!(PayoutTransferRequest<S>);
 impl_check_integrity!(PayoutStageRequest);
 impl_check_integrity!(PayoutCreateLinkRequest);
 impl_check_integrity!(PayoutCreateRecipientRequest);
@@ -1368,7 +1368,9 @@ impl FlowIntegrity for PayoutCreateIntegrityObject {
 
 // --- GENERATED GET INTEGRITY IMPLEMENTATIONS ---
 
-impl GetIntegrityObject<PayoutTransferIntegrityObject> for PayoutTransferRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutTransferIntegrityObject>
+    for PayoutTransferRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutTransferIntegrityObject> {
         None
     }

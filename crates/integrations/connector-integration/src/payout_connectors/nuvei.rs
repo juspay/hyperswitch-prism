@@ -7,7 +7,7 @@ use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
     payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -32,9 +32,9 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: PayoutTransfer,
-            request_body: NuveiPayoutRequest,
+            request_body: NuveiPayoutRequest<T>,
             response_body: NuveiPayoutResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         )
     ],
     amount_converters: [],
@@ -78,22 +78,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
-    for NuveiPayouts<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+impl PayoutServiceTrait for NuveiPayouts<DefaultPCIHolder> {}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for NuveiPayouts<T>
 {
 }
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: NuveiPayouts,
-    curl_request: Json(NuveiPayoutRequest),
+    curl_request: Json(NuveiPayoutRequest<T>),
     curl_response: NuveiPayoutResponse,
     flow_name: PayoutTransfer,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
+    flow_request: PayoutTransferRequest<T>,
     flow_response: PayoutTransferResponse,
     http_method: Post,
     generic_type: T,
@@ -104,7 +101,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<String, IntegrationError> {
@@ -120,7 +117,7 @@ macros::macro_connector_implementation!(
             _req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {

@@ -6,6 +6,7 @@ use crate::{
     },
     errors::{IntegrationError, IntegrationErrorContext},
     payment_address::Address,
+    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
     types::Connectors,
     utils::{missing_field_err, Error},
 };
@@ -130,7 +131,7 @@ pub struct PayoutAddress {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutTransferRequest {
+pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -140,7 +141,7 @@ pub struct PayoutTransferRequest {
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
@@ -149,7 +150,7 @@ pub struct PayoutTransferRequest {
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
 }
 
-impl PayoutTransferRequest {
+impl<T: PaymentMethodDataTypes> PayoutTransferRequest<T> {
     pub fn get_billing(&self) -> Result<&Address, Error> {
         self.address
             .as_ref()

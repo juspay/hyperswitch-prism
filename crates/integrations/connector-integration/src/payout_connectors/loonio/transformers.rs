@@ -217,7 +217,6 @@ impl
                 })
             }
             Some(PayoutMethodData::Card(_))
-            | Some(PayoutMethodData::CardProxy(_))
             | Some(PayoutMethodData::Bank(_))
             | Some(PayoutMethodData::Wallet(_))
             | Some(PayoutMethodData::BankRedirect(_))

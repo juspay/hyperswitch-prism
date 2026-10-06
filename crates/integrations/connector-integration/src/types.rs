@@ -5,11 +5,11 @@ use domain_types::{
         AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
         SurchargeConnectorEnum,
     },
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodDataTypes, VaultTokenHolder},
 };
 use interfaces::connector_types::{
     BoxedAuthenticatorConnector, BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector,
-    BoxedSurchargeConnector,
+    BoxedPayoutTransferConnector, BoxedSurchargeConnector,
 };
 
 use crate::{
@@ -233,6 +233,25 @@ pub struct PayoutConnectorData {
 }
 
 impl PayoutConnectorData {
+    pub fn get_proxy_transfer_integration(
+        connector: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<BoxedPayoutTransferConnector<VaultTokenHolder>> {
+        use interfaces::connector_integration_v2::ConnectorIntegrationAnyV2;
+
+        let connector = connector.as_payout().or_else(|| {
+            connector
+                .as_payment()
+                .and_then(|connector| PayoutConnectorEnum::try_from(connector).ok())
+        })?;
+        match connector {
+            PayoutConnectorEnum::Nuvei => Some(
+                payout_connectors::NuveiPayouts::<VaultTokenHolder>::new()
+                    .get_connector_integration_v2(),
+            ),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_by_name(connector_name: &PayoutConnectorEnum) -> Self {
         let connector = Self::convert_connector(*connector_name);
         Self {

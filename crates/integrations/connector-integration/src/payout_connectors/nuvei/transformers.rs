@@ -1,6 +1,6 @@
 use common_enums::PayoutStatus;
 use common_utils::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE, X_EXTERNAL_VAULT_METADATA},
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
@@ -28,7 +28,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NuveiPayoutRequest {
+pub struct NuveiPayoutRequest<T: PaymentMethodDataTypes> {
     merchant_id: Secret<String>,
     merchant_site_id: Secret<String>,
     client_request_id: String,
@@ -40,7 +40,7 @@ pub struct NuveiPayoutRequest {
     checksum: Secret<String>,
     url_details: NuveiPayoutUrlDetails,
     #[serde(flatten)]
-    payout_method: NuveiPayoutMethod,
+    payout_method: NuveiPayoutMethod<T>,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,10 +51,10 @@ struct NuveiPayoutUrlDetails {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-enum NuveiPayoutMethod {
+enum NuveiPayoutMethod<T: PaymentMethodDataTypes> {
     Card {
         #[serde(rename = "cardData")]
-        card_data: NuveiPayoutCard,
+        card_data: NuveiPayoutCard<T>,
     },
     Passthrough {
         #[serde(rename = "userPaymentOption")]
@@ -64,18 +64,11 @@ enum NuveiPayoutMethod {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct NuveiPayoutCard {
-    card_number: NuveiPayoutCardNumber,
+struct NuveiPayoutCard<T: PaymentMethodDataTypes> {
+    card_number: T::Inner,
     card_holder_name: Secret<String>,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-enum NuveiPayoutCardNumber {
-    Card(cards::CardNumber),
-    Proxy(Secret<String>),
 }
 
 #[derive(Debug, Serialize)]
@@ -84,8 +77,8 @@ struct NuveiPayoutPaymentOption {
     user_payment_option_id: Secret<String>,
 }
 
-type NuveiPayoutRouterData =
-    RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>;
+type NuveiPayoutRouterData<T> =
+    RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>;
 
 fn missing(field_name: &'static str) -> Report<IntegrationError> {
     IntegrationError::MissingRequiredField {
@@ -96,12 +89,12 @@ fn missing(field_name: &'static str) -> Report<IntegrationError> {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<NuveiPayoutsRouterData<NuveiPayoutRouterData, T>> for NuveiPayoutRequest
+    TryFrom<NuveiPayoutsRouterData<NuveiPayoutRouterData<T>, T>> for NuveiPayoutRequest<T>
 {
     type Error = Report<IntegrationError>;
 
     fn try_from(
-        item: NuveiPayoutsRouterData<NuveiPayoutRouterData, T>,
+        item: NuveiPayoutsRouterData<NuveiPayoutRouterData<T>, T>,
     ) -> Result<Self, Self::Error> {
         let data = &item.router_data;
         let auth = NuveiAuthType::try_from(&data.connector_config)?;
@@ -146,7 +139,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         {
             PayoutMethodData::Card(card) => NuveiPayoutMethod::Card {
                 card_data: NuveiPayoutCard {
-                    card_number: NuveiPayoutCardNumber::Card(card.card_number.clone()),
+                    card_number: card.card_number.clone(),
                     card_holder_name: card
                         .card_holder_name
                         .clone()
@@ -156,30 +149,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     expiration_year: card.expiry_year.clone(),
                 },
             },
-            PayoutMethodData::CardProxy(card) => {
-                if !data
-                    .resource_common_data
-                    .vault_headers
-                    .as_ref()
-                    .is_some_and(|headers| headers.contains_key(X_EXTERNAL_VAULT_METADATA))
-                {
-                    return Err(missing(X_EXTERNAL_VAULT_METADATA));
-                }
-                NuveiPayoutMethod::Card {
-                    card_data: NuveiPayoutCard {
-                        card_number: NuveiPayoutCardNumber::Proxy(card.card_number.clone()),
-                        card_holder_name: card
-                            .card_holder_name
-                            .clone()
-                            .filter(|name| !name.peek().trim().is_empty())
-                            .ok_or_else(|| {
-                                missing("payout_method_data.card_proxy.card_holder_name")
-                            })?,
-                        expiration_month: card.expiry_month.clone(),
-                        expiration_year: card.expiry_year.clone(),
-                    },
-                }
-            }
             PayoutMethodData::Passthrough(token) => NuveiPayoutMethod::Passthrough {
                 user_payment_option: NuveiPayoutPaymentOption {
                     user_payment_option_id: token.psp_token.clone(),
@@ -266,7 +235,9 @@ impl NuveiPayoutResponse {
     }
 }
 
-impl TryFrom<ResponseRouterData<NuveiPayoutResponse, Self>> for NuveiPayoutRouterData {
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, Self>>
+    for NuveiPayoutRouterData<T>
+{
     type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<NuveiPayoutResponse, Self>) -> Result<Self, Self::Error> {

@@ -3,15 +3,18 @@ use connector_integration::types::PayoutConnectorData;
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
-        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutVoid,
     },
+    errors::IntegrationError,
+    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
+    payouts::payout_method_data::{CardPayout, PayoutMethodData},
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
         PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
         PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
-        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
-        PayoutVoidRequest, PayoutVoidResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutVoidRequest,
+        PayoutVoidResponse,
     },
     payouts::types::{
         generate_payout_create_link_response, generate_payout_create_recipient_response,
@@ -20,6 +23,8 @@ use domain_types::{
         generate_payout_stage_response, generate_payout_transfer_response,
         generate_payout_void_response,
     },
+    router_data::ErrorResponse,
+    router_data_v2::RouterDataV2,
     utils::ForeignTryFrom,
 };
 use grpc_api_types::payouts::{
@@ -32,7 +37,8 @@ use grpc_api_types::payouts::{
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
-use ucs_env::error::ResultExtGrpc;
+use interfaces::connector_types::BoxedPayoutTransferConnector;
+use ucs_env::error::{GrpcError, ResultExtGrpc, ResultExtGrpcError};
 
 use crate::{
     implement_connector_operation,
@@ -45,6 +51,111 @@ pub struct Payouts;
 pub(crate) mod proxy;
 
 impl Payouts {
+    async fn process_transfer_internal<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static,
+    >(
+        &self,
+        request: RequestData<PayoutServiceTransferRequest>,
+        specific_request_data: PayoutTransferRequest<T>,
+        connector_integration: BoxedPayoutTransferConnector<T>,
+        token_data: Option<injector::TokenData>,
+    ) -> Result<tonic::Response<PayoutServiceTransferResponse>, error_stack::Report<GrpcError>>
+    {
+        let config = request
+            .extensions
+            .get::<std::sync::Arc<ucs_env::configs::Config>>()
+            .cloned()
+            .ok_or_else(|| {
+                error_stack::Report::new(GrpcError::from(
+                    ucs_env::error::InternalError::ConfigNotFound,
+                ))
+            })?;
+        let service_name = request
+            .extensions
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "unknown_service".to_owned());
+        let RequestData {
+            payload,
+            extracted_metadata: metadata_payload,
+            masked_metadata,
+            extensions: _,
+        } = request;
+        let connector_config = metadata_payload.connector_config.clone();
+        let overridden_connectors = crate::utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .await
+        .to_grpc_error()?;
+        let common_flow_data =
+            PayoutFlowData::foreign_try_from((payload, overridden_connectors, &masked_metadata))
+                .to_grpc_error()?;
+        let router_data = RouterDataV2 {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config,
+            request: specific_request_data,
+            response: Err(ErrorResponse::default()),
+        };
+        let flow_name = FlowName::PayoutTransfer;
+        let api_tag = config.api_tags.get_tag(flow_name, None);
+        let test_context = config
+            .test
+            .create_test_context(&metadata_payload.request_id)
+            .map_err(|error| {
+                error_stack::Report::new(GrpcError::from(
+                    ucs_env::error::InternalError::TestContextCreationFailed {
+                        reason: error.to_string(),
+                    },
+                ))
+            })?;
+        let event_params = external_services::service::EventProcessingParams {
+            connector_name: &metadata_payload.connector.get_connector_name(),
+            service_name: &service_name,
+            service_type: crate::utils::service_type_str(&config.server.type_),
+            flow_name,
+            event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
+            request_id: &metadata_payload.request_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_typed_connector_data: config.common.return_typed_connector_data,
+            masking_keys: &config.masking_keys,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
+        };
+        let call_connector_action = connector_integration.get_call_connector_action();
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                call_connector_action,
+                test_context,
+                api_tag,
+            ),
+        )
+        .await
+        .to_grpc_error()?;
+        Ok(tonic::Response::new(
+            generate_payout_transfer_response(response).to_grpc_error()?,
+        ))
+    }
+
     /// Extract common request metadata (config and service_name) from gRPC request
     fn extract_request_metadata<T>(
         &self,
@@ -376,7 +487,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -386,7 +497,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceTransferResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -394,20 +505,14 @@ pub(crate) trait PayoutOperationsInternal {
         &self,
         request: RequestData<PayoutServiceGetRequest>,
     ) -> impl std::future::Future<
-        Output = Result<
-            tonic::Response<PayoutServiceGetResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
-        >,
+        Output = Result<tonic::Response<PayoutServiceGetResponse>, error_stack::Report<GrpcError>>,
     > + Send;
 
     fn internal_payout_void(
         &self,
         request: RequestData<PayoutServiceVoidRequest>,
     ) -> impl std::future::Future<
-        Output = Result<
-            tonic::Response<PayoutServiceVoidResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
-        >,
+        Output = Result<tonic::Response<PayoutServiceVoidResponse>, error_stack::Report<GrpcError>>,
     > + Send;
 
     fn internal_payout_stage(
@@ -416,7 +521,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceStageResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -426,7 +531,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateLinkResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -436,7 +541,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceCreateRecipientResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -446,7 +551,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutServiceEnrollDisburseAccountResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 
@@ -456,7 +561,7 @@ pub(crate) trait PayoutOperationsInternal {
     ) -> impl std::future::Future<
         Output = Result<
             tonic::Response<PayoutMethodEligibilityResponse>,
-            error_stack::Report<ucs_env::error::GrpcError>,
+            error_stack::Report<GrpcError>,
         >,
     > + Send;
 }
@@ -479,22 +584,86 @@ impl PayoutOperationsInternal for Payouts {
         prepare_request: proxy::prepare_payout_request
     );
 
-    implement_connector_operation!(
-        fn_name: internal_payout_transfer,
-        log_prefix: "PAYOUT_TRANSFER",
-        request_type: PayoutServiceTransferRequest,
-        response_type: PayoutServiceTransferResponse,
-        flow_marker: PayoutTransfer,
-        resource_common_data_type: PayoutFlowData,
-        request_data_type: PayoutTransferRequest,
-        response_data_type: PayoutTransferResponse,
-        request_data_constructor: PayoutTransferRequest::foreign_try_from,
-        common_flow_data_constructor: PayoutFlowData::foreign_try_from,
-        generate_response_fn: generate_payout_transfer_response,
-        connector_data_types: [PayoutConnectorData],
-        all_keys_required: None,
-        prepare_request: proxy::prepare_payout_request
-    );
+    async fn internal_payout_transfer(
+        &self,
+        request: RequestData<PayoutServiceTransferRequest>,
+    ) -> Result<tonic::Response<PayoutServiceTransferResponse>, error_stack::Report<GrpcError>>
+    {
+        tracing::info!("PAYOUT_TRANSFER_FLOW: initiated");
+        let token_data = proxy::prepare_payout_request(
+            &request.payload,
+            &request.masked_metadata,
+            &request.extracted_metadata,
+            FlowName::PayoutTransfer,
+        )
+        .to_grpc_error()?;
+        let unsupported_connector = || {
+            error_stack::Report::new(GrpcError::from(IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_owned(),
+                connector: "N/A",
+                context: Default::default(),
+            }))
+        };
+        match token_data {
+            Some(token_data) => {
+                let card = match request
+                    .payload
+                    .payout_method_data
+                    .as_ref()
+                    .and_then(|method| method.payout_method_data.as_ref())
+                {
+                    Some(grpc_api_types::payouts::payout_method::PayoutMethodData::CardProxy(
+                        card,
+                    )) => card.clone(),
+                    _ => {
+                        return Err(GrpcError::from(IntegrationError::MismatchedPaymentData {
+                            context: Default::default(),
+                        })
+                        .into())
+                    }
+                };
+                let method = PayoutMethodData::Card(
+                    CardPayout::<VaultTokenHolder>::foreign_try_from(card).to_grpc_error()?,
+                );
+                let specific_request_data = PayoutTransferRequest::foreign_try_from((
+                    request.payload.clone(),
+                    Some(method),
+                ))
+                .to_grpc_error()?;
+                let integration = PayoutConnectorData::get_proxy_transfer_integration(
+                    &request.extracted_metadata.connector,
+                )
+                .ok_or_else(unsupported_connector)?;
+                Box::pin(self.process_transfer_internal(
+                    request,
+                    specific_request_data,
+                    integration,
+                    Some(token_data),
+                ))
+                .await
+            }
+            None => {
+                let specific_request_data =
+                    PayoutTransferRequest::<DefaultPCIHolder>::foreign_try_from(
+                        request.payload.clone(),
+                    )
+                    .to_grpc_error()?;
+                let integration: BoxedPayoutTransferConnector<DefaultPCIHolder> =
+                    crate::resolve_connector_integration!(
+                        &request.extracted_metadata.connector,
+                        [PayoutConnectorData]
+                    )
+                    .ok_or_else(unsupported_connector)?;
+                Box::pin(self.process_transfer_internal(
+                    request,
+                    specific_request_data,
+                    integration,
+                    None,
+                ))
+                .await
+            }
+        }
+    }
 
     implement_connector_operation!(
         fn_name: internal_payout_get,

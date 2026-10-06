@@ -4,27 +4,26 @@ use error_stack::Report;
 use hyperswitch_masking::Secret;
 
 use crate::errors::IntegrationError;
-use crate::payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder};
+use crate::payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes};
 
 /// The payout method information required for carrying out a payout
 #[derive(Debug, Clone)]
-pub enum PayoutMethodData {
-    Card(CardPayout),
-    CardProxy(Box<CardPayout<VaultTokenHolder>>),
+pub enum PayoutMethodData<T: PaymentMethodDataTypes = DefaultPCIHolder> {
+    Card(CardPayout<T>),
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
 }
 
-impl Default for PayoutMethodData {
+impl<T: PaymentMethodDataTypes + Default> Default for PayoutMethodData<T> {
     fn default() -> Self {
         Self::Card(CardPayout::default())
     }
 }
 
-impl PayoutMethodData {
-    pub fn get_card(&self) -> Result<&CardPayout, Report<IntegrationError>> {
+impl<T: PaymentMethodDataTypes> PayoutMethodData<T> {
+    pub fn get_card(&self) -> Result<&CardPayout<T>, Report<IntegrationError>> {
         match self {
             Self::Card(card) => Ok(card),
             _ => Err(IntegrationError::MismatchedPaymentData {
@@ -47,7 +46,6 @@ impl PayoutMethodData {
     fn variant_name(&self) -> &'static str {
         match self {
             Self::Card(_) => "Card",
-            Self::CardProxy(_) => "CardProxy",
             Self::Bank(_) => "Bank",
             Self::Wallet(_) => "Wallet",
             Self::BankRedirect(_) => "BankRedirect",

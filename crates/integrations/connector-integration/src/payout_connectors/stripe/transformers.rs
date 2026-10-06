@@ -733,9 +733,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         match payout_method_data {
             // Card payouts need real tokenization; Stripe's test debit token would
             // enrol a fake card, so reject cards until that is wired.
-            PayoutMethodData::Card(_) | PayoutMethodData::CardProxy(_) => {
-                Err(unsupported_enroll_rail("card"))
-            }
+            PayoutMethodData::Card(_) => Err(unsupported_enroll_rail("card")),
             PayoutMethodData::Bank(Bank::Ach(ach)) => {
                 let country = ach.bank_country_code.ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
