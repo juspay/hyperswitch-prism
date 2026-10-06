@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 pub mod transformers;
 
 use std::collections::BTreeMap;
@@ -71,12 +72,14 @@ impl TruelayerPayouts {
         &Self
     }
 
-    fn build_signed_headers(
+    fn build_signed_headers<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize,
+    >(
         &self,
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
@@ -217,7 +220,10 @@ impl ConnectorCommon for TruelayerPayouts {
     }
 }
 
-impl PayoutServiceTrait for TruelayerPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutServiceTrait<T> for TruelayerPayouts
+{
+}
 impl ServerAuthentication for TruelayerPayouts {}
 
 impl
@@ -392,13 +398,16 @@ impl
     }
 }
 
-impl PayoutTransferV2 for TruelayerPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutTransferV2<T> for TruelayerPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutTransfer,
         PayoutFlowData,
-        PayoutTransferRequest,
+        PayoutTransferRequest<T>,
         PayoutTransferResponse,
     > for TruelayerPayouts
 {
@@ -411,7 +420,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -426,7 +435,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
@@ -438,7 +447,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
@@ -458,13 +467,18 @@ impl
         data: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest<T>,
+            PayoutTransferResponse,
+        >,
         ConnectorError,
     > {
         let response: TruelayerPayoutResponse = res
@@ -592,6 +606,26 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 }
 
 macro_rules! impl_unimplemented_payout_flow {
+    ($trait_name:ident, $flow:ty, $request:ident<$holder:ident>, $response:ty, $flow_name:literal) => {
+        impl<$holder: PaymentMethodDataTypes> $trait_name<$holder> for TruelayerPayouts {}
+
+        impl<$holder: PaymentMethodDataTypes>
+            ConnectorIntegrationV2<$flow, PayoutFlowData, $request<$holder>, $response>
+            for TruelayerPayouts
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, PayoutFlowData, $request<$holder>, $response>,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(IntegrationError::connector_flow_not_implemented(
+                    self.id(),
+                    $flow_name,
+                    Default::default(),
+                )
+                .into())
+            }
+        }
+    };
     ($trait_name:ident, $flow:ty, $request:ty, $response:ty, $flow_name:literal) => {
         impl $trait_name for TruelayerPayouts {}
 
@@ -616,7 +650,7 @@ macro_rules! impl_unimplemented_payout_flow {
 impl_unimplemented_payout_flow!(
     PayoutCreateV2,
     PayoutCreate,
-    PayoutCreateRequest,
+    PayoutCreateRequest<T>,
     PayoutCreateResponse,
     "payout_create"
 );
@@ -630,35 +664,35 @@ impl_unimplemented_payout_flow!(
 impl_unimplemented_payout_flow!(
     PayoutStageV2,
     PayoutStage,
-    PayoutStageRequest,
+    PayoutStageRequest<T>,
     PayoutStageResponse,
     "payout_stage"
 );
 impl_unimplemented_payout_flow!(
     PayoutCreateLinkV2,
     PayoutCreateLink,
-    PayoutCreateLinkRequest,
+    PayoutCreateLinkRequest<T>,
     PayoutCreateLinkResponse,
     "payout_create_link"
 );
 impl_unimplemented_payout_flow!(
     PayoutCreateRecipientV2,
     PayoutCreateRecipient,
-    PayoutCreateRecipientRequest,
+    PayoutCreateRecipientRequest<T>,
     PayoutCreateRecipientResponse,
     "payout_create_recipient"
 );
 impl_unimplemented_payout_flow!(
     PayoutEnrollDisburseAccountV2,
     PayoutEnrollDisburseAccount,
-    PayoutEnrollDisburseAccountRequest,
+    PayoutEnrollDisburseAccountRequest<T>,
     PayoutEnrollDisburseAccountResponse,
     "payout_enroll_disburse_account"
 );
 impl_unimplemented_payout_flow!(
     PayoutEligibilityV2,
     PayoutEligibility,
-    PayoutEligibilityRequest,
+    PayoutEligibilityRequest<T>,
     PayoutEligibilityResponse,
     "payout_eligibility"
 );

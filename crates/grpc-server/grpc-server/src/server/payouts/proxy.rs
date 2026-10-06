@@ -1,8 +1,9 @@
 use base64::Engine;
 use common_utils::{consts::X_EXTERNAL_VAULT_METADATA, events::FlowName, metadata::MaskedMetadata};
 use domain_types::{
-    connector_types::PayoutConnectorEnum,
     errors::{IntegrationError, IntegrationErrorContext},
+    payment_method_data::{DefaultPCIHolder, VaultTokenHolder},
+    payouts::payout_method_data::{CardPayout, PayoutMethodData as DomainPayoutMethodData},
     utils::ForeignTryFrom,
 };
 use external_services::service::{
@@ -51,7 +52,46 @@ reference_request!(
     payouts::PayoutServiceVoidRequest
 );
 
-pub(crate) fn prepare_payout_request<T: PayoutProxyRequest>(
+pub(crate) enum ConvertedPayoutMethodData {
+    Normal(Option<DomainPayoutMethodData<DefaultPCIHolder>>),
+    Proxy(
+        DomainPayoutMethodData<VaultTokenHolder>,
+        injector::TokenData,
+    ),
+}
+
+pub(crate) fn convert_payout_method_data<T: PayoutProxyRequest>(
+    request: &T,
+    headers: &MaskedMetadata,
+    metadata: &MetadataPayload,
+    flow: FlowName,
+) -> Result<ConvertedPayoutMethodData, error_stack::Report<IntegrationError>> {
+    let token_data = extract_payout_token_data(request, headers, metadata, flow)?;
+    match request
+        .payout_method()
+        .and_then(|method| method.payout_method_data.as_ref())
+    {
+        Some(PayoutMethodData::CardProxy(card)) => {
+            let card = CardPayout::<VaultTokenHolder>::foreign_try_from(card.clone())?;
+            let tokens = token_data.ok_or_else(|| IntegrationError::MismatchedPaymentData {
+                context: Default::default(),
+            })?;
+            Ok(ConvertedPayoutMethodData::Proxy(
+                DomainPayoutMethodData::Card(card),
+                tokens,
+            ))
+        }
+        _ => Ok(ConvertedPayoutMethodData::Normal(
+            request
+                .payout_method()
+                .cloned()
+                .map(DomainPayoutMethodData::foreign_try_from)
+                .transpose()?,
+        )),
+    }
+}
+
+pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
     request: &T,
     headers: &MaskedMetadata,
     metadata: &MetadataPayload,
@@ -64,33 +104,15 @@ pub(crate) fn prepare_payout_request<T: PayoutProxyRequest>(
     match (method, vault_header) {
         (Some(PayoutMethodData::CardProxy(card)), Some(header)) => {
             validate_vault_config(header.peek(), metadata, &flow)?;
-            let connector = metadata.connector.as_payout().or_else(|| {
-                metadata
-                    .connector
-                    .as_payment()
-                    .and_then(|connector| PayoutConnectorEnum::try_from(connector).ok())
-            });
-            match (metadata.shadow_mode, &flow, connector) {
-                (true, _, _) => Err(unsupported(
+            match metadata.shadow_mode {
+                true => Err(unsupported(
                     "Shadow execution is not supported for proxy payouts",
                     metadata,
                     &flow,
                     "Disable shadow execution for external-vault proxy payouts",
                 )),
-                (false, FlowName::PayoutTransfer, Some(PayoutConnectorEnum::Nuvei)) => Ok(Some(
+                false => Ok(Some(
                     crate::types::InjectorTokenData::foreign_try_from(card)?.0,
-                )),
-                (false, FlowName::PayoutTransfer, _) => Err(unsupported(
-                    "This payout connector does not support external-vault proxy execution",
-                    metadata,
-                    &flow,
-                    "Select Nuvei for the supported external-vault proxy transfer flow",
-                )),
-                (false, _, _) => Err(unsupported(
-                    "This payout subflow does not support external-vault proxy execution",
-                    metadata,
-                    &flow,
-                    "Use PayoutTransfer for external-vault proxy execution",
                 )),
             }
         }

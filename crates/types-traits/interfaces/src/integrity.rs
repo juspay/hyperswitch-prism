@@ -201,15 +201,15 @@ impl_check_integrity!(ClientAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
-impl_check_integrity!(PayoutCreateRequest);
+impl_check_integrity!(PayoutCreateRequest<S>);
 impl_check_integrity!(PayoutTransferRequest<S>);
-impl_check_integrity!(PayoutStageRequest);
-impl_check_integrity!(PayoutCreateLinkRequest);
-impl_check_integrity!(PayoutCreateRecipientRequest);
-impl_check_integrity!(PayoutEnrollDisburseAccountRequest);
+impl_check_integrity!(PayoutStageRequest<S>);
+impl_check_integrity!(PayoutCreateLinkRequest<S>);
+impl_check_integrity!(PayoutCreateRecipientRequest<S>);
+impl_check_integrity!(PayoutEnrollDisburseAccountRequest<S>);
 impl_check_integrity!(PayoutGetRequest);
 impl_check_integrity!(PayoutVoidRequest);
-impl_check_integrity!(PayoutEligibilityRequest);
+impl_check_integrity!(PayoutEligibilityRequest<S>);
 impl_check_integrity!(SurchargeCalculateRequest);
 impl_check_integrity!(SurchargePaymentSucceededRequest);
 impl_check_integrity!(SurchargeRefundSucceededRequest);
@@ -600,7 +600,9 @@ impl GetIntegrityObject<CreateConnectorCustomerIntegrityObject> for ConnectorCus
     }
 }
 
-impl GetIntegrityObject<PayoutCreateIntegrityObject> for PayoutCreateRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutCreateIntegrityObject>
+    for PayoutCreateRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutCreateIntegrityObject> {
         None
     }
@@ -1383,7 +1385,9 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutTransferIntegrityObject
     }
 }
 
-impl GetIntegrityObject<PayoutStageIntegrityObject> for PayoutStageRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutStageIntegrityObject>
+    for PayoutStageRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutStageIntegrityObject> {
         None
     }
@@ -1396,7 +1400,9 @@ impl GetIntegrityObject<PayoutStageIntegrityObject> for PayoutStageRequest {
     }
 }
 
-impl GetIntegrityObject<PayoutCreateLinkIntegrityObject> for PayoutCreateLinkRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutCreateLinkIntegrityObject>
+    for PayoutCreateLinkRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutCreateLinkIntegrityObject> {
         None
     }
@@ -1409,7 +1415,9 @@ impl GetIntegrityObject<PayoutCreateLinkIntegrityObject> for PayoutCreateLinkReq
     }
 }
 
-impl GetIntegrityObject<PayoutCreateRecipientIntegrityObject> for PayoutCreateRecipientRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutCreateRecipientIntegrityObject>
+    for PayoutCreateRecipientRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutCreateRecipientIntegrityObject> {
         None
     }
@@ -1422,8 +1430,8 @@ impl GetIntegrityObject<PayoutCreateRecipientIntegrityObject> for PayoutCreateRe
     }
 }
 
-impl GetIntegrityObject<PayoutEnrollDisburseAccountIntegrityObject>
-    for PayoutEnrollDisburseAccountRequest
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutEnrollDisburseAccountIntegrityObject>
+    for PayoutEnrollDisburseAccountRequest<T>
 {
     fn get_response_integrity_object(&self) -> Option<PayoutEnrollDisburseAccountIntegrityObject> {
         None
@@ -1463,7 +1471,9 @@ impl GetIntegrityObject<PayoutVoidIntegrityObject> for PayoutVoidRequest {
     }
 }
 
-impl GetIntegrityObject<PayoutEligibilityIntegrityObject> for PayoutEligibilityRequest {
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutEligibilityIntegrityObject>
+    for PayoutEligibilityRequest<T>
+{
     fn get_response_integrity_object(&self) -> Option<PayoutEligibilityIntegrityObject> {
         None
     }

@@ -63,24 +63,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
     for payouts::payouts_types::PayoutCreateRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutServiceCreateRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutCreateRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutServiceCreateRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -105,11 +125,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
-
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
-            .transpose()?;
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
@@ -1778,24 +1793,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
     for payouts::payouts_types::PayoutStageRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceStageRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutServiceStageRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutStageRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutServiceStageRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1836,10 +1871,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             .clone()
             .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
             .transpose()?;
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
-            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
@@ -1858,24 +1889,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
     for payouts::payouts_types::PayoutCreateLinkRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateLinkRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutServiceCreateLinkRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutCreateLinkRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutServiceCreateLinkRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1900,11 +1951,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
-
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
-            .transpose()?;
 
         let priority = value
             .priority
@@ -1941,24 +1987,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
     for payouts::payouts_types::PayoutCreateRecipientRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateRecipientRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutServiceCreateRecipientRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutCreateRecipientRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutServiceCreateRecipientRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1971,11 +2037,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
-
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
-            .transpose()?;
 
         let payout_recipient_type =
             grpc_api_types::payouts::payout_enums::PayoutRecipientType::try_from(
@@ -2023,24 +2084,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
     for payouts::payouts_types::PayoutEnrollDisburseAccountRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutEnrollDisburseAccountRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -2068,11 +2149,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
                 )?;
                 common_enums::Currency::foreign_try_from(curr)
             })
-            .transpose()?;
-
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
             .transpose()?;
 
         let customer = value
@@ -2412,11 +2488,11 @@ impl
     }
 }
 
-pub fn generate_payout_create_response(
+pub fn generate_payout_create_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreate,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutCreateRequest,
+        super::payouts_types::PayoutCreateRequest<T>,
         super::payouts_types::PayoutCreateResponse,
     >,
 ) -> Result<
@@ -2651,11 +2727,11 @@ pub fn generate_payout_void_response(
     }
 }
 
-pub fn generate_payout_stage_response(
+pub fn generate_payout_stage_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutStage,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutStageRequest,
+        super::payouts_types::PayoutStageRequest<T>,
         super::payouts_types::PayoutStageResponse,
     >,
 ) -> Result<
@@ -2715,11 +2791,11 @@ pub fn generate_payout_stage_response(
     }
 }
 
-pub fn generate_payout_create_link_response(
+pub fn generate_payout_create_link_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreateLink,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutCreateLinkRequest,
+        super::payouts_types::PayoutCreateLinkRequest<T>,
         super::payouts_types::PayoutCreateLinkResponse,
     >,
 ) -> Result<
@@ -2777,11 +2853,11 @@ pub fn generate_payout_create_link_response(
     }
 }
 
-pub fn generate_payout_create_recipient_response(
+pub fn generate_payout_create_recipient_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreateRecipient,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutCreateRecipientRequest,
+        super::payouts_types::PayoutCreateRecipientRequest<T>,
         super::payouts_types::PayoutCreateRecipientResponse,
     >,
 ) -> Result<
@@ -2863,24 +2939,44 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
     for payouts::payouts_types::PayoutEligibilityRequest
 {
     type Error = IntegrationError;
-
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutMethodEligibilityRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payout_method_data = value
+            .payout_method_data
+            .clone()
+            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
+            .transpose()?;
+        Self::foreign_try_from((value, payout_method_data))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    ForeignTryFrom<(
+        grpc_api_types::payouts::PayoutMethodEligibilityRequest,
+        Option<payouts::payout_method_data::PayoutMethodData<T>>,
+    )> for payouts::payouts_types::PayoutEligibilityRequest<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, payout_method_data): (
+            grpc_api_types::payouts::PayoutMethodEligibilityRequest,
+            Option<payouts::payout_method_data::PayoutMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => amount,
-            None => {
-                return Err(error_stack::report!(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Amount is required".to_owned()),
-                            ..Default::default()
-                        },
-                    }
-                ));
-            }
-        };
+            Some(amount) => Ok(amount),
+            None => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Amount is required".to_owned()),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }?;
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -2905,11 +3001,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
-
-        let payout_method_data = value
-            .payout_method_data
-            .map(payouts::payout_method_data::PayoutMethodData::foreign_try_from)
-            .transpose()?;
 
         let customer = value
             .customer
@@ -2984,11 +3075,11 @@ impl
     }
 }
 
-pub fn generate_payout_eligibility_response(
+pub fn generate_payout_eligibility_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutEligibility,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutEligibilityRequest,
+        super::payouts_types::PayoutEligibilityRequest<T>,
         super::payouts_types::PayoutEligibilityResponse,
     >,
 ) -> Result<
@@ -3044,11 +3135,11 @@ pub fn generate_payout_eligibility_response(
     }
 }
 
-pub fn generate_payout_enroll_disburse_account_response(
+pub fn generate_payout_enroll_disburse_account_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutEnrollDisburseAccount,
         super::payouts_types::PayoutFlowData,
-        super::payouts_types::PayoutEnrollDisburseAccountRequest,
+        super::payouts_types::PayoutEnrollDisburseAccountRequest<T>,
         super::payouts_types::PayoutEnrollDisburseAccountResponse,
     >,
 ) -> Result<

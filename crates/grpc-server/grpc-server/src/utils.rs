@@ -1092,6 +1092,224 @@ macro_rules! implement_connector_operation {
     }
 };
 
+    (
+        fn_name: $fn_name:ident,
+        log_prefix: $log_prefix:literal,
+        request_type: $request_type:ty,
+        response_type: $response_type:ty,
+        flow_marker: $flow_marker:ty,
+        resource_common_data_type: $resource_common_data_type:ty,
+        request_data_type: $request_data_type:ident,
+        response_data_type: $response_data_type:ty,
+        request_data_constructor: $request_data_constructor:path,
+        common_flow_data_constructor: $common_flow_data_constructor:path,
+        generate_response_fn: $generate_response_fn:path,
+        connector_data_types: [$connector_data:ident],
+        all_keys_required: $all_keys_required:expr,
+        has_payout_method_data: option
+    ) => {
+        async fn $fn_name(
+            &self,
+            request: $crate::request::RequestData<$request_type>,
+        ) -> Result<tonic::Response<$response_type>, error_stack::Report<ucs_env::error::GrpcError>>
+        {
+            use ucs_env::error::ResultExtGrpcError;
+            Box::pin(async {
+                tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
+                let config = request
+                    .extensions
+                    .get::<std::sync::Arc<ucs_env::configs::Config>>()
+                    .cloned()
+                    .ok_or_else(|| {
+                        error_stack::Report::new(ucs_env::error::GrpcError::from(
+                            ucs_env::error::InternalError::ConfigNotFound,
+                        ))
+                    })?;
+                let service_name = request
+                    .extensions
+                    .get::<String>()
+                    .cloned()
+                    .unwrap_or_else(|| "unknown_service".to_owned());
+                let $crate::request::RequestData {
+                    payload,
+                    extracted_metadata: metadata,
+                    masked_metadata,
+                    extensions: _,
+                } = request;
+                let flow_name =
+                    $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
+                let method = $crate::server::payouts::proxy::convert_payout_method_data(
+                    &payload,
+                    &masked_metadata,
+                    &metadata,
+                    flow_name,
+                )
+                .to_grpc_error()?;
+                let connectors = $crate::utils::apply_url_overrides(
+                    &config,
+                    &metadata.connector,
+                    &metadata.connector_config,
+                    metadata.environment.as_deref(),
+                )
+                .await
+                .to_grpc_error()?;
+                let common_data = $common_flow_data_constructor((
+                    payload.clone(),
+                    connectors,
+                    &masked_metadata,
+                ))
+                .to_grpc_error()?;
+                let test_context = config
+                    .test
+                    .create_test_context(&metadata.request_id)
+                    .map_err(|error| {
+                        error_stack::Report::new(ucs_env::error::GrpcError::from(
+                            ucs_env::error::InternalError::TestContextCreationFailed {
+                                reason: error.to_string(),
+                            },
+                        ))
+                    })?;
+                let api_tag = config.api_tags.get_tag(flow_name, None);
+                let event_params = external_services::service::EventProcessingParams {
+                    connector_name: &metadata.connector.get_connector_name(),
+                    service_name: &service_name,
+                    service_type: $crate::utils::service_type_str(&config.server.type_),
+                    flow_name,
+                    event_config: &config.events,
+                    runtime_metadata: &config.runtime_metadata,
+                    request_id: &metadata.request_id,
+                    lineage_ids: &metadata.lineage_ids,
+                    reference_id: &metadata.reference_id,
+                    resource_id: &metadata.resource_id,
+                    shadow_mode: metadata.shadow_mode,
+                    proxy_name: metadata.proxy_name.as_deref(),
+                    tenant_id: &metadata.tenant_id,
+                    merchant_id: metadata.merchant_id.as_str(),
+                    org_id: metadata.org_id.as_str(),
+                    return_raw_connector_data: config.common.return_raw_connector_data,
+                    return_typed_connector_data: config.common.return_typed_connector_data,
+                    masking_keys: &config.masking_keys,
+                    connector_latency: metadata.connector_latency.clone(),
+                    log_fields_enabled: config.log_fields.enabled,
+                    log_fields: &config.log_fields.outgoing,
+                };
+
+                #[allow(clippy::too_many_arguments)]
+                async fn run_holder_flow<
+                    T: domain_types::payment_method_data::PaymentMethodDataTypes
+                        + std::fmt::Debug
+                        + Default
+                        + Send
+                        + Sync
+                        + 'static
+                        + serde::Serialize,
+                >(
+                    payload: $request_type,
+                    method: Option<domain_types::payouts::payout_method_data::PayoutMethodData<T>>,
+                    common_data: $resource_common_data_type,
+                    metadata: &ucs_interface_common::metadata::MetadataPayload,
+                    token_data: Option<injector::TokenData>,
+                    proxy: &domain_types::types::ProxyConfig,
+                    event_params: external_services::service::EventProcessingParams<'_>,
+                    test_context: Option<external_services::service::TestContext>,
+                    api_tag: Option<String>,
+                ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>>
+                {
+                    let integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                        'static,
+                        $flow_marker,
+                        $resource_common_data_type,
+                        $request_data_type<T>,
+                        $response_data_type,
+                    > = $crate::resolve_connector_integration!(
+                        &metadata.connector,
+                        [$connector_data<T>]
+                    )
+                    .ok_or_else(|| {
+                        error_stack::Report::new(ucs_env::error::GrpcError::from(
+                            domain_types::errors::IntegrationError::NotSupported {
+                                message: "Invalid connector type for this flow".to_owned(),
+                                connector: "N/A",
+                                context: Default::default(),
+                            },
+                        ))
+                    })?;
+                    let request: $request_data_type<T> =
+                        $request_data_constructor((payload, method)).to_grpc_error()?;
+                    let router_data = domain_types::router_data_v2::RouterDataV2::<
+                        $flow_marker,
+                        $resource_common_data_type,
+                        $request_data_type<T>,
+                        $response_data_type,
+                    > {
+                        flow: std::marker::PhantomData,
+                        resource_common_data: common_data,
+                        connector_config: metadata.connector_config.clone(),
+                        request,
+                        response: Err(domain_types::router_data::ErrorResponse::default()),
+                    };
+                    let action = integration.get_call_connector_action();
+                    let response = Box::pin(
+                        external_services::service::execute_connector_processing_step(
+                            proxy,
+                            integration,
+                            router_data,
+                            $all_keys_required,
+                            event_params,
+                            token_data,
+                            action,
+                            test_context,
+                            api_tag,
+                        ),
+                    )
+                    .await
+                    .to_grpc_error()?;
+                    $generate_response_fn(response).to_grpc_error()
+                }
+
+                let response = match method {
+                    $crate::server::payouts::proxy::ConvertedPayoutMethodData::Normal(method) => {
+                        Box::pin(run_holder_flow::<
+                            domain_types::payment_method_data::DefaultPCIHolder,
+                        >(
+                            payload,
+                            method,
+                            common_data,
+                            &metadata,
+                            None,
+                            &config.proxy,
+                            event_params,
+                            test_context,
+                            api_tag,
+                        ))
+                        .await?
+                    }
+                    $crate::server::payouts::proxy::ConvertedPayoutMethodData::Proxy(
+                        method,
+                        tokens,
+                    ) => {
+                        Box::pin(run_holder_flow::<
+                            domain_types::payment_method_data::VaultTokenHolder,
+                        >(
+                            payload,
+                            Some(method),
+                            common_data,
+                            &metadata,
+                            Some(tokens),
+                            &config.proxy,
+                            event_params,
+                            test_context,
+                            api_tag,
+                        ))
+                        .await?
+                    }
+                };
+                Ok(tonic::Response::new(response))
+            })
+            .await
+        }
+    };
+
     // Pattern without payment method data processing (original behavior). Resolves
     // via `resolve_connector_integration!` — list one connector family for a flow
     // that only ever serves that family, or several for a flow that must resolve

@@ -165,18 +165,20 @@ pub trait FrmServiceTrait:
 {
 }
 
-pub trait PayoutServiceTrait:
+pub trait PayoutServiceTrait<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorCommon
     + ServerAuthentication
-    + PayoutCreateV2
-    + PayoutTransferV2
+    + PayoutCreateV2<T>
+    + PayoutTransferV2<T>
     + PayoutGetV2
     + PayoutVoidV2
-    + PayoutStageV2
-    + PayoutCreateLinkV2
-    + PayoutCreateRecipientV2
-    + PayoutEnrollDisburseAccountV2
-    + PayoutEligibilityV2
+    + PayoutStageV2<T>
+    + PayoutCreateLinkV2<T>
+    + PayoutCreateRecipientV2<T>
+    + PayoutEnrollDisburseAccountV2<T>
+    + PayoutEligibilityV2<T>
 {
 }
 
@@ -216,16 +218,8 @@ pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Syn
 
 pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
-pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
-
-pub type BoxedPayoutTransferConnector<T> =
-    crate::connector_integration_v2::BoxedConnectorIntegrationV2<
-        'static,
-        connector_flow::PayoutTransfer,
-        PayoutFlowData,
-        PayoutTransferRequest<T>,
-        PayoutTransferResponse,
-    >;
+pub type BoxedPayoutConnector<T = domain_types::payment_method_data::DefaultPCIHolder> =
+    Box<&'static (dyn PayoutServiceTrait<T> + Sync)>;
 
 pub type BoxedAuthenticatorConnector = Box<
     &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
@@ -601,11 +595,13 @@ pub trait VerifyWebhookSourceV2:
 {
 }
 
-pub trait PayoutCreateV2:
+pub trait PayoutCreateV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreate,
     PayoutFlowData,
-    PayoutCreateRequest,
+    PayoutCreateRequest<T>,
     PayoutCreateResponse,
 >
 {
@@ -949,51 +945,61 @@ pub trait PayoutVoidV2:
 {
 }
 
-pub trait PayoutStageV2:
+pub trait PayoutStageV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutStage,
     PayoutFlowData,
-    PayoutStageRequest,
+    PayoutStageRequest<T>,
     PayoutStageResponse,
 >
 {
 }
 
-pub trait PayoutCreateLinkV2:
+pub trait PayoutCreateLinkV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreateLink,
     PayoutFlowData,
-    PayoutCreateLinkRequest,
+    PayoutCreateLinkRequest<T>,
     PayoutCreateLinkResponse,
 >
 {
 }
 
-pub trait PayoutCreateRecipientV2:
+pub trait PayoutCreateRecipientV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreateRecipient,
     PayoutFlowData,
-    PayoutCreateRecipientRequest,
+    PayoutCreateRecipientRequest<T>,
     PayoutCreateRecipientResponse,
 >
 {
 }
 
-pub trait PayoutEnrollDisburseAccountV2:
+pub trait PayoutEnrollDisburseAccountV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutEnrollDisburseAccount,
     PayoutFlowData,
-    PayoutEnrollDisburseAccountRequest,
+    PayoutEnrollDisburseAccountRequest<T>,
     PayoutEnrollDisburseAccountResponse,
 >
 {
 }
 
-pub trait PayoutEligibilityV2:
+pub trait PayoutEligibilityV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutEligibility,
     PayoutFlowData,
-    PayoutEligibilityRequest,
+    PayoutEligibilityRequest<T>,
     PayoutEligibilityResponse,
 >
 {

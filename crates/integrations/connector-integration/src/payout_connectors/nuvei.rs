@@ -7,7 +7,7 @@ use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -78,7 +78,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-impl PayoutServiceTrait for NuveiPayouts<DefaultPCIHolder> {}
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize> PayoutServiceTrait<T>
+    for NuveiPayouts<T>
+{
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for NuveiPayouts<T>
 {

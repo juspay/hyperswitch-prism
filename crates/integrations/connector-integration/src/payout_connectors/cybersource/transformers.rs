@@ -1,5 +1,6 @@
 use cards::CardNumber;
 use common_utils::types::StringMajorUnit;
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
@@ -147,12 +148,12 @@ pub(super) struct CybersourcePayoutContext {
     pub total_amount: StringMajorUnit,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<(
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         CybersourcePayoutContext,
@@ -165,7 +166,7 @@ impl
             &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             CybersourcePayoutContext,
@@ -213,19 +214,27 @@ impl
                 context: Default::default(),
             })?
             .get_card()?;
+        // Body signatures require the resolved PAN, so vault placeholders cannot be signed here.
+        let card_number = T::peek_inner(&card.card_number)
+            .parse::<CardNumber>()
+            .map_err(|_| IntegrationError::NotSupported {
+                message: "Card payouts require a resolved card number for body signing".to_owned(),
+                connector: "cybersource",
+                context: Default::default(),
+            })?;
         let card_type = card
             .card_network
             .as_ref()
             .and_then(|network| network.type_code().map(str::to_string))
             .or_else(|| {
-                domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
+                domain_types::utils::get_card_issuer(&card_number.get_card_no())
                     .ok()
                     .and_then(|issuer| issuer.type_code().map(str::to_string))
             });
         let payment_information = CybersourcePayoutPaymentInformation::Card(Box::new(
             CybersourcePayoutCardPaymentInformation {
                 card: CybersourcePayoutCard {
-                    number: card.card_number.clone(),
+                    number: card_number,
                     expiration_month: card.expiry_month.clone(),
                     expiration_year: card.expiry_year.clone(),
                     card_type,
@@ -244,8 +253,10 @@ impl
     }
 }
 
-fn build_recipient_info(
-    request: &PayoutTransferRequest,
+fn build_recipient_info<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize,
+>(
+    request: &PayoutTransferRequest<T>,
 ) -> Result<CybersourceRecipientInfo, error_stack::Report<IntegrationError>> {
     let first_name = request.get_billing_first_name().change_context(
         IntegrationError::MissingRequiredField {
@@ -330,8 +341,14 @@ fn map_payout_status(status: &CybersourcePayoutStatus) -> common_enums::PayoutSt
     }
 }
 
-impl TryFrom<ResponseRouterData<CybersourceFulfillResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<CybersourceFulfillResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
