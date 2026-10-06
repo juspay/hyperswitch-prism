@@ -833,7 +833,6 @@ pub struct PaymentFlowData {
     pub address: payment_address::PaymentAddress,
     pub auth_type: AuthenticationType,
     pub connector_feature_data: Option<SecretSerdeValue>,
-    pub amount_captured: Option<i64>,
     // minor amount for amount frameworka
     pub minor_amount_captured: Option<MinorUnit>,
     pub minor_amount_capturable: Option<MinorUnit>,
@@ -3000,7 +2999,6 @@ pub struct WebhookDetailsResponse {
     pub raw_connector_response: Option<String>,
     pub status_code: u16,
     pub response_headers: Option<http::HeaderMap>,
-    pub amount_captured: Option<i64>,
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
     pub network_txn_id: Option<String>,
@@ -3665,10 +3663,8 @@ pub struct RefundsData {
     pub connector_refund_id: Option<String>,
     pub customer_id: Option<String>,
     pub currency: Currency,
-    pub payment_amount: i64,
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
-    pub refund_amount: i64,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub refund_connector_metadata: Option<SecretSerdeValue>,
     pub minor_payment_amount: MinorUnit,
@@ -3742,7 +3738,6 @@ pub struct MultipleCaptureRequestData {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: i64,
     pub minor_amount_to_capture: MinorUnit,
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,
@@ -3799,7 +3794,6 @@ impl PaymentsCaptureData {
 pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub currency: Currency,
     pub payment_method_data: PaymentMethodData<T>,
-    pub amount: Option<i64>,
     pub confirm: bool,
     pub billing_descriptor: Option<BillingDescriptor>,
     pub customer_acceptance: Option<CustomerAcceptance>,
@@ -3909,7 +3903,6 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
 #[derive(Debug, Clone)]
 pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub mandate_reference: MandateReferenceId,
-    pub amount: i64,
     pub minor_amount: MinorUnit,
     pub currency: Currency,
     pub merchant_order_id: Option<String>,

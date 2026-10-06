@@ -649,7 +649,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ecommerce_card_payment_only_transaction_data:
                 requests::PeachpaymentsRefundTransactionData {
                     amount: requests::PeachpaymentsAmount {
-                        amount: MinorUnit::new(item.router_data.request.refund_amount),
+                        amount: item.router_data.request.minor_refund_amount,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },

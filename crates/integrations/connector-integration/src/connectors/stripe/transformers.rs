@@ -3258,10 +3258,6 @@ where
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured: item.response.amount_received,
                 connector_response: connector_response_data,
                 minor_amount_capturable,
@@ -3565,10 +3561,6 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item
-                    .response
-                    .amount_received
-                    .map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured: item.response.amount_received,
                 connector_response: connector_response_data,
                 ..item.router_data.resource_common_data
@@ -4629,7 +4621,6 @@ pub(crate) fn build_webhook_payment_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: None,
         minor_amount_captured: None,
         network_txn_id: None,
         payment_method_update: None,

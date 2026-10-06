@@ -456,7 +456,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(raw_body),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,

@@ -99,7 +99,6 @@ pub enum SyncRequestType {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCancelData {
-    pub amount: Option<i64>,
     pub currency: Option<Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
@@ -411,7 +410,7 @@ pub struct SetupMandateIntegrityObject {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RepeatPaymentIntegrityObject {
     /// Payment amount
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Payment currency
     pub currency: Currency,
     /// Mandate reference

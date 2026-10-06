@@ -444,7 +444,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                MinorUnit::new(router_data.request.refund_amount),
+                router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

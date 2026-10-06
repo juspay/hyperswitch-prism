@@ -129,7 +129,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             response_headers: None,
             mandate_reference: None,
             minor_amount_captured: None,
-            amount_captured: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

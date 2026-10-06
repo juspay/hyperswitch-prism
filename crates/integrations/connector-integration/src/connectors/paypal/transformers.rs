@@ -8,7 +8,7 @@ use cards;
 use common_enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    types::StringMajorUnit,
+    types::{MinorUnit, StringMajorUnit},
     CustomResult, Method,
 };
 use domain_types::{
@@ -3025,9 +3025,11 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
             common_enums::AttemptStatus::Charged
             | common_enums::AttemptStatus::PartialCharged
             | common_enums::AttemptStatus::PartialChargedAndChargeable
-            | common_enums::AttemptStatus::IntegrityFailure => {
-                item.router_data.request.amount_to_capture
-            }
+            | common_enums::AttemptStatus::IntegrityFailure => item
+                .router_data
+                .request
+                .minor_amount_to_capture
+                .get_amount_as_i64(),
         };
         let connector_payment_id: PaypalMeta = match to_connector_meta(
             item.router_data
@@ -3057,7 +3059,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: Some(amount_captured),
+                minor_amount_captured: Some(MinorUnit::new(amount_captured)),
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {

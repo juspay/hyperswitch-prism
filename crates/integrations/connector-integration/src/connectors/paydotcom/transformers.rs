@@ -2307,7 +2307,6 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(|amount| amount.get_amount_as_i64()),
                 minor_amount_captured: captured_amount,
                 ..item.router_data.resource_common_data
             },

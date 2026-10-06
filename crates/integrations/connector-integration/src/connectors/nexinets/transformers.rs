@@ -488,7 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.router_data.request.amount_to_capture,
+            initial_amount: item.router_data.request.minor_amount_to_capture,
             currency: item.router_data.request.currency,
         })
     }
@@ -613,7 +613,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.router_data.request.refund_amount,
+            initial_amount: item.router_data.request.minor_refund_amount,
             currency: item.router_data.request.currency,
         })
     }

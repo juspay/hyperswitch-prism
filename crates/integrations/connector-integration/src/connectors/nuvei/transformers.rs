@@ -1687,7 +1687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter_webhooks
             .convert(
-                common_utils::types::MinorUnit::new(router_data.request.refund_amount),
+                router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

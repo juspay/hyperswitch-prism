@@ -1499,7 +1499,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
                 minor_amount_captured,
                 // AVS / CVV / ANI results are reported on both the success and the
                 // decline path — a declined charge is precisely when the merchant
@@ -1556,7 +1555,6 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -1631,7 +1629,6 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -2500,7 +2497,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -3096,7 +3092,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
                 minor_amount_captured,
                 connector_customer,
                 connector_response,

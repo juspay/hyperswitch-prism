@@ -424,13 +424,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let metadata = router_data.request.metadata.clone().expose_option();
 
-        match router_data.request.amount {
-            Some(amount) if amount > 0 => Err(IntegrationError::FlowNotSupported {
-                flow: "Setup mandate with non zero amount".to_string(),
-                connector: "Payload".to_string(),
-                context: Default::default(),
+        match router_data.request.minor_amount {
+            Some(amount) if amount > common_utils::types::MinorUnit::default() => {
+                Err(IntegrationError::FlowNotSupported {
+                    flow: "Setup mandate with non zero amount".to_string(),
+                    connector: "Payload".to_string(),
+                    context: Default::default(),
+                }
+                .into())
             }
-            .into()),
             // NOTE: prism's SetupMandate is card-only today. If an ACH (bank
             // account) setup-mandate flow is ever added, its /payment_methods
             // request must NOT carry description/descriptor/attrs (HS PR #12710).

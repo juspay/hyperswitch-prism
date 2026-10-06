@@ -1047,7 +1047,6 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
             raw_connector_response: None,
             response_headers: None,
             minor_amount_captured: None,
-            amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

@@ -3239,7 +3239,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 common_enums::AttemptStatus::Charged,
-                Some(item.router_data.request.amount_to_capture),
+                Some(
+                    item.router_data
+                        .request
+                        .minor_amount_to_capture
+                        .get_amount_as_i64(),
+                ),
             )
         } else {
             (common_enums::AttemptStatus::Pending, None)

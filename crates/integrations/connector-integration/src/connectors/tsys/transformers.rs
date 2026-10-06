@@ -927,7 +927,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_amount: item_data
                 .connector
                 .amount_converter
-                .convert(MinorUnit(item.request.refund_amount), item.request.currency)
+                .convert(item.request.minor_refund_amount, item.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

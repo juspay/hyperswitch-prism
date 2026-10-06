@@ -1561,8 +1561,7 @@ where
             }),
         }?;
 
-        let amount_to_capture =
-            common_utils::types::MinorUnit::new(router_data.request.amount_to_capture);
+        let amount_to_capture = router_data.request.minor_amount_to_capture;
 
         let capture_request = requests::RedsysOperationRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(
@@ -2037,7 +2036,7 @@ where
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
-        let refund_amount = common_utils::types::MinorUnit::new(router_data.request.refund_amount);
+        let refund_amount = router_data.request.minor_refund_amount;
 
         let refund_request = requests::RedsysOperationRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(

@@ -475,7 +475,6 @@ pub fn build_webhook_payment_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: None,
         minor_amount_captured: None,
         network_txn_id: payment.connector_transaction_id,
         payment_method_update: None,

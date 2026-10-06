@@ -1311,8 +1311,6 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured: minor_amount_captured
-                                .map(|minor_amount| minor_amount.get_amount_as_i64()),
                             minor_amount_captured,
                             minor_amount_capturable,
                             ..router_data.resource_common_data

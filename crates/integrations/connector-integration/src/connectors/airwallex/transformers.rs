@@ -1679,16 +1679,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         // Extract capture amount from the capture data
-        let capture_amount = item.router_data.request.amount_to_capture;
+        let capture_amount = item.router_data.request.minor_amount_to_capture;
 
         // Use connector amount converter for proper amount formatting in major units (hyperswitch pattern)
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::MinorUnit::new(capture_amount),
-                item.router_data.request.currency,
-            )
+            .convert(capture_amount, item.router_data.request.currency)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1818,14 +1815,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_intent_id = item.router_data.request.connector_transaction_id.clone();
 
         // Extract refund amount from RefundsData and convert to major units (hyperswitch pattern)
-        let refund_amount = item.router_data.request.refund_amount;
+        let refund_amount = item.router_data.request.minor_refund_amount;
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::MinorUnit::new(refund_amount),
-                item.router_data.request.currency,
-            )
+            .convert(refund_amount, item.router_data.request.currency)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

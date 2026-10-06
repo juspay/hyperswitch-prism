@@ -252,7 +252,6 @@ impl GlomopayWebhookPayload {
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
-            amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,

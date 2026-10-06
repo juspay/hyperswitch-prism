@@ -982,7 +982,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             status_code: 200,
             response_headers: None,
             minor_amount_captured: None,
-            amount_captured: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

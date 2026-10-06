@@ -2529,7 +2529,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                             raw_connector_response: None,
                             response_headers: None,
                             minor_amount_captured: None,
-                            amount_captured: None,
                             error_reason: None,
                             network_txn_id: response.payment_data.and_then(|payment_data| {
                                 match payment_data {
@@ -2561,7 +2560,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         raw_connector_response: None,
                         response_headers: None,
                         minor_amount_captured: None,
-                        amount_captured: None,
                         error_reason: None,
                         network_txn_id: None,
                         payment_method_update: None,

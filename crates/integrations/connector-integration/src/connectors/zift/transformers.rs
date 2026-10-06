@@ -1077,7 +1077,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.amount.unwrap_or(0) > 0 {
+        if item
+            .router_data
+            .request
+            .minor_amount
+            .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
+        {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "Zift".to_string(),
@@ -1304,7 +1309,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                MinorUnit::new(item.router_data.request.refund_amount),
+                item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

@@ -2016,8 +2016,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
 
         // SetupMandate (tokenization) should not have an amount - it's for storing cards without charging
-        let amount = router_data.request.amount.unwrap_or(0);
-        if amount > 0 {
+        if router_data
+            .request
+            .minor_amount
+            .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
+        {
             return Err(error_stack::report!(
                 errors::IntegrationError::NotSupported {
                     message: "SetupMandate flow does not support amounts greater than 0"

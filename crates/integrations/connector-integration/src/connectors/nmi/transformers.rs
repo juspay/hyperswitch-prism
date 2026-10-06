@@ -1704,7 +1704,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Hyperswitch parity: NMI SetupMandate (Validate) only supports zero amount.
-        if router_data.request.amount.unwrap_or(0) > 0 {
+        if router_data
+            .request
+            .minor_amount
+            .is_some_and(|amount| amount > common_utils::types::MinorUnit::default())
+        {
             return Err(IntegrationError::NotSupported {
                 message: "Setup Mandate with non zero amount".to_string(),
                 connector: "NMI",
