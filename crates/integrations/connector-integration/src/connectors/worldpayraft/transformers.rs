@@ -412,17 +412,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_deref()
             .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
             .unwrap_or(false);
-        let card_verification_data = {
-            let cvv_str = card.card_cvc.peek();
-            if !cvv_str.is_empty() {
-                Some(WorldpayraftCardVerificationData {
-                    cvv_indicator: CVV_INDICATOR_PRESENT.to_string(),
-                    cvv2_cvc2: card.card_cvc.clone(),
-                })
-            } else {
-                None
-            }
-        };
+        let card_verification_data = Some(WorldpayraftCardVerificationData {
+            cvv_indicator: CVV_INDICATOR_PRESENT.to_string(),
+            cvv2_cvc2: card.card_cvc.clone(),
+        });
         Ok(Self {
             pan,
             expiration_date,
