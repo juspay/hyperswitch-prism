@@ -1681,7 +1681,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Revolv3PaymentMethodDetails::ApplePay(ApplePayPaymentMethodData {
                             apple_pay: Revolv3ApplePayData {
                                 apple_pay_decrypted_package:
-                                    Revolv3ApplePayDecryptedPackage::try_from(&apple_pay_data)?,
+                                    Revolv3ApplePayDecryptedPackage::try_from(
+                                        apple_pay_data.as_ref(),
+                                    )?,
                             },
                         })
                     }
@@ -1689,7 +1691,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
                             google_pay: Revolv3GooglePayData {
                                 google_pay_decrypted_package:
-                                    Revolv3GooglePayDecryptedPackage::try_from(&google_pay_data)?,
+                                    Revolv3GooglePayDecryptedPackage::try_from(
+                                        google_pay_data.as_ref(),
+                                    )?,
                             },
                         })
                     }

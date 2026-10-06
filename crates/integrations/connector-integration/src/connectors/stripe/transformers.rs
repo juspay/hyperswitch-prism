@@ -1981,7 +1981,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => Ok(Self::try_from((gpay_data, auth_type))?),
+            WalletData::GooglePay(gpay_data) => {
+                Ok(Self::try_from((gpay_data.as_ref(), auth_type))?)
+            }
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -6042,6 +6044,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types,
             setup_future_usage,
         ) = if payment_method_token.is_some() {
+            // Parity with hyperswitch direct (`is_tokenized_ntid_flow`): a tokenised MIT on a
+            // Stripe split payment still carries the MIT exemption. `payment_method_options` was
+            // only ever assigned inside the `NetworkMandateId` arm below, so this short-circuit
+            // dropped `payment_method_options[card][mit_exemption][network_transaction_id]` for
+            // every saved-token repeat.
+            let tokenised_ntid = match (
+                &item.request.split_payments,
+                &item.request.mandate_reference,
+            ) {
+                (
+                    Some(SplitPaymentsDetails::StripeSplitPayment(_)),
+                    MandateReferenceId::NetworkMandateId(network_mandate_id),
+                ) => Some(network_mandate_id.network_transaction_id.clone()),
+                _ => None,
+            };
+            if let Some(network_transaction_id) = tokenised_ntid {
+                payment_method_options = Some(StripePaymentMethodOptions::Card {
+                    mandate_options: None,
+                    network_transaction_id: None,
+                    mit_exemption: Some(MitExemption {
+                        network_transaction_id: Secret::new(network_transaction_id),
+                    }),
+                });
+            }
             (None, None, StripeBillingAddress::default(), None, None)
         } else {
             match &item.request.mandate_reference {
