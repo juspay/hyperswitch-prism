@@ -347,6 +347,7 @@ impl
             }
             Some(
                 PayoutMethodData::Card(_)
+                | PayoutMethodData::CardProxy(_)
                 | PayoutMethodData::Bank(_)
                 | PayoutMethodData::Wallet(_)
                 | PayoutMethodData::BankRedirect(_)

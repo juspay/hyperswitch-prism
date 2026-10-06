@@ -28,6 +28,7 @@ pub struct PayoutFlowData {
     pub test_mode: Option<bool>,
     pub description: Option<String>,
     pub merchant_request_id: Option<String>,
+    pub vault_headers: Option<std::collections::HashMap<String, Secret<String>>>,
 }
 
 impl RawConnectorRequestResponse for PayoutFlowData {

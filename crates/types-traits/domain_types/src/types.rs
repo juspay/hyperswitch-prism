@@ -61,7 +61,7 @@ use tracing::info;
 use utoipa::ToSchema;
 
 /// Extract vault-related headers from gRPC metadata
-fn extract_headers_from_metadata(
+pub(crate) fn extract_headers_from_metadata(
     metadata: &MaskedMetadata,
 ) -> Option<HashMap<String, Secret<String>>> {
     let mut vault_headers = HashMap::new();

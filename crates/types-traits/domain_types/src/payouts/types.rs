@@ -33,6 +33,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -270,6 +271,61 @@ impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutRecipientType>
             }
         }
     }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::CardProxyPayout>
+    for payouts::payout_method_data::CardPayout<crate::payment_method_data::VaultTokenHolder>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        card: grpc_api_types::payouts::CardProxyPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        required_proxy_card_field(
+            card.card_number,
+            "payout_method_data.card_proxy.card_number",
+        )?;
+        let card_network = card
+            .card_network
+            .map(|network| {
+                grpc_api_types::payments::CardNetwork::try_from(network)
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "payout_method_data.card_proxy.card_network",
+                        context: Default::default(),
+                    })
+                    .and_then(common_enums::CardNetwork::foreign_try_from)
+            })
+            .transpose()?;
+
+        Ok(Self {
+            // The opaque reference travels only in InjectorTokenData.
+            card_number: "{{$card_number}}".to_string().into(),
+            expiry_month: required_proxy_card_field(
+                card.card_exp_month,
+                "payout_method_data.card_proxy.card_exp_month",
+            )?,
+            expiry_year: required_proxy_card_field(
+                card.card_exp_year,
+                "payout_method_data.card_proxy.card_exp_year",
+            )?,
+            card_holder_name: card.card_holder_name,
+            card_network,
+        })
+    }
+}
+
+pub fn required_proxy_card_field(
+    value: Option<hyperswitch_masking::Secret<String>>,
+    field_name: &'static str,
+) -> Result<hyperswitch_masking::Secret<String>, error_stack::Report<IntegrationError>> {
+    value
+        .filter(|value| !value.peek().trim().is_empty())
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name,
+                context: Default::default(),
+            })
+        })
 }
 
 impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
@@ -1172,6 +1228,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
             grpc_api_types::payouts::payout_method::PayoutMethodData::Card(card) => Ok(Self::Card(
                 payouts::payout_method_data::CardPayout::foreign_try_from(card)?,
             )),
+            grpc_api_types::payouts::payout_method::PayoutMethodData::CardProxy(card) => {
+                Ok(Self::CardProxy(Box::new(
+                    payouts::payout_method_data::CardPayout::foreign_try_from(card)?,
+                )))
+            }
             grpc_api_types::payouts::payout_method::PayoutMethodData::Ach(ach) => {
                 Ok(Self::Bank(payouts::payout_method_data::Bank::Ach(
                     payouts::payout_method_data::AchBankTransfer::foreign_try_from(ach)?,
@@ -2034,6 +2095,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2078,6 +2140,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2122,6 +2185,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2166,6 +2230,7 @@ impl
             merchant_id,
             payout_id: value.merchant_quote_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_quote_id,
             ),
@@ -2210,6 +2275,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2254,6 +2320,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2298,6 +2365,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2869,6 +2937,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors: connectors.into(),
+            vault_headers: crate::types::extract_headers_from_metadata(metadata),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),

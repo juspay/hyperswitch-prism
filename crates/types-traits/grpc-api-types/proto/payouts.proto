@@ -90,6 +90,15 @@ message CardPayout {
   optional CardNetwork card_network = 5;
 }
 
+message CardProxyPayout {
+  // Opaque external-vault reference, never a PAN.
+  SecretString card_number = 1;
+  SecretString card_exp_month = 2;
+  SecretString card_exp_year = 3;
+  optional SecretString card_holder_name = 4;
+  optional CardNetwork card_network = 5;
+}
+
 message AchBankTransferPayout {
   // The name of the bank
   optional BankNames bank_name = 1;
@@ -301,6 +310,7 @@ message PayoutMethod {
     PayshapBankTransferPayout payshap = 16;
     PayshapProxyBankTransferPayout payshap_proxy = 17;
     TedBankTransferPayout ted = 18;
+    CardProxyPayout card_proxy = 19;
   }
 }
 
@@ -774,4 +784,3 @@ message PayoutMethodEligibilityResponse {
   // refusals — so the check remains traceable for reconciliation.
   optional string connector_eligibility_reference_id = 8;
 }
-

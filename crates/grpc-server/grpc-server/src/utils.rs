@@ -1112,6 +1112,7 @@ macro_rules! implement_connector_operation {
         generate_response_fn: $generate_response_fn:path,
         connector_data_types: [$($connector_data_type:ty),+ $(,)?],
         all_keys_required: $all_keys_required:expr
+        $(, prepare_request: $prepare_request:path)?
     ) => {
         async fn $fn_name(
             &self,
@@ -1143,6 +1144,13 @@ macro_rules! implement_connector_operation {
 
             let request_id = metadata_payload.request_id.clone();
             let connector_config = metadata_payload.connector_config.clone();
+
+            let token_data = None$(.or($prepare_request(
+                &payload,
+                &masked_metadata,
+                &metadata_payload,
+                $crate::utils::flow_marker_to_flow_name::<$flow_marker>(),
+            ).to_grpc_error()?))?;
 
             // Resolve connector integration by trying each listed family in order —
             // see `resolve_connector_integration!` for why this replaces a
@@ -1253,7 +1261,7 @@ macro_rules! implement_connector_operation {
                     router_data,
                     $all_keys_required,
                     event_params,
-                    None,
+                    token_data,
                     call_connector_action,
                     test_context,
                     api_tag,

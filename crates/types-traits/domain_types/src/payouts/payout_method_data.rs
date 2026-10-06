@@ -4,11 +4,13 @@ use error_stack::Report;
 use hyperswitch_masking::Secret;
 
 use crate::errors::IntegrationError;
+use crate::payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder};
 
 /// The payout method information required for carrying out a payout
 #[derive(Debug, Clone)]
 pub enum PayoutMethodData {
     Card(CardPayout),
+    CardProxy(Box<CardPayout<VaultTokenHolder>>),
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
@@ -45,6 +47,7 @@ impl PayoutMethodData {
     fn variant_name(&self) -> &'static str {
         match self {
             Self::Card(_) => "Card",
+            Self::CardProxy(_) => "CardProxy",
             Self::Bank(_) => "Bank",
             Self::Wallet(_) => "Wallet",
             Self::BankRedirect(_) => "BankRedirect",
@@ -54,9 +57,9 @@ impl PayoutMethodData {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
-pub struct CardPayout {
+pub struct CardPayout<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     /// The card number
-    pub card_number: CardNumber,
+    pub card_number: T::Inner,
 
     /// The card's expiry month
     pub expiry_month: Secret<String>,
