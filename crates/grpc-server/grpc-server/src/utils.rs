@@ -1107,7 +1107,7 @@ macro_rules! implement_connector_operation {
         connector_data_types: [$connector_data:ident],
         all_keys_required: $all_keys_required:expr,
         // Payouts select the holder from payout_method_data; payments use payment_method.
-        has_payout_method_data: option
+        has_payout_method_data: $payout_method_data:ident
     ) => {
         async fn $fn_name(
             &self,
@@ -1215,9 +1215,11 @@ macro_rules! implement_connector_operation {
                     api_tag: Option<String>,
                 ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>>
                 where
-                    domain_types::payouts::payout_method_data::PayoutMethodData<T>:
+                    $crate::implement_connector_operation!(
+                        @payout_request_type $payout_method_data, $request_data_type, T
+                    ):
                         domain_types::utils::ForeignTryFrom<
-                            grpc_api_types::payouts::PayoutMethod,
+                            $request_type,
                             Error = domain_types::errors::IntegrationError,
                         >,
                 {
@@ -1225,7 +1227,9 @@ macro_rules! implement_connector_operation {
                         'static,
                         $flow_marker,
                         $resource_common_data_type,
-                        $request_data_type<T>,
+                        $crate::implement_connector_operation!(
+                            @payout_request_type $payout_method_data, $request_data_type, T
+                        ),
                         $response_data_type,
                     > = $crate::resolve_connector_integration!(
                         &metadata.connector,
@@ -1240,12 +1244,16 @@ macro_rules! implement_connector_operation {
                             },
                         ))
                     })?;
-                    let request: $request_data_type<T> =
+                    let request: $crate::implement_connector_operation!(
+                        @payout_request_type $payout_method_data, $request_data_type, T
+                    ) =
                         $request_data_constructor(payload).to_grpc_error()?;
                     let router_data = domain_types::router_data_v2::RouterDataV2::<
                         $flow_marker,
                         $resource_common_data_type,
-                        $request_data_type<T>,
+                        $crate::implement_connector_operation!(
+                            @payout_request_type $payout_method_data, $request_data_type, T
+                        ),
                         $response_data_type,
                     > {
                         flow: std::marker::PhantomData,
@@ -1311,6 +1319,14 @@ macro_rules! implement_connector_operation {
         }
     };
 
+    (@payout_request_type option, $request_data_type:ident, $holder:ty) => {
+        $request_data_type<$holder>
+    };
+
+    (@payout_request_type none, $request_data_type:ident, $holder:ty) => {
+        $request_data_type
+    };
+
     // Pattern without payment method data processing (original behavior). Resolves
     // via `resolve_connector_integration!` — list one connector family for a flow
     // that only ever serves that family, or several for a flow that must resolve
@@ -1331,7 +1347,6 @@ macro_rules! implement_connector_operation {
         generate_response_fn: $generate_response_fn:path,
         connector_data_types: [$($connector_data_type:ty),+ $(,)?],
         all_keys_required: $all_keys_required:expr
-        $(, prepare_request: $prepare_request:path)?
     ) => {
         async fn $fn_name(
             &self,
@@ -1363,13 +1378,6 @@ macro_rules! implement_connector_operation {
 
             let request_id = metadata_payload.request_id.clone();
             let connector_config = metadata_payload.connector_config.clone();
-
-            let token_data = None$(.or($prepare_request(
-                &payload,
-                &masked_metadata,
-                &metadata_payload,
-                $crate::utils::flow_marker_to_flow_name::<$flow_marker>(),
-            ).to_grpc_error()?))?;
 
             // Resolve connector integration by trying each listed family in order —
             // see `resolve_connector_integration!` for why this replaces a
@@ -1480,7 +1488,7 @@ macro_rules! implement_connector_operation {
                     router_data,
                     $all_keys_required,
                     event_params,
-                    token_data,
+                    None,
                     call_connector_action,
                     test_context,
                     api_tag,

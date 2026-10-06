@@ -509,7 +509,7 @@ impl PayoutOperationsInternal for Payouts {
         generate_response_fn: generate_payout_get_response,
         connector_data_types: [PayoutConnectorData],
         all_keys_required: None,
-        prepare_request: proxy::extract_payout_token_data
+        has_payout_method_data: none
     );
 
     implement_connector_operation!(
@@ -526,7 +526,7 @@ impl PayoutOperationsInternal for Payouts {
         generate_response_fn: generate_payout_void_response,
         connector_data_types: [PayoutConnectorData],
         all_keys_required: None,
-        prepare_request: proxy::extract_payout_token_data
+        has_payout_method_data: none
     );
 
     implement_connector_operation!(

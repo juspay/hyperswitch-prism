@@ -106,18 +106,6 @@ pub(crate) fn get_payout_method_data_action<T: PayoutProxyRequest>(
     }
 }
 
-pub(crate) fn extract_payout_token_data<T: PayoutProxyRequest>(
-    request: &T,
-    headers: &MaskedMetadata,
-    metadata: &MetadataPayload,
-    flow: FlowName,
-) -> Result<Option<injector::TokenData>, error_stack::Report<IntegrationError>> {
-    get_payout_method_data_action(request, headers, metadata, flow).map(|action| match action {
-        PayoutMethodDataAction::Normal => None,
-        PayoutMethodDataAction::CardProxy(tokens) => Some(tokens),
-    })
-}
-
 fn proxy_error_context(
     metadata: &MetadataPayload,
     flow: &FlowName,
