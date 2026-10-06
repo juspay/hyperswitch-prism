@@ -141,7 +141,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
             ConnectorEnum::Flywire => Box::new(connectors::Flywire::new()),
             ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
-            ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
             ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
             ConnectorEnum::Grabpay => Box::new(connectors::Grabpay::<T>::new()),
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
@@ -158,6 +157,10 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Paynearme => Box::new(connectors::Paynearme::<T>::new()),
             ConnectorEnum::D24 => Box::new(connectors::D24::<T>::new()),
             ConnectorEnum::Paydotcom => Box::new(connectors::Paydotcom::<T>::new()),
+            ConnectorEnum::ElavonPg => Box::new(connectors::ElavonPg::<T>::new()),
+            ConnectorEnum::GlobalpaymentsRealex => {
+                Box::new(connectors::GlobalpaymentsRealex::<T>::new())
+            }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
             ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
         }
@@ -198,14 +201,12 @@ impl FrmConnectorData {
     }
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
+        // FRM connectors live in `frm_connectors`, alongside the
+        // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
+        // split. Kount is FRM-only: PreAuthenticate DDC and ServerAuthenticationToken
+        // requests must now be addressed via `x-frm-connector: kount`.
         match connector_name {
-            // FRM-only connectors live in `frm_connectors`, alongside the
-            // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
-            // split. Kount is the exception: it is dual-registered as a payment
-            // connector too (`ConnectorEnum::Kount`, for its PreAuthenticate DDC
-            // and ServerAuthenticationToken flows), so it stays in `connectors`
-            // and is reached from both dispatch tables.
-            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+            FrmConnectorEnum::Kount => Box::new(frm_connectors::Kount::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
             FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
@@ -245,6 +246,9 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
             PayoutConnectorEnum::Deutschebank => {
                 Box::new(payout_connectors::DeutschebankPayouts::<
                     domain_types::payment_method_data::DefaultPCIHolder,
@@ -256,8 +260,14 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
+            PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
+            PayoutConnectorEnum::Mifinity => Box::new(payout_connectors::MifinityPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
             PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),

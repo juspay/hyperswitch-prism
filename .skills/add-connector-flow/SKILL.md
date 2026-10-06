@@ -337,7 +337,7 @@ any header comment. Never address an rpc as `ucs.v2.*` -- there is no such packa
 | Mandate/Recurring | SetupMandate, RepeatPayment, MandateRevoke |
 | Dispute | Accept, SubmitEvidence, DefendDispute |
 | Webhook | IncomingWebhook (requires SourceVerification + BodyDecoding traits) |
-| Auth | PreAuthenticate, Authenticate, PostAuthenticate |
+| Auth | PreAuthenticate / Authenticate / PostAuthenticate — a connector implements only the ones its docs require (often one or two, sometimes none); the charging call is always `Authorize`. The set is derived by the LEG-COUNT PROCEDURE in `grace/rulesbook/codegen/.gracerules_add_flow` §FLOW-GROUP MAP |
 
 The authoritative catalog is the 48 `pub struct` markers in
 `crates/types-traits/domain_types/src/connector_flow.rs`; this table is the subset this

@@ -32,19 +32,20 @@ rand = "0.8.5"
 cpf_cnpj = "0.3"
 bytes = { workspace = true }
 regex = "1.11.1"
+unicode-normalization = "0.1"
 
 
 utoipa = { version = "4.2.0", features = [
     "preserve_order",
     "preserve_path_order",
 ] }
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "macros"] }
 url = { version = "2.5.4", features = ["serde"] }
-http = "0.2.12"
+http = "1.2.0"
 actix-web = { version = "4.11.0", optional = true }
 tracing = { workspace = true }
 tonic = { workspace = true }
-deja = { git = "https://github.com/juspay/deja", rev = "389ad83f3c5bd9cd4b123c8afc8630177bdd4151", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
 
 
 [features]

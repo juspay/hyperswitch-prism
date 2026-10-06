@@ -7,5 +7,32 @@
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/Void"
-  ]
+  ],
+  "supported_payment_methods": [
+    "open_banking"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Get": {
+      "sync_payment": "PaymentService/Get depends on a CHARGED card payment (no3ds_auto_capture_credit_card); TrueLayer only supports open_banking payments and the browser-redirect bank auth step cannot be driven by automated CI, so no completed transaction is available to sync.",
+      "sync_payment_with_handle_response": "same as sync_payment",
+      "sync_upi_collect": "TrueLayer does not support UPI payments.",
+      "sync_upi_intent": "TrueLayer does not support UPI payments.",
+      "sync_upi_qr": "TrueLayer does not support UPI payments."
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "TrueLayer open-banking payments land in AUTHENTICATION_PENDING after Authorize; completing bank authentication requires a browser redirect that automated CI cannot drive. No CHARGED payment is available to refund.",
+      "refund_partial_amount": "same as refund_full_amount",
+      "refund_with_reason": "same as refund_full_amount"
+    },
+    "RefundService/Get": {
+      "refund_sync": "RefundService/Get depends on a completed refund, which first requires a CHARGED open-banking payment; automated CI cannot complete the bank-authentication redirect.",
+      "refund_sync_with_reason": "same as refund_sync",
+      "RefundService/Get": "same as refund_sync"
+    },
+    "PaymentService/Void": {
+      "void_authorized_payment": "The Void suite's fixed dependency is no3ds_manual_capture_credit_card, which uses a Card payment method that TrueLayer does not support.",
+      "void_with_amount": "same as void_authorized_payment",
+      "void_without_cancellation_reason": "same as void_authorized_payment"
+    }
+  }
 }

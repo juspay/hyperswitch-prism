@@ -875,6 +875,24 @@ pub enum AdyenShopperInteraction {
     Pos,
 }
 
+fn shopper_interaction(
+    off_session: Option<bool>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> AdyenShopperInteraction {
+    match off_session {
+        Some(true) => AdyenShopperInteraction::ContinuedAuthentication,
+        _ => match payment_channel {
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                | common_enums::PaymentChannel::TelephoneOrder,
+            ) => AdyenShopperInteraction::Moto,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => {
+                AdyenShopperInteraction::Ecommerce
+            }
+        },
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     From<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for AdyenShopperInteraction
@@ -887,10 +905,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -923,12 +938,28 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    /// Google Pay FPAN, see [`AdyenPaymentDataSource`].
+    #[serde(flatten)]
+    paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
+}
+
+/// `additionalData.paymentdatasource.*`, sent for a decrypted Google Pay token that carries a
+/// raw PAN and no cryptogram (FPAN / PAN_ONLY). Both the brand `googlepay` and a network token
+/// reach Adyen as `paymentMethod.type = scheme`, so without this pair Adyen assumes a network
+/// token, expects `mpiData`, and declines the payment with error 158
+/// ("Required field 'MpiData' is not provided."). Mirrors the Hyperswitch Adyen connector.
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+struct AdyenPaymentDataSource {
+    #[serde(rename = "paymentdatasource.type")]
+    data_type: String,
+    #[serde(rename = "paymentdatasource.tokenized")]
+    tokenized: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2469,6 +2500,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+        // Platform merchants settle wallet payments through the same store/splits as cards, so
+        // resolve them exactly like the Card arm does. Leaving them out makes Adyen reject the
+        // payment with 905_1/905_2 ("could not find an acquirer account ...").
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let mpi_data = match wallet_data {
             WalletData::ApplePay(apple_data) => {
                 if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
@@ -2568,8 +2608,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|descriptor| descriptor.statement_descriptor),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
-            store: None,
-            splits: None,
+            store,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -4276,10 +4316,15 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
     }
 }
 
+const ADYEN_FRAUD_CANCELLED_CODE: &str = "22";
+const ADYEN_FRAUD_CANCELLED_REASON: &str = "FRAUD-CANCELLED";
+
 fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
+    refusal_reason_code: Option<&str>,
+    refusal_reason: Option<&str>,
 ) -> AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
@@ -4289,7 +4334,12 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        AdyenStatus::Cancelled => AttemptStatus::Voided,
+        AdyenStatus::Cancelled => match (refusal_reason_code, refusal_reason) {
+            (Some(ADYEN_FRAUD_CANCELLED_CODE), _) | (_, Some(ADYEN_FRAUD_CANCELLED_REASON)) => {
+                AttemptStatus::Failure
+            }
+            _ => AttemptStatus::Voided,
+        },
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
@@ -4685,7 +4735,13 @@ pub fn get_adyen_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_capture_manual,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4824,7 +4880,13 @@ pub fn get_present_to_shopper_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4902,7 +4964,13 @@ pub fn get_redirection_error_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -4980,7 +5048,13 @@ pub fn get_qr_code_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -5261,7 +5335,13 @@ pub fn get_redirection_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -5487,6 +5567,19 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
+    NotificationOfFraud,
+    InformationSupplied,
+    PrearbitrationOpen,
+    PrearbitrationAccepted,
+    PrearbitrationDeclined,
+    PrearbitrationIssuerWithdrawn,
+    SchemeArbitration,
+    SchemeArbitrationWon,
+    SchemeArbitrationLost,
+    DisputeDefensePeriodEnded,
+    IssuerResponseTimeframeExpired,
+    IssuerComments,
     OfferClosed,
     RecurringContract,
     #[serde(other)]
@@ -5500,6 +5593,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Responded,
+    Expired,
+    Unresponded,
     #[serde(other)]
     Unknown,
 }
@@ -5680,30 +5776,92 @@ pub(crate) fn get_adyen_refund_webhook_event(
 
 pub(crate) fn get_adyen_webhook_event_type(
     code: WebhookEventCode,
+    is_success: String,
+    dispute_status: Option<DisputeStatus>,
 ) -> Result<EventType, WebhookError> {
     match code {
+        // Adyen sends the same AUTHORISATION eventCode for both success and
+        // failure, distinguished only by `success` -- mirrors
+        // get_adyen_payment_webhook_event's Authorized/Failure split below.
+        // Most Adyen integrations auto-capture, so a successful AUTHORISATION
+        // is the final settlement signal, not just an intermediate auth step.
         WebhookEventCode::Authorisation | WebhookEventCode::RecurringContract => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentSuccess)
+            } else {
+                Ok(EventType::PaymentIntentFailure)
+            }
         }
         WebhookEventCode::AuthorisationAdjustment => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentExtendAuthorizationSuccess)
+            } else {
+                Ok(EventType::PaymentIntentExtendAuthorizationFailure)
+            }
         }
-        WebhookEventCode::Cancellation => Ok(EventType::PaymentIntentCancelled),
-        WebhookEventCode::Capture => Ok(EventType::PaymentIntentCaptureSuccess),
+        WebhookEventCode::Cancellation => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCancelled)
+            } else {
+                Ok(EventType::PaymentIntentCancelFailure)
+            }
+        }
+        WebhookEventCode::Capture => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCaptureSuccess)
+            } else {
+                Ok(EventType::PaymentIntentCaptureFailure)
+            }
+        }
         WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
         WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
-        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            Ok(EventType::RefundFailure)
+        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::RefundSuccess)
+            } else {
+                Ok(EventType::RefundFailure)
+            }
         }
-        WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {
-            Ok(EventType::DisputeOpened)
-        }
-        WebhookEventCode::ChargebackReversed | WebhookEventCode::PrearbitrationWon => {
-            Ok(EventType::DisputeWon)
-        }
+        WebhookEventCode::RefundFailed => Ok(EventType::RefundFailure),
+        WebhookEventCode::RefundReversed => Ok(EventType::RefundReview),
+        WebhookEventCode::NotificationOfChargeback => Ok(EventType::DisputeOpened),
+        WebhookEventCode::Chargeback => match dispute_status {
+            Some(DisputeStatus::Won) => Ok(EventType::DisputeWon),
+            Some(DisputeStatus::Lost) | None => Ok(EventType::DisputeLost),
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Expired) => Ok(EventType::DisputeExpired),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::InformationSupplied => match dispute_status {
+            Some(DisputeStatus::Responded) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::ChargebackReversed => match dispute_status {
+            Some(DisputeStatus::Pending) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeWon),
+        },
+        WebhookEventCode::PrearbitrationWon => Ok(EventType::DisputeWon),
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
+        }
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok(EventType::DisputeOpened)
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok(EventType::DisputeAccepted),
+        WebhookEventCode::PrearbitrationDeclined => Ok(EventType::DisputeChallenged),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon
+        | WebhookEventCode::IssuerResponseTimeframeExpired => Ok(EventType::DisputeWon),
+        WebhookEventCode::SchemeArbitrationLost => Ok(EventType::DisputeLost),
+        WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeLost),
+        },
+        WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
+            Ok(EventType::IncomingWebhookEventUnspecified)
         }
         WebhookEventCode::Unknown => {
             tracing::warn!(
@@ -5937,6 +6095,32 @@ fn get_application_info(
     })
 }
 
+/// A decrypted Google Pay token reaches Adyen as `paymentMethod.type = scheme` with
+/// `brand = googlepay` whether it carries a raw PAN or a network token, so Adyen can only tell
+/// the two apart from `additionalData.paymentdatasource.*`. Send the pair when there is no
+/// cryptogram (FPAN / PAN_ONLY); tokens that do carry one send `mpiData` instead, which is what
+/// Adyen documents for DPAN and what the Hyperswitch Adyen connector branches on.
+fn get_google_pay_payment_data_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Option<AdyenPaymentDataSource> {
+    match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => match &google_pay_data
+            .tokenization_data
+        {
+            GpayTokenizationData::Decrypted(decrypt_data) if decrypt_data.cryptogram.is_none() => {
+                Some(AdyenPaymentDataSource {
+                    data_type: GOOGLE_PAY_BRAND.to_string(),
+                    tokenized: "false".to_string(),
+                })
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn get_additional_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -5968,6 +6152,8 @@ fn get_additional_data<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5977,6 +6163,7 @@ fn get_additional_data<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: item.request.authentication_data.as_ref().and_then(|data| {
             data.exemption_indicator
@@ -6436,10 +6623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
+                item.router_data.resource_common_data.get_optional_billing(),
             ),
             shopper_email: item
                 .router_data
@@ -6634,12 +6818,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            // Hyperswitch does not send shopperName for wallet setup mandates.
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -6850,10 +7030,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -6939,6 +7116,8 @@ fn get_additional_data_for_setup_mandate<
     let capture_delay_hours =
         get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
+    let paymentdatasource = get_google_pay_payment_data_source(&item.request.payment_method_data);
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -6948,6 +7127,7 @@ fn get_additional_data_for_setup_mandate<
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
         recurring_processing_model: None,
+        paymentdatasource,
         riskdata,
         sca_exemption: None,
         ..AdditionalData::default()
@@ -7662,18 +7842,21 @@ pub(crate) fn get_dispute_stage_and_status(
 > {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
+    // Stage and status mirror HS direct Adyen behavior:
+    // - stage: `impl From<WebhookEventCode> for DisputeStage` in the
+    //   hyperswitch Adyen connector (PreDispute is never produced there)
+    // - status: the dispute event produced by `get_adyen_webhook_event`,
+    //   which HS core converts 1:1 into `DisputeStatus`
     match code {
+        // Stage::Dispute
         WebhookEventCode::NotificationOfChargeback => {
-            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
-                Some(DisputeStatus::Undefended) | Some(DisputeStatus::Pending) => {
-                    HSDisputeStatus::DisputeOpened
-                }
+                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
-                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Unknown) => {
                     return Err(
                         error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
@@ -7683,6 +7866,21 @@ pub(crate) fn get_dispute_stage_and_status(
                             ),
                     );
                 }
+                Some(_) => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::RequestForInformation => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Expired) => HSDisputeStatus::DisputeExpired,
+                _ => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::InformationSupplied => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Responded) => HSDisputeStatus::DisputeChallenged,
+                _ => HSDisputeStatus::DisputeOpened,
             };
             Ok((DisputeStage::Dispute, status))
         }
@@ -7700,27 +7898,52 @@ pub(crate) fn get_dispute_stage_and_status(
             };
             Ok((DisputeStage::Dispute, status))
         }
+        WebhookEventCode::DisputeDefensePeriodEnded => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
+                _ => HSDisputeStatus::DisputeLost,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::IssuerResponseTimeframeExpired => {
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeWon))
+        }
+        // Stage::PreArbitration
         WebhookEventCode::SecondChargeback => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
-            if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(
-                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
-                        "Received unknown Adyen dispute status in PrearbitrationWon event",
-                    ),
-                );
-            }
-            let status = match dispute_status {
-                Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
-                _ => HSDisputeStatus::DisputeWon,
-            };
-            Ok((DisputeStage::PreArbitration, status))
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
         }
         WebhookEventCode::PrearbitrationLost => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeOpened))
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeAccepted,
+        )),
+        WebhookEventCode::PrearbitrationDeclined => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeChallenged,
+        )),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
+        }
+        WebhookEventCode::SchemeArbitrationLost => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
+        }
+        // Dispute stage/status must only be resolved for dispute events;
+        // refuse to guess for anything else.
+        _ => Err(
+            error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(format!(
+                "Received non-dispute Adyen webhook event code {code:?}; \
+                 cannot resolve dispute stage and status"
+            )),
+        ),
     }
 }
 
@@ -7818,6 +8041,10 @@ fn get_browser_info<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
@@ -7852,6 +8079,10 @@ fn get_browser_info_for_setup_mandate<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method

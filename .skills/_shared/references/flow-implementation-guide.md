@@ -3,7 +3,6 @@
 This is the step-by-step procedure for implementing a single flow in a UCS connector.
 Each flow follows the same 4-part pattern: add to prerequisites macro, add implementation
 macro, create transformer types, and **de-register the flow's stub**. Then build and fix.
-
 Part 0 below is the step most guides omit, and skipping it produces a conflicting-implementation
 error that looks nothing like the mistake that caused it.
 
@@ -322,6 +321,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
   FAILURE; a blanket `None` leaves hard-declined refunds Pending and retrying forever.
 - `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`. Never
   `.unwrap_or_default()` an error code -- an empty string is indistinguishable from a real one.
+- For request types with `integrity_object: Option<...>`, the success response path sets
+  `request: <RequestType> { integrity_object: Some(...), ..item.router_data.request.clone() }`.
+  Use connector-echoed amount/currency/id values when present; fall back to request values only
+  when the connector does not return a comparable field, and cite that behavior in a short comment.
+  See `pattern_integrity_checks.md` and `connectors/tsys_transit/transformers.rs`.
 
 See the flow-specific pattern file (`flow-patterns/{flow}.md`) for complete examples
 tailored to each flow (payment vs refund vs dispute types, GET vs POST, etc.).
@@ -394,6 +398,8 @@ Implement the {FlowName} flow for the {ConnectorName} connector in the UCS codeb
    - in-band 2xx failures return Err(ErrorResponse{..}), gated on is_payment_failure /
      is_refund_failure
    - attempt_status is Option<FlowStatus>, domain-correct, and non-terminal by default
+   - integrity_object is populated when the request type has one, using response-echoed values
+     or a documented fallback
    - the amount unit matches the vendor spec's wire format (do not default to StringMinorUnit)
 8. Report SUCCESS or FAILED with details
 ```

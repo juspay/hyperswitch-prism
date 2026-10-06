@@ -23,10 +23,15 @@ fn baked_path() -> String {
 
 /// Install a REPLAY hook whose lookup table is empty: every boundary lookup misses.
 fn install_empty_replay_hook() {
+    // The build's own matching policy: the loader refuses a table declaring any
+    // other version at load (a stale table would otherwise miss every key and read
+    // as a total candidate regression).
     let table = deja::LookupTable {
         recording_id: "superposition-boundary-test".to_string(),
-        policy_version: 1,
+        policy_version: deja::POLICY_VERSION,
+        event_schema_version: Some(deja::CURRENT_EVENT_SCHEMA_VERSION),
         entries: vec![],
+        identity_entries: vec![],
     };
     let path = std::env::temp_dir().join(format!(
         "deja-superposition-boundary-{}.json",

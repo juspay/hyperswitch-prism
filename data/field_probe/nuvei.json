@@ -676,7 +676,7 @@
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Bank redirect method Trustly { country: None } not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None } not supported by Nuvei is not supported by nuvei"
       },
       "Twint": {
         "status": "not_implemented",

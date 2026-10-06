@@ -47,6 +47,11 @@ where
         component = "common_utils",
         operation = "generate_id_with_default_len",
         codec = SerdeCodec,
+        on_miss = format!(
+            "{}_{}",
+            prefix,
+            crate::synth_shape::over(&__deja_miss, &ALPHABETS, ID_LENGTH)
+        ),
     )
 )]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
@@ -58,7 +63,16 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,)
+    deja::id(
+        component = "common_utils",
+        operation = "generate_id",
+        codec = SerdeCodec,
+        on_miss = format!(
+            "{}_{}",
+            prefix,
+            crate::synth_shape::over(&__deja_miss, &ALPHABETS, length)
+        ),
+    )
 )]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &ALPHABETS))
@@ -68,7 +82,12 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,)
+    deja::id(
+        component = "common_utils",
+        operation = "generate_uuid_v7",
+        codec = SerdeCodec,
+        on_miss = crate::synth_shape::uuid(&__deja_miss),
+    )
 )]
 pub fn generate_uuid_v7() -> String {
     uuid::Uuid::now_v7().to_string()
@@ -83,7 +102,12 @@ pub fn generate_uuid_v7() -> String {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,)
+    deja::id(
+        component = "common_utils",
+        operation = "generate_uuid_v4",
+        codec = SerdeCodec,
+        on_miss = crate::synth_shape::uuid(&__deja_miss),
+    )
 )]
 pub fn generate_uuid_v4() -> String {
     uuid::Uuid::new_v4().to_string()
