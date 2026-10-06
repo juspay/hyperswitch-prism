@@ -2123,7 +2123,6 @@ enum BankNames {
 // NETWORK TRANSACTION PAYMENT METHODS
 // ============================================================================
 
-// Card details with network transaction ID for recurring payments
 // The vault-aliased counterpart of `CardDetailsForNetworkTransactionId`.
 //
 // `card_number` is an external vault's alias for the card, not a PAN, so it is a plain
@@ -2131,18 +2130,24 @@ enum BankNames {
 // injector. Like the PAN variant it carries no CVC: a merchant initiated transaction has no
 // cardholder present and authorizes on the network transaction ID instead.
 message ProxyCardDetailsForNetworkTransactionId {
-    SecretString card_number = 1;
-    SecretString card_exp_month = 2;
-    SecretString card_exp_year = 3;
+    // Card Identification
+    SecretString card_number = 1;     // Required. External vault alias for the card, not a PAN; the injector substitutes the real number at the vault proxy
+    SecretString card_exp_month = 2;  // Required. Sent in plaintext, not aliased: connectors derive expiry formats from it before the injector runs
+    SecretString card_exp_year = 3;   // Required. Sent in plaintext, not aliased: connectors derive expiry formats from it before the injector runs
+
+    // Card Metadata
     optional string card_issuer = 4;
-    optional CardNetwork card_network = 5;
+    optional CardNetwork card_network = 5;  // Cannot be derived from an alias (no BIN); populate it when the connector needs the network
     optional string card_type = 6;
-    optional string card_issuing_country = 7;
+    optional string card_issuing_country_alpha2 = 7;
     optional string bank_code = 8;
     optional SecretString nick_name = 9;
+
+    // Cardholder Information
     optional SecretString card_holder_name = 10;
 }
 
+// Card details with network transaction ID for recurring payments
 message CardDetailsForNetworkTransactionId {
     CardNumberType card_number = 1;
     SecretString card_exp_month = 2;

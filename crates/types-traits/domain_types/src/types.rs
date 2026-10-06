@@ -4168,26 +4168,24 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetailsForNetworkTransact
                 .and_then(|network| CardNetwork::foreign_try_from(network).ok())
         });
 
-        let required = |value: Option<hyperswitch_masking::Secret<String>>,
-                        field_name: &'static str| {
-            value.ok_or(IntegrationError::MissingRequiredField {
-                field_name,
-                context: Default::default(),
-            })
-        };
-
         Ok(payment_method_data::CardDetailsForNetworkTransactionId {
             card_number: payment_method_data::RawCardNumber(
                 "{{$card_number}}".to_string().into(),
             ),
             // Expiry cannot stay a placeholder: connectors derive combined/truncated formats
             // from it before the injector ever runs. It is plaintext on the wire anyway.
-            card_exp_month: required(card.card_exp_month, "card_exp_month")?,
-            card_exp_year: required(card.card_exp_year, "card_exp_year")?,
+            card_exp_month: card.card_exp_month.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.proxy_card_details_for_network_transaction_id.card_exp_month",
+                context: IntegrationErrorContext::default(),
+            })?,
+            card_exp_year: card.card_exp_year.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.proxy_card_details_for_network_transaction_id.card_exp_year",
+                context: IntegrationErrorContext::default(),
+            })?,
             card_issuer: card.card_issuer,
             card_network,
             card_type: card.card_type,
-            card_issuing_country: card.card_issuing_country,
+            card_issuing_country: card.card_issuing_country_alpha2,
             bank_code: card.bank_code,
             nick_name: card.nick_name,
             card_holder_name: card.card_holder_name,

@@ -1561,15 +1561,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
-                        // TEMP DEBUG — REMOVE BEFORE COMMIT.
-                        tracing::info!(
-                            step = "9_checkout_nti_arm",
-                            network_transaction_id = %network_transaction_id.network_transaction_id,
-                            card_number_is_placeholder =
-                                card_details.card_number.peek().contains("{{"),
-                            "TEMP_FLOW: checkout building RawCardForNTI with previous_payment_id"
-                        );
-
                         let (first_name, last_name) =
                             split_account_holder_name(card_details.card_holder_name.clone());
 
