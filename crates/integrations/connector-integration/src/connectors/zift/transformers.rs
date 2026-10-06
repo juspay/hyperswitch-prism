@@ -96,6 +96,7 @@ pub enum PaymentRequestType {
     #[serde(rename = "sale-auth")]
     Auth,
     Capture,
+    Void,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -877,6 +878,14 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                     common_enums::AttemptStatus::CaptureInitiated
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
+            },
+
+            PaymentRequestType::Void => match item.response.transaction_status {
+                TransactionStatus::Processed => common_enums::AttemptStatus::Voided,
+                TransactionStatus::Pending | TransactionStatus::InRebill => {
+                    common_enums::AttemptStatus::VoidInitiated
+                }
+                TransactionStatus::Cancelled => common_enums::AttemptStatus::VoidFailed,
             },
         };
         let payments_response = if attempt_status == common_enums::AttemptStatus::Failure {
