@@ -33,7 +33,9 @@ use domain_types::{
     },
     IntegrationError,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "injector-client")]
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
