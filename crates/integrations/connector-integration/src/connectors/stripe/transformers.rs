@@ -100,23 +100,36 @@ impl<T: PaymentMethodDataTypes> GetRequestIncrementalAuthorization for RepeatPay
     }
 }
 
-/// Mirrors hyperswitch's condition, whose `&&` binds tighter than its `||` and so reads
-/// `(is_card && MailOrder) || TelephoneOrder` -- a telephone order sets `moto` whatever the
-/// payment method is. Grouping it as `is_card && (MailOrder | TelephoneOrder)` instead dropped
-/// the flag on every tokenised telephone order, because once the router has tokenised the card
-/// the gRPC request carries `PaymentMethodData::PaymentMethodToken`, never `Card`.
 fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     payment_channel: &Option<common_enums::PaymentChannel>,
 ) -> Option<bool> {
-    match payment_channel {
-        Some(common_enums::PaymentChannel::TelephoneOrder) => Some(true),
-        Some(common_enums::PaymentChannel::MailOrder)
-            if matches!(payment_method_data, PaymentMethodData::Card(_)) =>
-        {
-            Some(true)
+    // hyperswitch tests `payment_method_data.is_card_payment()` while still holding the raw card.
+    // By the time prism sees a split-payment Authorize the router has swapped the card for a
+    // connector token, so matching only `Card` dropped `moto` on every tokenised MOTO payment.
+    // `token_payment_method_type: None` is the card arm of that token -- Apple Pay / Google Pay
+    // are wallets, which `is_card_payment()` excludes too. Same reading as the Authorize
+    // transformer below.
+    let is_card_payment = match payment_method_data {
+        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::PaymentMethodToken(token_data) => {
+            token_data.token_payment_method_type.is_none()
         }
-        _ => None,
+        _ => false,
+    };
+
+    if is_card_payment
+        && matches!(
+            payment_channel,
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                    | common_enums::PaymentChannel::TelephoneOrder
+            )
+        )
+    {
+        Some(true)
+    } else {
+        None
     }
 }
 
@@ -6730,7 +6743,7 @@ mod dispute_network_details_tests {
 mod moto_flag_parity_tests {
     use common_enums::PaymentChannel;
     use domain_types::payment_method_data::{
-        Card, DefaultPCIHolder, PaymentMethodData, PaymentMethodToken,
+        Card, DefaultPCIHolder, PaymentMethodData, PaymentMethodToken, TokenPaymentMethod,
     };
     use hyperswitch_masking::Secret;
 
@@ -6740,42 +6753,62 @@ mod moto_flag_parity_tests {
         PaymentMethodData::Card(Card::default())
     }
 
-    /// What the Authorize gRPC request actually carries once the router has tokenised the
-    /// card. This is the shape that silently lost the flag in prod, so every assertion
-    /// below that uses it is the regression guard.
-    fn token() -> PaymentMethodData<DefaultPCIHolder> {
+    /// What the Authorize request actually carries once the router has tokenised the card for a
+    /// split payment: a connector token with no wallet type. This is the shape that silently
+    /// lost the flag in prod, so every assertion using it is the regression guard.
+    fn token(
+        token_payment_method_type: Option<TokenPaymentMethod>,
+    ) -> PaymentMethodData<DefaultPCIHolder> {
         PaymentMethodData::PaymentMethodToken(PaymentMethodToken {
             token: Secret::new("tok_parity_test".to_string()),
-            token_payment_method_type: None,
+            token_payment_method_type,
         })
     }
 
     #[test]
-    fn telephone_order_sets_moto_whatever_the_payment_method_looks_like() {
+    fn a_tokenised_card_sets_moto_on_both_moto_channels() {
         assert_eq!(
-            get_stripe_moto_flag(&token(), &Some(PaymentChannel::TelephoneOrder)),
+            get_stripe_moto_flag(&token(None), &Some(PaymentChannel::TelephoneOrder)),
             Some(true),
-            "a tokenised telephone order must still carry moto, as hyperswitch does"
+            "tokenised telephone order must carry moto, as hyperswitch does"
         );
+        assert_eq!(
+            get_stripe_moto_flag(&token(None), &Some(PaymentChannel::MailOrder)),
+            Some(true),
+            "tokenised mail order must carry moto, as hyperswitch does"
+        );
+    }
+
+    #[test]
+    fn a_raw_card_still_sets_moto_on_both_moto_channels() {
         assert_eq!(
             get_stripe_moto_flag(&card(), &Some(PaymentChannel::TelephoneOrder)),
             Some(true)
         );
-    }
-
-    /// Hyperswitch's `&&` only guards the MailOrder half, so this arm keeps the card
-    /// requirement. Relaxing it here would emit moto where hyperswitch does not and open a
-    /// diff in the opposite direction.
-    #[test]
-    fn mail_order_still_requires_an_actual_card() {
         assert_eq!(
             get_stripe_moto_flag(&card(), &Some(PaymentChannel::MailOrder)),
             Some(true)
         );
-        assert_eq!(
-            get_stripe_moto_flag(&token(), &Some(PaymentChannel::MailOrder)),
-            None
-        );
+    }
+
+    /// `is_card_payment()` on the hyperswitch side excludes wallets, so a wallet token must not
+    /// pick up the flag -- that would be a diff in the opposite direction.
+    #[test]
+    fn wallet_tokens_never_set_moto() {
+        for wallet in [TokenPaymentMethod::ApplePay, TokenPaymentMethod::GooglePay] {
+            assert_eq!(
+                get_stripe_moto_flag(
+                    &token(Some(wallet)),
+                    &Some(PaymentChannel::TelephoneOrder)
+                ),
+                None,
+                "wallet token must not set moto on a telephone order"
+            );
+            assert_eq!(
+                get_stripe_moto_flag(&token(Some(wallet)), &Some(PaymentChannel::MailOrder)),
+                None
+            );
+        }
     }
 
     #[test]
@@ -6784,7 +6817,11 @@ mod moto_flag_parity_tests {
             get_stripe_moto_flag(&card(), &Some(PaymentChannel::Ecommerce)),
             None
         );
+        assert_eq!(
+            get_stripe_moto_flag(&token(None), &Some(PaymentChannel::Ecommerce)),
+            None
+        );
         assert_eq!(get_stripe_moto_flag(&card(), &None), None);
-        assert_eq!(get_stripe_moto_flag(&token(), &None), None);
+        assert_eq!(get_stripe_moto_flag(&token(None), &None), None);
     }
 }
