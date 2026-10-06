@@ -1145,7 +1145,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self::FiuuCardWithNTI(Box::new(FiuuCardWithNTI {
             txn_channel: TxnChannel::Creditan,
-            cc_pan: raw_card_data.card_number.try_card_number()?,
+            cc_pan: raw_card_data.card_number.try_card_number("Fiuu")?,
             cc_month: raw_card_data.card_exp_month.clone(),
             cc_year: raw_card_data.card_exp_year.clone(),
             original_scheme_id: Secret::new(network_transaction_id),

@@ -1110,7 +1110,7 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
                     context: Default::default(),
                 })?,
             credit_card: Revolv3NtidCreditCardData {
-                payment_account_number: card.card_number.try_card_number()?,
+                payment_account_number: card.card_number.try_card_number("revolv3")?,
                 expiration_date: card.get_expiry_date_as_mmyy()?,
             },
         };

@@ -1695,7 +1695,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let pi = requests::RepeatPaymentInformation::Cards(Box::new(
                     requests::CardWithNtiPaymentInformation {
                         card: requests::CardWithNti {
-                            number: ccard.card_number.try_card_number()?,
+                            number: ccard.card_number.try_card_number("Barclaycard")?,
                             expiration_month: ccard.card_exp_month.clone(),
                             expiration_year: ccard.card_exp_year.clone(),
                             security_code: None,

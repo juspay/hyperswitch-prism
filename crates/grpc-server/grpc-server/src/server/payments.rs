@@ -3400,28 +3400,54 @@ impl RecurringPaymentOperational for RecurringPayments {
     );
 }
 
+/// Everything the repeat-payment connector step needs besides the holder-specific request.
+struct RepeatPaymentFlowContext<'a> {
+    connector: &'a ConnectorVariant,
+    connector_config: ConnectorSpecificConfig,
+    payment_flow_data: PaymentFlowData,
+    proxy: &'a domain_types::types::ProxyConfig,
+    api_tags: &'a ucs_env::configs::ApiTagConfig,
+    event_params: EventProcessingParams<'a>,
+    test_context: Option<external_services::service::TestContext>,
+}
+
+/// Maps a failed payment-method conversion to `InvalidDataFormat`, carrying the underlying
+/// reason (e.g. the missing field) so the caller sees more than "payment_method invalid".
+fn invalid_payment_method(
+    err: &error_stack::Report<IntegrationError>,
+) -> ucs_env::error::GrpcError {
+    ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
+        field_name: "payment_method",
+        context: domain_types::errors::IntegrationErrorContext {
+            additional_context: Some(err.current_context().to_string()),
+            ..Default::default()
+        },
+    })
+}
+
 /// Runs the repeat-payment (MIT) connector step under a given payment-method-data holder.
 ///
-/// A vault-aliased card proxy runs under `VaultTokenHolder` with injector token data so the alias
+/// A vault-aliased card runs under `VaultTokenHolder` with injector token data so the alias
 /// is substituted at the proxy; real card data and non-card methods run under `DefaultPCIHolder`
 /// with no token data. The holder is the only thing that differs between the two, so it is
 /// factored out here rather than duplicating the handler around it.
-#[allow(clippy::too_many_arguments)]
 async fn run_repeat_payment_holder_flow<
-    T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize,
+    T: PaymentMethodDataTypes
+        + Debug
+        + Default
+        + Eq
+        + Send
+        + Sync
+        + 'static
+        + serde::Serialize
+        + serde::de::DeserializeOwned,
 >(
-    connector: &ConnectorVariant,
-    request: RepeatPaymentData<T>,
-    common_flow_data: PaymentFlowData,
-    connector_config: ConnectorSpecificConfig,
+    ctx: RepeatPaymentFlowContext<'_>,
+    payload: RecurringPaymentServiceChargeRequest,
+    payment_method_data: Option<payment_method_data::PaymentMethodData<T>>,
     token_data: Option<TokenData>,
-    proxy: &domain_types::types::ProxyConfig,
-    event_params: EventProcessingParams<'_>,
-    test_context: Option<external_services::service::TestContext>,
-    api_tag: Option<String>,
 ) -> Result<RecurringPaymentServiceChargeResponse, error_stack::Report<ucs_env::error::GrpcError>> {
-
-    let connector_data: ConnectorData<T> = ConnectorData::from_connector_variant(connector)
+    let connector_data: ConnectorData<T> = ConnectorData::from_connector_variant(ctx.connector)
         .ok_or_else(|| {
             ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
@@ -3442,6 +3468,13 @@ async fn run_repeat_payment_holder_flow<
         PaymentsResponseData,
     > = connector_data.connector.get_connector_integration_v2();
 
+    let repeat_payment_data = RepeatPaymentData::foreign_try_from((payload, payment_method_data))
+        .map_err(|e| e.to_grpc_error())?;
+    let api_tag = ctx.api_tags.get_tag(
+        FlowName::RepeatPayment,
+        repeat_payment_data.payment_method_type,
+    );
+
     let router_data: RouterDataV2<
         RepeatPayment,
         PaymentFlowData,
@@ -3449,22 +3482,22 @@ async fn run_repeat_payment_holder_flow<
         PaymentsResponseData,
     > = RouterDataV2 {
         flow: std::marker::PhantomData,
-        resource_common_data: common_flow_data,
-        connector_config,
-        request,
+        resource_common_data: ctx.payment_flow_data,
+        connector_config: ctx.connector_config,
+        request: repeat_payment_data,
         response: Err(ErrorResponse::default()),
     };
 
     let response = Box::pin(
         external_services::service::execute_connector_processing_step(
-            proxy,
+            ctx.proxy,
             connector_integration,
             router_data,
             None,
-            event_params,
+            ctx.event_params,
             token_data,
             common_enums::CallConnectorAction::Trigger,
-            test_context,
+            ctx.test_context,
             api_tag,
         ),
     )
@@ -3548,7 +3581,7 @@ impl RecurringPaymentService for RecurringPayments {
                                 "PAYMENT_CHARGE_FLOW: failed to get payment method data action - error: {:?}",
                                 err
                             );
-                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                            invalid_payment_method(&err)
                         })?;
 
                     let test_context =
@@ -3581,26 +3614,31 @@ impl RecurringPaymentService for RecurringPayments {
                         log_fields: &config.log_fields.outgoing,
                     };
 
+                    let ctx = RepeatPaymentFlowContext {
+                        connector: &metadata_payload.connector,
+                        connector_config: connector_config.clone(),
+                        payment_flow_data,
+                        proxy: &config.proxy,
+                        api_tags: &config.api_tags,
+                        event_params,
+                        test_context,
+                    };
+
                     let repeat_payment_response = match payment_method_data_action {
-                        // ── Vault-aliased card proxy → VaultTokenHolder + injector ───────────
-                        // An MIT against a card held in an external vault: the card number is a
-                        // vault alias, so the request has to run under `VaultTokenHolder` with
-                        // injector token data for the alias to be substituted at the proxy. The
-                        // network transaction ID that authorizes the MIT rides along on
-                        // `connector_recurring_payment_id`. This is the repeat-payment
-                        // counterpart of the card-proxy branch in `authorize`.
                         // ── Vault-aliased card + NTI → VaultTokenHolder + injector ─────────
-                        // The MIT shape: alias and expiry but no CVC, authorized on the network
-                        // transaction ID carried by `connector_recurring_payment_id`. Mirrors the
-                        // PAN + NTI path, which pairs its mandate reference with
-                        // `CardDetailsForNetworkTransactionId`.
+                        // An MIT against a card held in an external vault: alias and expiry but
+                        // no CVC, authorized on the network transaction ID carried by
+                        // `connector_recurring_payment_id`. The alias has to run under
+                        // `VaultTokenHolder` with injector token data to be substituted at the
+                        // proxy. Mirrors the PAN + NTI path, which pairs its mandate reference
+                        // with `CardDetailsForNetworkTransactionId`.
                         Some(PaymentMethodDataAction::CardProxyForNti(proxy_card_details)) => {
                             tracing::info!("PAYMENT_CHARGE_FLOW: INJECTOR: processing vault-aliased card + NTI through injector");
 
                             let token_data = <crate::types::InjectorTokenData as ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>>::foreign_try_from(&proxy_card_details)
                                 .map_err(|err| {
                                     tracing::error!("PAYMENT_CHARGE_FLOW: failed to build injector token data - error: {:?}", err);
-                                    ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    invalid_payment_method(&err)
                                 })?
                                 .0;
 
@@ -3608,133 +3646,100 @@ impl RecurringPaymentService for RecurringPayments {
                                 <payment_method_data::CardDetailsForNetworkTransactionId<VaultTokenHolder> as ForeignTryFrom<grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>>::foreign_try_from(proxy_card_details)
                                     .map_err(|err| {
                                         tracing::error!("PAYMENT_CHARGE_FLOW: failed to convert vault card NTI details - error: {:?}", err);
-                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                        invalid_payment_method(&err)
                                     })?,
                             );
 
-                            let repeat_payment_data = RepeatPaymentData::foreign_try_from((
+                            run_repeat_payment_holder_flow::<VaultTokenHolder>(
+                                ctx,
                                 payload.clone(),
                                 Some(payment_method_data),
-                            ))
-                            .map_err(|e| e.to_grpc_error())?;
-                            let api_tag = config.api_tags.get_tag(
-                                FlowName::RepeatPayment,
-                                repeat_payment_data.payment_method_type,
-                            );
-
-                            run_repeat_payment_holder_flow::<VaultTokenHolder>(
-                                &metadata_payload.connector,
-                                repeat_payment_data,
-                                payment_flow_data,
-                                connector_config.clone(),
                                 Some(token_data),
-                                &config.proxy,
-                                event_params,
-                                test_context,
-                                api_tag,
                             )
                             .await?
                         }
 
-                        Some(PaymentMethodDataAction::CardProxy(proxy_card_details)) => {
-                            tracing::info!("PAYMENT_CHARGE_FLOW: INJECTOR: processing card-proxy MIT through injector");
+                        // A full card proxy always templates a `{{$card_cvc}}` and defaults a
+                        // missing CVC to an empty string, so an MIT would go out with an empty
+                        // CVC substituted in. Keep it rejected; the MIT shape is
+                        // `proxy_card_details_for_network_transaction_id`.
+                        Some(PaymentMethodDataAction::CardProxy(_)) => {
+                            return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                IntegrationError::InvalidDataFormat {
+                                    field_name: "payment_method",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "card_proxy is not supported on the repeat payment flow".to_string(),
+                                        ),
+                                        suggested_action: Some(
+                                            "Send a vault-aliased card for an MIT as proxy_card_details_for_network_transaction_id".to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                },
+                            )));
+                        }
 
-                            let token_data = proxy_card_details.to_token_data();
+                        // Real card data or a non-card method, which the connector sees
+                        // directly — no alias to substitute.
+                        Some(PaymentMethodDataAction::Card(card_details)) => {
                             let payment_method_data = payment_method_data::PaymentMethodData::Card(
-                                payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(
-                                    proxy_card_details,
-                                )
-                                .map_err(|err| {
-                                    tracing::error!(
-                                        "PAYMENT_CHARGE_FLOW: failed to convert proxy card details - error: {:?}",
-                                        err
-                                    );
-                                    ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                                })?,
+                                payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details)
+                                    .map_err(|err| {
+                                        tracing::error!("PAYMENT_CHARGE_FLOW: failed to convert card details - error: {:?}", err);
+                                        invalid_payment_method(&err)
+                                    })?,
                             );
-
-                            let repeat_payment_data = RepeatPaymentData::foreign_try_from((
+                            run_repeat_payment_holder_flow::<DefaultPCIHolder>(
+                                ctx,
                                 payload.clone(),
                                 Some(payment_method_data),
-                            ))
-                            .map_err(|e| e.to_grpc_error())?;
-                            let api_tag = config.api_tags.get_tag(
-                                FlowName::RepeatPayment,
-                                repeat_payment_data.payment_method_type,
-                            );
-
-                            run_repeat_payment_holder_flow::<VaultTokenHolder>(
-                                &metadata_payload.connector,
-                                repeat_payment_data,
-                                payment_flow_data,
-                                connector_config.clone(),
-                                Some(token_data),
-                                &config.proxy,
-                                event_params,
-                                test_context,
-                                api_tag,
+                                None,
                             )
                             .await?
                         }
 
-                        // Everything else is real card data or a non-card method, which the
-                        // connector sees directly — no alias to substitute.
-                        payment_method_data_action => {
-                            let payment_method_data = match payment_method_data_action {
-                                Some(PaymentMethodDataAction::Card(card_details)) => {
-                                    Some(payment_method_data::PaymentMethodData::Card(
-                                        payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details)
-                                            .map_err(|err| {
-                                                tracing::error!("PAYMENT_CHARGE_FLOW: failed to convert card details - error: {:?}", err);
-                                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                                            })?,
-                                    ))
-                                }
-                                Some(PaymentMethodDataAction::CardWithNoCvc(card_details)) => {
-                                    Some(payment_method_data::PaymentMethodData::CardWithNoCvc(
-                                        payment_method_data::CardWithNoCvc::foreign_try_from(card_details)
-                                            .map_err(|err| {
-                                                tracing::error!("PAYMENT_CHARGE_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
-                                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                                            })?,
-                                    ))
-                                }
-                                Some(PaymentMethodDataAction::Default) => {
-                                    let payment_method = payload.payment_method.clone().ok_or_else(|| {
-                                        ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                                    })?;
-                                    Some(payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payment_method)
-                                        .map_err(|err| {
-                                            tracing::error!("Failed to convert payment method data: {:?}", err);
-                                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                                        })?)
-                                }
-                                // Handled above.
-                                Some(PaymentMethodDataAction::CardProxy(_))
-                                | Some(PaymentMethodDataAction::CardProxyForNti(_)) => None,
-                                None => None,
-                            };
-
-                            let repeat_payment_data = RepeatPaymentData::foreign_try_from((
-                                payload.clone(),
-                                payment_method_data,
-                            ))
-                            .map_err(|e| e.to_grpc_error())?;
-                            let api_tag = config.api_tags.get_tag(
-                                FlowName::RepeatPayment,
-                                repeat_payment_data.payment_method_type,
+                        Some(PaymentMethodDataAction::CardWithNoCvc(card_details)) => {
+                            let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(
+                                payment_method_data::CardWithNoCvc::foreign_try_from(card_details)
+                                    .map_err(|err| {
+                                        tracing::error!("PAYMENT_CHARGE_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                        invalid_payment_method(&err)
+                                    })?,
                             );
-
                             run_repeat_payment_holder_flow::<DefaultPCIHolder>(
-                                &metadata_payload.connector,
-                                repeat_payment_data,
-                                payment_flow_data,
-                                connector_config.clone(),
+                                ctx,
+                                payload.clone(),
+                                Some(payment_method_data),
                                 None,
-                                &config.proxy,
-                                event_params,
-                                test_context,
-                                api_tag,
+                            )
+                            .await?
+                        }
+
+                        Some(PaymentMethodDataAction::Default) => {
+                            let payment_method = payload.payment_method.clone().ok_or_else(|| {
+                                ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                            })?;
+                            let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payment_method)
+                                .map_err(|err| {
+                                    tracing::error!("Failed to convert payment method data: {:?}", err);
+                                    invalid_payment_method(&err)
+                                })?;
+                            run_repeat_payment_holder_flow::<DefaultPCIHolder>(
+                                ctx,
+                                payload.clone(),
+                                Some(payment_method_data),
+                                None,
+                            )
+                            .await?
+                        }
+
+                        None => {
+                            run_repeat_payment_holder_flow::<DefaultPCIHolder>(
+                                ctx,
+                                payload.clone(),
+                                None,
+                                None,
                             )
                             .await?
                         }

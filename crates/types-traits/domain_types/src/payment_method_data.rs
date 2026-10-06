@@ -149,8 +149,12 @@ pub trait PaymentMethodDataTypes: Clone {
     ///
     /// Errors for a vault-aliased holder: those connectors have no injector wiring, so an alias
     /// would reach them unsubstituted. Connectors that do support vault aliases should hold a
-    /// [`RawCardNumber`] instead of calling this.
-    fn try_card_number(inner: &Self::Inner) -> Result<cards::CardNumber, IntegrationError>;
+    /// [`RawCardNumber`] instead of calling this. `connector` names the connector in the
+    /// rejection.
+    fn try_card_number(
+        inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError>;
 }
 
 /// PCI holder implementation for handling raw PCI data
@@ -174,8 +178,11 @@ impl<T: PaymentMethodDataTypes> RawCardNumber<T> {
     }
 
     /// See [`PaymentMethodDataTypes::try_card_number`].
-    pub fn try_card_number(&self) -> Result<cards::CardNumber, IntegrationError> {
-        T::try_card_number(&self.0)
+    pub fn try_card_number(
+        &self,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        T::try_card_number(&self.0, connector)
     }
 }
 
@@ -190,7 +197,10 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
         card_number
     }
 
-    fn try_card_number(inner: &Self::Inner) -> Result<cards::CardNumber, IntegrationError> {
+    fn try_card_number(
+        inner: &Self::Inner,
+        _connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
         Ok(inner.clone())
     }
 
@@ -221,10 +231,13 @@ impl PaymentMethodDataTypes for VaultTokenHolder {
         Secret::new(card_number.peek().to_string())
     }
 
-    fn try_card_number(_inner: &Self::Inner) -> Result<cards::CardNumber, IntegrationError> {
+    fn try_card_number(
+        _inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
         Err(IntegrationError::NotSupported {
-            message: "vault-aliased card numbers are not supported by this connector".to_string(),
-            connector: "N/A",
+            message: "A vault-aliased card number".to_string(),
+            connector,
             context: IntegrationErrorContext {
                 suggested_action: Some(
                     "Use a connector with external vault proxy support for vault-aliased cards"

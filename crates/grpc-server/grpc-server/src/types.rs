@@ -4,11 +4,6 @@ use domain_types::{errors::IntegrationError, utils::ForeignTryFrom};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
-/// Structured card payload serialized into the injector [`injector::TokenData`].
-///
-/// This mirrors the `CardTokenData` helper used by the payment Authorize flow so the
-/// 3DS auth flows (pre/auth/post authenticate) build identical token data when the
-/// request carries a vault-aliased card proxy.
 /// The CVC-free counterpart of [`ProxyCardTokenData`], for an MIT against a card held in an
 /// external vault.
 ///
@@ -23,6 +18,11 @@ struct ProxyCardNtiTokenData {
     card_exp_year: Secret<String>,
 }
 
+/// Structured card payload serialized into the injector [`injector::TokenData`].
+///
+/// This mirrors the `CardTokenData` helper used by the payment Authorize flow so the
+/// 3DS auth flows (pre/auth/post authenticate) build identical token data when the
+/// request carries a vault-aliased card proxy.
 #[derive(Debug, serde::Serialize)]
 struct ProxyCardTokenData {
     card_number: Secret<String>,
@@ -138,21 +138,21 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransac
                     .card_number
                     .as_ref()
                     .map(|card_number| card_number.peek().to_owned()),
-                "card_number",
+                "payment_method.proxy_card_details_for_network_transaction_id.card_number",
             )?,
             card_exp_month: required(
                 proxy_card_details
                     .card_exp_month
                     .as_ref()
                     .map(|exp_month| exp_month.clone().expose().to_string()),
-                "card_exp_month",
+                "payment_method.proxy_card_details_for_network_transaction_id.card_exp_month",
             )?,
             card_exp_year: required(
                 proxy_card_details
                     .card_exp_year
                     .as_ref()
                     .map(|exp_year| exp_year.clone().expose().to_string()),
-                "card_exp_year",
+                "payment_method.proxy_card_details_for_network_transaction_id.card_exp_year",
             )?,
         };
 
