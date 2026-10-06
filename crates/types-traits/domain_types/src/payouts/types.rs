@@ -11,6 +11,8 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use payouts::payouts_types::PayoutFlowData;
 
+const PROXY_CARD_NUMBER_TEMPLATE: &str = "{{$card_number}}";
+
 impl
     ForeignTryFrom<(
         grpc_api_types::payouts::PayoutServiceCreateRequest,
@@ -299,7 +301,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardProxyPayout>
 
         Ok(Self {
             // The opaque reference travels only in InjectorTokenData.
-            card_number: "{{$card_number}}".to_string().into(),
+            card_number: PROXY_CARD_NUMBER_TEMPLATE.to_string().into(),
             expiry_month: required_proxy_card_field(
                 card.card_exp_month,
                 "payout_method_data.card_proxy.card_exp_month",

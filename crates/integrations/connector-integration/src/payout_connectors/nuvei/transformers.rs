@@ -6,6 +6,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::{
         payout_method_data::PayoutMethodData,
         payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
@@ -16,6 +17,9 @@ use domain_types::{
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+
+use super::NuveiPayoutsRouterData;
 
 use crate::{
     connectors::nuvei::transformers::{NuveiAuthType, NuveiPaymentStatus, NuveiTransactionStatus},
@@ -91,10 +95,15 @@ fn missing(field_name: &'static str) -> Report<IntegrationError> {
     .into()
 }
 
-impl TryFrom<&NuveiPayoutRouterData> for NuveiPayoutRequest {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<NuveiPayoutsRouterData<NuveiPayoutRouterData, T>> for NuveiPayoutRequest
+{
     type Error = Report<IntegrationError>;
 
-    fn try_from(data: &NuveiPayoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: NuveiPayoutsRouterData<NuveiPayoutRouterData, T>,
+    ) -> Result<Self, Self::Error> {
+        let data = &item.router_data;
         let auth = NuveiAuthType::try_from(&data.connector_config)?;
         let ConnectorSpecificConfig::Nuvei {
             merchant_id,
@@ -158,9 +167,7 @@ impl TryFrom<&NuveiPayoutRouterData> for NuveiPayoutRequest {
                 }
                 NuveiPayoutMethod::Card {
                     card_data: NuveiPayoutCard {
-                        card_number: NuveiPayoutCardNumber::Proxy(Secret::new(
-                            "{{$card_number}}".to_owned(),
-                        )),
+                        card_number: NuveiPayoutCardNumber::Proxy(card.card_number.clone()),
                         card_holder_name: card
                             .card_holder_name
                             .clone()

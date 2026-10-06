@@ -11,7 +11,7 @@ use crate::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
@@ -28,7 +28,7 @@ pub struct PayoutFlowData {
     pub test_mode: Option<bool>,
     pub description: Option<String>,
     pub merchant_request_id: Option<String>,
-    pub vault_headers: Option<std::collections::HashMap<String, Secret<String>>>,
+    pub vault_headers: Option<HashMap<String, Secret<String>>>,
 }
 
 impl RawConnectorRequestResponse for PayoutFlowData {
