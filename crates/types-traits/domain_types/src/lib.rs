@@ -16,6 +16,7 @@ pub mod router_data_v2;
 pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
+pub mod state_codes;
 pub mod status_mapping;
 pub mod surcharge;
 pub mod types;

@@ -61,6 +61,16 @@ impl NonceSequence {
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
             codec = ResultOkCodec,
+            on_miss = Ok(Self(u128::from_be_bytes({
+                let mut sequence = [0_u8; 128 / 8];
+                for (slot, byte) in sequence[Self::SEQUENCE_NUMBER_START_INDEX..]
+                    .iter_mut()
+                    .zip(deja::synth::bytes::<12>(&__deja_miss))
+                {
+                    *slot = byte;
+                }
+                sequence
+            }))),
         )
     )]
     fn new() -> Result<Self, ring::error::Unspecified> {
@@ -542,6 +552,7 @@ impl VerifySignature for Sha256 {
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
         codec = SerdeCodec,
+        on_miss = crate::synth_shape::over(&__deja_miss, &crate::consts::ALPHABETS, length),
     )
 )]
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {

@@ -67,7 +67,9 @@ async fn send_request(
             error if is_connection_closed_before_message_could_complete(&error) => {
                 ApiClientError::ConnectionClosedIncompleteMessage
             }
-            _ => ApiClientError::RequestNotSent(error.to_string()),
+            // Strip the URL so credentials carried in the query string never
+            // reach the error logs.
+            _ => ApiClientError::RequestNotSent(error.without_url().to_string()),
         };
         report!(api_error)
     })
