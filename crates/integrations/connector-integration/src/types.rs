@@ -243,6 +243,7 @@ impl PayoutConnectorData {
 
     fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector {
         match connector_name {
+            PayoutConnectorEnum::Nuvei => Box::new(payout_connectors::NuveiPayouts::new()),
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),

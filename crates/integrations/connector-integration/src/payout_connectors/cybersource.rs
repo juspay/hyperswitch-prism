@@ -501,19 +501,6 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        // Vault substitution invalidates the body digest; re-signing is not supported yet.
-        if matches!(
-            req.request.payout_method_data,
-            Some(domain_types::payouts::payout_method_data::PayoutMethodData::CardProxy(_))
-        ) {
-            return Err(IntegrationError::NotSupported {
-                message: "Cybersource proxy payouts require signing after vault substitution"
-                    .into(),
-                connector: "cybersource",
-                context: Default::default(),
-            }
-            .into());
-        }
         let url = <Self as ConnectorIntegrationV2<
             PayoutTransfer,
             PayoutFlowData,

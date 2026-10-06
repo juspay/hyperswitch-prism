@@ -10,8 +10,6 @@ use grpc_api_types::payouts::{self, payout_method::PayoutMethodData};
 use hyperswitch_masking::PeekInterface;
 use ucs_interface_common::metadata::MetadataPayload;
 
-use crate::types::InjectorTokenData;
-
 pub(crate) trait PayoutProxyRequest {
     fn payout_method(&self) -> Option<&payouts::PayoutMethod>;
 }
@@ -91,12 +89,20 @@ pub(crate) fn prepare_payout_request<T: PayoutProxyRequest>(
             "This payout subflow does not support external-vault proxy execution",
         ));
     }
-    if metadata.connector.as_payout() != Some(PayoutConnectorEnum::Cybersource) {
+    let connector = metadata.connector.as_payout().or_else(|| {
+        metadata
+            .connector
+            .as_payment()
+            .and_then(|connector| PayoutConnectorEnum::try_from(connector).ok())
+    });
+    if connector != Some(PayoutConnectorEnum::Nuvei) {
         return Err(unsupported(
-            "External-vault proxy payouts are not supported for this connector",
+            "This payout connector does not support external-vault proxy execution",
         ));
     }
-    InjectorTokenData::foreign_try_from(card).map(|data| Some(data.0))
+    Ok(Some(
+        crate::types::InjectorTokenData::foreign_try_from(card)?.0,
+    ))
 }
 
 fn unsupported(message: &str) -> error_stack::Report<IntegrationError> {

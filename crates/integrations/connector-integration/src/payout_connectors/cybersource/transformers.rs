@@ -3,7 +3,6 @@ use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
-    payouts::payout_method_data::PayoutMethodData,
     payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -137,18 +136,11 @@ pub struct CybersourcePayoutCardPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePayoutCard {
-    number: CybersourcePayoutCardNumber,
+    number: CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     card_type: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-enum CybersourcePayoutCardNumber {
-    Pan(CardNumber),
-    Placeholder(Secret<String>),
 }
 
 pub(super) struct CybersourcePayoutContext {
@@ -213,46 +205,29 @@ impl
             business_application_id: CybersourcePayoutBusinessType::PersonToPerson,
         };
 
-        let method = request.payout_method_data.as_ref().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
+        let card = request
+            .payout_method_data
+            .as_ref()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
                 field_name: "payout_method_data",
                 context: Default::default(),
-            }
-        })?;
-        let (number, expiration_month, expiration_year, card_type) = match method {
-            PayoutMethodData::CardProxy(card) => (
-                CybersourcePayoutCardNumber::Placeholder(card.card_number.clone()),
-                card.expiry_month.clone(),
-                card.expiry_year.clone(),
-                card.card_network
-                    .as_ref()
-                    .and_then(|network| network.type_code().map(str::to_string)),
-            ),
-            _ => {
-                let card = method.get_card()?;
-                let card_type = card
-                    .card_network
-                    .as_ref()
-                    .and_then(|network| network.type_code().map(str::to_string))
-                    .or_else(|| {
-                        domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
-                            .ok()
-                            .and_then(|issuer| issuer.type_code().map(str::to_string))
-                    });
-                (
-                    CybersourcePayoutCardNumber::Pan(card.card_number.clone()),
-                    card.expiry_month.clone(),
-                    card.expiry_year.clone(),
-                    card_type,
-                )
-            }
-        };
+            })?
+            .get_card()?;
+        let card_type = card
+            .card_network
+            .as_ref()
+            .and_then(|network| network.type_code().map(str::to_string))
+            .or_else(|| {
+                domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
+                    .ok()
+                    .and_then(|issuer| issuer.type_code().map(str::to_string))
+            });
         let payment_information = CybersourcePayoutPaymentInformation::Card(Box::new(
             CybersourcePayoutCardPaymentInformation {
                 card: CybersourcePayoutCard {
-                    number,
-                    expiration_month,
-                    expiration_year,
+                    number: card.card_number.clone(),
+                    expiration_month: card.expiry_month.clone(),
+                    expiration_year: card.expiry_year.clone(),
                     card_type,
                 },
             },

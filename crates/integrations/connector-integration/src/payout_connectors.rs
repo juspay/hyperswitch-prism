@@ -1,6 +1,9 @@
 pub mod itaubank;
 pub use self::itaubank::ItaubankPayouts;
 
+pub mod nuvei;
+pub use self::nuvei::NuveiPayouts;
+
 pub mod loonio;
 pub use self::loonio::LoonioPayouts;
 

@@ -882,6 +882,7 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
+            PayoutConnectorEnum::Nuvei => patched.nuvei.apply(params_patch),
             PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
             PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
