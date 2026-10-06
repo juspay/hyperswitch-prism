@@ -1544,16 +1544,16 @@ impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_typ
             .transpose()?;
 
         let date_of_birth = customer
-        .date_of_birth
-        .map(|date_of_birth| {
-            Secret::<time::Date>::foreign_try_from((
-                date_of_birth.expose(),
-                "customer.date_of_birth",
-            ))
-        })
-        .transpose()?;
+            .date_of_birth
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
 
-    Ok(Self {
+        Ok(Self {
             name: customer.name,
             email,
             merchant_customer_id: customer.id,
@@ -1561,7 +1561,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_typ
             phone_number: customer.phone_number,
             phone_country_code: customer.phone_country_code,
             date_of_birth,
-    })
+        })
     }
 }
 
