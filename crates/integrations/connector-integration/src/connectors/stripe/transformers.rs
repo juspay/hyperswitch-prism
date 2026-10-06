@@ -6797,10 +6797,7 @@ mod moto_flag_parity_tests {
     fn wallet_tokens_never_set_moto() {
         for wallet in [TokenPaymentMethod::ApplePay, TokenPaymentMethod::GooglePay] {
             assert_eq!(
-                get_stripe_moto_flag(
-                    &token(Some(wallet)),
-                    &Some(PaymentChannel::TelephoneOrder)
-                ),
+                get_stripe_moto_flag(&token(Some(wallet)), &Some(PaymentChannel::TelephoneOrder)),
                 None,
                 "wallet token must not set moto on a telephone order"
             );
