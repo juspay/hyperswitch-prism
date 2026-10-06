@@ -71,17 +71,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceCreateRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -107,6 +109,11 @@ where
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
@@ -130,10 +137,7 @@ where
                 .transpose()?,
             connector_payout_method_id: value.connector_payout_method_id.clone(),
             webhook_url: value.webhook_url.clone(),
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
@@ -1478,17 +1482,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceTransferRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1513,6 +1519,11 @@ where
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
+
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
 
         let priority = value
             .priority
@@ -1550,10 +1561,7 @@ where
             priority,
             connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
@@ -1832,17 +1840,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceStageRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1883,16 +1893,17 @@ where
             .clone()
             .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
             .transpose()?;
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             customer,
             browser_info,
             address,
@@ -1913,17 +1924,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceCreateLinkRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -1948,6 +1961,11 @@ where
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
+
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
 
         let priority = value
             .priority
@@ -1975,10 +1993,7 @@ where
             priority,
             connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
         })
     }
 }
@@ -1996,17 +2011,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceCreateRecipientRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -2019,6 +2036,11 @@ where
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
+
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
 
         let payout_recipient_type =
             grpc_api_types::payouts::payout_enums::PayoutRecipientType::try_from(
@@ -2051,10 +2073,7 @@ where
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             recipient_type: common_enums::PayoutRecipientType::foreign_try_from(
                 payout_recipient_type,
             )?,
@@ -2078,17 +2097,19 @@ where
         value: grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -2118,6 +2139,11 @@ where
             })
             .transpose()?;
 
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
+
         let customer = value
             .customer
             .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
@@ -2133,10 +2159,7 @@ where
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             customer,
             vendor_account_details,
         })
@@ -2918,17 +2941,19 @@ where
         value: grpc_api_types::payouts::PayoutMethodEligibilityRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(amount),
-            None => Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Amount is required".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            )),
-        }?;
+            Some(amount) => amount,
+            None => {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+        };
 
         let source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
@@ -2954,6 +2979,11 @@ where
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let payout_method_data = value
+            .payout_method_data
+            .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
+            .transpose()?;
+
         let customer = value
             .customer
             .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
@@ -2971,10 +3001,7 @@ where
                 currency: source_currency,
             },
             destination_currency,
-            payout_method_data: value
-                .payout_method_data
-                .map(payouts::payout_method_data::PayoutMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payout_method_data,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
