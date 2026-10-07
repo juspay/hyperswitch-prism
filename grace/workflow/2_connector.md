@@ -53,7 +53,18 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R4 **No commits or pushes before S7** in either repo; no stash/reset/checkout -f/clean/restore.
 - R5 **Never poll or re-message a finished agent**. A completion notification is handled once; if the row is already `done`, make no tool call. No TaskOutput/SendMessage on done rows, and no progress checks on running agents.
 - R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
-- R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
+- R7 **Context hygiene** — symmetric, because a token entering a conversation is billed as `cache_write` once and
+  then as `cache_read` on *every* later turn of that agent:
+  - **R7a read**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
+  - **R7b probe**: every probe command bounds its own output — `cut -c1-200`, `head -c 4000`, `jq` a projection,
+    `grep -c`. Never `cat` a whole artefact, source file or log into the conversation; `sed -n` the range you need.
+    Over ~4k chars, write it to a file and return the path (the `long`/`waitx` contract in 2.0 Phase 9 generalises:
+    output to a file, only `<exit> <duration_s>` comes back).
+  - **R7c write**: never emit an artefact body larger than ~60 lines inside a tool call. Above that, generate the
+    artefact with a tool from a compact spec, or append to it incrementally. A hand-typed heredoc is billed at the
+    output rate (~4x `cache_write`, ~97x `cache_read`) and then re-read on every later turn.
+  - **R7d never re-read your own writes**: an agent that wrote a file already knows its contents. Re-reading an
+    artefact this agent produced is pure duplication — keep what you need in the return block instead.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
 - R9 **Time budget** `MAX_RUN_HOURS` (default 24): when exceeded, finish the current stage and go to S6/S7.
 - R10 **Disk guard** before S4, S4z and each S5 build: if free space < `MIN_FREE_GB_RUNTIME` (20), re-run the 2.0 cleanup; if still low, stop at the stage boundary (resumable).
@@ -62,7 +73,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 
 How they apply here: **R2** `__hs__` also runs in background (it writes only `hs-wt`). **R4** `snapshot` writes
 objects and `refs/grace/<run_id>/*`, never a branch; one carve-out, the `no_op` restore ("## Final status and
-Output"). **R7** `jq` projections of ids/counts (≤20 lines) are allowed for routing. **R8** every AMEND, REPAIR, inner-loop or withdraw spawn bumps its `counters` key before the stamp
+Output"). **R7** `jq` projections of ids/counts (≤20 lines) are allowed for routing; measured on `rapyd-028fad`, `Read` was 13% of tool calls but 40% of all tool-result bytes, and 48% of those were workflow stage files re-read in full by repeat spawns. **R8** every AMEND, REPAIR, inner-loop or withdraw spawn bumps its `counters` key before the stamp
 (2.3b: `amend_hs` for `__hs__`, else `amend_codegen <unit>` against `amend_codegen_per_unit`);
 "unresolved" = bug status `unresolved`, unit unfinished. **R9** before every `row_start` except `DISK:*` and the
 R9 targets themselves (S4z, the promotion spawns, the S7 prelude execs, S6 `FULL`, S7), `late` → `ev SKIP <row id> reason=time` and jump:
@@ -422,16 +433,20 @@ AMEND, from S4, S4z, S5, loop-back or promotion) uses this template with a fresh
   SMOKE: 1                                     (plan.json .foundation_smoke != null, UNIT = its .unit: the NEW spawn and every o-smoke, o-gate or o-resume AMEND)
   HS_REPO_PATH: {HS_REPO_PATH}                 (every __hs__ spawn, NEW or AMEND)
   ROW_ID: <row id>                             (every __hs__ spawn)
-  PHASE: READ | ITEM | GATE | ASSEMBLE         (code units in MODE: NEW; omit for __hs__, __finalize__ and AMEND)
+  PHASE: READ | ITEM | GATE | ASSEMBLE         (recovery only — omit by default; never for __hs__, __finalize__, AMEND)
   ITEM_ID: <plan item id>                      (PHASE: ITEM only)
 ```
 
-**A code unit in `MODE: NEW` is spawned as a sequence of short spawns, not one long one.** Context grows
-monotonically inside an agent, so a 33-turn unit re-sends its own probe output on every later turn; measured on
-`rapyd-5ece81`, that re-transmission was essentially all of codegen's context cost. Spawning is close to free by
-comparison (a new prefix costs ~10k cached tokens), so the same work split across more, shorter spawns is
-cheaper for the same output. The phases hand state to each other through `$BRIEF`, `claimed.tsv` and `$FIXLOG` —
-never through a conversation — which is the same discipline R7 already imposes between stages.
+**A code unit in `MODE: NEW` runs as ONE spawn by default.** Omit `PHASE` unless a phase split is being used
+for recovery (below). Context does grow monotonically inside an agent, but splitting is measurably *more*
+expensive, not less: a spawn is not ~10k tokens, it re-pays the whole per-agent prefix — this stage file is 57 KB
+(~14k tokens), and on `rapyd-028fad` the split made it a 40x Read instead of 4x, +1.94 MB (+484k tokens) billed
+at the `cache_write` rate, which is 24x `cache_read`. Per-item cost measured $1.18 split vs $0.73-0.78 unsplit
+(~2x worse). Context inside one agent is amortisation; N spawns pay N fresh prefixes.
+
+Use `PHASE` only to **resume or retry part of a unit** — a unit that failed mid-way, or one whose single spawn
+exhausted its turn budget. The phases hand state to each other through `$BRIEF`, `claimed.tsv` and `$FIXLOG` —
+never through a conversation — so a phase re-spawn resumes exactly; that is what makes it a recovery tool.
 
 Per unit, in order, each its own message, reusing the unit's `NN` throughout:
 
@@ -446,7 +461,7 @@ Per unit, in order, each its own message, reusing the unit's `NN` throughout:
 Row ids carry the phase: `S4:<NN>:<unit_fs>:READ`, `:ITEM:<item_id>`, `:GATE:<k>`, `:ASSEMBLE`. The unit's own
 row (`S4:<NN>:<unit_fs>`) is stamped `done` when ASSEMBLE returns, so the S4 table, the `__finalize__` trigger
 and Resume rule 4a all keep working on it unchanged. **Omitting `PHASE` runs every phase in one spawn** — the
-pre-decomposition behaviour, and the fallback if a phase split proves lossy for a unit.
+default, and the cheaper path.
 
 R10 spawn `DISK:<tag>` (`2.0_preflight.md`): `CONNECTOR`, `UNITS` (JSON array), `HS_REPO_PATH`, `RUN_DIR`,
 `MODE: DISK_ONLY`, `DISK_TAG: <pre-S4 | pre-S4z-<k> | pre-r<N>>`, `MIN_FREE_GB_RUNTIME`, `STALE_DAYS: {STALE_DAYS}`,
