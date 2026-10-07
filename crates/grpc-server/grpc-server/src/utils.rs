@@ -830,7 +830,8 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
-                return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
+                return_raw_connector_data: config.common.return_raw_connector_data,
+                return_typed_connector_data: config.common.return_typed_connector_data,
                 masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
@@ -975,7 +976,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1005,7 +1006,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1037,7 +1038,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1054,6 +1055,24 @@ macro_rules! implement_connector_operation {
                     )
                     .await?
                 }
+                // ── Vault-aliased card + NTI → not an MIT-capable flow ──────────────
+                // This pairing only means anything on the repeat-payment (MIT) flow, which
+                // dispatches it explicitly with injector token data. The flows built from this
+                // macro have no MIT semantics, so reject it rather than silently dropping the
+                // network transaction id.
+                Some(domain_types::types::PaymentMethodDataAction::CardProxyForNti(_)) => {
+                    Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                        domain_types::errors::IntegrationError::NotImplemented(
+                            concat!(
+                                $log_prefix,
+                                " does not support a vault-aliased card with a network transaction id"
+                            )
+                            .to_string(),
+                            Default::default(),
+                        ),
+                    )))?
+                }
+
                 // ── No payment method data → try secondary families (e.g. FRM) first,
                 // then the primary family at DefaultPCIHolder, in one resolution. Only
                 // a request with no payment method at all lands here, so a
@@ -1237,7 +1256,8 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
-                return_raw_and_typed_connector_data: config.common.return_raw_and_typed_connector_data,
+                return_raw_connector_data: config.common.return_raw_connector_data,
+                return_typed_connector_data: config.common.return_typed_connector_data,
                 masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,

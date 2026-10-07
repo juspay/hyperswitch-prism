@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{CardNetwork, CountryAlpha2, RegulatedName, SamsungPayCardBrand};
+use common_enums::{
+    CardNetwork, CardSegmentType, CardType as CommonCardType, CountryAlpha2, FundingSource,
+    RegulatedName, SamsungPayCardBrand,
+};
 use common_utils::{
     ext_traits::OptionExt, new_types::MaskedBankAccount, pii::UpiVpaMaskingStrategy, Email,
     ValidationError,
@@ -140,6 +143,21 @@ pub trait PaymentMethodDataTypes: Clone {
 
     fn peek_inner(inner: &Self::Inner) -> &str;
     fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError>;
+
+    /// Builds the holder's inner representation from a validated card number, so conversions
+    /// that are generic over the holder can populate a [`RawCardNumber`].
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner;
+
+    /// The raw PAN behind this value, for connectors that can only send real card numbers.
+    ///
+    /// Errors for a vault-aliased holder: those connectors have no injector wiring, so an alias
+    /// would reach them unsubstituted. Connectors that do support vault aliases should hold a
+    /// [`RawCardNumber`] instead of calling this. `connector` names the connector in the
+    /// rejection.
+    fn try_card_number(
+        inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError>;
 }
 
 /// PCI holder implementation for handling raw PCI data
@@ -161,6 +179,14 @@ impl<T: PaymentMethodDataTypes> RawCardNumber<T> {
     pub fn is_cobadged_card(&self) -> Result<bool, IntegrationError> {
         T::is_cobadged_inner(&self.0)
     }
+
+    /// See [`PaymentMethodDataTypes::try_card_number`].
+    pub fn try_card_number(
+        &self,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        T::try_card_number(&self.0, connector)
+    }
 }
 
 impl PaymentMethodDataTypes for DefaultPCIHolder {
@@ -168,6 +194,17 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
+    }
+
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner {
+        card_number
+    }
+
+    fn try_card_number(
+        inner: &Self::Inner,
+        _connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        Ok(inner.clone())
     }
 
     fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -188,6 +225,30 @@ impl PaymentMethodDataTypes for VaultTokenHolder {
 
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
+    }
+
+    /// A vault token is an opaque string, so a card number narrows to its string form. Reached
+    /// only by holder-generic conversions; the vault-aliased paths build their inner value from
+    /// the alias (or the injector placeholder) directly.
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner {
+        Secret::new(card_number.peek().to_string())
+    }
+
+    fn try_card_number(
+        _inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        Err(IntegrationError::NotSupported {
+            message: "A vault-aliased card number".to_string(),
+            connector,
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use a connector with external vault proxy support for vault-aliased cards"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -429,7 +490,7 @@ impl Card<DefaultPCIHolder> {
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
     CardWithNoCvc(CardWithNoCvc),
-    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId<T>),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
         DecryptedWalletTokenDetailsForNetworkTransactionId,
     ),
@@ -847,6 +908,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -895,12 +961,12 @@ pub enum WalletData {
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
     GcashRedirect(GcashRedirection),
-    ApplePay(ApplePayWalletData),
+    ApplePay(Box<ApplePayWalletData>),
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
     GrabpayRedirect {},
-    GooglePay(GooglePayWalletData),
+    GooglePay(Box<GooglePayWalletData>),
     GooglePayRedirect(Box<GooglePayRedirectData>),
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
     MbWayRedirect(Box<MbWayRedirection>),
@@ -1346,6 +1412,20 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
+/// Charge-result data returned by the connector after an Apple Pay payment.
+/// Carried in [`WalletAdditionalData::ApplePay`] for subsequent MIT charges.
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayAdditionalData {
+    /// The name to be displayed on Apple Pay button (from PKPaymentMethod.displayName)
+    pub display_name: String,
+    /// Common card metadata (expiry, BIN, type, issuer, network, auth_code, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_info: Option<AdditionalCardInfo>,
+    /// Bin of the DPAN (device PAN) from Apple Pay wallet payment data.
+    /// Distinct from card_bin in card_info, which is the underlying physical card BIN.
+    pub device_pan_bin: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 /// This struct represents the decrypted Apple Pay payment data
@@ -1646,6 +1726,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -1733,8 +1814,11 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
-pub struct CardDetailsForNetworkTransactionId {
-    pub card_number: cards::CardNumber,
+pub struct CardDetailsForNetworkTransactionId<T: PaymentMethodDataTypes> {
+    /// Either a PAN (`DefaultPCIHolder`) or an external vault's alias for the card
+    /// (`VaultTokenHolder`); in the latter case this carries the injector's substitution
+    /// placeholder and the real alias travels in the token data.
+    pub card_number: RawCardNumber<T>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub card_issuer: Option<String>,
@@ -1746,7 +1830,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-impl CardDetailsForNetworkTransactionId {
+impl<T: PaymentMethodDataTypes> CardDetailsForNetworkTransactionId<T> {
     pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.card_exp_year.peek();
         // If the value is a vault template token (e.g. {{$card_exp_year}}), pass it through as-is
@@ -2121,4 +2205,72 @@ pub struct WalletDetails {
     pub product_id: Option<String>,
     /// Payment method items stored in this wallet (for container/hybrid wallets)
     pub items: Vec<WalletItem>,
+}
+
+/// Google Pay additional data for recurring payments
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayAdditionalData {
+    /// Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
+    pub payment_method_data_type: Option<String>,
+    /// Email address associated with the wallet account (e.g. Google Pay account email)
+    pub email: Option<Email>,
+    /// Common card metadata (expiry, BIN, last4, type, network, issuer, auth_code, etc.)
+    pub card_info: Option<AdditionalCardInfo>,
+    /// Bin of the DPAN (device PAN) from Google Pay wallet payment data.
+    /// Distinct from card_bin in card_info, which is the underlying physical card BIN.
+    pub device_pan_bin: Option<String>,
+}
+
+/// Additional card information shared across card, Apple Pay, and Google Pay / Samsung Pay.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+    /// The ISIN of the card
+    pub card_isin: Option<String>,
+    /// Extended bin of card, contains the first 8 digits of card number
+    pub card_extended_bin: Option<String>,
+    /// Card expiry month (sensitive)
+    pub card_exp_month: Option<Secret<String>>,
+    /// Card expiry year (sensitive)
+    pub card_exp_year: Option<Secret<String>>,
+    /// Card holder name (sensitive)
+    pub card_holder_name: Option<Secret<String>>,
+    /// Bin of the underlying card resolved by the connector from the DPAN
+    pub card_bin: Option<String>,
+    /// Card type (e.g. Credit, Debit)
+    pub card_type: Option<CommonCardType>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
+    /// Card product or subtype
+    pub card_subtype: Option<String>,
+    /// Card segment (e.g. consumer, commercial)
+    pub card_segment_type: Option<CardSegmentType>,
+    /// Card funding source (e.g. credit, debit)
+    pub funding_source: Option<FundingSource>,
+    /// Card issuer country
+    pub issuer_country: Option<CountryAlpha2>,
+    /// Card network (e.g. Visa, Mastercard)
+    pub card_network: Option<String>,
+}
+
+/// Discriminated wallet variant carried by [`AdditionalPaymentData::Wallet`].
+/// Exactly one wallet provider is present, matching the `oneof wallet_data` in the proto.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum WalletAdditionalData {
+    ApplePay(Box<ApplePayAdditionalData>),
+    GooglePay(Box<GooglePayAdditionalData>),
+}
+
+/// Additional payment data for recurring payments, carrying the original payment method details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum AdditionalPaymentData {
+    /// Card-specific additional payment data
+    Card(Box<AdditionalCardInfo>),
+    /// Wallet-specific additional payment data (Apple Pay or Google Pay — exactly one)
+    Wallet(WalletAdditionalData),
 }

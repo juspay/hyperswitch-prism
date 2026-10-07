@@ -793,12 +793,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             private_key: p(),
             base_url: None,
         },
-        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
-            api_key: k(),
-            auth_server_id: None,
-            khash_config_key: None,
-            base_url: None,
-        },
         ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
             api_key: k(),
             base_url: None,

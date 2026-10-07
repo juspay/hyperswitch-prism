@@ -7,5 +7,14 @@
     "PaymentService/Refund",
     "PaymentService/Get",
     "RefundService/Get"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "bambora returns not_implemented for Cards 3DS",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Bambora"
+    }
+  }
 }

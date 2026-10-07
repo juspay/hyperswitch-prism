@@ -299,6 +299,8 @@ enum PaymentStatus {
   PENDING = 20;    // General pending state
   FAILURE = 21;    // General failure state
   UNRESOLVED = 19; // Status could not be determined
+  CONFLICTED = 58; // Connector's response failed the server-side integrity check
+                    // (returned data disagrees with what was requested)
 }
 
 // Status of a payment authorization
@@ -460,6 +462,10 @@ enum TransactionStatus {
 
   // Informational Only; 3DS Requestor challenge preference acknowledged
   TRANSACTION_STATUS_INFORMATION_ONLY = 8; // "I"
+
+  // Challenge using Secure Payment Confirmation (SPC); available for EMV 3DS
+  // 2.3.1 and later versions
+  TRANSACTION_STATUS_SECURE_PAYMENT_CONFIRMATION_REQUIRED = 9; // "S"
 }
 
 // SCA (Strong Customer Authentication) exemption indicators.
@@ -537,6 +543,8 @@ enum WebhookEventType {
   PAYMENT_INTENT_EXPIRED = 11;              // Payment intent expired
   PAYMENT_ACTION_REQUIRED = 12; // Payment requires additional action
   PAYMENT_ASSOCIATED_DATA_UPDATE = 43; // Associated data events. Data about a payment shared out of band, typically after the payment has reached a terminal state. Carries no status change.
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_SUCCESS = 44; // Extended authorization success
+  PAYMENT_INTENT_EXTEND_AUTHORIZATION_FAILURE = 45; // Extended authorization failure
 
   SOURCE_CHARGEABLE = 13;          // Source is chargeable
   SOURCE_TRANSACTION_CREATED = 14; // Source transaction created
@@ -545,6 +553,7 @@ enum WebhookEventType {
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
   WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
+  WEBHOOK_REFUND_REVIEW = 46; // Refund requires review
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -1071,6 +1080,7 @@ enum PaymentMethodType {
   NETELLER = 136;
   PAY_HERE = 137;
   TAMARA_REDIRECT = 138;
+  TED = 139;
 }
 
 // Product type enumeration
@@ -1828,6 +1838,9 @@ message NotifyConnectorRequest {
 
   // Connector state for access token management (optional)
   optional ConnectorState state = 5;
+
+  // Connector-specific feature data, e.g. AVS/CVV verification results for notify flows.
+  optional SecretString connector_feature_data = 6;
 }
 
 
@@ -1890,8 +1903,8 @@ message FrmNotificationContent {
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
 
-  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
-  optional SecretString connector_feature_data = 9;
+  // Deprecated: use NotifyConnectorRequest.connector_feature_data.
+  optional SecretString connector_feature_data = 9 [deprecated = true];
 }
 
 // FRM payment success details
@@ -1987,7 +2000,8 @@ message CardConnectorResponse {
       5; // Unique authorisation code generated for the payment
 }
 
-// Additional card information for payment processing
+// Additional card information for payment processing.
+// Shared by plain-card, Apple Pay, and Google Pay / Samsung Pay additional data.
 message AdditionalCardInfo {
   // The name of issuer of the card
   optional string card_issuer = 1;
@@ -2010,25 +2024,128 @@ message AdditionalCardInfo {
   // Card holder name (sensitive)
   optional SecretString card_holder_name = 7;
 
+  // Bin of the underlying card resolved by the connector from the DPAN
+  optional string card_bin = 8;
+
+  // Card type (e.g. Credit, Debit)
+  optional CardType card_type = 9;
+
+  // Unique authorisation code generated for the payment
+  optional string auth_code = 10;
+
+  // Card product or subtype
+  optional string card_subtype = 11;
+
+  // Card segment (e.g. consumer, commercial)
+  optional CardSegmentType card_segment_type = 12;
+
+  // Card funding source (e.g. credit, debit)
+  optional FundingSource funding_source = 13;
+
+  // Card issuer country
+  optional CountryAlpha2 issuer_country = 14;
+
+  // Card network (e.g. Visa, Mastercard)
+  optional string card_network = 15;
+}
+
+// Apple Pay additional data for recurring payments.
+// Wallet-specific fields are kept here; all card metadata is in card_info.
+message AdditionalApplePayInfo {
+  // Display name shown on the Apple Pay button (from PKPaymentMethod.displayName)
+  string display_name = 1;
+  // Common card metadata (expiry, BIN, type, issuer, network, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 2;
+  // Bin of the DPAN (device PAN) from Apple Pay wallet payment data.
+  // Distinct from card_bin, which is the underlying physical card BIN resolved by the connector.
+  optional string device_pan_bin = 3;
+}
+
+// Google Pay additional data for recurring payments.
+// Wallet-specific fields are kept here; all card metadata is in card_info.
+message AdditionalGooglePayInfo {
+  // Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
+  optional string payment_method_data_type = 1;
+  // Email address associated with the wallet account (e.g. Google Pay account email)
+  optional SecretString email = 2;
+  // Common card metadata (expiry, BIN, last4, type, network, issuer, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 3;
+  // Bin of the DPAN (device PAN) from Google Pay wallet payment data.
+  // Distinct from card_bin, which is the underlying physical card BIN resolved by the connector.
+  optional string device_pan_bin = 4;
+}
+
+// Wallet additional payment data wrapping Apple Pay and Google Pay data.
+// Exactly one wallet provider is always present.
+message AdditionalWalletInfo {
+  oneof wallet_data {
+    AdditionalApplePayInfo apple_pay = 1;
+    AdditionalGooglePayInfo google_pay = 2;
+  }
 }
 
 // Additional payment data for various payment methods
 message AdditionalPaymentData {
   oneof payment_method_data {
     AdditionalCardInfo card = 1;
+    AdditionalWalletInfo wallet = 2;
   }
+}
+
+// Funding source type of a card
+enum FundingSource {
+  FUNDING_SOURCE_UNSPECIFIED = 0;
+  FUNDING_SOURCE_CREDIT = 1;
+  FUNDING_SOURCE_DEBIT = 2;
+  FUNDING_SOURCE_PREPAID = 3;
+  FUNDING_SOURCE_CHARGE_CARD = 4;
+  FUNDING_SOURCE_DEFERRED_DEBIT = 5;
+}
+
+// Segment/category of a card (consumer/commercial/business/government)
+enum CardSegmentType {
+  CARD_SEGMENT_TYPE_UNSPECIFIED = 0;
+  CARD_SEGMENT_TYPE_CONSUMER = 1;
+  CARD_SEGMENT_TYPE_COMMERCIAL = 2;
+  CARD_SEGMENT_TYPE_BUSINESS = 3;
+  CARD_SEGMENT_TYPE_GOVERNMENT = 4;
+}
+
+// Type of card from the issuer's perspective
+enum CardType {
+  CARD_TYPE_UNSPECIFIED = 0;
+  CARD_TYPE_CREDIT = 1;
+  CARD_TYPE_DEBIT = 2;
+  CARD_TYPE_PREPAID = 3;
+  CARD_TYPE_STORE = 4;
+  CARD_TYPE_CHARGE_CARD = 5;
 }
 
 // Additional payment method data for Google Pay
 message GooglePayConnectorResponse {
   optional string auth_code =
       1; // Unique authorisation code generated for the payment
+  optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
+  optional string card_bin = 3; // Bin of the underlying card
+  optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
+  optional CardSegmentType card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional FundingSource funding_source = 6; // The card's funding source type
+  optional CardType card_type = 7; // The card type (credit/debit/prepaid/charge)
+  optional string issuer_name = 8; // The name of the card issuer
+  optional CountryAlpha2 issuer_country = 9; // The country of the card issuer (ISO alpha-2)
 }
 
 // Additional payment method data for Apple Pay
 message ApplePayConnectorResponse {
   optional string auth_code =
       1; // Unique authorisation code generated for the payment
+  optional string device_pan_bin = 2; // Bin of the DPAN (device PAN)
+  optional string card_bin = 3; // Bin of the underlying card
+  optional string card_subtype = 4; // The card's product/subtype, e.g. "Visa Classic"
+  optional CardSegmentType card_segment_type = 5; // The card's segment type (consumer/commercial)
+  optional FundingSource funding_source = 6; // The card's funding source type
+  optional string issuer_name = 7; // The name of the card issuer
+  optional CountryAlpha2 issuer_country = 8; // The country of the card issuer (ISO alpha-2)
 }
 
 // Customer information for payments
@@ -3618,6 +3735,32 @@ message DisputeResponse {
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
+
+  // Card-network specific details of the dispute.
+  optional DisputeAdditionalDetails additional_details = 21;
+}
+
+// Additional details of a dispute, such as card network specific details.
+message DisputeAdditionalDetails {
+  optional DisputeNetworkDetails network_details = 1;
+}
+
+// Card network specific details of a dispute.
+message DisputeNetworkDetails {
+  oneof network {
+    VisaDisputeDetails visa = 1;
+  }
+}
+
+// Visa specific dispute details.
+message VisaDisputeDetails {
+  optional RapidDisputeResolution rapid_dispute_resolution = 1;
+}
+
+// Visa Rapid Dispute Resolution details.
+message RapidDisputeResolution {
+  // Whether Rapid Dispute Resolution has been applied.
+  bool applied = 1;
 }
 
 // Request message for setting up a mandate
@@ -3734,6 +3877,13 @@ message PaymentServiceSetupRecurringRequest {
   // additionalData.authorisationType / manualCapture) need the real value;
   // absent means the connector's default (automatic).
   optional CaptureMethod capture_method = 42;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen). Stripe's setup_intents needs it
+  // for on_behalf_of on a destination charge, and to echo the charge details back
+  // as mandate_reference.mandate_metadata.
+  optional SplitPaymentsDetails split_payments = 43;
 }
 
 // Response message for a mandate setup operation
@@ -4051,6 +4201,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
   // resource URL returned by PaymentService/CreateOrder to open a payment
   // session.
   optional string connector_order_id = 16;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 17;
 }
 
 // Response message for pre-authentication step
@@ -4519,6 +4672,10 @@ message PaymentMethodServiceTokenizeRequest {
   optional FutureUsage setup_future_usage = 12;      // Indicates future usage intention (e.g. off_session for mandates)
   optional CustomerAcceptance customer_acceptance = 13; // Details of customer consent for mandate setup
   optional SetupMandateDetails setup_mandate_details = 14; // Mandate data for recurring payment setup
+
+  // Browser context forwarded to connectors that use it for fraud signals when
+  // creating a reusable payment method (for example Stripe's ip/user_agent).
+  optional BrowserInformation browser_info = 15;
 }
 
 // Response message for tokenizing a payment method
@@ -5763,6 +5920,10 @@ message KountConfig {
   // payment tokens are KHASH-hashed with this salt; when unset the connector
   // falls back to the legacy HMAC-SHA256 token.
   optional SecretString khash_config_key = 3;
+  // Kount-assigned merchant CID, rendered into the Device Data Collection
+  // script as the Kount Web SDK `clientID`. Optional here — only the DDC
+  // flow requires one, and rejects the request if it's missing.
+  optional string client_id = 4;
   optional string base_url = 50;
 }
 
@@ -6859,11 +7020,20 @@ message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+  optional StripeAdditionalInformation stripe = 3;
 }
 
 message WorldpayxmlAdditionalInformation {
   optional string funding_transaction_type = 1;
   optional string payment_purpose = 2;
+}
+
+// Stripe-specific additional information to be included in the payment request.
+message StripeAdditionalInformation {
+  // For MIT (merchant-initiated) payments: when true, Stripe fails the payment
+  // outright instead of returning a `requires_action` status, since there's no
+  // customer present to complete additional authentication.
+  optional bool error_on_requires_action = 1;
 }
 
 // Checkout.com-specific additional information to be included in the payment request.
