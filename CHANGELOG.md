@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.07.1
+
+### Features
+
+- **ci:** Add connectors in regression coverage ([#2371](https://github.com/juspay/connector-service/pull/2371)) ([`bf69926`](https://github.com/juspay/connector-service/commit/bf699265881d6a6fec0a62eb97e5f8fd98c6a8a6))
+- **framework:** Support 3DS 2.3.1 SPC trans_status `S` ([#2438](https://github.com/juspay/connector-service/pull/2438)) ([`02e84b8`](https://github.com/juspay/connector-service/commit/02e84b8bd7544cacad3486cc927d1bb4cece1eda))
+
+### Bug Fixes
+
+- **connector:** [Stripe] match hyperswitch's moto flag on telephone orders ([#2455](https://github.com/juspay/connector-service/pull/2455)) ([`942b9b9`](https://github.com/juspay/connector-service/commit/942b9b9964db3552081a6afe7900745dcb6fd8c5))
+
+**Full Changelog:** [`2026.10.07.0...2026.10.07.1`](https://github.com/juspay/connector-service/compare/2026.10.07.0...2026.10.07.1)
+
+- - -
+
 ## 2026.10.07.0
 
 ### Features
