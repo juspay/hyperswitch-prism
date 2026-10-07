@@ -46,6 +46,7 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         action = %request.method(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
+        reference_id = tracing::field::Empty,
         execution_mode = tracing::field::Empty,
     );
     request
@@ -59,6 +60,13 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         .get(consts::X_REQUEST_ID)
         .and_then(|value| value.to_str().ok())
         .map(|request_id| span.record("request_id", request_id));
+
+    // The caller's reconciliation id, on the request span so every log line carries it.
+    request
+        .headers()
+        .get(consts::X_REFERENCE_ID)
+        .and_then(|value| value.to_str().ok())
+        .map(|reference_id| span.record("reference_id", reference_id));
 
     // On the request span so every log line of the request carries primary/shadow.
     let shadow = request
