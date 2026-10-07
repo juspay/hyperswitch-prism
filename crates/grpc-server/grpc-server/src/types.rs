@@ -1,6 +1,9 @@
 //! gRPC ↔ domain type conversions for the gRPC server layer.
 
-use domain_types::{errors::IntegrationError, utils::ForeignTryFrom};
+use domain_types::{
+    errors::{IntegrationError, IntegrationErrorContext},
+    utils::ForeignTryFrom,
+};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -56,7 +59,15 @@ impl ForeignTryFrom<&grpc_api_types::payouts::CardProxyPayout> for InjectorToken
         };
         let card_json = serde_json::to_value(card_data).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize CardProxy aliases for vault injection".to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Verify that all CardProxy alias fields contain valid strings".to_owned(),
+                    ),
+                    doc_url: None,
+                },
             },
         )?;
         Ok(Self(injector::TokenData {

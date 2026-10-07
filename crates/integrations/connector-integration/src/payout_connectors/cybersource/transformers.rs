@@ -3,7 +3,7 @@ use common_utils::types::StringMajorUnit;
 use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::PayoutTransfer,
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -220,7 +220,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             .map_err(|_| IntegrationError::NotSupported {
                 message: "Card payouts require a resolved card number for body signing".to_owned(),
                 connector: "cybersource",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Cybersource cannot sign a payout request containing a vault alias"
+                            .to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Resolve the card number before building a Cybersource payout request"
+                            .to_owned(),
+                    ),
+                    doc_url: None,
+                },
             })?;
         let card_type = card
             .card_network

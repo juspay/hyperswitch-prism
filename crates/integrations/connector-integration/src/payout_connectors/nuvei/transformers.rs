@@ -5,7 +5,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::PayoutTransfer,
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     payouts::{
         payout_method_data::PayoutMethodData,
@@ -83,9 +83,43 @@ type NuveiPayoutRouterData<T> =
 fn missing(field_name: &'static str) -> Report<IntegrationError> {
     IntegrationError::MissingRequiredField {
         field_name,
-        context: Default::default(),
+        context: nuvei_context(
+            format!("Nuvei payout request is missing `{field_name}`"),
+            format!("Provide `{field_name}` in the payout request"),
+        ),
     }
     .into()
+}
+
+fn nuvei_context(
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> IntegrationErrorContext {
+    IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        suggested_action: Some(suggested_action.into()),
+        doc_url: None,
+    }
+}
+
+fn validate_payout_currency(
+    source_currency: common_enums::Currency,
+    destination_currency: common_enums::Currency,
+) -> Result<common_enums::Currency, Report<IntegrationError>> {
+    match source_currency == destination_currency {
+        true => Ok(source_currency),
+        false => Err(IntegrationError::NotSupported {
+            message: "Cross-currency payouts".to_owned(),
+            connector: "nuvei",
+            context: nuvei_context(
+                format!(
+                    "Nuvei payout source currency {source_currency} differs from destination currency {destination_currency}"
+                ),
+                "Use the same source and destination currency for Nuvei payouts",
+            ),
+        }
+        .into()),
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -105,17 +139,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..
             } => Ok((merchant_id, merchant_site_id)),
             _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: nuvei_context(
+                    "Nuvei payout received connector credentials for a different connector",
+                    "Configure Nuvei merchant credentials for this payout connector",
+                ),
             })),
         }?;
         let request = &data.request;
+        let payout_currency =
+            validate_payout_currency(request.source_currency, request.destination_currency)?;
         let amount = StringMajorUnitForConnector
-            .convert(request.amount, request.destination_currency)
+            .convert(request.amount, payout_currency)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: Default::default(),
+                context: nuvei_context(
+                    "Nuvei payout amount could not be converted to major currency units",
+                    "Provide an amount valid for the source currency",
+                ),
             })?;
-        let currency = request.destination_currency.to_string();
+        let currency = payout_currency.to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {
             reference if !reference.trim().is_empty() => Ok(reference),
@@ -156,7 +198,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => Err(Report::new(IntegrationError::NotSupported {
                 message: "Payout method".to_owned(),
                 connector: "nuvei",
-                context: Default::default(),
+                context: nuvei_context(
+                    "Nuvei payout transfer supports card and passthrough payout methods",
+                    "Use card or passthrough payout method data",
+                ),
             })),
         }?;
         // Nuvei signs only these non-card fields, so vault substitution does not invalidate the checksum.
@@ -220,13 +265,35 @@ impl NuveiPayoutResponse {
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_owned()),
             reason,
-            attempt_status: Some(FlowStatus::Payout(PayoutStatus::Failure)),
+            attempt_status: (status_code < 500)
+                .then_some(FlowStatus::Payout(PayoutStatus::Failure)),
             connector_transaction_id: self.transaction_id.clone(),
             typed_connector_response: crate::connectors::macros::serialize_typed_connector_payload(
                 self,
                 "typed_connector_response",
             ),
             ..Default::default()
+        }
+    }
+
+    fn payout_status(&self, status_code: u16) -> Result<PayoutStatus, Report<ConnectorError>> {
+        match self.status {
+            NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Ok(PayoutStatus::Failure),
+            NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
+            NuveiPaymentStatus::Success => match self.transaction_status {
+                Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
+                Some(
+                    NuveiTransactionStatus::Declined
+                    | NuveiTransactionStatus::Error
+                    | NuveiTransactionStatus::Redirect,
+                ) => Ok(PayoutStatus::Failure),
+                Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
+                    Ok(PayoutStatus::Pending)
+                }
+                None => Err(Report::new(
+                    crate::utils::response_handling_fail_for_connector(status_code, "nuvei"),
+                )),
+            },
         }
     }
 }
@@ -242,23 +309,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, 
             mut router_data,
             http_code,
         } = item;
-        let status = match response.status {
-            NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Ok(PayoutStatus::Failure),
-            NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
-            NuveiPaymentStatus::Success => match response.transaction_status {
-                Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
-                Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
-                    Ok(PayoutStatus::Failure)
-                }
-                Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
-                    Ok(PayoutStatus::Pending)
-                }
-                Some(NuveiTransactionStatus::Redirect) => Ok(PayoutStatus::Ineligible),
-                None => Err(Report::new(
-                    crate::utils::response_handling_fail_for_connector(http_code, "nuvei"),
-                )),
-            },
-        }?;
+        let status = response.payout_status(http_code)?;
         router_data.response = match status {
             PayoutStatus::Failure => Err(response.error_response(http_code)),
             status => {
@@ -282,5 +333,83 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, 
             }
         };
         Ok(router_data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn response(
+        status: NuveiPaymentStatus,
+        transaction_status: Option<NuveiTransactionStatus>,
+    ) -> NuveiPayoutResponse {
+        NuveiPayoutResponse {
+            status,
+            transaction_status,
+            transaction_id: Some("txn_123".to_owned()),
+            err_code: None,
+            reason: None,
+            gw_error_code: None,
+            gw_error_reason: None,
+        }
+    }
+
+    #[test]
+    fn payout_currency_rejects_cross_currency_requests() {
+        assert_eq!(
+            validate_payout_currency(common_enums::Currency::USD, common_enums::Currency::USD)
+                .expect("matching currency should be accepted"),
+            common_enums::Currency::USD
+        );
+        assert!(
+            validate_payout_currency(common_enums::Currency::USD, common_enums::Currency::EUR)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn payout_checksum_uses_the_signed_nuvei_fields_in_order() {
+        let config = ConnectorSpecificConfig::Nuvei {
+            merchant_id: Secret::new("merchant".to_owned()),
+            merchant_site_id: Secret::new("site".to_owned()),
+            merchant_secret: Secret::new("secret".to_owned()),
+            base_url: None,
+        };
+        let auth = NuveiAuthType::try_from(&config).expect("valid Nuvei credentials");
+
+        assert_eq!(
+            auth.generate_checksum(&[
+                "merchant",
+                "site",
+                "payout_123",
+                "10.00",
+                "USD",
+                "20261007123000"
+            ]),
+            "8501f7dd724473e8a4149c9e227684e221b82b6fa40816add3e1064b36c21eee"
+        );
+    }
+
+    #[test]
+    fn redirect_is_a_terminal_failure_for_server_to_server_payouts() {
+        let response = response(
+            NuveiPaymentStatus::Success,
+            Some(NuveiTransactionStatus::Redirect),
+        );
+        assert_eq!(
+            response.payout_status(200).expect("status should map"),
+            PayoutStatus::Failure
+        );
+    }
+
+    #[test]
+    fn server_errors_do_not_mark_the_payout_failed() {
+        let response = response(NuveiPaymentStatus::Error, None);
+        assert_eq!(response.error_response(500).attempt_status, None);
+        assert_eq!(
+            response.error_response(400).attempt_status,
+            Some(FlowStatus::Payout(PayoutStatus::Failure))
+        );
     }
 }

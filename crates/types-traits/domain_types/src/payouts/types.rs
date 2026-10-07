@@ -297,7 +297,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardProxyPayout>
                 grpc_api_types::payments::CardNetwork::try_from(network)
                     .change_context(IntegrationError::InvalidDataFormat {
                         field_name: "payout_method_data.card_proxy.card_network",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "CardProxy contains an unknown card network value".to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a supported card network or omit card_network".to_owned(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                     .and_then(common_enums::CardNetwork::foreign_try_from)
             })
@@ -329,7 +337,15 @@ pub fn required_proxy_card_field(
         .ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name,
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "CardProxy requires a non-empty `{field_name}` value"
+                    )),
+                    suggested_action: Some(format!(
+                        "Provide the external-vault alias in `{field_name}`"
+                    )),
+                    doc_url: None,
+                },
             })
         })
 }

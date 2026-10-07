@@ -732,7 +732,7 @@ macro_rules! implement_connector_operation {
         // `FrmConnectorData`).
         connector_data_types: [$connector_data:ident $(, $extra_connector_data_type:ty)* $(,)?],
         all_keys_required: $all_keys_required:expr,
-        has_payment_method_data: option
+        $method_data_source:ident: option
     ) => {
         async fn $fn_name(
             &self,
@@ -766,18 +766,28 @@ macro_rules! implement_connector_operation {
             let request_id = metadata_payload.request_id.clone();
             let connector_config = metadata_payload.connector_config.clone();
 
-            // Inspect the payment method up front so the vault-aliased card-proxy
-            // (VGS / Basis Theory / Spreedly) flows can build `Some(token_data)` and
-            // route through the external-services injector, exactly as the payment
-            // Authorize flow does. A non-proxy request keeps the existing direct
-            // connector call with `token_data = None`.
-            let payment_method_data_action = match payload.payment_method.clone() {
-                Some(pm) => Some(
-                    domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm)
-                        .to_grpc_error()?,
-                ),
-                None => None,
-            };
+            let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
+            let payment_method_data_action = $crate::implement_connector_operation!(
+                @select_method_data_source $method_data_source,
+                {
+                    match payload.payment_method.clone() {
+                        Some(pm) => Some(
+                            domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm)
+                                .to_grpc_error()?,
+                        ),
+                        None => None,
+                    }
+                },
+                {
+                    $crate::server::payouts::proxy::get_payout_method_data_action(
+                        &payload,
+                        &masked_metadata,
+                        &metadata_payload,
+                        flow_name,
+                    )
+                    .to_grpc_error()?
+                }
+            );
 
             // Resolve effective connector URLs — applies superposition (x-environment) first,
             // then any caller-supplied base_url override from x-connector-config on top.
@@ -795,9 +805,6 @@ macro_rules! implement_connector_operation {
             // it already carries the parsed `x-external-vault-metadata` vault headers).
             let common_flow_data = $common_flow_data_constructor((payload.clone(), overridden_connectors, &masked_metadata))
                 .to_grpc_error()?;
-
-            // Calculate flow name for dynamic flow-specific configurations
-            let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
 
             // Get API tag for the current flow
             let api_tag = config
@@ -928,7 +935,9 @@ macro_rules! implement_connector_operation {
 
             // Exhaustive dispatch (no `_`/`other`): a new `PaymentMethodDataAction`
             // variant or holder breaks compilation here until its routing is decided.
-            let final_response = match payment_method_data_action {
+            let final_response = $crate::implement_connector_operation!(
+                @select_method_data_source $method_data_source,
+                { match payment_method_data_action {
                 // ── Vault-aliased card proxy → VaultTokenHolder + injector ───────────
                 Some(domain_types::types::PaymentMethodDataAction::CardProxy(proxy_card_details)) => {
                     tracing::info!(concat!($log_prefix, "_FLOW: INJECTOR: processing card-proxy request through injector"));
@@ -1084,7 +1093,52 @@ macro_rules! implement_connector_operation {
                     )
                     .await?
                 }
-            };
+                }},
+                { match payment_method_data_action {
+                    $crate::server::payouts::proxy::PayoutMethodDataAction::Normal => {
+                        let request: $request_data_type<domain_types::payment_method_data::DefaultPCIHolder> =
+                            $request_data_constructor(payload.clone()).to_grpc_error()?;
+                        let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
+                            &metadata_payload.connector,
+                            [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        ))?;
+                        run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                            connector_integration,
+                            request,
+                            common_flow_data,
+                            connector_config,
+                            None,
+                            &config.proxy,
+                            $all_keys_required,
+                            event_params,
+                            test_context,
+                            api_tag,
+                        )
+                        .await?
+                    }
+                    $crate::server::payouts::proxy::PayoutMethodDataAction::CardProxy(token_data) => {
+                        let request: $request_data_type<domain_types::payment_method_data::VaultTokenHolder> =
+                            $request_data_constructor(payload.clone()).to_grpc_error()?;
+                        let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
+                            &metadata_payload.connector,
+                            [$connector_data<domain_types::payment_method_data::VaultTokenHolder>]
+                        ))?;
+                        run_holder_flow::<domain_types::payment_method_data::VaultTokenHolder>(
+                            connector_integration,
+                            request,
+                            common_flow_data,
+                            connector_config,
+                            Some(token_data),
+                            &config.proxy,
+                            $all_keys_required,
+                            event_params,
+                            test_context,
+                            api_tag,
+                        )
+                        .await?
+                    }
+                }}
+            );
 
             Ok(tonic::Response::new(final_response))
         }).await;
@@ -1092,239 +1146,12 @@ macro_rules! implement_connector_operation {
     }
 };
 
-    (
-        fn_name: $fn_name:ident,
-        log_prefix: $log_prefix:literal,
-        request_type: $request_type:ty,
-        response_type: $response_type:ty,
-        flow_marker: $flow_marker:ty,
-        resource_common_data_type: $resource_common_data_type:ty,
-        request_data_type: $request_data_type:ident,
-        response_data_type: $response_data_type:ty,
-        request_data_constructor: $request_data_constructor:path,
-        common_flow_data_constructor: $common_flow_data_constructor:path,
-        generate_response_fn: $generate_response_fn:path,
-        connector_data_types: [$connector_data:ident],
-        all_keys_required: $all_keys_required:expr,
-        // Payouts select the holder from payout_method_data; payments use payment_method.
-        has_payout_method_data: $payout_method_data:ident
-    ) => {
-        async fn $fn_name(
-            &self,
-            request: $crate::request::RequestData<$request_type>,
-        ) -> Result<tonic::Response<$response_type>, error_stack::Report<ucs_env::error::GrpcError>>
-        {
-            use ucs_env::error::ResultExtGrpcError;
-            Box::pin(async {
-                tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
-                let config = request
-                    .extensions
-                    .get::<std::sync::Arc<ucs_env::configs::Config>>()
-                    .cloned()
-                    .ok_or_else(|| {
-                        error_stack::Report::new(ucs_env::error::GrpcError::from(
-                            ucs_env::error::InternalError::ConfigNotFound,
-                        ))
-                    })?;
-                let service_name = request
-                    .extensions
-                    .get::<String>()
-                    .cloned()
-                    .unwrap_or_else(|| "unknown_service".to_owned());
-                let $crate::request::RequestData {
-                    payload,
-                    extracted_metadata: metadata,
-                    masked_metadata,
-                    extensions: _,
-                } = request;
-                let flow_name =
-                    $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
-                let method_action = $crate::server::payouts::proxy::get_payout_method_data_action(
-                    &payload,
-                    &masked_metadata,
-                    &metadata,
-                    flow_name,
-                )
-                .to_grpc_error()?;
-                let connectors = $crate::utils::apply_url_overrides(
-                    &config,
-                    &metadata.connector,
-                    &metadata.connector_config,
-                    metadata.environment.as_deref(),
-                )
-                .await
-                .to_grpc_error()?;
-                let common_data = $common_flow_data_constructor((
-                    payload.clone(),
-                    connectors,
-                    &masked_metadata,
-                ))
-                .to_grpc_error()?;
-                let test_context = config
-                    .test
-                    .create_test_context(&metadata.request_id)
-                    .map_err(|error| {
-                        error_stack::Report::new(ucs_env::error::GrpcError::from(
-                            ucs_env::error::InternalError::TestContextCreationFailed {
-                                reason: error.to_string(),
-                            },
-                        ))
-                    })?;
-                let api_tag = config.api_tags.get_tag(flow_name, None);
-                let event_params = external_services::service::EventProcessingParams {
-                    connector_name: &metadata.connector.get_connector_name(),
-                    service_name: &service_name,
-                    service_type: $crate::utils::service_type_str(&config.server.type_),
-                    flow_name,
-                    event_config: &config.events,
-                    runtime_metadata: &config.runtime_metadata,
-                    request_id: &metadata.request_id,
-                    lineage_ids: &metadata.lineage_ids,
-                    reference_id: &metadata.reference_id,
-                    resource_id: &metadata.resource_id,
-                    shadow_mode: metadata.shadow_mode,
-                    proxy_name: metadata.proxy_name.as_deref(),
-                    tenant_id: &metadata.tenant_id,
-                    merchant_id: metadata.merchant_id.as_str(),
-                    org_id: metadata.org_id.as_str(),
-                    return_raw_connector_data: config.common.return_raw_connector_data,
-                    return_typed_connector_data: config.common.return_typed_connector_data,
-                    masking_keys: &config.masking_keys,
-                    connector_latency: metadata.connector_latency.clone(),
-                    log_fields_enabled: config.log_fields.enabled,
-                    log_fields: &config.log_fields.outgoing,
-                };
-
-                #[allow(clippy::too_many_arguments)]
-                async fn run_holder_flow<
-                    T: domain_types::payment_method_data::PaymentMethodDataTypes
-                        + std::fmt::Debug
-                        + Default
-                        + Send
-                        + Sync
-                        + 'static
-                        + serde::Serialize,
-                >(
-                    payload: $request_type,
-                    common_data: $resource_common_data_type,
-                    metadata: &ucs_interface_common::metadata::MetadataPayload,
-                    token_data: Option<injector::TokenData>,
-                    proxy: &domain_types::types::ProxyConfig,
-                    event_params: external_services::service::EventProcessingParams<'_>,
-                    test_context: Option<external_services::service::TestContext>,
-                    api_tag: Option<String>,
-                ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>>
-                where
-                    $crate::implement_connector_operation!(
-                        @payout_request_type $payout_method_data, $request_data_type, T
-                    ):
-                        domain_types::utils::ForeignTryFrom<
-                            $request_type,
-                            Error = domain_types::errors::IntegrationError,
-                        >,
-                {
-                    let integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
-                        'static,
-                        $flow_marker,
-                        $resource_common_data_type,
-                        $crate::implement_connector_operation!(
-                            @payout_request_type $payout_method_data, $request_data_type, T
-                        ),
-                        $response_data_type,
-                    > = $crate::resolve_connector_integration!(
-                        &metadata.connector,
-                        [$connector_data<T>]
-                    )
-                    .ok_or_else(|| {
-                        error_stack::Report::new(ucs_env::error::GrpcError::from(
-                            domain_types::errors::IntegrationError::NotSupported {
-                                message: "Invalid connector type for this flow".to_owned(),
-                                connector: "N/A",
-                                context: Default::default(),
-                            },
-                        ))
-                    })?;
-                    let request: $crate::implement_connector_operation!(
-                        @payout_request_type $payout_method_data, $request_data_type, T
-                    ) =
-                        $request_data_constructor(payload).to_grpc_error()?;
-                    let router_data = domain_types::router_data_v2::RouterDataV2::<
-                        $flow_marker,
-                        $resource_common_data_type,
-                        $crate::implement_connector_operation!(
-                            @payout_request_type $payout_method_data, $request_data_type, T
-                        ),
-                        $response_data_type,
-                    > {
-                        flow: std::marker::PhantomData,
-                        resource_common_data: common_data,
-                        connector_config: metadata.connector_config.clone(),
-                        request,
-                        response: Err(domain_types::router_data::ErrorResponse::default()),
-                    };
-                    let action = integration.get_call_connector_action();
-                    let response = Box::pin(
-                        external_services::service::execute_connector_processing_step(
-                            proxy,
-                            integration,
-                            router_data,
-                            $all_keys_required,
-                            event_params,
-                            token_data,
-                            action,
-                            test_context,
-                            api_tag,
-                        ),
-                    )
-                    .await
-                    .to_grpc_error()?;
-                    $generate_response_fn(response).to_grpc_error()
-                }
-
-                let response = match method_action {
-                    $crate::server::payouts::proxy::PayoutMethodDataAction::Normal => {
-                        Box::pin(run_holder_flow::<
-                            domain_types::payment_method_data::DefaultPCIHolder,
-                        >(
-                            payload,
-                            common_data,
-                            &metadata,
-                            None,
-                            &config.proxy,
-                            event_params,
-                            test_context,
-                            api_tag,
-                        ))
-                        .await?
-                    }
-                    $crate::server::payouts::proxy::PayoutMethodDataAction::CardProxy(tokens) => {
-                        Box::pin(run_holder_flow::<
-                            domain_types::payment_method_data::VaultTokenHolder,
-                        >(
-                            payload,
-                            common_data,
-                            &metadata,
-                            Some(tokens),
-                            &config.proxy,
-                            event_params,
-                            test_context,
-                            api_tag,
-                        ))
-                        .await?
-                    }
-                };
-                Ok(tonic::Response::new(response))
-            })
-            .await
-        }
+    (@select_method_data_source has_payment_method_data, $payment:block, $payout:block) => {
+        $payment
     };
 
-    (@payout_request_type option, $request_data_type:ident, $holder:ty) => {
-        $request_data_type<$holder>
-    };
-
-    (@payout_request_type none, $request_data_type:ident, $holder:ty) => {
-        $request_data_type
+    (@select_method_data_source has_payout_method_data, $payment:block, $payout:block) => {
+        $payout
     };
 
     // Pattern without payment method data processing (original behavior). Resolves

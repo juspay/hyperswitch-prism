@@ -508,8 +508,7 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_get_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None,
-        has_payout_method_data: none
+        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -525,8 +524,7 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_void_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None,
-        has_payout_method_data: none
+        all_keys_required: None
     );
 
     implement_connector_operation!(
