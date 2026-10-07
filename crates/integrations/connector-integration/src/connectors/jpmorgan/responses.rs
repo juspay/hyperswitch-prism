@@ -77,14 +77,22 @@ pub struct JpmorganThreeDsCompletion {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum JpmorganThreeDsStatus {
-    Y,
-    A,
-    N,
-    U,
-    C,
-    R,
-    D,
-    I,
+    #[serde(rename = "Y")]
+    Authenticated,
+    #[serde(rename = "A")]
+    Attempted,
+    #[serde(rename = "N")]
+    NotAuthenticated,
+    #[serde(rename = "U")]
+    Unavailable,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "D")]
+    DecoupledAuthentication,
+    #[serde(rename = "I")]
+    InformationalOnly,
     #[serde(other)]
     Unknown,
 }

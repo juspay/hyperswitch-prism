@@ -107,9 +107,11 @@ pub struct JpmorganAuthentication {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganThreeDs {
     pub authentication_value: Secret<String>,
-    pub authentication_transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_transaction_id: Option<String>,
     #[serde(rename = "threeDSProgramProtocol")]
-    pub three_ds_program_protocol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_program_protocol: Option<String>,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
@@ -138,10 +140,14 @@ pub struct JpmorganAccountHolder {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganBillingAddress {
-    pub line1: Secret<String>,
-    pub city: Secret<String>,
-    pub postal_code: Secret<String>,
-    pub country_code: common_enums::CountryAlpha3,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha3>,
 }
 
 #[derive(Debug, Serialize)]

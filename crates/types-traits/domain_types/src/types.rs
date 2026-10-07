@@ -1960,20 +1960,29 @@ impl<
                                             )?,
                                             cryptogram: decrypt_data.cryptogram,
                                             eci_indicator: decrypt_data.eci_indicator,
-                                            auth_method: match decrypt_data.auth_method.as_deref() {
-                                                Some("PAN_ONLY") => Some(common_enums::GooglePayAuthMethod::PanOnly),
-                                                Some("CRYPTOGRAM_3DS") => Some(common_enums::GooglePayAuthMethod::Cryptogram),
-                                                None => None,
-                                                Some(_) => return Err(IntegrationError::InvalidDataFormat {
-                                field_name: "payment_method.google_pay.auth_method",
-                                context: IntegrationErrorContext {
-                                    suggested_action: Some(
-                                        "Provide PAN_ONLY or CRYPTOGRAM_3DS in Google Pay auth_method".to_owned(),
-                                    ),
-                                    doc_url: None,
-                                    additional_context: None,
-                                },
-                                                }.into()),
+                                            auth_method: match decrypt_data.auth_method
+                                                .map(grpc_api_types::payments::GooglePayAuthMethod::try_from)
+                                                .transpose()
+                                            {
+                                                Ok(Some(grpc_api_types::payments::GooglePayAuthMethod::PanOnly)) => {
+                                                    Some(common_enums::GooglePayAuthMethod::PanOnly)
+                                                }
+                                                Ok(Some(grpc_api_types::payments::GooglePayAuthMethod::Cryptogram3ds)) => {
+                                                    Some(common_enums::GooglePayAuthMethod::Cryptogram)
+                                                }
+                                                Ok(None | Some(grpc_api_types::payments::GooglePayAuthMethod::Unspecified)) => None,
+                                                Err(error) => {
+                                                    return Err(error_stack::Report::new(error).change_context(
+                                                        IntegrationError::InvalidDataFormat {
+                                                            field_name: "payment_method.google_pay.auth_method",
+                                                            context: IntegrationErrorContext {
+                                                                suggested_action: Some("Provide PAN_ONLY or CRYPTOGRAM_3DS in Google Pay auth_method".to_owned()),
+                                                                doc_url: None,
+                                                                additional_context: Some("The Google Pay authentication method is unknown".to_owned()),
+                                                            },
+                                                        },
+                                                    ));
+                                                }
                                             },
                                         }
                                     ))

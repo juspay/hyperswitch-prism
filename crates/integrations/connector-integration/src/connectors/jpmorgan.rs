@@ -581,18 +581,47 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-            let context = jpmorgan::resolved_connector_context(req.request.connector_feature_data.as_ref(), req.resource_common_data.connector_feature_data.as_ref(), req.request.metadata.as_ref())?;
+            let context = jpmorgan::resolved_connector_context(
+                req.request.connector_feature_data.as_ref(),
+                req.resource_common_data.connector_feature_data.as_ref(),
+                req.request.metadata.as_ref(),
+            )?;
             let continuing = req.request.redirect_response.is_some() || context.continue_three_ds;
             let (method, url, body, typed_request) = if continuing {
-            let resource = context.three_ds_resource.as_ref().ok_or_else(jpmorgan::missing_request_field("connector_feature_data.jpmorgan.threeDsResource"))?;
+                let resource = context.three_ds_resource.as_ref().ok_or_else(
+                    domain_types::utils::missing_field_err("connector_feature_data.jpmorgan.threeDsResource"),
+                )?;
                 jpmorgan::validate_three_ds_resource(resource, &req.resource_common_data)?;
-                (common_utils::request::Method::Get, format!("{}/{}/{}", self.connector_base_url(req), resource.kind.path(), resource.id), None, None)
+                let url = format!(
+                    "{}/{}/{}",
+                    self.connector_base_url(req),
+                    resource.kind.path(),
+                    resource.id,
+                );
+                (common_utils::request::Method::Get, url, None, None)
             } else {
                 let data = ConnectorIntegrationV2::<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>::get_request_body(self, req)?;
-                let (body, typed) = data.map_or((None, None), |data| (Some(data.content), data.typed_request.map(|value| value.inner().clone())));
+                let (body, typed) = data.map_or((None, None), |data| {
+                    (
+                        Some(data.content),
+                        data.typed_request.map(|value| value.inner().clone()),
+                    )
+                });
                 (common_utils::request::Method::Post, self.get_url(req)?, body, typed)
             };
-            Ok(Some(common_utils::request::RequestBuilder::new().method(method).url(&url).attach_default_headers().headers(self.get_headers(req)?).set_optional_body(body).set_typed_connector_request(typed_request).add_certificate(self.get_certificate(req)?).add_certificate_key(self.get_certificate_key(req)?).add_ca_certificate_pem(self.get_ca_certificate(req)?).build()))
+            Ok(Some(
+                common_utils::request::RequestBuilder::new()
+                    .method(method)
+                    .url(&url)
+                    .attach_default_headers()
+                    .headers(self.get_headers(req)?)
+                    .set_optional_body(body)
+                    .set_typed_connector_request(typed_request)
+                    .add_certificate(self.get_certificate(req)?)
+                    .add_certificate_key(self.get_certificate_key(req)?)
+                    .add_ca_certificate_pem(self.get_ca_certificate(req)?)
+                    .build(),
+            ))
         }
     }
 );
@@ -622,13 +651,28 @@ macros::macro_connector_implementation!(
             let transaction_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            let context = jpmorgan::resolved_connector_context(req.request.connector_feature_data.as_ref(), req.resource_common_data.connector_feature_data.as_ref(), None)?;
+            let context = jpmorgan::resolved_connector_context(
+                req.request.connector_feature_data.as_ref(),
+                req.resource_common_data.connector_feature_data.as_ref(),
+                None,
+            )?;
             if let Some(resource) = &context.three_ds_resource {
                 jpmorgan::validate_three_ds_resource(resource, &req.resource_common_data)?;
                 if resource.id != transaction_id {
-                return Err(IntegrationError::InvalidDataFormat { field_name: "connector_transaction_id", context: jpmorgan::request_error_context() }.into());
+                    return Err(IntegrationError::InvalidDataFormat {
+                        field_name: "connector_transaction_id",
+                        context: crate::utils::integration_ctx(
+                            "The transaction ID differs from the saved 3DS resource ID",
+                            "Use the original transaction ID for payment sync",
+                        ),
+                    }.into());
                 }
-                return Ok(format!("{}/{}/{}", self.connector_base_url(req), resource.kind.path(), resource.id));
+                return Ok(format!(
+                    "{}/{}/{}",
+                    self.connector_base_url(req),
+                    resource.kind.path(),
+                    resource.id,
+                ));
             }
             Ok(format!("{}/payments/{}", self.connector_base_url(req), transaction_id))
         }
@@ -827,23 +871,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<domain_types::connector_types::RedirectDetailsResponse, IntegrationError>
     {
-        let feature_data =
-            feature_data.ok_or_else(jpmorgan::missing_request_field("connector_feature_data"))?;
+        let feature_data = feature_data.ok_or_else(domain_types::utils::missing_field_err(
+            "connector_feature_data",
+        ))?;
         let value: serde_json::Value = serde_json::from_str(feature_data.peek()).change_context(
             IntegrationError::InvalidDataFormat {
                 field_name: "connector_feature_data",
-                context: jpmorgan::request_error_context(),
+                context: crate::utils::integration_ctx(
+                    "The saved connector state is not valid JSON",
+                    "Return connector_feature_data unchanged from the authorization response",
+                ),
             },
         )?;
         let mut context =
             jpmorgan::connector_context(Some(&hyperswitch_masking::Secret::new(value)), None)?;
-        let resource =
-            context
-                .three_ds_resource
-                .as_ref()
-                .ok_or_else(jpmorgan::missing_request_field(
-                    "connector_feature_data.jpmorgan.threeDsResource",
-                ))?;
+        let resource = context.three_ds_resource.as_ref().ok_or_else(
+            domain_types::utils::missing_field_err(
+                "connector_feature_data.jpmorgan.threeDsResource",
+            ),
+        )?;
         let resource_id =
             domain_types::connector_types::ResponseId::ConnectorTransactionId(resource.id.clone());
         context.continue_three_ds = true;

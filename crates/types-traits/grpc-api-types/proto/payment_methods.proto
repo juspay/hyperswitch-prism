@@ -459,8 +459,15 @@ message GooglePayDecryptedData {
   
   // Electronic Commerce Indicator
   optional string eci_indicator = 5;
+
   // Decrypted credential classification: PAN_ONLY or CRYPTOGRAM_3DS.
-  optional string auth_method = 6;
+  optional GooglePayAuthMethod auth_method = 6;
+}
+
+enum GooglePayAuthMethod {
+  GOOGLE_PAY_AUTH_METHOD_UNSPECIFIED = 0;
+  PAN_ONLY = 1;
+  CRYPTOGRAM_3DS = 2;
 }
 
 // Google Pay encrypted tokenization data structure

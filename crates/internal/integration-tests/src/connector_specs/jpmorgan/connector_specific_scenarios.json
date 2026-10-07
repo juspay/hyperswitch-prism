@@ -1,5 +1,5 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "jpmorgan_caller_metadata_cannot_select_lookup": {
       "display_name": "Caller metadata cannot turn a fresh authorization into a lookup",
       "grpc_req": {
