@@ -1957,6 +1957,7 @@ fn external_three_ds_indicator(
             | Some(common_enums::TransactionStatus::ChallengeRequired)
             | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
             | Some(common_enums::TransactionStatus::InformationOnly)
+            | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
             | None => None,
         },
     }
@@ -4285,8 +4286,8 @@ fn connector_mandate_credential(
 }
 
 /// Network-transaction-id MIT: the clear card plus the NTID routed into its brand's object.
-fn network_mandate_credential(
-    card: &CardDetailsForNetworkTransactionId,
+fn network_mandate_credential<T: PaymentMethodDataTypes>(
+    card: &CardDetailsForNetworkTransactionId<T>,
     network_mandate: &NetworkMandateIdRef,
 ) -> Result<WorldpayraftMitCredential, error_stack::Report<errors::IntegrationError>> {
     // G-RepeatPayment-04: RAFT has no generic NTID field, so the brand must be known.
@@ -4369,7 +4370,7 @@ fn network_mandate_credential(
 
     Ok(WorldpayraftMitCredential {
         tokenized_pan: None,
-        pan: Some(card.card_number.clone()),
+        pan: Some(card.card_number.try_card_number("Worldpayraft")?),
         expiration_date,
         card_network: Some(brand),
         network_ids: Some(network_ids),

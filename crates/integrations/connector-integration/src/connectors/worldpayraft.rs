@@ -464,6 +464,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             connector_reason_code: case.reason.as_ref().and_then(|reason| reason.code.clone()),
+            additional_details: None,
         })
     }
 
