@@ -1001,7 +1001,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let mandate_reference = if is_gcash_enrollment {
-            matches!(&item.response.status, DlocalPaymentStatus::Active).then(|| MandateReference {
+            Some(MandateReference {
                 connector_mandate_id: Some(item.response.id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1023,7 +1023,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             && matches!(&item.response.status, DlocalPaymentStatus::Active)
         {
             common_enums::AttemptStatus::Charged
-        } else if redirection_data.is_some() {
+        } else if redirection_data.is_some()
+            && matches!(&item.response.status, DlocalPaymentStatus::Pending)
+        {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
@@ -1253,7 +1255,9 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
             && matches!(&item.response.status, DlocalPaymentStatus::Active)
         {
             common_enums::AttemptStatus::Charged
-        } else if redirection_data.is_some() {
+        } else if redirection_data.is_some()
+            && matches!(&item.response.status, DlocalPaymentStatus::Pending)
+        {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())

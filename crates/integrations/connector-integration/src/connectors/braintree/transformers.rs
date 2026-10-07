@@ -31,8 +31,7 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::{AddressDetails, OrderDetailsWithAmount, PhoneDetails},
     payment_method_data::{
-        DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        TokenPaymentMethod, WalletData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, TokenPaymentMethod, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
@@ -3026,23 +3025,18 @@ pub struct CreditCardData<
 
 /// `TokenizeCreditCardInput.creditCard`, in the two carriers a PAN reaches this connector in.
 ///
-/// The split exists because the two UCS variants type the card number differently, not because
-/// Braintree wants two shapes — both serialize to the same `CreditCardInput` object:
-///
-/// * `PaymentMethodData::Card` carries `RawCardNumber<T>`, generic so that a vault-token
-///   holder's templated PAN (`{{$card_number}}`) passes through untouched.
-/// * `PaymentMethodData::CardDetailsForNetworkTransactionId` types its number as a concrete
-///   `cards::CardNumber` — always a real PAN, never a vault template — so that arm is pinned to
-///   `DefaultPCIHolder`. This mirrors the established precedent in `worldpay/requests.rs`,
-///   whose `PaymentInstrument::RawCardForNTI` is likewise `RawCardDetails<DefaultPCIHolder>`
-///   inside an otherwise generic enum.
+/// Both serialize to the same `CreditCardInput` object. The variants are kept apart only to
+/// record where the number came from: `PaymentMethodData::Card`, or
+/// `PaymentMethodData::CardDetailsForNetworkTransactionId`. Both type the number as
+/// `RawCardNumber<T>`, so a vault-token holder's templated PAN (`{{$card_number}}`) passes
+/// through either one untouched.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum BraintreeTokenizeCard<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Raw(CreditCardData<T>),
-    NetworkTransactionId(CreditCardData<DefaultPCIHolder>),
+    NetworkTransactionId(CreditCardData<T>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -3185,7 +3179,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 variables: VariableInput {
                     input: InputData::CreditCard(CreditCardInputData {
                         credit_card: BraintreeTokenizeCard::NetworkTransactionId(CreditCardData {
-                            number: RawCardNumber(card_data.card_number.clone()),
+                            number: card_data.card_number.clone(),
                             // Braintree accepts either width; the 4-digit form is sent so a
                             // two-digit year stored on the mandate is never re-interpreted.
                             expiration_year: card_data.get_expiry_year_4_digit(),
@@ -5673,6 +5667,7 @@ pub(super) fn build_webhook_dispute_response(
             .and_then(|transaction| transaction.order_id.clone()),
         dispute_message: dispute.reason.clone(),
         connector_reason_code: dispute.reason_code.clone(),
+        additional_details: None,
         // A dispute payload carries no card or bank details, so the raw envelope is safe
         // to surface here — unlike the transaction family (see `build_webhook_*_response`).
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
@@ -6156,6 +6151,7 @@ fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> S
             "D".to_string()
         }
         common_enums::TransactionStatus::InformationOnly => "I".to_string(),
+        common_enums::TransactionStatus::SecurePaymentConfirmationRequired => "S".to_string(),
     }
 }
 

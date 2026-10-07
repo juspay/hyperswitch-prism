@@ -32,8 +32,11 @@ members = [
 ]
 resolver = "2"
 
+# codegen-units stays at the release default (16). At 1 the whole program is
+# optimised in one single-threaded rustc process, and that process ran out of
+# memory on the 16 GB arm64 runner. Thin LTO stays on and carries most of the
+# optimisation benefit.
 [profile.release]
-codegen-units = 1
 lto = "thin"
 strip = true
 

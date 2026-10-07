@@ -243,7 +243,7 @@ In PreAuthenticate, transformers set `resource_common_data.status` to
 `TryFrom<ResponseRouterData<CybersourceAuthSetupResponse, Self>>` impl in
 `connectors/cybersource/transformers.rs`. The one documented exception is a device-data-collection
 leg that makes no outbound call, which stamps `AttemptStatus::DeviceDataCollectionPending` instead
-— see `handle_pre_authenticate_response` in `connectors/kount/transformers.rs` and
+— see `handle_pre_authenticate_response` in `frm_connectors/kount/transformers.rs` and
 [Pattern D](#pattern-d--local-flow-no-outbound-call-kount-worldpayxml).
 
 ## Connectors with Full Implementation
@@ -430,7 +430,7 @@ in `connectors/macros.rs`):
 
 **The macro does not emit the marker-trait impl.** Its doc comment says so explicitly: "The connector
 file still owns the marker-trait impl (e.g. `impl PaymentPreAuthenticateV2<G> for C<G> {}`)". Both
-`connectors/kount.rs` and `connectors/worldpayxml.rs` carry
+`frm_connectors/kount.rs` and `connectors/worldpayxml.rs` carry
 `impl<T: ..> connector_types::PaymentPreAuthenticateV2<T> for <Connector><T> {}` next to the macro
 invocation. Forget it and you get E0277 at the registry.
 
@@ -444,14 +444,14 @@ fn(data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
  -> CustomResult<RouterDataV2<$flow, $resource_common_data, $request, $response>, ConnectorError>
 ```
 
-Kount's `handle_pre_authenticate_response` (`connectors/kount/transformers.rs`) ignores both
+Kount's `handle_pre_authenticate_response` (`frm_connectors/kount/transformers.rs`) ignores both
 `event_builder` and `res` — there was no request, so there is no response to parse — and instead:
 
 1. Derives a DDC `sessionId` by hashing `request.merchant_transaction_id`, falling back to
    `resource_common_data.connector_request_reference_id`. This is the one place field 13 of
    `PaymentsPreAuthenticateData` is load-bearing.
-2. Reads the access token from `resource_common_data.access_token` to derive `client_id` and the
-   sandbox-vs-production `environment` — **not** a hardcoded environment.
+2. Reads the Kount `client_id` from `data.connector_config` and derives the sandbox-vs-production
+   `environment` from `resource_common_data.test_mode` — **not** a hardcoded environment.
 3. Stamps `resource_common_data.status = AttemptStatus::DeviceDataCollectionPending` (not
    `AuthenticationPending`).
 4. Returns `PaymentsResponseData::PreAuthenticateResponse` with `resource_id: None`,
@@ -460,10 +460,9 @@ Kount's `handle_pre_authenticate_response` (`connectors/kount/transformers.rs`) 
    `status_code: 200`.
 5. Calls `resource_common_data.set_typed_connector_response(None)`.
 
-Note also that Kount is registered in **both** registries in
-`crates/integrations/connector-integration/src/types.rs` — `ConnectorEnum::Kount` (payments) and
-`FrmConnectorEnum::Kount` (FRM, where it is the only entry) — and its PreAuthenticate leg is
-reachable on the payment-method authentication service because
+Note also that Kount is registered in the **FRM** registry in
+`crates/integrations/connector-integration/src/types.rs` as `FrmConnectorEnum::Kount`, and its
+PreAuthenticate leg is reachable on the payment-method authentication service because
 `implement_connector_operation!` for `internal_pre_authenticate`
 (`crates/grpc-server/grpc-server/src/server/payments.rs`) declares
 `connector_data_types: [ConnectorData, FrmConnectorData]`. Do not infer from this that arbitrary FRM
@@ -509,14 +508,13 @@ in full under [Pattern D](#pattern-d--local-flow-no-outbound-call-kount-worldpay
 
 - Wired with `macros::macro_connector_local_flow_implementation!`, not `macro_connector_implementation!`.
 - `handle_response: kount::handle_pre_authenticate_response` — a free function in
-  `connectors/kount/transformers.rs` that ignores its `event_builder` and `res` arguments.
+  `frm_connectors/kount/transformers.rs` that ignores its `event_builder` and `res` arguments.
 - Emits `RedirectForm::Script { script_data }` with a DDC snippet whose `sessionId` is a hash of
   `request.merchant_transaction_id` and whose `environment` is derived from
-  `resource_common_data.access_token`, never hardcoded.
+  `resource_common_data.test_mode`, never hardcoded.
 - Stamps `AttemptStatus::DeviceDataCollectionPending` and a synthesised `status_code: 200`.
-- Kount is registered as both a payment connector (`ConnectorEnum::Kount`) and the sole FRM
-  connector (`FrmConnectorEnum::Kount`); the leg is reachable on the payment-method
-  authentication service because `internal_pre_authenticate` declares
+- Kount is registered as an FRM connector (`FrmConnectorEnum::Kount`); the leg is reachable on the
+  payment-method authentication service because `internal_pre_authenticate` declares
   `connector_data_types: [ConnectorData, FrmConnectorData]`.
 
 Worldpayxml uses the identical macro and handler shape for its own DDC leg.
@@ -638,7 +636,7 @@ pub type RedsysAuthenticateRequest   = super::transformers::RedsysTransaction;
 
 ## Best Practices
 
-- Use `AttemptStatus::AuthenticationPending` whenever the flow ends with a redirect or a challenge requirement (the PreAuthenticate response transformers in `connectors/redsys/transformers.rs` and `connectors/cybersource/transformers.rs` both do this); reserve `AuthenticationFailed` for explicit issuer/ACS denial, and `DeviceDataCollectionPending` for a DDC-only leg (`connectors/kount/transformers.rs`).
+- Use `AttemptStatus::AuthenticationPending` whenever the flow ends with a redirect or a challenge requirement (the PreAuthenticate response transformers in `connectors/redsys/transformers.rs` and `connectors/cybersource/transformers.rs` both do this); reserve `AuthenticationFailed` for explicit issuer/ACS denial, and `DeviceDataCollectionPending` for a DDC-only leg (`frm_connectors/kount/transformers.rs`).
 - Read return URLs from `continue_redirection_url` (the `/complete` path) not `router_return_url` (the `/response` PSync path). Nexixpay's PreAuthenticate response transformer documents this distinction inline (`connectors/nexixpay/transformers.rs`, next to the `"ReturnUrl"` form field insert).
 - Reuse connector-level helpers (`build_headers`, `connector_base_url_payments`) defined once in the `member_functions` block of `create_all_prerequisites!` — do not duplicate header construction per flow (`connectors/redsys.rs`).
 - When a connector shares a request struct across 3DS steps (Redsys's `RedsysTransaction`, Worldpay's `WorldpayAuthenticateRequest`) expose the aliases in one place (`requests.rs`) so that the macro wiring remains readable.

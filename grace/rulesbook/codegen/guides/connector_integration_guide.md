@@ -423,7 +423,7 @@ outbound HTTP call** (`build_request_v2` returns `Ok(None)`; everything happens 
 `handle_response_v2`).
 
 ```rust
-// crates/integrations/connector-integration/src/connectors/kount.rs:390
+// crates/integrations/connector-integration/src/frm_connectors/kount.rs
 macros::macro_connector_local_flow_implementation!(
     connector: Kount,
     flow_name: PreAuthenticate,

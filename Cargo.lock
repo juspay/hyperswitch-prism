@@ -315,7 +315,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -326,7 +326,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -446,13 +446,13 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.89"
+version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -1027,7 +1027,7 @@ version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dee98b0db6a962de883bf5d20362dee4d7ca0d12fe39a7c6c73c844e1cd7c1f"
 dependencies = [
- "darling 0.21.3",
+ "darling 0.23.0",
  "ident_case",
  "prettyplease",
  "proc-macro2",
@@ -1168,6 +1168,9 @@ name = "bytes"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bytes-utils"
@@ -1469,11 +1472,11 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 [[package]]
 name = "common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "diesel",
  "hyperswitch_masking",
- "router_derive",
+ "router_derive 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0)",
  "serde",
  "serde_json",
  "smithy",
@@ -1486,7 +1489,7 @@ dependencies = [
 [[package]]
 name = "common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "ammonia",
  "base64 0.22.1",
@@ -1628,7 +1631,7 @@ dependencies = [
  "qrcode",
  "quick-xml 0.31.0",
  "rand 0.8.5",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "ring",
  "serde",
  "serde_json",
@@ -1983,7 +1986,7 @@ dependencies = [
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=8da135688c353e2536386274819b37de12eb3113#8da135688c353e2536386274819b37de12eb3113"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -1996,7 +1999,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=8da135688c353e2536386274819b37de12eb3113#8da135688c353e2536386274819b37de12eb3113"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2004,7 +2007,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=8da135688c353e2536386274819b37de12eb3113#8da135688c353e2536386274819b37de12eb3113"
 dependencies = [
  "serde",
  "serde_json",
@@ -2014,7 +2017,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=8da135688c353e2536386274819b37de12eb3113#8da135688c353e2536386274819b37de12eb3113"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2024,7 +2027,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=d587865d876a8e57a7c9a4d52f2293eb6fd8b97e#d587865d876a8e57a7c9a4d52f2293eb6fd8b97e"
+source = "git+https://github.com/juspay/deja?rev=8da135688c353e2536386274819b37de12eb3113#8da135688c353e2536386274819b37de12eb3113"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -2176,11 +2179,11 @@ dependencies = [
  "deja",
  "error-stack 0.4.1",
  "grpc-api-types",
- "http 0.2.12",
+ "http 1.4.0",
  "hyperswitch_masking",
  "rand 0.8.5",
  "regex",
- "router_derive",
+ "router_derive 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0)",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -2192,6 +2195,7 @@ dependencies = [
  "ucs_cards",
  "ucs_common_enums",
  "ucs_common_utils",
+ "unicode-normalization",
  "url 2.5.8",
  "utoipa",
 ]
@@ -2285,7 +2289,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2335,7 +2339,7 @@ dependencies = [
  "once_cell",
  "opentelemetry",
  "prometheus",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "ring",
  "serde",
  "serde_derive",
@@ -2403,7 +2407,7 @@ dependencies = [
  "error-stack 0.4.1",
  "external-services",
  "grpc-api-types",
- "http 0.2.12",
+ "http 1.4.0",
  "hyperswitch_masking",
  "interfaces",
  "paste",
@@ -3159,7 +3163,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a791e6620676a875f362f3156ed213e73ca099a09bf992c18812abe65cc37b1"
 dependencies = [
  "bstr",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -3703,10 +3707,14 @@ dependencies = [
  "heck 0.5.0",
  "http 1.4.0",
  "hyperswitch_masking",
+ "prettyplease",
+ "proc-macro2",
  "prost 0.14.3",
  "prost-build",
  "prost-types",
+ "quote",
  "serde",
+ "syn 2.0.117",
  "tonic 0.14.5",
  "tonic-build",
  "tonic-prost",
@@ -3752,7 +3760,7 @@ dependencies = [
  "prost-types",
  "rand 0.8.5",
  "rdkafka",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "rustc-hash 2.1.3",
  "serde",
  "serde_json",
@@ -4147,7 +4155,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.4",
  "tower-service",
- "webpki-roots 1.0.6",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -4239,9 +4247,9 @@ dependencies = [
  "external-services",
  "ffi",
  "grpc-api-types",
- "http 0.2.12",
+ "http 1.4.0",
  "hyperswitch_masking",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4478,7 +4486,7 @@ dependencies = [
 [[package]]
 name = "injector"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4584,10 +4592,10 @@ dependencies = [
  "bytes",
  "domain_types",
  "error-stack 0.4.1",
- "http 0.2.12",
+ "http 1.4.0",
  "hyperswitch_masking",
  "mime 0.3.17",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -5398,7 +5406,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6002,7 +6010,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.27.2",
+ "strum 0.25.0",
  "thiserror 2.0.18",
 ]
 
@@ -6510,7 +6518,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.3",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6881,7 +6889,6 @@ dependencies = [
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.32",
- "hyper-rustls 0.24.2",
  "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
@@ -6892,7 +6899,6 @@ dependencies = [
  "once_cell",
  "percent-encoding 2.3.2",
  "pin-project-lite",
- "rustls 0.21.12",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -6901,14 +6907,12 @@ dependencies = [
  "system-configuration 0.5.1",
  "tokio",
  "tokio-native-tls",
- "tokio-rustls 0.24.1",
  "tokio-util",
  "tower-service",
  "url 2.5.8",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots 0.25.4",
  "winreg",
 ]
 
@@ -6935,6 +6939,7 @@ dependencies = [
  "js-sys",
  "log 0.4.29",
  "mime 0.3.17",
+ "mime_guess 2.0.5",
  "native-tls",
  "percent-encoding 2.3.2",
  "pin-project-lite",
@@ -6957,7 +6962,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots 1.0.6",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -7029,9 +7034,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "router_derive"
+version = "0.1.0"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
+dependencies = [
+ "indexmap 2.13.0",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "strum 0.26.3",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "router_env"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "actix-web",
  "cargo_metadata 0.18.1",
@@ -7156,7 +7174,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7759,7 +7777,7 @@ checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 [[package]]
 name = "smithy"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7770,7 +7788,7 @@ dependencies = [
 [[package]]
 name = "smithy-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0#99975a0f5f003a038e876eb92bc5520d6ab10ac4"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.09.30.0#464958be2a16a5cf18af6cea2b96d7c2e95e96d7"
 dependencies = [
  "proc-macro2",
  "serde",
@@ -7795,7 +7813,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7871,6 +7889,9 @@ name = "strum"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.3",
+]
 
 [[package]]
 name = "strum"
@@ -7879,15 +7900,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
  "strum_macros 0.26.4",
-]
-
-[[package]]
-name = "strum"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
-dependencies = [
- "strum_macros 0.27.2",
 ]
 
 [[package]]
@@ -7913,18 +7925,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
  "syn 2.0.117",
 ]
 
@@ -8138,6 +8138,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "sync_wrapper"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8221,7 +8232,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8718,13 +8729,18 @@ version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4e6559d53cc268e5031cd8429d05415bc4cb4aefc4aa5d6cc35fbf5b924a1f8"
 dependencies = [
+ "async-compression",
  "bitflags 2.11.0",
  "bytes",
+ "futures-core",
  "futures-util",
  "http 1.4.0",
  "http-body 1.0.1",
+ "http-body-util",
  "iri-string",
  "pin-project-lite",
+ "tokio",
+ "tokio-util",
  "tower 0.5.3",
  "tower-layer",
  "tower-service",
@@ -9007,7 +9023,7 @@ dependencies = [
  "rand 0.8.5",
  "rdkafka",
  "regex",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "ring",
  "rust_decimal",
  "semver",
@@ -9021,6 +9037,7 @@ dependencies = [
  "tonic 0.14.5",
  "tracing",
  "tracing-kafka",
+ "tracing-subscriber",
  "ucs_common_enums",
  "url 2.5.8",
  "utoipa",
@@ -9700,12 +9717,6 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "0.25.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
-
-[[package]]
-name = "webpki-roots"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22cfaf3c063993ff62e73cb4311efde4db1efb31ab78a3e5c457939ad5cc0bed"
@@ -9744,7 +9755,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
