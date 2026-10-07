@@ -1,0 +1,71 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "fixture_webhook_secret",
+    "note": "Deterministic offline fixtures signed with integration_test_webhook_secret, supplied in grpc_req.webhook_secrets. Bodies are base64-encoded JSON; signatures are precomputed. fixture_webhook_secret reserves credential override for this fixture secret.",
+    "signature_algorithm": "Payment: md5(paydate + domain + md5(tranID + orderid + status + domain + amount + currency) + appcode + secret). Refund: md5(RefundType + MerchantID + RefID + RefundID + TxnID + Amount + Status + secret). Lowercase hex in body skey or Signature."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/fiuu",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "eyJ0cmFuSUQiOiIxMDAwMDAwMDEiLCJvcmRlcmlkIjoiZml1dV9vcmRlcl8wMDEiLCJzdGF0dXMiOiIwMCIsImRvbWFpbiI6ImZpdXVfdGVzdF9tZXJjaGFudCIsImFtb3VudCI6IjEwLjAwIiwiY3VycmVuY3kiOiJNWVIiLCJwYXlkYXRlIjoiMjAyNi0wMS0wMSAxMjowMDowMCIsImFwcGNvZGUiOiIxMjM0NTYiLCJjaGFubmVsIjoiY3JlZGl0Iiwic2tleSI6IjdlNzZiYzMxODg4OTFmNDk3YTY2NzRkZWI1Y2RlYWFjIn0="
+      },
+      "merchant_event_id": "fiuu_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/fiuu",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "eyJ0cmFuSUQiOiIxMDAwMDAwMDEiLCJvcmRlcmlkIjoiZml1dV9vcmRlcl8wMDEiLCJzdGF0dXMiOiIxMSIsImRvbWFpbiI6ImZpdXVfdGVzdF9tZXJjaGFudCIsImFtb3VudCI6IjEwLjAwIiwiY3VycmVuY3kiOiJNWVIiLCJwYXlkYXRlIjoiMjAyNi0wMS0wMSAxMjowMDowMCIsImFwcGNvZGUiOiIxMjM0NTYiLCJjaGFubmVsIjoiY3JlZGl0Iiwic2tleSI6IjA4ZDc4OTFlYTVmM2EzMDgzNDEyNjFmZmVhMWE5YzQ2IiwiZXJyb3JfY29kZSI6IlBBWU1FTlRfREVDTElORUQiLCJlcnJvcl9kZXNjIjoiUGF5bWVudCBkZWNsaW5lZCJ9"
+      },
+      "merchant_event_id": "fiuu_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/fiuu",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "eyJ0cmFuSUQiOiIxMDAwMDAwMDEiLCJvcmRlcmlkIjoiZml1dV9vcmRlcl8wMDEiLCJzdGF0dXMiOiIwMCIsImRvbWFpbiI6ImZpdXVfdGVzdF9tZXJjaGFudCIsImFtb3VudCI6IjEwLjAwIiwiY3VycmVuY3kiOiJNWVIiLCJwYXlkYXRlIjoiMjAyNi0wMS0wMSAxMjowMDowMCIsImFwcGNvZGUiOiIxMjM0NTYiLCJjaGFubmVsIjoiY3JlZGl0Iiwic2tleSI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0="
+      },
+      "merchant_event_id": "fiuu_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/fiuu",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "eyJSZWZ1bmRUeXBlIjoiUCIsIk1lcmNoYW50SUQiOiJmaXV1X3Rlc3RfbWVyY2hhbnQiLCJSZWZJRCI6ImZpdXVfcmVmdW5kX29yZGVyXzAwMSIsIlJlZnVuZElEIjoiMjAwMDAwMDAxIiwiVHhuSUQiOiIxMDAwMDAwMDEiLCJBbW91bnQiOiIxMC4wMCIsIlN0YXR1cyI6IjAwIiwiU2lnbmF0dXJlIjoiOTU0YTAyYTZkMWE5YjhmYjkzNzVmOTQ4N2Q3MmRmZDgifQ=="
+      },
+      "merchant_event_id": "fiuu_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  }
+}
