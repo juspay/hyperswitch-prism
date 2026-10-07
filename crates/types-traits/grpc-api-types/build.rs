@@ -60,6 +60,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Webhook verification secrets are plain proto `string`s (typing them as SecretString
+    // would change the wire format). Serialize them through `Secret<String>` so that
+    // `hyperswitch_masking::masked_serialize` - used for every request log line - masks
+    // them exactly like a SecretString field, while any other serializer sees the value.
+    config.field_attribute(
+        ".types.WebhookSecrets.secret",
+        "#[serde(serialize_with = \"crate::log_masking::string\")]",
+    );
+    config.field_attribute(
+        ".types.WebhookSecrets.additional_secret",
+        "#[serde(serialize_with = \"crate::log_masking::optional_string\")]",
+    );
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

@@ -33,3 +33,26 @@ pub mod auto_populate {
     include!(concat!(env!("OUT_DIR"), "/auto_populate_generated.rs"));
     pub use generated::*;
 }
+
+/// Serializers for proto `string` fields that carry secrets but cannot be typed
+/// `SecretString` without changing the wire format. They serialize through
+/// [`hyperswitch_masking::Secret`], so masked serialization (request logs) masks the
+/// value and plain serialization is unchanged.
+pub mod log_masking {
+    use hyperswitch_masking::Secret;
+    use serde::{Serialize, Serializer};
+
+    pub fn string<S: Serializer>(value: &str, serializer: S) -> Result<S::Ok, S::Error> {
+        Secret::<String>::new(value.to_owned()).serialize(serializer)
+    }
+
+    pub fn optional_string<S: Serializer>(
+        value: &Option<String>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .clone()
+            .map(Secret::<String>::new)
+            .serialize(serializer)
+    }
+}

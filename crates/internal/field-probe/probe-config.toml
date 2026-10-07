@@ -160,6 +160,22 @@ default = '{}'
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
 
+# Rapyd forwards several optional request fields that the patcher can never
+# discover, because it only reacts to missing-field errors and none of these is
+# required: the top-level `address` (sent only when the billing address has a
+# name and line 1), `payment_method_options.avs_required` (derived from billing
+# line 1 + zip), `receipt_email`, `statement_descriptor`, `metadata` and
+# `description`. Pre-set their inputs so the probed sample shows them.
+[connector_overrides.authorize.rapyd]
+"address.billing_address.first_name" = "John"
+"address.billing_address.last_name" = "Doe"
+"address.billing_address.line1" = "123 Main St"
+"address.billing_address.zip_code" = "98101"
+"customer.email" = "test@example.com"
+"billing_descriptor.statement_descriptor" = "PROBE"
+"metadata" = '{"order_id":"probe_order_001"}'
+"description" = "Probe payment"
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]
