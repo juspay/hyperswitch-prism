@@ -7242,7 +7242,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .resource_common_data
                             .get_optional_billing_full_name();
                         let raw_card_number = RawCardNumber(
-                            card_details_for_network_transaction_id.card_number.clone(),
+                            card_details_for_network_transaction_id
+                                .card_number
+                                .try_card_number("Adyen")?,
                         );
                         let adyen_card = AdyenCard {
                             number: raw_card_number,
