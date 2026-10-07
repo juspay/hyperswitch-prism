@@ -10,6 +10,12 @@
     "RefundService/Get",
     "PaymentService/Void",
     "PaymentService/SetupRecurring",
-    "RecurringPaymentService/Charge"
-  ]
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_fail_payment": "SANDBOX_NOT_PROVISIONED: https://docs.rapyd.net/en/card-numbers-for-testing.html — Rapyd's sandbox issuer-decline triggers are the card numbers 4111111111111105, 4111111111111143 and 4111111111111151; none is Luhn-valid, and CardNumber::from_str (crates/types-traits/cards/src/validate.rs) rejects a number that fails the Luhn check before any request is built, so this scenario cannot carry a Rapyd decline card"
+    }
+  }
 }

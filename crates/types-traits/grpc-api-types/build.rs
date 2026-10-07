@@ -22,6 +22,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
+    // WebhookSecrets / RedirectResponseSecrets carry merchant secrets in plain
+    // `string` fields. Serialize them through `Secret<String>` so that
+    // `hyperswitch_masking::masked_serialize` (request logging, gRPC events)
+    // masks them; the wire format and plain serde output are unchanged.
+    for field in [
+        ".types.WebhookSecrets.secret",
+        ".types.RedirectResponseSecrets.secret",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::serialize_as_secret\")]",
+        );
+    }
+    for field in [
+        ".types.WebhookSecrets.additional_secret",
+        ".types.RedirectResponseSecrets.additional_secret",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::serialize_as_optional_secret\")]",
+        );
+    }
+
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

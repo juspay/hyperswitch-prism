@@ -5,6 +5,35 @@
 pub const FILE_DESCRIPTOR_SET: &[u8] =
     tonic::include_file_descriptor_set!("connector_service_descriptor");
 
+/// `serialize_with` for secret-bearing proto `string` fields: serializes through
+/// `Secret<String>`, which is exposed by ordinary serializers and masked by
+/// `hyperswitch_masking::masked_serialize`.
+pub fn serialize_as_secret<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serde::Serialize::serialize(
+        &hyperswitch_masking::Secret::<String>::new(value.to_owned()),
+        serializer,
+    )
+}
+
+/// As [`serialize_as_secret`], for `optional string` fields.
+pub fn serialize_as_optional_secret<S>(
+    value: &Option<String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serde::Serialize::serialize(
+        &value
+            .clone()
+            .map(hyperswitch_masking::Secret::<String>::new),
+        serializer,
+    )
+}
+
 mod types {
     tonic::include_proto!("types");
 }

@@ -1,21 +1,27 @@
 pub mod transformers;
 
 use base64::Engine;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
+use common_utils::{
+    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
         RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeWebhookDetailsResponse, EventContext, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -31,18 +37,18 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     CaptureRequest, RapydAuthType, RapydClientAuthRequest, RapydClientAuthResponse,
-    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
+    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydIncomingWebhook, RapydPaymentsRequest,
     RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
-    RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
-    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RapydRepeatPaymentRequest,
-    RapydRepeatPaymentResponse, RapydSetupMandateRequest, RapydSetupMandateResponse,
+    RapydPaymentsResponse as RapydVoidResponse, RapydPaymentsResponse as RapydAuthorizeResponse,
+    RapydRefundRequest, RapydRepeatPaymentRequest, RapydRepeatPaymentResponse,
+    RapydSetupMandateRequest, RapydSetupMandateResponse, RapydWebhookData, RapydWebhookSecret,
     RefundResponse, RefundResponse as RapydRSyncResponse,
 };
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, IntegrationErrorContext};
+use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -109,7 +115,181 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Rapyd<T>
 {
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"wh_probe_001","type":"PAYMENT_COMPLETED","data":{"id":"payment_probe_001","amount":10.00,"status":"CLO","next_action":"not_applicable","currency_code":"USD","transaction_id":"","merchant_reference_id":"probe_ref_001"},"trigger_operation_id":"probe_operation_001","status":"NEW","created_at":1700000000}"#
+    }
+
+    /// Source verification, fail closed.
+    ///
+    /// Documented formula (https://docs.rapyd.net/en/webhook-authentication.html):
+    /// `signature = BASE64 ( HASH ( url_path + salt + timestamp + access_key + secret_key + body_string ) )`
+    /// where HASH is HMAC-SHA256 keyed with the secret key and hex-encoded,
+    /// `url_path` is the entire URL the webhook was delivered to, and — unlike
+    /// a request signature — the HTTP method is not part of the message.
+    ///
+    /// The keys come from the webhook secret only (the JSON object
+    /// `{"access_key": "...", "secret_key": "..."}`); the connector account
+    /// config is never used in its place.
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let webhook_secret = connector_webhook_secret
+            .ok_or_else(|| Report::new(WebhookError::WebhookVerificationSecretNotFound))?;
+        // `serde_json::from_slice`, with the serde error dropped: neither it
+        // nor the secret bytes may reach the error (and from there the log).
+        let keys: RapydWebhookSecret = serde_json::from_slice(&webhook_secret.secret)
+            .map_err(|_| Report::new(WebhookError::WebhookVerificationSecretInvalid))?;
+
+        let header = |name: &str| {
+            request
+                .headers
+                .iter()
+                .find(|(key, _)| key.eq_ignore_ascii_case(name))
+                .map(|(_, value)| value.as_str())
+                .filter(|value| !value.is_empty())
+        };
+        let (Some(signature), Some(salt), Some(timestamp)) =
+            (header("signature"), header("salt"), header("timestamp"))
+        else {
+            return Ok(false);
+        };
+
+        // The webhook URL: the forwarded URI when it is absolute, else
+        // `https://` + the `host` header + the URI.
+        let webhook_url = match request.uri.as_deref().filter(|uri| !uri.is_empty()) {
+            Some(uri) if uri.starts_with("https://") || uri.starts_with("http://") => {
+                uri.to_owned()
+            }
+            Some(uri) => match header("host") {
+                Some(host) => format!("https://{host}{uri}"),
+                None => return Ok(false),
+            },
+            None => return Ok(false),
+        };
+
+        // The header is BASE64(hex(digest)).
+        let Some(expected_digest) = BASE64_ENGINE_URL_SAFE
+            .decode(signature)
+            .ok()
+            .and_then(|hex_digest| hex::decode(hex_digest).ok())
+        else {
+            return Ok(false);
+        };
+
+        let mut message = Vec::with_capacity(
+            webhook_url.len()
+                + salt.len()
+                + timestamp.len()
+                + keys.access_key.peek().len()
+                + keys.secret_key.peek().len()
+                + request.body.len(),
+        );
+        message.extend_from_slice(webhook_url.as_bytes());
+        message.extend_from_slice(salt.as_bytes());
+        message.extend_from_slice(timestamp.as_bytes());
+        message.extend_from_slice(keys.access_key.peek().as_bytes());
+        message.extend_from_slice(keys.secret_key.peek().as_bytes());
+        message.extend_from_slice(&request.body);
+
+        common_utils::crypto::HmacSha256
+            .verify_signature(
+                keys.secret_key.peek().as_bytes(),
+                &expected_digest,
+                &message,
+            )
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        parse_rapyd_webhook(&request.body)?.event_type()
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        parse_rapyd_webhook(&request.body)?.event_reference()
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        // Every event without a payment / refund / dispute event type is
+        // routed here; only a payment object is read as one.
+        match parse_rapyd_webhook(&request.body)?.into_data()? {
+            Some(RapydWebhookData::Payment(payment)) => {
+                transformers::build_rapyd_payment_webhook_details(*payment, &request.body)
+            }
+            Some(RapydWebhookData::Refund(_)) | Some(RapydWebhookData::Dispute(_)) | None => {
+                Err(Report::new(WebhookError::WebhooksNotImplemented {
+                    operation: "process_payment_webhook",
+                }))
+            }
+        }
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        match parse_rapyd_webhook(&request.body)?.into_data()? {
+            Some(RapydWebhookData::Refund(refund)) => Ok(
+                transformers::build_rapyd_refund_webhook_details(refund, &request.body),
+            ),
+            Some(RapydWebhookData::Payment(_)) | Some(RapydWebhookData::Dispute(_)) | None => {
+                Err(Report::new(WebhookError::WebhooksNotImplemented {
+                    operation: "process_refund_webhook",
+                }))
+            }
+        }
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        match parse_rapyd_webhook(&request.body)?.into_data()? {
+            Some(RapydWebhookData::Dispute(dispute)) => {
+                transformers::build_rapyd_dispute_webhook_details(dispute, &request.body)
+            }
+            Some(RapydWebhookData::Payment(_)) | Some(RapydWebhookData::Refund(_)) | None => {
+                Err(Report::new(WebhookError::WebhooksNotImplemented {
+                    operation: "process_dispute_webhook",
+                }))
+            }
+        }
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        match parse_rapyd_webhook(&request.body)?.into_data()? {
+            Some(RapydWebhookData::Payment(payment)) => Ok(payment),
+            Some(RapydWebhookData::Refund(refund)) => Ok(Box::new(refund)),
+            Some(RapydWebhookData::Dispute(dispute)) => Ok(Box::new(dispute)),
+            None => Err(Report::new(WebhookError::WebhookResourceObjectNotFound)),
+        }
+    }
 }
+
+/// The envelope of a Rapyd notification; a body that is not one is an error.
+fn parse_rapyd_webhook(body: &[u8]) -> Result<RapydIncomingWebhook, Report<WebhookError>> {
+    body.parse_struct("RapydIncomingWebhook")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Rapyd<T>
 {
@@ -160,40 +340,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: Result<RapydPaymentsResponse, Report<common_utils::errors::ParsingError>> =
-            res.response.parse_struct("rapyd ErrorResponse");
-
-        match response {
-            Ok(response_data) => {
-                with_error_response_body!(event_builder, response_data);
-                let typed = macros::serialize_typed_connector_payload(
-                    &response_data,
-                    "typed_connector_response",
-                );
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: response_data.status.error_code,
-                    message: response_data.status.status.unwrap_or_default(),
-                    reason: response_data.status.message,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: typed,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                })
-            }
-            Err(error_msg) => {
-                if let Some(event) = event_builder {
-                    event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
-                };
-                tracing::error!(deserialization_error =? error_msg);
-                domain_types::utils::handle_json_response_deserialization_failure(res, "rapyd")
-            }
-        }
+        // Non-terminal by default: PSync, RSync, Capture and Void must not fail
+        // an attempt because the call about it was refused. Flows whose 4xx is
+        // terminal override `get_error_response_v2`.
+        self.build_error_response_with_status(res, event_builder, None)
     }
 }
 
@@ -317,6 +467,44 @@ macros::create_all_prerequisites!(
             &req.resource_common_data.connectors.rapyd.base_url
         }
 
+        /// Parses the Rapyd envelope of a non-2xx response and builds the
+        /// `ErrorResponse` through the connector's single error builder, with
+        /// the `attempt_status` the calling flow decides.
+        pub fn build_error_response_with_status(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            attempt_status: Option<FlowStatus>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: Result<transformers::RapydErrorEnvelope, Report<common_utils::errors::ParsingError>> =
+                res.response.parse_struct("rapyd ErrorResponse");
+
+            match response {
+                Ok(response_data) => {
+                    with_error_response_body!(event_builder, response_data);
+                    let typed_connector_response = macros::serialize_typed_connector_payload(
+                        &response_data,
+                        "typed_connector_response",
+                    );
+                    Ok(ErrorResponse {
+                        typed_connector_response,
+                        ..transformers::build_rapyd_error_response_from_envelope(
+                            &response_data,
+                            res.status_code,
+                            attempt_status,
+                        )
+                    })
+                }
+                Err(error_msg) => {
+                    if let Some(event) = event_builder {
+                        event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
+                    };
+                    tracing::error!(deserialization_error =? error_msg);
+                    domain_types::utils::handle_json_response_deserialization_failure(res, "rapyd")
+                }
+            }
+        }
+
         pub fn generate_signature(
             &self,
             auth: &RapydAuthType,
@@ -345,7 +533,7 @@ macros::create_all_prerequisites!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(RapydPaymentsRequest),
     curl_response: RapydAuthorizeResponse,
@@ -375,6 +563,21 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
+        // A Create Payment that Rapyd answers with a 4xx envelope (issuer
+        // decline, validation or authentication error) created no payment:
+        // the attempt is failed, not left in an unknown state. 5xx responses
+        // keep the macro default (`get_5xx_error_response`, no status).
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let attempt_status = (400..500)
+                .contains(&res.status_code)
+                .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
+            self.build_error_response_with_status(res, event_builder, attempt_status)
         }
     }
 );
@@ -478,7 +681,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(RapydRefundRequest),
     curl_response: RefundResponse,
@@ -507,6 +710,21 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/refunds", self.connector_base_url_refunds(req)))
+        }
+        // A Create Refund that Rapyd refuses with an HTTP 400 envelope
+        // (PAYMENT_NOT_COMPLETED, ERROR_REFUND_AMOUNT_EXCEEDS_PAYMENT_AMOUNT, …)
+        // created no refund: the refund is failed, not left pending. Every
+        // other status code (401, 5xx, …) and an unparsable body keep the
+        // status unset.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let attempt_status = (res.status_code == 400)
+                .then_some(FlowStatus::Refund(common_enums::RefundStatus::Failure));
+            self.build_error_response_with_status(res, event_builder, attempt_status)
         }
     }
 );
@@ -580,7 +798,7 @@ macros::macro_connector_implementation!(
 // card-on-file verification. The returned payment id is surfaced as the
 // connector_mandate_id for subsequent RepeatPayment (MIT) calls.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(RapydSetupMandateRequest),
     curl_response: RapydSetupMandateResponse,
@@ -638,15 +856,31 @@ macros::macro_connector_implementation!(
             // /v1/customers endpoint enforces on sandbox accounts.
             Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
         }
+        // A card verification that Rapyd answers with a 4xx envelope (issuer
+        // decline, validation or authentication error) created no payment and
+        // stored no card: the setup is failed, not left in an unknown state.
+        // 5xx responses keep the macro default (`get_5xx_error_response`, no
+        // status).
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let attempt_status = (400..500)
+                .contains(&res.status_code)
+                .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
+            self.build_error_response_with_status(res, event_builder, attempt_status)
+        }
     }
 );
 
 // RepeatPayment (MIT) – Rapyd has no dedicated recurring endpoint. It reuses
-// `/v1/payments` but substitutes the card object with a stored
-// `payment_method` token (the card_* id returned by SetupMandate) paired
-// with the `customer` id and `initiation_type: recurring`.
+// `/v1/payments` with the stored card id (`card_…`) as `payment_method`, or
+// with card details carrying the network reference id of the initial
+// payment, plus the `initiation_type` of the merchant-initiated payment.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(RapydRepeatPaymentRequest),
     curl_response: RapydRepeatPaymentResponse,
@@ -699,6 +933,22 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
+        // A merchant-initiated Create Payment that Rapyd answers with a 4xx
+        // envelope (issuer decline, validation or authentication error)
+        // created no payment: the attempt is failed, not left in an unknown
+        // state. 5xx responses keep the macro default
+        // (`get_5xx_error_response`, no status).
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let attempt_status = (400..500)
+                .contains(&res.status_code)
+                .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
+            self.build_error_response_with_status(res, event_builder, attempt_status)
         }
     }
 );
