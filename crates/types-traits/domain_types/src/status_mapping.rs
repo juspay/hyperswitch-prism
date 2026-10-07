@@ -1,10 +1,82 @@
 //! Typed connector-status mapping declarations.
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __flow_mapping_success_count {
+    () => { 0usize };
+    (success ! $arguments:tt $($remaining:tt)*) => {
+        1usize + $crate::__flow_mapping_success_count!($($remaining)*)
+    };
+    (($($nested:tt)*) $($remaining:tt)*) => {
+        $crate::__flow_mapping_success_count!($($nested)*)
+            + $crate::__flow_mapping_success_count!($($remaining)*)
+    };
+    ([$($nested:tt)*] $($remaining:tt)*) => {
+        $crate::__flow_mapping_success_count!($($nested)*)
+            + $crate::__flow_mapping_success_count!($($remaining)*)
+    };
+    ({$($nested:tt)*} $($remaining:tt)*) => {
+        $crate::__flow_mapping_success_count!($($nested)*)
+            + $crate::__flow_mapping_success_count!($($remaining)*)
+    };
+    ($_token:tt $($remaining:tt)*) => {
+        $crate::__flow_mapping_success_count!($($remaining)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __flow_mapping_failure_count {
+    () => { 0usize };
+    (failure ! $arguments:tt $($remaining:tt)*) => {
+        1usize + $crate::__flow_mapping_failure_count!($($remaining)*)
+    };
+    (($($nested:tt)*) $($remaining:tt)*) => {
+        $crate::__flow_mapping_failure_count!($($nested)*)
+            + $crate::__flow_mapping_failure_count!($($remaining)*)
+    };
+    ([$($nested:tt)*] $($remaining:tt)*) => {
+        $crate::__flow_mapping_failure_count!($($nested)*)
+            + $crate::__flow_mapping_failure_count!($($remaining)*)
+    };
+    ({$($nested:tt)*} $($remaining:tt)*) => {
+        $crate::__flow_mapping_failure_count!($($nested)*)
+            + $crate::__flow_mapping_failure_count!($($remaining)*)
+    };
+    ($_token:tt $($remaining:tt)*) => {
+        $crate::__flow_mapping_failure_count!($($remaining)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __flow_mapping_non_terminal_count {
+    () => { 0usize };
+    (non_terminal ! $arguments:tt $($remaining:tt)*) => {
+        1usize + $crate::__flow_mapping_non_terminal_count!($($remaining)*)
+    };
+    (($($nested:tt)*) $($remaining:tt)*) => {
+        $crate::__flow_mapping_non_terminal_count!($($nested)*)
+            + $crate::__flow_mapping_non_terminal_count!($($remaining)*)
+    };
+    ([$($nested:tt)*] $($remaining:tt)*) => {
+        $crate::__flow_mapping_non_terminal_count!($($nested)*)
+            + $crate::__flow_mapping_non_terminal_count!($($remaining)*)
+    };
+    ({$($nested:tt)*} $($remaining:tt)*) => {
+        $crate::__flow_mapping_non_terminal_count!($($nested)*)
+            + $crate::__flow_mapping_non_terminal_count!($($remaining)*)
+    };
+    ($_token:tt $($remaining:tt)*) => {
+        $crate::__flow_mapping_non_terminal_count!($($remaining)*)
+    };
+}
+
 /// Maps connector-native statuses directly into [`ConnectorFlowStatus`].
 ///
-/// `success` is required unless `connector_name` is listed in
-/// `ASYNC_ACK_STATUS_MAPPING_CONNECTORS`. `failure` and `non_terminal` are
-/// optional, but every declaration must contain at least one outcome.
+/// Mapping bodies construct typed outcomes with `success!`, `failure!`, and
+/// `non_terminal!`. At least one `success!` invocation is required unless
+/// `connector_name` is listed in `ASYNC_ACK_STATUS_MAPPING_CONNECTORS`.
 #[macro_export]
 macro_rules! impl_flow_status_mapping {
     (
@@ -14,11 +86,7 @@ macro_rules! impl_flow_status_mapping {
         flow: $flow:ident,
         source: $source:ty,
         context: $context:ty,
-
-        $(success: { $(($success_variant:ident, $success_context:pat_param) => $success_target:ident),+ $(,)? },)?
-        $(failure: { $(($failure_variant:ident, $failure_context:pat_param) => $failure_target:ident),+ $(,)? },)?
-        $(non_terminal: { $(($non_terminal_variant:ident, $non_terminal_context:pat_param) => $non_terminal_target:ident),+ $(,)? },)?
-
+        mapping: |$source_value:ident, $context_value:ident| { $($mapping:tt)* },
         runtime: {
             request: $request:ty,
             response: $response:ty,
@@ -27,16 +95,16 @@ macro_rules! impl_flow_status_mapping {
         } $(,)?
     ) => {
         const _: () = {
-            const SUCCESS_COUNT: usize = 0usize $(+ [$(stringify!($success_variant)),+].len())?;
-            const FAILURE_COUNT: usize = 0usize $(+ [$(stringify!($failure_variant)),+].len())?;
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
             const NON_TERMINAL_COUNT: usize =
-                0usize $(+ [$(stringify!($non_terminal_variant)),+].len())?;
+                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
 
-            assert!( // first assertion rejects an empty declaration.
+            assert!(
                 SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
                 "flow status mapping must declare at least one outcome"
             );
-            assert!( // second assertion requires at least one success mapping unless ASYNC_ACK_STATUS_MAPPING_CONNECTORS
+            assert!(
                 SUCCESS_COUNT > 0
                     || $crate::flow_status::const_contains_str(
                         common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
@@ -65,6 +133,31 @@ macro_rules! impl_flow_status_mapping {
                         <$flow as $crate::flow_status::FlowSpec>::Status,
                     >,
                 {
+                    #[allow(unused_macros)]
+                    macro_rules! success {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::Success(
+                                $crate::flow_status::__status_mapping::[<$flow SuccessStatus>]::$target,
+                            ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! failure {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::Failure(
+                                $crate::flow_status::__status_mapping::[<$flow FailureStatus>]::$target,
+                            ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! non_terminal {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::NonTerminal(
+                                $crate::flow_status::__status_mapping::[<$flow NonTerminalStatus>]::$target,
+                            ))
+                        };
+                    }
+
                     let source_from: fn(
                         &CommonData,
                         &$request,
@@ -77,52 +170,26 @@ macro_rules! impl_flow_status_mapping {
                         &$response,
                         u16,
                     ) -> Result<$context, $crate::ConnectorError> = $context_from;
+                    let mapping: fn($source, $context) -> Result<
+                        $crate::flow_status::ConnectorFlowStatus<$flow>,
+                        $crate::ConnectorError,
+                    > = |$source_value, $context_value| { $($mapping)* };
 
                     let source = source_from(common_data, request, response, http_status_code)?;
                     let context = context_from(common_data, request, response, http_status_code)?;
-
-                    Ok(match (source, context) {
-                        $(
-                            $(
-                            (<$source>::$success_variant, $success_context) =>
-                                $crate::flow_status::ConnectorFlowStatus::Success(
-                                    $crate::flow_status::[<$flow SuccessStatus>]::$success_target,
-                                ),
-                            )+
-                        )?
-                        $(
-                            $(
-                            (<$source>::$failure_variant, $failure_context) =>
-                                $crate::flow_status::ConnectorFlowStatus::Failure(
-                                    $crate::flow_status::[<$flow FailureStatus>]::$failure_target,
-                                ),
-                            )+
-                        )?
-                        $(
-                            $(
-                            (<$source>::$non_terminal_variant, $non_terminal_context) =>
-                                $crate::flow_status::ConnectorFlowStatus::NonTerminal(
-                                    $crate::flow_status::[<$flow NonTerminalStatus>]::$non_terminal_target,
-                                ),
-                            )+
-                        )?
-                    })
+                    mapping(source, context)
                 }
             }
         }
     };
-    // handles the case where only the connector status matters
+
     (
         $(generics: [$($generic:tt)*],)?
         connector: $connector:ty,
         connector_name: $connector_name:expr,
         flow: $flow:ident,
         source: $source:ty,
-
-        $(success: { $($success_variant:ident => $success_target:ident),+ $(,)? },)?
-        $(failure: { $($failure_variant:ident => $failure_target:ident),+ $(,)? },)?
-        $(non_terminal: { $($non_terminal_variant:ident => $non_terminal_target:ident),+ $(,)? },)?
-
+        mapping: |$source_value:ident| { $($mapping:tt)* },
         runtime: {
             request: $request:ty,
             response: $response:ty,
@@ -130,16 +197,16 @@ macro_rules! impl_flow_status_mapping {
         } $(,)?
     ) => {
         const _: () = {
-            const SUCCESS_COUNT: usize = 0usize $(+ [$(stringify!($success_variant)),+].len())?;
-            const FAILURE_COUNT: usize = 0usize $(+ [$(stringify!($failure_variant)),+].len())?;
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
             const NON_TERMINAL_COUNT: usize =
-                0usize $(+ [$(stringify!($non_terminal_variant)),+].len())?;
+                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
 
-            assert!( // first assertion rejects an empty declaration.
+            assert!(
                 SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
                 "flow status mapping must declare at least one outcome"
             );
-            assert!( // second assertion requires at least one success mapping unless ASYNC_ACK_STATUS_MAPPING_CONNECTORS
+            assert!(
                 SUCCESS_COUNT > 0
                     || $crate::flow_status::const_contains_str(
                         common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
@@ -168,156 +235,50 @@ macro_rules! impl_flow_status_mapping {
                         <$flow as $crate::flow_status::FlowSpec>::Status,
                     >,
                 {
+                    #[allow(unused_macros)]
+                    macro_rules! success {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::Success(
+                                $crate::flow_status::__status_mapping::[<$flow SuccessStatus>]::$target,
+                            ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! failure {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::Failure(
+                                $crate::flow_status::__status_mapping::[<$flow FailureStatus>]::$target,
+                            ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! non_terminal {
+                        ($target:ident) => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::NonTerminal(
+                                $crate::flow_status::__status_mapping::[<$flow NonTerminalStatus>]::$target,
+                            ))
+                        };
+                    }
+
                     let source_from: fn(
                         &CommonData,
                         &$request,
                         &$response,
                         u16,
                     ) -> Result<$source, $crate::ConnectorError> = $source_from;
+                    let mapping: fn($source) -> Result<
+                        $crate::flow_status::ConnectorFlowStatus<$flow>,
+                        $crate::ConnectorError,
+                    > = |$source_value| { $($mapping)* };
+
                     let source = source_from(common_data, request, response, http_status_code)?;
-
-                    Ok(match source {
-                        $(
-                            $(
-                            <$source>::$success_variant =>
-                                $crate::flow_status::ConnectorFlowStatus::Success(
-                                    $crate::flow_status::[<$flow SuccessStatus>]::$success_target,
-                                ),
-                            )+
-                        )?
-                        $(
-                            $(
-                            <$source>::$failure_variant =>
-                                $crate::flow_status::ConnectorFlowStatus::Failure(
-                                    $crate::flow_status::[<$flow FailureStatus>]::$failure_target,
-                                ),
-                            )+
-                        )?
-                        $(
-                            $(
-                            <$source>::$non_terminal_variant =>
-                                $crate::flow_status::ConnectorFlowStatus::NonTerminal(
-                                    $crate::flow_status::[<$flow NonTerminalStatus>]::$non_terminal_target,
-                                ),
-                            )+
-                        )?
-                    })
+                    mapping(source)
                 }
             }
         }
     };
 
-    (
-        $(generics: [$($generic:tt)*],)?
-        connector: $connector:ty,
-        connector_name: $connector_name:expr,
-        flow: $flow:ident,
-        source: (),
-        success: { _ => $target:ident $(,)? },
-        runtime: {
-            request: $request:ty,
-            response: $response:ty,
-            source: $source_from:expr $(,)?
-        } $(,)?
-    ) => {
-        $crate::__impl_fixed_flow_status_mapping! {
-            $(generics: [$($generic)*],)?
-            connector: $connector,
-            flow: $flow,
-            request: $request,
-            response: $response,
-            source: $source_from,
-            category: Success,
-            status_type: SuccessStatus,
-            target: $target
-        }
-    };
-    // support responses without a connector status field
-    (
-        $(generics: [$($generic:tt)*],)?
-        connector: $connector:ty,
-        connector_name: $connector_name:expr,
-        flow: $flow:ident,
-        source: (),
-        non_terminal: { _ => $target:ident $(,)? },
-        runtime: {
-            request: $request:ty,
-            response: $response:ty,
-            source: $source_from:expr $(,)?
-        } $(,)?
-    ) => {
-        
-        const _: () = assert!( // second assertion requires at least one success mapping unless ASYNC_ACK_STATUS_MAPPING_CONNECTORS
-            $crate::flow_status::const_contains_str(
-                common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
-                $connector_name,
-            ),
-            "success mapping is mandatory unless the connector is listed in ASYNC_ACK_STATUS_MAPPING_CONNECTORS"
-        );
-        $crate::__impl_fixed_flow_status_mapping! {
-            $(generics: [$($generic)*],)?
-            connector: $connector,
-            flow: $flow,
-            request: $request,
-            response: $response,
-            source: $source_from,
-            category: NonTerminal,
-            status_type: NonTerminalStatus,
-            target: $target
-        }
-    };
 }
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __impl_fixed_flow_status_mapping { // support async acknowledgements without a response status
-    (
-        $(generics: [$($generic:tt)*],)?
-        connector: $connector:ty,
-        flow: $flow:ident,
-        request: $request:ty,
-        response: $response:ty,
-        source: $source_from:expr,
-        category: $category:ident,
-        status_type: $status_type:ident,
-        target: $target:ident
-    ) => {
-        $crate::paste::paste! {
-            impl $(<$($generic)*>)?
-                $crate::flow_status::ConnectorRuntimeStatusMapping<$flow, $request, $response>
-                for $connector
-            {
-                fn map_runtime_status<CommonData>(
-                    common_data: &CommonData,
-                    request: &$request,
-                    response: &$response,
-                    http_status_code: u16,
-                ) -> Result<
-                    $crate::flow_status::ConnectorFlowStatus<$flow>,
-                    $crate::ConnectorError,
-                >
-                where
-                    CommonData: $crate::flow_status::FlowStatusReader<
-                        <$flow as $crate::flow_status::FlowSpec>::Status,
-                    >,
-                {
-                    let source_from: fn(
-                        &CommonData,
-                        &$request,
-                        &$response,
-                        u16,
-                    ) -> Result<(), $crate::ConnectorError> = $source_from;
-                    source_from(common_data, request, response, http_status_code)?;
-
-                    Ok($crate::flow_status::ConnectorFlowStatus::$category(
-                        $crate::flow_status::[<$flow $status_type>]::$target,
-                    ))
-                }
-            }
-        }
-    };
-}
-
 /// Refund connectors use the same typed mapping contract as payment connectors.
 #[macro_export]
 macro_rules! impl_refund_flow_status_mapping {
@@ -373,9 +334,13 @@ mod tests {
         connector_name: "simple",
         flow: Capture,
         source: TestStatus,
-        success: { Succeeded => Charged },
-        failure: { Failed => CaptureFailed },
-        non_terminal: { Processing => CaptureInitiated },
+        mapping: |status| {
+            match status {
+                TestStatus::Succeeded => success!(Charged),
+                TestStatus::Failed => failure!(CaptureFailed),
+                TestStatus::Processing => non_terminal!(CaptureInitiated),
+            }
+        },
         runtime: {
             request: Request,
             response: Response,
@@ -391,15 +356,13 @@ mod tests {
         flow: Authorize,
         source: TestStatus,
         context: bool,
-        success: {
-            (Succeeded, true) => Charged,
-            (Succeeded, false) => Authorized,
-        },
-        failure: {
-            (Failed, _) => AuthorizationFailed,
-        },
-        non_terminal: {
-            (Processing, _) => Authorizing,
+        mapping: |status, is_auto_capture| {
+            match (status, is_auto_capture) {
+                (TestStatus::Succeeded, true) => success!(Charged),
+                (TestStatus::Succeeded, false) => success!(Authorized),
+                (TestStatus::Failed, _) => failure!(AuthorizationFailed),
+                (TestStatus::Processing, _) => non_terminal!(Authorizing),
+            }
         },
         runtime: {
             request: Request,
@@ -416,8 +379,12 @@ mod tests {
         connector_name: "adyen",
         flow: Void,
         source: TestStatus,
-        failure: { Failed => VoidFailed },
-        non_terminal: { Processing => Pending },
+        mapping: |status| {
+            match status {
+                TestStatus::Failed => failure!(VoidFailed),
+                TestStatus::Succeeded | TestStatus::Processing => non_terminal!(Pending),
+            }
+        },
         runtime: {
             request: Request,
             response: Response,
@@ -432,13 +399,82 @@ mod tests {
         connector_name: "refund",
         flow: Refund,
         source: TestStatus,
-        success: { Succeeded => Success },
-        failure: { Failed => Failure },
-        non_terminal: { Processing => Pending },
+        mapping: |status| {
+            match status {
+                TestStatus::Succeeded => success!(Success),
+                TestStatus::Failed => failure!(Failure),
+                TestStatus::Processing => non_terminal!(Pending),
+            }
+        },
         runtime: {
             request: Request,
             response: Response,
             source: |_common, _request, response, _http_status_code| Ok(response.status),
+        }
+    }
+
+    struct TypedMappingConnector;
+
+    crate::impl_flow_status_mapping! {
+        connector: TypedMappingConnector,
+        connector_name: "typed_mapping",
+        flow: Capture,
+        source: TestStatus,
+        mapping: |status| {
+            match status {
+                TestStatus::Succeeded => success!(Charged),
+                TestStatus::Failed => failure!(CaptureFailed),
+                TestStatus::Processing => non_terminal!(CaptureInitiated),
+            }
+        },
+        runtime: {
+            request: Request,
+            response: Response,
+            source: |_common, _request, response, _http_status_code| Ok(response.status),
+        }
+    }
+
+    struct TypedContextMappingConnector;
+
+    crate::impl_flow_status_mapping! {
+        connector: TypedContextMappingConnector,
+        connector_name: "typed_context_mapping",
+        flow: Authorize,
+        source: TestStatus,
+        context: bool,
+        mapping: |status, is_auto_capture| {
+            if is_auto_capture {
+                success!(Charged)
+            } else {
+                match status {
+                    TestStatus::Succeeded => success!(Authorized),
+                    TestStatus::Failed => failure!(AuthorizationFailed),
+                    TestStatus::Processing => non_terminal!(Authorizing),
+                }
+            }
+        },
+        runtime: {
+            request: Request,
+            response: Response,
+            source: |_common, _request, response, _http_status_code| Ok(response.status),
+            context: |_common, request, _response, _http_status_code| Ok(request.auto_capture),
+        }
+    }
+
+    struct StatuslessMappingConnector;
+
+    crate::impl_flow_status_mapping! {
+        connector: StatuslessMappingConnector,
+        connector_name: "adyen",
+        flow: Void,
+        source: (),
+        mapping: |_status| {
+            non_terminal!(Pending)
+        },
+        runtime: {
+            request: Request,
+            response: Response,
+            source: |_common, _request, _response, _http_status_code| Ok(()),
         }
     }
 
@@ -508,5 +544,54 @@ mod tests {
         .unwrap();
 
         assert_eq!(mapped.status(), RefundStatus::Success);
+    }
+
+    #[test]
+    fn maps_status_with_typed_mapping_closure() {
+        let mapped = TypedMappingConnector::map_runtime_status(
+            &PaymentCommonData(AttemptStatus::Started),
+            &Request {
+                auto_capture: false,
+            },
+            &Response {
+                status: TestStatus::Processing,
+            },
+            200,
+        )
+        .unwrap();
+
+        assert_eq!(mapped.status(), AttemptStatus::CaptureInitiated);
+    }
+
+    #[test]
+    fn maps_repeated_context_logic_with_typed_mapping_closure() {
+        let mapped = TypedContextMappingConnector::map_runtime_status(
+            &PaymentCommonData(AttemptStatus::Started),
+            &Request { auto_capture: true },
+            &Response {
+                status: TestStatus::Failed,
+            },
+            200,
+        )
+        .unwrap();
+
+        assert_eq!(mapped.status(), AttemptStatus::Charged);
+    }
+
+    #[test]
+    fn maps_statusless_response_with_the_same_mapping_syntax() {
+        let mapped = StatuslessMappingConnector::map_runtime_status(
+            &PaymentCommonData(AttemptStatus::Started),
+            &Request {
+                auto_capture: false,
+            },
+            &Response {
+                status: TestStatus::Processing,
+            },
+            202,
+        )
+        .unwrap();
+
+        assert_eq!(mapped.status(), AttemptStatus::Pending);
     }
 }
