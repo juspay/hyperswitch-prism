@@ -129,7 +129,7 @@ pub struct CartesBancairesParams {
     /// Exemption indicator specific to Cartes Bancaires network (e.g., "low_value", "trusted_merchant")
     pub cb_exemption: String,
     /// Cartes Bancaires risk score assigned during 3DS authentication.
-    pub cb_score: i32,
+    pub cb_score: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -196,7 +196,19 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             authentication_type,
         } = value;
         let created_at = created_at
-            .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
+            .map(|ts| {
+                time::OffsetDateTime::from_unix_timestamp(ts).change_context(
+                    errors::IntegrationError::InvalidDataFormat {
+                        field_name: "authentication_data.created_at",
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some("Provide the original authentication time in Unix epoch seconds".to_owned()),
+                            additional_context: Some("The authentication timestamp is outside the supported range".to_owned()),
+                            doc_url: None,
+                        },
+                    },
+                )
+            })
+            .transpose()?
             .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time()));
         let message_extension = message_extension
             .map(|message_extension| {
@@ -242,7 +254,9 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                     )),
                     ..Default::default()
                 },
-            })}).transpose()?.map(common_enums::TransactionStatus::foreign_from);
+            })}).transpose()?
+            .filter(|status| *status != payments::TransactionStatus::Unspecified)
+            .map(common_enums::TransactionStatus::foreign_from);
 
         Ok(Self {
             ucaf_collection_indicator,
@@ -288,6 +302,7 @@ impl TryFrom<payments::CartesBancairesParams> for CartesBancairesParams {
     fn try_from(value: payments::CartesBancairesParams) -> Result<Self, Self::Error> {
         let cavv_algorithm = payments::CavvAlgorithm::try_from(value.cavv_algorithm)
             .ok()
+            .filter(|algorithm| *algorithm != payments::CavvAlgorithm::Unspecified)
             .map(common_enums::CavvAlgorithm::foreign_from)
             .ok_or_else(|| errors::IntegrationError::InvalidDataFormat {
                 field_name: "cavv_algorithm",

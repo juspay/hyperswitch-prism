@@ -1234,7 +1234,7 @@ message CartesBancairesParams {
   string cb_exemption = 2;
 
   // Cartes Bancaires risk score assigned during 3DS authentication.
-  int32 cb_score = 3;
+  optional int32 cb_score = 3;
 }
 
 // Network-level parameters for 3DS processing
@@ -6951,12 +6951,66 @@ message SplitSettlementResponseVendor {
 }
 
 // Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Checkout variant is defined.
+// connector for the transaction.
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
+  optional JpmorganAdditionalInformation jpmorgan = 4;
+}
+
+message JpmorganAdditionalInformation {
+  optional JpmorganAuthenticationUseCase authentication_use_case = 1;
+  // Merchant risk assessment, not the issuer's CB score.
+  optional string merchant_fraud_risk_score = 2;
+  optional JpmorganChallengePreference requested_challenge_preference = 3;
+  optional JpmorganOriginalThreeDs original_three_ds = 4;
+  // The authentication result's transStatusReason, not an ACS challenge reason.
+  optional string trans_status_reason = 5;
+}
+
+enum JpmorganAuthenticationUseCase {
+  JPMORGAN_AUTHENTICATION_USE_CASE_UNSPECIFIED = 0;
+  SINGLE_PAYMENT = 1;
+  RECURRING_PAYMENT_FIXED = 2;
+  INSTALLMENT_PAYMENT = 3;
+  PAYMENT_ON_SHIPMENT = 4;
+  RECURRING_PAYMENT_OTHER = 5;
+  PREAUTHORIZATION_RENTAL = 6;
+  PREAUTHORIZATION_NO_RENTAL = 7;
+}
+
+enum JpmorganChallengePreference {
+  JPMORGAN_CHALLENGE_PREFERENCE_UNSPECIFIED = 0;
+  NO_PREFERENCE = 1;
+  NO_CHALLENGE = 2;
+  CHALLENGE_REQUESTED = 3;
+  CHALLENGE_MANDATE = 4;
+  NO_CHALLENGE_LVP = 5;
+  NO_CHALLENGE_TRA = 6;
+  NO_CHALLENGE_MIT = 7;
+  NO_CHALLENGE_DATA = 8;
+  NO_CHALLENGE_DA = 9;
+  NO_CHALLENGE_TRUSTED = 10;
+  CHALLENGE_TRUSTED = 11;
+  NO_CHALLENGE_SCP = 12;
+  CHALLENGE_DEVICE_BINDING = 13;
+  CHALLENGE_ISSUER_REQUESTED = 14;
+  CHALLENGE_MIT = 15;
+}
+
+// Preserve evidence from the original authentication, not a later payment.
+// Pending authentication can contain partial evidence.
+message JpmorganOriginalThreeDs {
+  optional string program_protocol = 1;
+  // RFC3339 timestamp of authentication, not the payment update timestamp.
+  optional string authentication_timestamp = 2;
+  optional Money authentication_amount = 3;
+  optional string directory_server_transaction_id = 4;
+  optional DecoupledAuthenticationType authentication_method = 5;
+  optional JpmorganChallengePreference requested_challenge_preference = 6;
+  optional string issuer_fraud_score = 7;
 }
 
 message WorldpayxmlAdditionalInformation {

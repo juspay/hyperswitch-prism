@@ -63,6 +63,22 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Method::Post
     }
 
+    /// Selects the HTTP method when it depends on request state.
+    fn get_http_method_for_request(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Method, IntegrationError> {
+        Ok(self.get_http_method())
+    }
+
+    /// Controls body construction without changing other connectors' GET requests.
+    fn should_build_request_body(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<bool, IntegrationError> {
+        Ok(true)
+    }
+
     /// returns url
     fn get_url(
         &self,
@@ -142,7 +158,11 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<Request>, IntegrationError> {
-        let request_data = self.get_request_body(req)?;
+        let request_data = if self.should_build_request_body(req)? {
+            self.get_request_body(req)?
+        } else {
+            None
+        };
         let (body, typed_request_value) = match request_data {
             Some(data) => (
                 Some(data.content),
@@ -152,7 +172,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         };
         Ok(Some(
             RequestBuilder::new()
-                .method(self.get_http_method())
+                .method(self.get_http_method_for_request(req)?)
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)

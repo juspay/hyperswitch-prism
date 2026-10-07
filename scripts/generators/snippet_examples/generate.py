@@ -68,6 +68,7 @@ _PROTO_WRAPPER_TYPES: set[str] = set()
 _ONEOF_WRAPPER_FIELD: dict[str, str] = {
     "PaymentMethod": "payment_method",
     "MandateId":     "mandate_id_type",
+    "MandateReference": "mandate_id_type",
     "MandateType":   "mandate_type",
 }
 
@@ -951,8 +952,7 @@ def _annotate_inline_lines(
     pad   = "    " * indent
     lines: list[str] = []
 
-    # Filter out fields that don't exist in the proto schema to avoid TypeScript errors
-    items = [(k, v) for k, v in obj.items() if db.is_valid_field(msg_name, k)]
+    items = _expand_oneof_groups(obj, msg_name, db)
     for idx, (key, val) in enumerate(items):
         trailing  = "," if idx < len(items) - 1 else ""
         comment   = db.get_comment(msg_name, key)
@@ -1665,7 +1665,7 @@ def _py_direct_lines(
                 # In Python proto, oneof cases are set directly on the message.
                 msg_mod = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={msg_mod}.{child_msg}({cmt_part}")
-                for case_key, case_val in val.items():
+                for case_key, case_val in _expand_oneof_groups(val, child_msg, db):
                     case_type = db.get_type(child_msg, case_key)
                     if isinstance(case_val, dict) and case_type:
                         cm = _py_module_for_type(case_type)
@@ -2928,9 +2928,9 @@ def _rust_struct_lines(
                 wrapper_field = _ONEOF_WRAPPER_FIELD[child_msg]
                 # Enum type name = PascalCase of wrapper_field
                 enum_type = "".join(w.title() for w in wrapper_field.split("_"))
-                module    = wrapper_field  # prost sub-module
+                module    = _to_snake(child_msg)  # prost uses the containing message name
 
-                case_items = list(val.items())
+                case_items = _expand_oneof_groups(val, child_msg, db)
                 if case_items:
                     case_key, case_val = case_items[0]
                     case_type = db.get_type(child_msg, case_key)
@@ -3155,6 +3155,8 @@ def _rust_json_lines(
 _PROBE_PM_LABELS: dict[str, str] = {
     "Card":           "Card (Raw PAN)",
     "GooglePay":      "Google Pay",
+    "GooglePayDecrypted": "Google Pay CRYPTOGRAM_3DS",
+    "GooglePayPanOnly": "Google Pay PAN_ONLY",
     "ApplePay":       "Apple Pay",
     "Sepa":           "SEPA Direct Debit",
     "Bacs":           "BACS Direct Debit",

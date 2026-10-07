@@ -38,6 +38,10 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
             google_pay_decrypted_method as fn() -> PaymentMethod,
         ),
         (
+            "GooglePayPanOnly",
+            google_pay_pan_only_method as fn() -> PaymentMethod,
+        ),
+        (
             "GooglePayThirdPartySdk",
             google_pay_third_party_sdk_method as fn() -> PaymentMethod,
         ),
@@ -296,6 +300,7 @@ pub(crate) fn is_tokenize_pm_variant(pm_name: &str) -> bool {
             | "ApplePayThirdPartySdk"
             | "GooglePay"
             | "GooglePayDecrypted"
+            | "GooglePayPanOnly"
     )
 }
 

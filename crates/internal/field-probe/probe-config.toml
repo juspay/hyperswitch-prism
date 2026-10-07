@@ -67,6 +67,7 @@ name = "moneris"
 Card = true
 GooglePay = true
 GooglePayDecrypted = true
+GooglePayPanOnly = true
 ApplePay = true
 ApplePayDecrypted = true
 Sepa = true
@@ -107,6 +108,11 @@ default = '{}'
 
 # Per-connector request field overrides.
 # Format: [connector_overrides."flow1,flow2,...".connector]
+[connector_overrides.recurring_charge.jpmorgan]
+payment_method_type = "CREDIT"
+payment_method = { payment_method = { card = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_cvc = "737", card_holder_name = "John Doe" } } }
+connector_recurring_payment_id = { mandate_id_type = { NetworkMandateId = { network_transaction_id = "probe_network_txn_001" } } }
+
 # Zift, Placetopay and Helcim parse connector_transaction_id as i64/u64,
 # so they need a numeric string instead of the default "probe_connector_txn_001".
 [connector_overrides."capture,void,get,refund,reverse,refund_get".zift]

@@ -6161,6 +6161,7 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
+    pub jpmorgan: Option<grpc_api_types::payments::JpmorganAdditionalInformation>,
 }
 
 /// Stripe-specific additional information.

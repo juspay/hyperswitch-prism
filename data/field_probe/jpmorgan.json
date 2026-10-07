@@ -47,7 +47,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"ach\":{\"accountNumber\":\"000123456789\",\"financialInstitutionRoutingNumber\":\"110000000\",\"accountType\":\"CHECKING\"}},\"accountHolder\":{\"firstName\":\"\",\"lastName\":\"\"},\"statementDescriptor\":\"PROBE\"}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"ach\":{\"accountNumber\":\"000123456789\",\"financialInstitutionRoutingNumber\":\"110000000\",\"accountType\":\"CHECKING\"}},\"accountHolder\":{\"firstName\":\"\",\"lastName\":\"\",\"billingAddress\":{}},\"statementDescriptor\":\"PROBE\"}"
         }
       },
       "AchBankTransfer": {
@@ -67,16 +67,16 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: wallet.apple_pay.decrypted_data — Missing required field: wallet.apple_pay.decrypted_data"
+        "error": "Stuck on field: wallet.apple_pay.decrypted_data. Apple Pay requires supplied decrypted data in this connector — Missing required field: wallet.apple_pay.decrypted_data. Apple Pay requires supplied decrypted data in this connector"
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -137,8 +137,8 @@
         }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Bacs": {
         "status": "not_supported",
@@ -161,8 +161,8 @@
         "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
       },
       "BillDeskRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Bizum": {
         "status": "not_supported",
@@ -173,8 +173,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -233,12 +233,12 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "CashfreeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -253,8 +253,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -269,8 +269,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Efecty": {
         "status": "not_supported",
@@ -289,8 +289,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "GCash": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Giropay": {
         "status": "not_supported",
@@ -301,8 +301,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "GooglePay": {
         "status": "error",
@@ -363,9 +363,62 @@
           "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}}}"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "auth_method": "PAN_ONLY"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "DefaultMerchantId",
+            "request-id": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"walletProvider\":\"GOOGLE_PAY\"}}}"
+        }
+      },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Ideal": {
         "status": "not_supported",
@@ -396,8 +449,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "KakaoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Klarna": {
         "status": "not_supported",
@@ -408,8 +461,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "LazyPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -424,12 +477,12 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "MiniStop": {
         "status": "not_supported",
@@ -440,8 +493,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -504,16 +557,16 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "PayURedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -528,8 +581,8 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "PhonePeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Pix": {
         "status": "not_supported",
@@ -552,16 +605,16 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Seicomart": {
         "status": "not_supported",
@@ -584,28 +637,28 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Skrill": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Sofort": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Swish": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "TouchNGo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Trustly": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Twint": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -620,20 +673,20 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Vipps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       },
       "Webpay": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet not supported"
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported by jpmorgan. JPMorgan wallet support covers Apple Pay and Google Pay"
       }
     },
     "capture": {
@@ -923,8 +976,52 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: original_network_transaction_id — Missing required field: original_network_transaction_id"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "network_mandate_id": {
+                "network_transaction_id": "probe_network_txn_001"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "CREDIT",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "DefaultMerchantId",
+            "request-id": "",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
+        }
       }
     },
     "recurring_revoke": {
@@ -1099,7 +1196,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: JPMorgan SetupMandate requires a card or decrypted wallet"
+        "error": "This feature is not implemented: JPMorgan SetupMandate requires a card or decrypted wallet. The payment method cannot be used for account verification"
       }
     },
     "verify_redirect": {

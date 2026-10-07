@@ -108,8 +108,16 @@ pub(crate) fn becs_payment_method() -> PaymentMethod {
 }
 
 pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
+    google_pay_decrypted_with_auth_method(proto::GooglePayAuthMethod::Cryptogram3ds)
+}
+
+pub(crate) fn google_pay_pan_only_method() -> PaymentMethod {
+    google_pay_decrypted_with_auth_method(proto::GooglePayAuthMethod::PanOnly)
+}
+
+fn google_pay_decrypted_with_auth_method(auth_method: proto::GooglePayAuthMethod) -> PaymentMethod {
     use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
-    // Decrypted format - provides card data directly for connectors that support it
+    let has_cryptogram = auth_method == proto::GooglePayAuthMethod::Cryptogram3ds;
     PaymentMethod {
         payment_method: Some(PmVariant::GooglePaySdk(proto::GoogleWallet {
             r#type: "CARD".to_string(),
@@ -126,9 +134,9 @@ pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
                     application_primary_account_number: Some(
                         cards::CardNumber::from_str("4111111111111111").expect("static test card"),
                     ),
-                    cryptogram: Some(Secret::new("AAAAAA==".to_string())),
-                    eci_indicator: Some("05".to_string()),
-                    auth_method: Some(proto::GooglePayAuthMethod::Cryptogram3ds.into()),
+                    cryptogram: has_cryptogram.then(|| Secret::new("AAAAAA==".to_string())),
+                    eci_indicator: has_cryptogram.then(|| "05".to_string()),
+                    auth_method: Some(auth_method.into()),
                 })),
             }),
         })),

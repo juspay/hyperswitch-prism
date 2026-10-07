@@ -73,6 +73,11 @@ pub struct JpmorganAuthenticationResult {
 pub struct JpmorganThreeDsCompletion {
     #[serde(rename = "threeDSTransactionStatus")]
     pub three_ds_transaction_status: JpmorganThreeDsStatus,
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: Option<String>,
+    #[serde(rename = "threeDSDirectoryServerTransactionId")]
+    pub directory_server_transaction_id: Option<String>,
+    pub issuer_assigned_authentication_fraud_score: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

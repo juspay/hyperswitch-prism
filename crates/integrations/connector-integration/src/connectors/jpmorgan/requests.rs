@@ -101,6 +101,11 @@ pub struct JpmorganAuthentication {
     pub token_authentication_value: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<String>,
+    #[serde(
+        rename = "initialThreeDSAuthenticationResults",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub initial_three_ds: Option<JpmorganOriginalThreeDs>,
 }
 
 #[derive(Debug, Serialize)]
@@ -112,6 +117,49 @@ pub struct JpmorganThreeDs {
     #[serde(rename = "threeDSProgramProtocol")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_program_protocol: Option<String>,
+    #[serde(flatten)]
+    pub cartes_bancaires: Option<JpmorganCartesBancairesAuthentication>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganCartesBancairesAuthentication {
+    pub version2: JpmorganThreeDsVersion2,
+    pub authentication_value_calculation_method: &'static str,
+    #[serde(rename = "threeDSChallengeType")]
+    pub challenge_preference: &'static str,
+    pub issuer_assigned_authentication_exemption_encoded: String,
+    pub three_domain_secure_authentication_method_code: &'static str,
+    pub issuer_assigned_authentication_fraud_score: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct JpmorganThreeDsVersion2 {
+    #[serde(rename = "threeDSTransactionStatus")]
+    pub transaction_status: common_enums::TransactionStatus,
+    #[serde(
+        rename = "threeDSTransactionStatusReasonCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub transaction_status_reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct JpmorganOriginalThreeDs {
+    #[serde(rename = "initialThreeDSProgramProtocol")]
+    pub program_protocol: String,
+    #[serde(rename = "initialThreeDSAuthenticationTimestamp")]
+    pub authentication_timestamp: String,
+    #[serde(rename = "initialThreeDSAuthenticationAmount")]
+    pub authentication_amount: i64,
+    #[serde(rename = "initialThreeDSAuthenticationTransactionId")]
+    pub directory_server_transaction_id: String,
+    #[serde(rename = "initialThreeDSAuthenticationMethodCode")]
+    pub authentication_method: &'static str,
+    #[serde(rename = "initialThreeDSChallengeType")]
+    pub requested_challenge_preference: &'static str,
+    #[serde(rename = "initialIssuerAssignedAuthenticationFraudScore")]
+    pub issuer_fraud_score: String,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
@@ -166,12 +214,30 @@ pub struct JpmorganNativeAuthentication {
     pub requestor_info: JpmorganRequestorInfo,
     #[serde(rename = "threeDSPurchaseInfo")]
     pub purchase_info: JpmorganPurchaseInfo,
+    #[serde(
+        rename = "threeDSPurchaseRisk",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub purchase_risk: Option<JpmorganPurchaseRisk>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganPurchaseRisk {
+    pub requestor_estimated_transaction_fraud_risk_score: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRequestorInfo {
     pub authentication_purpose: JpmorganAuthenticationPurpose,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_use_case: Option<&'static str>,
+    #[serde(
+        rename = "threeDSChallengeType",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub challenge_preference: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -187,6 +253,10 @@ pub enum JpmorganAuthenticationPurpose {
 pub struct JpmorganPurchaseInfo {
     pub purchase_date: String,
     pub three_domain_secure_transaction_type: JpmorganThreeDsTransactionType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purchased_item_count: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_amount: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -336,7 +406,7 @@ pub struct JpmorganRecurring {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_variable_amount: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub recurring_number: Option<u32>,
+    pub recurring_number: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -369,6 +439,7 @@ pub struct JpmorganContext {
     pub wallet_provider: Option<JpmorganWalletProvider>,
     pub original_network_transaction_id: Option<String>,
     pub original_transaction_link_id: Option<String>,
+    pub original_three_ds: Option<grpc_api_types::payments::JpmorganOriginalThreeDs>,
     pub three_ds_resource: Option<JpmorganThreeDsResource>,
     pub native_capture_method: Option<CapMethod>,
     #[serde(default)]
@@ -388,15 +459,6 @@ pub struct JpmorganThreeDsResource {
 pub enum JpmorganResourceKind {
     Payment,
     Verification,
-}
-
-impl JpmorganResourceKind {
-    pub fn path(self) -> &'static str {
-        match self {
-            Self::Payment => "payments",
-            Self::Verification => "verifications",
-        }
-    }
 }
 
 /// Non-financial credential verification. Do not send amount or capture fields.

@@ -166,6 +166,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: MinorUnit);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Jpmorgan<T> {
+    fn continuation_resource(
+        &self,
+        req: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<JpmorganThreeDsResource>, IntegrationError> {
+        let context = jpmorgan::resolved_connector_context(
+            req.request.connector_feature_data.as_ref(),
+            req.resource_common_data.connector_feature_data.as_ref(),
+            req.request.metadata.as_ref(),
+        )?;
+        if req.request.redirect_response.is_none() && !context.continue_three_ds {
+            return Ok(None);
+        }
+        let resource =
+            context
+                .three_ds_resource
+                .ok_or_else(domain_types::utils::missing_field_err(
+                    "connector_feature_data.jpmorgan.threeDsResource",
+                ))?;
+        jpmorgan::validate_three_ds_resource(&resource, &req.resource_common_data)?;
+        Ok(Some(resource))
+    }
+
     /// JPMorgan returns malformed JSON for wallet payments where expiry fields are empty
     /// e.g. `"month": ,` instead of `"month": null`. This sanitizes those cases.
     pub fn preprocess_response_bytes<F, FCD, Req, Res>(
@@ -575,53 +602,32 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url(req)))
+            match self.continuation_resource(req)? {
+                Some(resource) => {
+                    let path = match resource.kind {
+                        JpmorganResourceKind::Payment => "payments",
+                        JpmorganResourceKind::Verification => "verifications",
+                    };
+                    Ok(format!("{}/{}/{}", self.connector_base_url(req), path, resource.id))
+                }
+                None => Ok(format!("{}/payments", self.connector_base_url(req))),
+            }
         }
-        fn build_request_v2(
+        fn get_http_method_for_request(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-            let context = jpmorgan::resolved_connector_context(
-                req.request.connector_feature_data.as_ref(),
-                req.resource_common_data.connector_feature_data.as_ref(),
-                req.request.metadata.as_ref(),
-            )?;
-            let continuing = req.request.redirect_response.is_some() || context.continue_three_ds;
-            let (method, url, body, typed_request) = if continuing {
-                let resource = context.three_ds_resource.as_ref().ok_or_else(
-                    domain_types::utils::missing_field_err("connector_feature_data.jpmorgan.threeDsResource"),
-                )?;
-                jpmorgan::validate_three_ds_resource(resource, &req.resource_common_data)?;
-                let url = format!(
-                    "{}/{}/{}",
-                    self.connector_base_url(req),
-                    resource.kind.path(),
-                    resource.id,
-                );
-                (common_utils::request::Method::Get, url, None, None)
+        ) -> CustomResult<common_utils::request::Method, IntegrationError> {
+            Ok(if self.continuation_resource(req)?.is_some() {
+                common_utils::request::Method::Get
             } else {
-                let data = ConnectorIntegrationV2::<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>::get_request_body(self, req)?;
-                let (body, typed) = data.map_or((None, None), |data| {
-                    (
-                        Some(data.content),
-                        data.typed_request.map(|value| value.inner().clone()),
-                    )
-                });
-                (common_utils::request::Method::Post, self.get_url(req)?, body, typed)
-            };
-            Ok(Some(
-                common_utils::request::RequestBuilder::new()
-                    .method(method)
-                    .url(&url)
-                    .attach_default_headers()
-                    .headers(self.get_headers(req)?)
-                    .set_optional_body(body)
-                    .set_typed_connector_request(typed_request)
-                    .add_certificate(self.get_certificate(req)?)
-                    .add_certificate_key(self.get_certificate_key(req)?)
-                    .add_ca_certificate_pem(self.get_ca_certificate(req)?)
-                    .build(),
-            ))
+                common_utils::request::Method::Post
+            })
+        }
+        fn should_build_request_body(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<bool, IntegrationError> {
+            Ok(self.continuation_resource(req)?.is_none())
         }
     }
 );
@@ -667,10 +673,14 @@ macros::macro_connector_implementation!(
                         ),
                     }.into());
                 }
+                let path = match resource.kind {
+                    JpmorganResourceKind::Payment => "payments",
+                    JpmorganResourceKind::Verification => "verifications",
+                };
                 return Ok(format!(
                     "{}/{}/{}",
                     self.connector_base_url(req),
-                    resource.kind.path(),
+                    path,
                     resource.id,
                 ));
             }

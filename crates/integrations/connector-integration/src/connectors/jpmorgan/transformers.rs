@@ -42,6 +42,9 @@ const JPMORGAN_TOKENIZATION_DOC: &str =
 const VISA_TOKEN_ECI: &str = "7";
 const MASTERCARD_TOKEN_ECI: &str = "5";
 
+// Mastercard specifies a 22-character transaction link identifier.
+const MASTERCARD_TLID_LENGTH: usize = 22;
+
 const JPMORGAN_API_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce/online-payments/capabilities/online-payments";
 
@@ -275,6 +278,7 @@ fn token_authentication(
             });
     Ok(requests::JpmorganAuthentication {
         three_ds: None,
+        initial_three_ds: None,
         token_authentication_value: Some(cryptogram.clone()),
         electronic_commerce_indicator,
     })
@@ -868,6 +872,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let data = &router_data.request;
         let flow = &router_data.resource_common_data;
         let network = payment_network(&data.payment_method_data);
+        let is_cartes_bancaires = network == Some(CardNetwork::CartesBancaires);
         let stores_credentials = data.setup_future_usage.is_some()
             || data.setup_mandate_details.is_some()
             || data.mit_category.is_some();
@@ -897,28 +902,58 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 }
             })?;
-            apply_three_ds_authentication(card, authentication_data, network)?;
+            apply_three_ds_authentication(
+                card,
+                authentication_data,
+                network,
+                data.additional_connector_details
+                    .as_ref()
+                    .and_then(|details| details.jpmorgan.as_ref()),
+            )?;
         } else if flow.auth_type == common_enums::AuthenticationType::ThreeDs {
             let purpose = if request.stored_credential.recurring.is_some() {
                 requests::JpmorganAuthenticationPurpose::RecurringTransaction
             } else {
                 requests::JpmorganAuthenticationPurpose::PaymentTransaction
             };
-            let (authentication, browser, holder) = native_three_ds(
+            let (mut authentication, browser, holder) = native_three_ds(
                 flow,
                 data.browser_info.as_ref(),
                 data.complete_authorize_url.as_deref(),
                 data.email.as_ref(),
-                network,
                 purpose,
                 requests::JpmorganThreeDsTransactionType::GoodsServices,
             )?;
+            if is_cartes_bancaires {
+                apply_cartes_bancaires_native(
+                    &mut authentication,
+                    flow,
+                    data.additional_connector_details
+                        .as_ref()
+                        .and_then(|details| details.jpmorgan.as_ref()),
+                    stores_credentials,
+                )?;
+            }
             let card = request.payment_method_type.card.as_mut().ok_or_else(
                 domain_types::utils::missing_field_err("payment_method_data.card"),
             )?;
             card.payment_authentication_request = Some(authentication);
             request.stored_credential.browser_info = Some(browser);
             request.account_holder = Some(holder);
+        }
+        if is_cartes_bancaires {
+            let mut context = resolved_connector_context(
+                data.connector_feature_data.as_ref(),
+                flow.connector_feature_data.as_ref(),
+                data.metadata.as_ref(),
+            )?;
+            collect_original_three_ds(
+                &mut context,
+                data.authentication_data.as_ref(),
+                data.additional_connector_details
+                    .as_ref()
+                    .and_then(|details| details.jpmorgan.as_ref()),
+            )?;
         }
         let has_card_enhancements = request
             .payment_method_type
@@ -1076,7 +1111,7 @@ fn cit_stored_credential(
                     },
                 )?,
                 is_variable_amount: context.is_variable_amount,
-                recurring_number: context.recurring_number,
+                recurring_number: context.recurring_number.map(|number| number.to_string()),
             })
         } else {
             None
@@ -1091,7 +1126,6 @@ fn native_three_ds(
     browser: Option<&domain_types::router_request_types::BrowserInformation>,
     return_url: Option<&str>,
     email: Option<&common_utils::pii::Email>,
-    network: Option<CardNetwork>,
     purpose: requests::JpmorganAuthenticationPurpose,
     transaction_type: requests::JpmorganThreeDsTransactionType,
 ) -> Result<
@@ -1102,13 +1136,6 @@ fn native_three_ds(
     ),
     Error,
 > {
-    if network == Some(CardNetwork::CartesBancaires) {
-        return Err(IntegrationError::NotImplemented(
-            "JPMorgan threeDSRequestorAuthenticationInfo.authenticationUseCase".to_owned(),
-            utils::integration_ctx("Cartes Bancaires native 3DS requires an explicit authentication use case and merchant risk score; these inputs are not mapped", "Supply these fields through a supported integration; do not substitute the issuer risk score"),
-        )
-        .into());
-    }
     let return_url = return_url.ok_or_else(domain_types::utils::missing_field_err(
         "complete_authorize_url",
     ))?;
@@ -1144,19 +1171,9 @@ fn native_three_ds(
         java_enabled: browser.get_java_enabled()?,
         java_script_enabled: browser.get_java_script_enabled()?,
     };
-    let billing = flow
-        .address
-        .get_payment_method_billing()
-        .or_else(|| flow.address.get_payment_billing())
-        .ok_or_else(domain_types::utils::missing_field_err("billing"))?;
-    let address = billing
-        .address
-        .as_ref()
-        .ok_or_else(domain_types::utils::missing_field_err("billing.address"))?;
-    let phone = billing
-        .phone
-        .as_ref()
-        .ok_or_else(domain_types::utils::missing_field_err("billing.phone"))?;
+    let billing = flow.get_billing()?;
+    let address = flow.get_billing_address()?;
+    let phone = flow.get_billing_phone()?;
     let holder = requests::JpmorganAccountHolder {
         first_name: address.get_first_name()?.clone(),
         last_name: address.get_last_name()?.clone(),
@@ -1180,6 +1197,8 @@ fn native_three_ds(
         authentication_return_url: return_url.to_owned(),
         requestor_info: requests::JpmorganRequestorInfo {
             authentication_purpose: purpose,
+            authentication_use_case: None,
+            challenge_preference: None,
         },
         purchase_info: requests::JpmorganPurchaseInfo {
             purchase_date: common_utils::date_time::date_as_yyyymmddthhmmssmmmz().change_context(
@@ -1191,9 +1210,258 @@ fn native_three_ds(
                 },
             )?,
             three_domain_secure_transaction_type: transaction_type,
+            purchased_item_count: None,
+            authentication_amount: None,
         },
+        purchase_risk: None,
     };
     Ok((authentication, browser_info, holder))
+}
+
+fn challenge_preference(
+    value: i32,
+) -> Result<grpc_api_types::payments::JpmorganChallengePreference, Error> {
+    use grpc_api_types::payments::JpmorganChallengePreference;
+    let preference = JpmorganChallengePreference::try_from(value).change_context(
+        IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.requested_challenge_preference",
+            context: utils::integration_ctx(
+                "The requested challenge preference is unknown",
+                "Supply the preference used for the authentication request",
+            ),
+        },
+    )?;
+    if preference == JpmorganChallengePreference::Unspecified {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.requested_challenge_preference",
+            context: utils::integration_ctx(
+                "UNSPECIFIED is not an authentication preference",
+                "Supply the preference used for the authentication request",
+            ),
+        }
+        .into());
+    }
+    Ok(preference)
+}
+
+fn apply_cartes_bancaires_native(
+    authentication: &mut requests::JpmorganNativeAuthentication,
+    flow: &PaymentFlowData,
+    details: Option<&grpc_api_types::payments::JpmorganAdditionalInformation>,
+    stores_credentials: bool,
+) -> Result<(), Error> {
+    use domain_types::utils::missing_field_err;
+    use grpc_api_types::payments::{JpmorganAuthenticationUseCase, JpmorganChallengePreference};
+
+    let details = details.ok_or_else(missing_field_err("additional_connector_details.jpmorgan"))?;
+    let use_case = details
+        .authentication_use_case
+        .ok_or_else(missing_field_err(
+            "additional_connector_details.jpmorgan.authentication_use_case",
+        ))?;
+    let use_case = JpmorganAuthenticationUseCase::try_from(use_case).change_context(
+        IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.authentication_use_case",
+            context: utils::integration_ctx(
+                "The authentication use case is unknown",
+                "Supply the use case for this purchase",
+            ),
+        },
+    )?;
+    if use_case == JpmorganAuthenticationUseCase::Unspecified {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.authentication_use_case",
+            context: utils::integration_ctx(
+                "UNSPECIFIED is not an authentication use case",
+                "Supply the use case for this purchase",
+            ),
+        }
+        .into());
+    }
+    let score = details
+        .merchant_fraud_risk_score
+        .as_ref()
+        .ok_or_else(missing_field_err(
+            "additional_connector_details.jpmorgan.merchant_fraud_risk_score",
+        ))?;
+    if score.is_empty() || score.len() > 4 {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.merchant_fraud_risk_score",
+            context: utils::integration_ctx(
+                "The merchant risk score must contain one to four characters",
+                "Supply the merchant risk assessment, not the issuer score",
+            ),
+        }
+        .into());
+    }
+    let preference = details
+        .requested_challenge_preference
+        .map(challenge_preference)
+        .transpose()?;
+    if stores_credentials && preference.is_none() {
+        return Err(missing_field_err(
+            "additional_connector_details.jpmorgan.requested_challenge_preference",
+        )());
+    }
+    if let Some(preference) = preference {
+        match preference {
+            JpmorganChallengePreference::NoPreference
+            | JpmorganChallengePreference::NoChallenge
+            | JpmorganChallengePreference::ChallengeRequested
+            | JpmorganChallengePreference::ChallengeMandate
+            | JpmorganChallengePreference::NoChallengeTra
+            | JpmorganChallengePreference::NoChallengeData
+            | JpmorganChallengePreference::NoChallengeDa
+            | JpmorganChallengePreference::NoChallengeTrusted => {}
+            JpmorganChallengePreference::Unspecified
+            | JpmorganChallengePreference::NoChallengeLvp
+            | JpmorganChallengePreference::NoChallengeMit
+            | JpmorganChallengePreference::ChallengeTrusted
+            | JpmorganChallengePreference::NoChallengeScp
+            | JpmorganChallengePreference::ChallengeDeviceBinding
+            | JpmorganChallengePreference::ChallengeIssuerRequested
+            | JpmorganChallengePreference::ChallengeMit => {
+                return Err(IntegrationError::NotSupported {
+                    message: "This challenge preference is not supported by JPMorgan native 3DS"
+                        .to_owned(),
+                    connector: "jpmorgan",
+                    context: utils::integration_ctx(
+                        "The native API accepts a subset of challenge preferences",
+                        "Supply a preference supported by the native authentication request",
+                    ),
+                }
+                .into())
+            }
+        }
+    }
+    let items = flow
+        .order_details
+        .as_ref()
+        .or_else(|| {
+            flow.l2_l3_data
+                .as_ref()
+                .and_then(|data| data.order_info.as_ref())
+                .and_then(|order| order.order_details.as_ref())
+        })
+        .ok_or_else(missing_field_err("order_details"))?;
+    let count = items
+        .iter()
+        .try_fold(0u16, |total, item| total.checked_add(item.quantity))
+        .filter(|total| *total <= 99)
+        .ok_or_else(|| IntegrationError::InvalidDataFormat {
+            field_name: "order_details.quantity",
+            context: utils::integration_ctx(
+                "The total purchased item count must be between 0 and 99",
+                "Supply the complete item quantities for the purchase",
+            ),
+        })?;
+    authentication.requestor_info.authentication_use_case = Some(use_case.as_str_name());
+    authentication.requestor_info.challenge_preference =
+        preference.map(|value| value.as_str_name());
+    authentication.purchase_info.purchased_item_count = Some(count);
+    authentication.purchase_info.authentication_amount = details
+        .original_three_ds
+        .as_ref()
+        .and_then(|original| original.authentication_amount.as_ref())
+        .map(|amount| amount.minor_amount);
+    authentication.purchase_risk = Some(requests::JpmorganPurchaseRisk {
+        requestor_estimated_transaction_fraud_risk_score: score.clone(),
+    });
+    Ok(())
+}
+
+fn cartes_bancaires_authentication(
+    proof: &domain_types::router_request_types::AuthenticationData,
+    details: Option<&grpc_api_types::payments::JpmorganAdditionalInformation>,
+) -> Result<requests::JpmorganCartesBancairesAuthentication, Error> {
+    use domain_types::utils::missing_field_err;
+    let details = details.ok_or_else(missing_field_err("additional_connector_details.jpmorgan"))?;
+    let params = proof
+        .network_params
+        .as_ref()
+        .and_then(|params| params.cartes_bancaires.as_ref())
+        .ok_or_else(missing_field_err(
+            "authentication_data.network_params.cartes_bancaires",
+        ))?;
+    let status = proof
+        .trans_status
+        .clone()
+        .ok_or_else(missing_field_err("authentication_data.trans_status"))?;
+    let reason = details.trans_status_reason.as_ref();
+    if status != common_enums::TransactionStatus::Success && reason.is_none() {
+        return Err(missing_field_err(
+            "additional_connector_details.jpmorgan.trans_status_reason",
+        )());
+    }
+    if reason.is_some_and(|reason| reason.is_empty() || reason.len() > 2) {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "additional_connector_details.jpmorgan.trans_status_reason",
+            context: utils::integration_ctx(
+                "The transaction status reason must contain one or two characters",
+                "Supply transStatusReason from the authentication result",
+            ),
+        }
+        .into());
+    }
+    if params.cavv_algorithm == common_enums::CavvAlgorithm::Four {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.network_params.cartes_bancaires.cavv_algorithm",
+            context: utils::integration_ctx(
+                "JPMorgan accepts CAVV calculation methods 0, 1, 2, 3, or A",
+                "Supply the calculation method from the authentication result",
+            ),
+        }
+        .into());
+    }
+    if params.cb_exemption.len() != 4 {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.network_params.cartes_bancaires.cb_exemption",
+            context: utils::integration_ctx(
+                "The issuer exemption encoding must contain four characters",
+                "Supply the issuer's encoded exemption without substituting a requested exemption",
+            ),
+        }
+        .into());
+    }
+    let score = params.cb_score.ok_or_else(missing_field_err(
+        "authentication_data.network_params.cartes_bancaires.cb_score",
+    ))?;
+    if !(0..=99).contains(&score) {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.network_params.cartes_bancaires.cb_score",
+            context: utils::integration_ctx(
+                "The issuer risk score must be between 0 and 99",
+                "Supply the issuer score from the authentication result",
+            ),
+        }
+        .into());
+    }
+    let method = match proof
+        .authentication_type
+        .as_ref()
+        .ok_or_else(missing_field_err("authentication_data.authentication_type"))?
+    {
+        common_enums::DecoupledAuthenticationType::Challenge => "CHALLENGED",
+        common_enums::DecoupledAuthenticationType::Frictionless => "FRICTIONLESS",
+    };
+    let preference = details
+        .requested_challenge_preference
+        .ok_or_else(missing_field_err(
+            "additional_connector_details.jpmorgan.requested_challenge_preference",
+        ))?;
+    Ok(requests::JpmorganCartesBancairesAuthentication {
+        version2: requests::JpmorganThreeDsVersion2 {
+            transaction_status: status,
+            transaction_status_reason: reason.cloned(),
+        },
+        authentication_value_calculation_method: proof.get_cavv_algorithm().ok_or_else(
+            missing_field_err("authentication_data.network_params.cartes_bancaires.cavv_algorithm"),
+        )?,
+        challenge_preference: challenge_preference(preference)?.as_str_name(),
+        issuer_assigned_authentication_exemption_encoded: params.cb_exemption.clone(),
+        three_domain_secure_authentication_method_code: method,
+        issuer_assigned_authentication_fraud_score: score.to_string(),
+    })
 }
 
 impl TryFrom<&domain_types::payment_address::PhoneDetails> for requests::JpmorganPhone {
@@ -1236,14 +1504,8 @@ fn apply_three_ds_authentication<T: PaymentMethodDataTypes>(
     card: &mut requests::JpmorganCard<T>,
     proof: &domain_types::router_request_types::AuthenticationData,
     network: Option<CardNetwork>,
+    details: Option<&grpc_api_types::payments::JpmorganAdditionalInformation>,
 ) -> Result<(), Error> {
-    if network == Some(CardNetwork::CartesBancaires) {
-        return Err(IntegrationError::NotImplemented(
-            "JPMorgan paymentMethodType.card.authentication.threeDS.threeDSChallengeType".to_owned(),
-            utils::integration_ctx("Cartes Bancaires requires the requested challenge preference; authentication_data.challenge_code identifies an ACS challenge instead", "Use an integration that supplies the requested challenge preference without inferring it from the result"),
-        )
-        .into());
-    }
     let cavv = proof
         .cavv
         .clone()
@@ -1297,11 +1559,16 @@ fn apply_three_ds_authentication<T: PaymentMethodDataTypes>(
         }
         .into());
     }
-    // JPMorgan requires Visa XID or the Mastercard directory server ID.
+    // JPMorgan requires Visa XID or the Mastercard/CB directory server ID.
     let transaction_id = proof.ds_trans_id.clone().filter(|id| !id.trim().is_empty());
     if matches!(
         network,
-        Some(CardNetwork::Visa | CardNetwork::Mastercard | CardNetwork::Maestro)
+        Some(
+            CardNetwork::Visa
+                | CardNetwork::Mastercard
+                | CardNetwork::Maestro
+                | CardNetwork::CartesBancaires
+        )
     ) && transaction_id.is_none()
     {
         return Err(domain_types::utils::missing_field_err(
@@ -1311,7 +1578,7 @@ fn apply_three_ds_authentication<T: PaymentMethodDataTypes>(
     let version = proof.message_version.as_ref().map(ToString::to_string);
     if matches!(
         network,
-        Some(CardNetwork::Mastercard | CardNetwork::Maestro)
+        Some(CardNetwork::Mastercard | CardNetwork::Maestro | CardNetwork::CartesBancaires)
     ) && version.is_none()
     {
         return Err(domain_types::utils::missing_field_err(
@@ -1322,6 +1589,7 @@ fn apply_three_ds_authentication<T: PaymentMethodDataTypes>(
         .authentication
         .get_or_insert(requests::JpmorganAuthentication {
             three_ds: None,
+            initial_three_ds: None,
             token_authentication_value: None,
             electronic_commerce_indicator: None,
         });
@@ -1329,6 +1597,11 @@ fn apply_three_ds_authentication<T: PaymentMethodDataTypes>(
         authentication_value: cavv,
         authentication_transaction_id: transaction_id,
         three_ds_program_protocol: version,
+        cartes_bancaires: if network == Some(CardNetwork::CartesBancaires) {
+            Some(cartes_bancaires_authentication(proof, details)?)
+        } else {
+            None
+        },
     });
     authentication.electronic_commerce_indicator = Some(eci);
     Ok(())
@@ -1746,6 +2019,27 @@ fn finish_authentication(
     http_code: u16,
 ) -> Result<(), ResponseError> {
     context.continue_three_ds = false;
+    if context.original_network_transaction_id.is_none() {
+        if let (Some(original), Some(completion)) = (
+            context.original_three_ds.as_mut(),
+            authentication.and_then(|result| result.three_domain_secure_completion.as_ref()),
+        ) {
+            merge_original_three_ds(
+                original,
+                &grpc_api_types::payments::JpmorganOriginalThreeDs {
+                    program_protocol: completion.three_ds_version.clone(),
+                    directory_server_transaction_id: completion
+                        .directory_server_transaction_id
+                        .clone(),
+                    issuer_fraud_score: completion
+                        .issuer_assigned_authentication_fraud_score
+                        .clone(),
+                    ..Default::default()
+                },
+            )
+            .change_context(ConnectorError::response_handling_failed(http_code))?;
+        }
+    }
     if status != AttemptStatus::AuthenticationPending {
         if matches!(status, AttemptStatus::Authorized | AttemptStatus::Charged) {
             return attach_original_context(response, context, http_code);
@@ -1923,7 +2217,12 @@ fn attach_original_context(
             .change_context(ConnectorError::response_handling_failed(http_code))?;
         let metadata = serde_json::json!({ "jpmorgan": metadata });
         *connector_metadata = Some(metadata.clone());
-        if network_txn_id.is_some() {
+        // A successful payment can return partial evidence without establishing a reusable mandate.
+        let has_original_evidence = context
+            .original_three_ds
+            .as_ref()
+            .is_none_or(|original| requests::JpmorganOriginalThreeDs::try_from(original).is_ok());
+        if network_txn_id.is_some() && has_original_evidence {
             // Reusable credential state must not carry an attempt's redirect resource.
             context.three_ds_resource = None;
             context.native_capture_method = None;
@@ -1934,6 +2233,8 @@ fn attach_original_context(
                 connector_mandate_request_reference_id: None,
                 mandate_metadata: Some(Secret::new(serde_json::json!({"jpmorgan": context}))),
             }));
+        } else {
+            *mandate_reference = None;
         }
     }
     Ok(())
@@ -2029,6 +2330,17 @@ impl<T: PaymentMethodDataTypes, F>
                     .connector_request_reference_id,
             )
             .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+            if payment_network(&request.payment_method_data) == Some(CardNetwork::CartesBancaires) {
+                collect_original_three_ds(
+                    &mut context,
+                    request.authentication_data.as_ref(),
+                    request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| details.jpmorgan.as_ref()),
+                )
+                .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+            }
             if request.redirect_response.is_none() && !context.continue_three_ds {
                 context.three_ds_resource = None;
                 context.native_capture_method = None;
@@ -2139,6 +2451,20 @@ impl<T: PaymentMethodDataTypes, F>
             responses::JpmorganAuthorizeResponse::Verification(response)
                 if expected == requests::JpmorganResourceKind::Verification =>
             {
+                let request = &item.router_data.request;
+                if payment_network(&request.payment_method_data)
+                    == Some(CardNetwork::CartesBancaires)
+                {
+                    collect_original_three_ds(
+                        &mut context,
+                        request.authentication_data.as_ref(),
+                        request
+                            .additional_connector_details
+                            .as_ref()
+                            .and_then(|details| details.jpmorgan.as_ref()),
+                    )
+                    .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+                }
                 let (status, mut result) = verification_response(&response, item.http_code);
                 finish_authentication(
                     &mut result,
@@ -2588,9 +2914,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &mut card,
                 proof,
                 payment_network(&request.payment_method_data),
+                request
+                    .additional_connector_details
+                    .as_ref()
+                    .and_then(|details| details.jpmorgan.as_ref()),
             )?;
         }
-        let context = cit_context(
+        let mut context = cit_context(
             None,
             request.metadata.as_ref(),
             request.mit_category.as_ref(),
@@ -2600,19 +2930,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id,
         )?;
         validate_recurring_context(&context, payment_network(&request.payment_method_data))?;
+        if payment_network(&request.payment_method_data) == Some(CardNetwork::CartesBancaires) {
+            collect_original_three_ds(
+                &mut context,
+                request.authentication_data.as_ref(),
+                request
+                    .additional_connector_details
+                    .as_ref()
+                    .and_then(|details| details.jpmorgan.as_ref()),
+            )?;
+        }
         let (browser_info, account_holder) = if router_data.resource_common_data.auth_type
             == common_enums::AuthenticationType::ThreeDs
             && request.authentication_data.is_none()
         {
-            let (authentication, browser, holder) = native_three_ds(
+            let (mut authentication, browser, holder) = native_three_ds(
                 &router_data.resource_common_data,
                 request.browser_info.as_ref(),
                 request.complete_authorize_url.as_deref(),
                 request.email.as_ref(),
-                payment_network(&request.payment_method_data),
                 requests::JpmorganAuthenticationPurpose::AddCard,
                 requests::JpmorganThreeDsTransactionType::Check,
             )?;
+            if payment_network(&request.payment_method_data) == Some(CardNetwork::CartesBancaires) {
+                apply_cartes_bancaires_native(
+                    &mut authentication,
+                    &router_data.resource_common_data,
+                    request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| details.jpmorgan.as_ref()),
+                    true,
+                )?;
+            }
             card.verification_authentication_request = Some(authentication);
             (Some(browser), Some(holder))
         } else {
@@ -2667,6 +3017,17 @@ impl<T: PaymentMethodDataTypes>
                     .connector_request_reference_id,
             )
             .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+            if payment_network(&request.payment_method_data) == Some(CardNetwork::CartesBancaires) {
+                collect_original_three_ds(
+                    &mut context,
+                    request.authentication_data.as_ref(),
+                    request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| details.jpmorgan.as_ref()),
+                )
+                .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+            }
             if let PaymentMethodData::Wallet(wallet) = &request.payment_method_data {
                 let card = decrypted_wallet_card::<T>(wallet)
                     .change_context(ConnectorError::response_handling_failed(item.http_code))?;
@@ -2691,6 +3052,307 @@ impl<T: PaymentMethodDataTypes>
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
+        })
+    }
+}
+
+fn preserve_original_field<T: Clone + PartialEq>(
+    original: &mut Option<T>,
+    supplied: Option<&T>,
+    field_name: &'static str,
+) -> Result<(), Error> {
+    if let Some(supplied) = supplied {
+        if original
+            .as_ref()
+            .is_some_and(|original| original != supplied)
+        {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: utils::integration_ctx(
+                    "The supplied evidence conflicts with the original authentication",
+                    "Reuse the original authentication evidence without changing its values",
+                ),
+            }
+            .into());
+        }
+        if original.is_none() {
+            *original = Some(supplied.clone());
+        }
+    }
+    Ok(())
+}
+
+fn merge_original_three_ds(
+    original: &mut grpc_api_types::payments::JpmorganOriginalThreeDs,
+    supplied: &grpc_api_types::payments::JpmorganOriginalThreeDs,
+) -> Result<(), Error> {
+    validate_original_three_ds(original)?;
+    validate_original_three_ds(supplied)?;
+    let same_timestamp = original
+        .authentication_timestamp
+        .as_ref()
+        .zip(supplied.authentication_timestamp.as_ref())
+        .is_some_and(|(original, supplied)| {
+            let format = &time::format_description::well_known::Rfc3339;
+            time::OffsetDateTime::parse(original, format)
+                == time::OffsetDateTime::parse(supplied, format)
+        });
+    let same_score = original
+        .issuer_fraud_score
+        .as_ref()
+        .zip(supplied.issuer_fraud_score.as_ref())
+        .is_some_and(|(original, supplied)| original.parse::<u8>() == supplied.parse::<u8>());
+    preserve_original_field(
+        &mut original.program_protocol,
+        supplied.program_protocol.as_ref(),
+        "jpmorgan.original_three_ds.program_protocol",
+    )?;
+    if !same_timestamp {
+        preserve_original_field(
+            &mut original.authentication_timestamp,
+            supplied.authentication_timestamp.as_ref(),
+            "jpmorgan.original_three_ds.authentication_timestamp",
+        )?;
+    }
+    preserve_original_field(
+        &mut original.authentication_amount,
+        supplied.authentication_amount.as_ref(),
+        "jpmorgan.original_three_ds.authentication_amount",
+    )?;
+    preserve_original_field(
+        &mut original.directory_server_transaction_id,
+        supplied.directory_server_transaction_id.as_ref(),
+        "jpmorgan.original_three_ds.directory_server_transaction_id",
+    )?;
+    preserve_original_field(
+        &mut original.authentication_method,
+        supplied.authentication_method.as_ref(),
+        "jpmorgan.original_three_ds.authentication_method",
+    )?;
+    preserve_original_field(
+        &mut original.requested_challenge_preference,
+        supplied.requested_challenge_preference.as_ref(),
+        "jpmorgan.original_three_ds.requested_challenge_preference",
+    )?;
+    if !same_score {
+        preserve_original_field(
+            &mut original.issuer_fraud_score,
+            supplied.issuer_fraud_score.as_ref(),
+            "jpmorgan.original_three_ds.issuer_fraud_score",
+        )?;
+    }
+    Ok(())
+}
+
+fn original_authentication_method(value: i32) -> Result<&'static str, Error> {
+    use grpc_api_types::payments::DecoupledAuthenticationType;
+    match DecoupledAuthenticationType::try_from(value) {
+        Ok(DecoupledAuthenticationType::Challenge) => Ok("CHALLENGED"),
+        Ok(DecoupledAuthenticationType::Frictionless) => Ok("FRICTIONLESS"),
+        Ok(DecoupledAuthenticationType::Unspecified) | Err(_) => {
+            Err(IntegrationError::InvalidDataFormat {
+                field_name: "jpmorgan.original_three_ds.authentication_method",
+                context: utils::integration_ctx(
+                    "The original performed authentication method is unknown",
+                    "Supply CHALLENGE or FRICTIONLESS from the original authentication result",
+                ),
+            }
+            .into())
+        }
+    }
+}
+
+fn validate_original_three_ds(
+    original: &grpc_api_types::payments::JpmorganOriginalThreeDs,
+) -> Result<(), Error> {
+    if let Some(amount) = &original.authentication_amount {
+        use domain_types::utils::ForeignTryFrom;
+
+        let currency = grpc_api_types::payments::Currency::try_from(amount.currency)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "jpmorgan.original_three_ds.authentication_amount.currency",
+                context: utils::integration_ctx(
+                    "The original authentication currency is unknown",
+                    "Supply the currency of the original authenticated amount",
+                ),
+            })?;
+        common_enums::Currency::foreign_try_from(currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "jpmorgan.original_three_ds.authentication_amount.currency",
+                context: utils::integration_ctx(
+                    "The original authentication currency is missing or unsupported",
+                    "Supply the currency of the original authenticated amount",
+                ),
+            },
+        )?;
+    }
+    if let Some(timestamp) = &original.authentication_timestamp {
+        time::OffsetDateTime::parse(timestamp, &time::format_description::well_known::Rfc3339)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "jpmorgan.original_three_ds.authentication_timestamp",
+                context: utils::integration_ctx(
+                    "The authentication timestamp is not RFC3339",
+                    "Supply the actual original authentication time with its UTC offset",
+                ),
+            })?;
+    }
+    if let Some(score) = &original.issuer_fraud_score {
+        if score.parse::<u8>().ok().is_none_or(|score| score > 99) {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "jpmorgan.original_three_ds.issuer_fraud_score",
+                context: utils::integration_ctx(
+                    "The original issuer fraud score must be between 0 and 99",
+                    "Supply the score from the original authentication result",
+                ),
+            }
+            .into());
+        }
+    }
+    if original
+        .program_protocol
+        .as_ref()
+        .is_some_and(|value| value.is_empty() || value.len() > 20)
+    {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "jpmorgan.original_three_ds.program_protocol",
+            context: utils::integration_ctx(
+                "The original protocol version must contain one to twenty characters",
+                "Supply the original 3DS protocol version",
+            ),
+        }
+        .into());
+    }
+    if original
+        .directory_server_transaction_id
+        .as_ref()
+        .is_some_and(|id| id.trim().is_empty())
+    {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "jpmorgan.original_three_ds.directory_server_transaction_id",
+            context: utils::integration_ctx(
+                "The original directory server transaction identifier is empty",
+                "Supply the original directory server transaction identifier",
+            ),
+        }
+        .into());
+    }
+    original
+        .authentication_method
+        .map(original_authentication_method)
+        .transpose()?;
+    original
+        .requested_challenge_preference
+        .map(challenge_preference)
+        .transpose()?;
+    Ok(())
+}
+
+fn collect_original_three_ds(
+    context: &mut requests::JpmorganContext,
+    proof: Option<&domain_types::router_request_types::AuthenticationData>,
+    details: Option<&grpc_api_types::payments::JpmorganAdditionalInformation>,
+) -> Result<(), Error> {
+    let original = context
+        .original_three_ds
+        .get_or_insert_with(Default::default);
+    if let Some(supplied) = details.and_then(|details| details.original_three_ds.as_ref()) {
+        merge_original_three_ds(original, supplied)?;
+    }
+    let mut supplied = grpc_api_types::payments::JpmorganOriginalThreeDs {
+        requested_challenge_preference: details
+            .and_then(|details| details.requested_challenge_preference),
+        ..Default::default()
+    };
+    if let Some(proof) = proof {
+        supplied.program_protocol = proof.message_version.as_ref().map(ToString::to_string);
+        supplied.directory_server_transaction_id = proof.ds_trans_id.clone();
+        supplied.authentication_timestamp = proof
+            .created_at
+            .map(|time| {
+                time.assume_utc()
+                    .format(&time::format_description::well_known::Rfc3339)
+            })
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.created_at",
+                context: utils::integration_ctx(
+                    "The authentication timestamp cannot be formatted as RFC3339",
+                    "Supply the actual authentication timestamp",
+                ),
+            })?;
+        supplied.authentication_method =
+            proof
+                .authentication_type
+                .as_ref()
+                .map(|method| match method {
+                    common_enums::DecoupledAuthenticationType::Challenge => {
+                        grpc_api_types::payments::DecoupledAuthenticationType::Challenge.into()
+                    }
+                    common_enums::DecoupledAuthenticationType::Frictionless => {
+                        grpc_api_types::payments::DecoupledAuthenticationType::Frictionless.into()
+                    }
+                });
+        supplied.issuer_fraud_score = proof
+            .network_params
+            .as_ref()
+            .and_then(|params| params.cartes_bancaires.as_ref())
+            .and_then(|params| params.cb_score)
+            .map(|score| score.to_string());
+    }
+    merge_original_three_ds(original, &supplied)
+}
+
+impl TryFrom<&grpc_api_types::payments::JpmorganOriginalThreeDs>
+    for requests::JpmorganOriginalThreeDs
+{
+    type Error = Error;
+
+    fn try_from(
+        original: &grpc_api_types::payments::JpmorganOriginalThreeDs,
+    ) -> Result<Self, Self::Error> {
+        use domain_types::utils::missing_field_err;
+        validate_original_three_ds(original)?;
+        Ok(Self {
+            program_protocol: original
+                .program_protocol
+                .clone()
+                .ok_or_else(missing_field_err(
+                    "jpmorgan.original_three_ds.program_protocol",
+                ))?,
+            authentication_timestamp: original.authentication_timestamp.clone().ok_or_else(
+                missing_field_err("jpmorgan.original_three_ds.authentication_timestamp"),
+            )?,
+            authentication_amount: original
+                .authentication_amount
+                .as_ref()
+                .ok_or_else(missing_field_err(
+                    "jpmorgan.original_three_ds.authentication_amount",
+                ))?
+                .minor_amount,
+            directory_server_transaction_id: original
+                .directory_server_transaction_id
+                .clone()
+                .ok_or_else(missing_field_err(
+                    "jpmorgan.original_three_ds.directory_server_transaction_id",
+                ))?,
+            authentication_method: original_authentication_method(
+                original
+                    .authentication_method
+                    .ok_or_else(missing_field_err(
+                        "jpmorgan.original_three_ds.authentication_method",
+                    ))?,
+            )?,
+            requested_challenge_preference: challenge_preference(
+                original
+                    .requested_challenge_preference
+                    .ok_or_else(missing_field_err(
+                        "jpmorgan.original_three_ds.requested_challenge_preference",
+                    ))?,
+            )?
+            .as_str_name(),
+            issuer_fraud_score: original.issuer_fraud_score.clone().ok_or_else(
+                missing_field_err("jpmorgan.original_three_ds.issuer_fraud_score"),
+            )?,
         })
     }
 }
@@ -2771,7 +3433,7 @@ fn repeat_context<T: PaymentMethodDataTypes>(
         .original_transaction_link_id
         .as_ref()
         .is_some_and(|id| {
-            id.len() != 22
+            id.len() != MASTERCARD_TLID_LENGTH
                 || !id
                     .bytes()
                     .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
@@ -2819,6 +3481,16 @@ fn repeat_context<T: PaymentMethodDataTypes>(
             context: utils::integration_ctx("Mastercard merchant-initiated payments require the original transaction link identifier", "Supply the transaction link identifier returned for the original transaction"),
         }
         .into());
+    }
+    if network == Some(CardNetwork::CartesBancaires) {
+        collect_original_three_ds(
+            &mut context,
+            None,
+            request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.jpmorgan.as_ref()),
+        )?;
     }
     validate_recurring_context(&context, network)?;
     Ok(context)
@@ -3014,7 +3686,19 @@ fn mit_card<T: PaymentMethodDataTypes>(
         account_number_type: Some(kind),
         wallet_provider: provider,
         // Do not replay a CIT cryptogram or pass-through proof on an MIT.
-        authentication: None,
+        authentication: if payment_network(payment_method) == Some(CardNetwork::CartesBancaires) {
+            let original = context.original_three_ds.as_ref().ok_or_else(
+                domain_types::utils::missing_field_err("jpmorgan.original_three_ds"),
+            )?;
+            Some(requests::JpmorganAuthentication {
+                three_ds: None,
+                initial_three_ds: Some(requests::JpmorganOriginalThreeDs::try_from(original)?),
+                token_authentication_value: None,
+                electronic_commerce_indicator: None,
+            })
+        } else {
+            None
+        },
         original_network_transaction_id: context.original_network_transaction_id.clone(),
         original_transaction_link_id: context.original_transaction_link_id.clone(),
         payment_authentication_request: None,
