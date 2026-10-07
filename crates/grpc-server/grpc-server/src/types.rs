@@ -127,7 +127,12 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransac
                 .ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name,
-                        context: Default::default(),
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some(format!(
+                                "{field_name} is required for a vault-aliased card MIT with a network transaction id"
+                            )),
+                            ..Default::default()
+                        },
                     })
                 })
         };

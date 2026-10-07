@@ -3561,10 +3561,17 @@ impl PaymentMethodDataAction {
                     Default::default()
                 )))
             }
+            // There is no FFI proxy charge (only `proxy_authorize` / `proxy_setup_recurring`), so
+            // alias + NTI is served by the gRPC repeat-payment flow alone.
             PaymentMethodDataAction::CardProxyForNti(_) => {
                 Err(report!(IntegrationError::NotImplemented(
-                    ("CardProxyForNti not supported in this flow; use the proxy endpoint").into(),
-                    Default::default()
+                    ("CardProxyForNti not supported in this flow").into(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send a vault-aliased card with a network transaction id through the gRPC RecurringPaymentService.Charge RPC".to_string(),
+                        ),
+                        ..Default::default()
+                    }
                 )))
             }
         }

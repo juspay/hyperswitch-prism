@@ -3662,6 +3662,30 @@ impl RecurringPaymentService for RecurringPayments {
                         // proxy. Mirrors the PAN + NTI path, which pairs its mandate reference
                         // with `CardDetailsForNetworkTransactionId`.
                         Some(PaymentMethodDataAction::CardProxyForNti(proxy_card_details)) => {
+                            // Without the vault metadata the injector falls back to the generic
+                            // proxy and the alias reaches the connector unsubstituted, so this
+                            // shape is only valid alongside it.
+                            let has_vault_metadata = ctx
+                                .payment_flow_data
+                                .vault_headers
+                                .as_ref()
+                                .is_some_and(|headers| {
+                                    headers.contains_key(common_utils::consts::X_EXTERNAL_VAULT_METADATA)
+                                });
+                            if !has_vault_metadata {
+                                return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                    IntegrationError::MissingRequiredField {
+                                        field_name: common_utils::consts::X_EXTERNAL_VAULT_METADATA,
+                                        context: domain_types::errors::IntegrationErrorContext {
+                                            suggested_action: Some(
+                                                "Send the external vault proxy configuration in the x-external-vault-metadata header; a vault-aliased card cannot be substituted without it".to_string(),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    },
+                                )));
+                            }
+
                             tracing::info!("PAYMENT_CHARGE_FLOW: INJECTOR: processing vault-aliased card + NTI through injector");
 
                             let token_data = <crate::types::InjectorTokenData as ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>>::foreign_try_from(&proxy_card_details)
@@ -3746,10 +3770,12 @@ impl RecurringPaymentService for RecurringPayments {
                         }
 
                         Some(PaymentMethodDataAction::Default) => {
-                            let payment_method = payload.payment_method.clone().ok_or_else(|| {
-                                ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                            })?;
-                            let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payment_method)
+                            // `Default` is only derived from a present `payment_method`.
+                            let payment_method_data = payload
+                                .payment_method
+                                .clone()
+                                .map(payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods)
+                                .transpose()
                                 .map_err(|err| {
                                     tracing::error!("Failed to convert payment method data: {:?}", err);
                                     invalid_payment_method(&err)
@@ -3757,7 +3783,7 @@ impl RecurringPaymentService for RecurringPayments {
                             run_repeat_payment_holder_flow::<DefaultPCIHolder>(
                                 ctx,
                                 payload.clone(),
-                                Some(payment_method_data),
+                                payment_method_data,
                                 None,
                             )
                             .await?
