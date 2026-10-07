@@ -8,6 +8,28 @@
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",
     "RefundService/Get",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
+  "suite_dependencies": {
+    "PaymentService/Capture": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      "PaymentMethodService/Tokenize",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_manual_capture_credit_card",
+        "context_map": {
+          "amount_to_capture.currency": "req.amount.currency"
+        }
+      }
+    ]
+  }
 }

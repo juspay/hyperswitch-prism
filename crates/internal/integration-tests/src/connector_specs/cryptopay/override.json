@@ -1,1 +1,92 @@
-{}
+{
+  "PaymentService/Get": {
+    "sync_payment": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-cryptopay-signature": "e215b2446c846e5d3a6101339d7f068da0d1531669983b083d1a578c385e0ba2"
+          },
+          "body": "eyJkYXRhIjp7ImN1c3RvbV9pZCI6InJlZ3Jlc3Npb25fb3JkZXJfMDAxIiwiaWQiOiJyZWdyZXNzaW9uX2ludm9pY2VfMDAxIiwibmFtZSI6InJlZ3Jlc3Npb25faW52b2ljZSIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QiLCJzdGF0dXMiOiJjb21wbGV0ZWQifSwiZXZlbnQiOiJzdGF0dXNfY2hhbmdlZCIsInR5cGUiOiJJbnZvaWNlIn0="
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate"
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "payment_failed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-cryptopay-signature": "fab5bf8a721cc5e68e579a2838877fd87528df5e7bafc11414a0512d2f83206f"
+          },
+          "body": "eyJkYXRhIjp7ImN1c3RvbV9pZCI6InJlZ3Jlc3Npb25fb3JkZXJfMDAxIiwiaWQiOiJyZWdyZXNzaW9uX2ludm9pY2VfMDAxIiwibmFtZSI6InJlZ3Jlc3Npb25faW52b2ljZSIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QiLCJzdGF0dXMiOiJjYW5jZWxsZWQifSwiZXZlbnQiOiJzdGF0dXNfY2hhbmdlZCIsInR5cGUiOiJJbnZvaWNlIn0="
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate"
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "invalid_signature": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-cryptopay-signature": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "body": "eyJkYXRhIjp7ImN1c3RvbV9pZCI6InJlZ3Jlc3Npb25fb3JkZXJfMDAxIiwiaWQiOiJyZWdyZXNzaW9uX2ludm9pY2VfMDAxIiwibmFtZSI6InJlZ3Jlc3Npb25faW52b2ljZSIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QiLCJzdGF0dXMiOiJjb21wbGV0ZWQifSwiZXZlbnQiOiJzdGF0dXNfY2hhbmdlZCIsInR5cGUiOiJJbnZvaWNlIn0="
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate"
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    }
+  }
+}

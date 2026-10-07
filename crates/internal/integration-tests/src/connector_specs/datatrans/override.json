@@ -2,7 +2,7 @@
   "PaymentService/Authorize": {
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_auto_cr_001",
+        "merchant_transaction_id": "auto_generate",
         "payment_method": {
           "card": {
             "card_number": {
@@ -23,7 +23,7 @@
     },
     "no3ds_auto_capture_debit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_auto_db_001",
+        "merchant_transaction_id": "auto_generate",
         "payment_method": {
           "card": {
             "card_number": {
@@ -44,7 +44,7 @@
     },
     "no3ds_fail_payment": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_fail_001",
+        "merchant_transaction_id": "auto_generate",
         "amount": {
           "minor_amount": 9500,
           "currency": "USD"
@@ -69,7 +69,7 @@
     },
     "no3ds_manual_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_manual_cr_001",
+        "merchant_transaction_id": "auto_generate",
         "payment_method": {
           "card": {
             "card_number": {
@@ -90,7 +90,7 @@
     },
     "no3ds_manual_capture_debit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_manual_db_001",
+        "merchant_transaction_id": "auto_generate",
         "payment_method": {
           "card": {
             "card_number": {
@@ -111,11 +111,31 @@
     },
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "dt_3ds_cr_001",
+        "merchant_transaction_id": "auto_generate",
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
             },
             "card_exp_month": {
               "value": "06"
@@ -134,51 +154,235 @@
   "PaymentService/Capture": {
     "capture_full_amount": {
       "grpc_req": {
-        "merchant_capture_id": "dt_cap_full_001"
+        "merchant_capture_id": "auto_generate"
       }
     },
     "capture_partial_amount": {
       "grpc_req": {
-        "merchant_capture_id": "dt_cap_part_001"
+        "merchant_capture_id": "auto_generate"
       }
     },
     "capture_with_merchant_order_id": {
       "grpc_req": {
-        "merchant_capture_id": "dt_cap_moi_001"
+        "merchant_capture_id": "auto_generate"
       }
     }
   },
   "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
-        "merchant_void_id": "dt_void_001"
+        "merchant_void_id": "auto_generate"
       }
     },
     "void_with_amount": {
       "grpc_req": {
-        "merchant_void_id": "dt_void_amt_001"
+        "merchant_void_id": "auto_generate"
       }
     },
     "void_without_cancellation_reason": {
       "grpc_req": {
-        "merchant_void_id": "dt_void_nc_001"
+        "merchant_void_id": "auto_generate"
       }
     }
   },
   "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
-        "merchant_refund_id": "dt_ref_full_001"
+        "merchant_refund_id": "auto_generate"
       }
     },
     "refund_partial_amount": {
       "grpc_req": {
-        "merchant_refund_id": "dt_ref_part_001"
+        "merchant_refund_id": "auto_generate"
       }
     },
     "refund_with_reason": {
       "grpc_req": {
-        "merchant_refund_id": "dt_ref_rsn_001"
+        "merchant_refund_id": "auto_generate"
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodService/Tokenize": {
+    "tokenize_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4444090101010103"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_with_metadata": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_fail_invalid_card_number": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_fail_expired_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
       }
     }
   }

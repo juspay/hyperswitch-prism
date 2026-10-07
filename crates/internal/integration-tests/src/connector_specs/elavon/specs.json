@@ -7,5 +7,34 @@
     "RefundService/Get",
     "PaymentService/Get",
     "RecurringPaymentService/Charge"
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "suite_dependencies": {
+    "RecurringPaymentService/Charge": [
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "elavon_sale_with_token",
+        "context_map": {
+          "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id",
+          "customer.id": "req.customer.id"
+        }
+      }
+    ],
+    "PaymentService/Capture": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      "PaymentMethodService/Tokenize",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_manual_capture_credit_card",
+        "context_map": {
+          "amount_to_capture.currency": "req.amount.currency"
+        }
+      }
+    ]
+  },
+  "supported_payment_methods": [
+    "card"
   ]
 }

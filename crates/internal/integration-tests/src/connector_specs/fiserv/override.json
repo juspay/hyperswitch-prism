@@ -1,129 +1,102 @@
 {
   "PaymentService/Authorize": {
-    "no3ds_auto_capture_ach_bank_transfer": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_affirm": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_afterpay_clearpay": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_alipay": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_bacs_bank_transfer": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_bancontact": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_eps": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_giropay": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_ideal": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_klarna": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_przelewy24": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "no3ds_auto_capture_sepa_bank_transfer": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not" }
-      }
-    },
-    "threeds_manual_capture_credit_card": {
-      "assert": {
-        "status": { "one_of": ["FAILURE"] },
-        "connector_transaction_id": null,
-        "error": { "must_exist": true },
-        "error.connector_details.message": { "contains": "not supported" }
-      }
-    }
-  },
-  "PaymentService/Capture": {
-    "capture_full_amount": {
+    "no3ds_auto_capture_credit_card": {
       "grpc_req": {
-        "connector_feature_data": {
-          "value": "{\"terminal_id\":\"10000001\"}"
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4005550000000019"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
         }
       }
     },
-    "capture_partial_amount": {
+    "no3ds_auto_capture_debit_card": {
       "grpc_req": {
-        "connector_feature_data": {
-          "value": "{\"terminal_id\":\"10000001\"}"
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4005550000000019"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
         }
       }
     },
-    "capture_with_merchant_order_id": {
+    "no3ds_manual_capture_credit_card": {
       "grpc_req": {
-        "connector_feature_data": {
-          "value": "{\"terminal_id\":\"10000001\"}"
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4005550000000019"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4005550000000019"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4005550000000019"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
         }
       }
     }

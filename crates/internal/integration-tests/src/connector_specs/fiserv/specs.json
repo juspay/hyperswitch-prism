@@ -14,7 +14,23 @@
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "fiserv returns NOT_IMPLEMENTED for Cards 3DS",
-      "no3ds_fail_payment": "fiserv cert approves card 4000000000000002 (HTTP 201, CAPTURED) — no decline trigger available"
+      "no3ds_fail_payment": "fiserv cert approves card 4000000000000002 (HTTP 201, CAPTURED) \u2014 no decline trigger available"
     }
+  },
+  "request_id_source_field": "merchant_transaction_id",
+  "suite_dependencies": {
+    "PaymentService/Capture": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      "PaymentMethodService/Tokenize",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_manual_capture_credit_card",
+        "context_map": {
+          "amount_to_capture.currency": "req.amount.currency"
+        }
+      }
+    ]
   }
 }

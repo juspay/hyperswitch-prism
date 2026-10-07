@@ -2,6 +2,30 @@
   "connector": "cryptopay",
   "supported_suites": [
     "PaymentService/Authorize",
-    "PaymentService/Get"
-  ]
+    "PaymentService/Get",
+    "EventService/HandleEvent"
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "suite_dependencies": {
+    "PaymentService/Get": [
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "cryptopay_invoice",
+        "context_map": {
+          "connector_transaction_id": "res.connector_transaction_id",
+          "merchant_transaction_id": "req.merchant_transaction_id",
+          "amount.minor_amount": "req.amount.minor_amount",
+          "amount.currency": "req.amount.currency"
+        }
+      }
+    ]
+  },
+  "supported_payment_methods": [
+    "crypto"
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "refund_succeeded": "Cryptopay has no refund API or refund-success webhook event mapping."
+    }
+  }
 }

@@ -130,6 +130,65 @@ pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
         .map_err(|source| ScenarioError::SuiteSpecParse { path, source })
 }
 
+/// Loads a scenario from the combined global and connector-private definitions.
+/// Merging retains the additive-only collision checks for every execution path.
+pub fn load_scenario_for_connector(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    let mut scenarios = load_suite_scenarios(suite)?;
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+    scenarios
+        .remove(scenario)
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })
+}
+
+/// Resolves a connector's prerequisite chain without changing dispatch or scope.
+pub fn load_suite_spec_for_connector(
+    suite: &str,
+    connector: &str,
+) -> Result<SuiteSpec, ScenarioError> {
+    let mut suite_spec = load_suite_spec(suite)?;
+    let path = connector_spec_file_path(connector);
+    if path.exists() {
+        let content =
+            fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+                path: path.clone(),
+                source,
+            })?;
+        let spec: ConnectorSuiteSpec =
+            serde_json::from_str(&content).map_err(|source| ScenarioError::ConnectorSpecParse {
+                path: path.clone(),
+                source,
+            })?;
+        for configured_suite in spec.suite_dependencies.keys() {
+            if !spec.supported_suites.contains(configured_suite) {
+                return Err(ScenarioError::InvalidConnectorSpec {
+                    path: path.clone(),
+                    message: format!(
+                        "suite_dependencies references unsupported suite {configured_suite}"
+                    ),
+                });
+            }
+            load_suite_spec(configured_suite)?;
+        }
+        if let Some(dependencies) = spec.suite_dependencies.get(suite) {
+            for dependency in dependencies {
+                load_suite_spec(dependency.suite())?;
+                if let Some(scenario) = dependency.scenario() {
+                    load_scenario_for_connector(dependency.suite(), scenario, connector)?;
+                }
+            }
+            suite_spec.depends_on = dependencies.clone();
+        }
+    }
+    Ok(suite_spec)
+}
+
 /// Loads optional connector-specific browser automation hooks.
 ///
 /// Returns `None` when the spec file does not exist or cannot be read/parsed.
@@ -359,9 +418,12 @@ pub fn scenario_unsupported_reason(
 
 /// The `payment_method` oneof variant a scenario populates, if it names one.
 ///
-/// Scenarios that name none act on a payment their dependency already made and
-/// inherit its method, so they are never filtered.
+/// Dependent scenarios may declare `required_payment_method` without inserting
+/// an unsupported field into their RPC request. Untagged dependent cases run for all methods.
 pub fn scenario_payment_method(scenario: &ScenarioDef) -> Option<String> {
+    if let Some(method) = scenario.required_payment_method.as_ref() {
+        return Some(method.clone());
+    }
     scenario
         .grpc_req
         .get("payment_method")?
@@ -624,7 +686,24 @@ mod tests {
             assert_rules: std::collections::BTreeMap::new(),
             is_default: false,
             display_name: None,
+            required_payment_method: None,
         }
+    }
+
+    #[test]
+    fn method_specific_sync_scenarios_are_filtered_without_changing_the_rpc_request() {
+        let mut sync = def(serde_json::json!({"connector_transaction_id": "auto_generate"}));
+        sync.required_payment_method = Some("upi_collect".to_string());
+        assert!(!scenario_matches_supported_payment_methods(
+            &sync,
+            &["card".to_string()]
+        ));
+        assert!(scenario_matches_supported_payment_methods(
+            &sync,
+            &["upi_collect".to_string()]
+        ));
+        assert!(scenario_matches_supported_payment_methods(&sync, &[]));
+        assert!(sync.grpc_req.get("payment_method").is_none());
     }
 
     #[test]
