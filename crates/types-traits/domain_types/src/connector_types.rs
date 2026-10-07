@@ -883,31 +883,6 @@ impl PaymentFlowData {
         self.status = status;
     }
 
-    /// Set `status` for a specific flow, validating at runtime that the status is in
-    /// the flow's `ALLOWED` set.  Prefer this over `set_status` in connector response
-    /// handlers — it prevents cross-flow status leaks (e.g. Capture returning `Voided`).
-    ///
-    /// Returns `Err` if `status` is not allowed for `F`.
-    pub fn set_status_for_flow<F: crate::flow_status::FlowStatusRules>(
-        mut self,
-        status: AttemptStatus,
-    ) -> Result<Self, crate::ConnectorError> {
-        if crate::flow_status::const_contains(F::ALLOWED, status) {
-            self.status = status;
-            Ok(self)
-        } else {
-            Err(
-                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                    Some(format!(
-                        "status {:?} is not allowed in flow {}",
-                        status,
-                        F::NAME,
-                    )),
-                ),
-            )
-        }
-    }
-
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
         self.amount.as_ref().map(|money| money.currency)
     }
@@ -1562,27 +1537,16 @@ impl PaymentFlowData {
     }
 }
 
-impl<F: crate::flow_status::FlowStatusRules> crate::flow_status::FlowStatusSetter<F, AttemptStatus>
+impl<F: crate::flow_status::PaymentFlowSpec>
+    crate::flow_status::FlowStatusSetter<F, crate::flow_status::ConnectorFlowStatus<F>>
     for PaymentFlowData
 {
     fn set_mapped_flow_status(
         &mut self,
-        status: AttemptStatus,
+        status: crate::flow_status::ConnectorFlowStatus<F>,
     ) -> Result<(), crate::ConnectorError> {
-        if crate::flow_status::const_contains(F::ALLOWED, status) {
-            self.status = status;
-            Ok(())
-        } else {
-            Err(
-                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                    Some(format!(
-                        "status {:?} is not allowed in flow {}",
-                        status,
-                        F::NAME,
-                    )),
-                ),
-            )
-        }
+        self.status = status.into();
+        Ok(())
     }
 }
 
@@ -3008,27 +2972,16 @@ impl RefundFlowData {
     }
 }
 
-impl<F: crate::flow_status::RefundFlowStatusRules>
-    crate::flow_status::FlowStatusSetter<F, common_enums::RefundStatus> for RefundFlowData
+impl<F: crate::flow_status::RefundFlowSpec>
+    crate::flow_status::FlowStatusSetter<F, crate::flow_status::ConnectorFlowStatus<F>>
+    for RefundFlowData
 {
     fn set_mapped_flow_status(
         &mut self,
-        status: common_enums::RefundStatus,
+        status: crate::flow_status::ConnectorFlowStatus<F>,
     ) -> Result<(), crate::ConnectorError> {
-        if F::ALLOWED.contains(&status) {
-            self.status = status;
-            Ok(())
-        } else {
-            Err(
-                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                    Some(format!(
-                        "refund status {:?} is not allowed in flow {}",
-                        status,
-                        std::any::type_name::<F>(),
-                    )),
-                ),
-            )
-        }
+        self.status = status.into();
+        Ok(())
     }
 }
 

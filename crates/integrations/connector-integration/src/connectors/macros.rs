@@ -145,25 +145,14 @@ impl<Connector, Flow, CommonData, Request, Response, RawResponse>
     ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse>
     for &FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
 where
+    Flow: domain_types::flow_status::FlowSpec,
     Connector: domain_types::flow_status::ConnectorRuntimeStatusMapping<Flow, Request, RawResponse>,
-    <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
-        Flow,
-        Request,
-        RawResponse,
-    >>::MappedStatus: std::fmt::Debug + PartialEq + Copy,
+    <Flow as domain_types::flow_status::FlowSpec>::Status: std::fmt::Debug + PartialEq + Copy,
     CommonData: domain_types::flow_status::FlowStatusSetter<
             Flow,
-            <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
-                Flow,
-                Request,
-                RawResponse,
-            >>::MappedStatus,
+            domain_types::flow_status::ConnectorFlowStatus<Flow>,
         > + domain_types::flow_status::FlowStatusReader<
-            <Connector as domain_types::flow_status::ConnectorRuntimeStatusMapping<
-                Flow,
-                Request,
-                RawResponse,
-            >>::MappedStatus,
+            <Flow as domain_types::flow_status::FlowSpec>::Status,
         >,
     RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
         types::ResponseRouterData<RawResponse, RouterDataV2<Flow, CommonData, Request, Response>>,
@@ -182,8 +171,10 @@ where
             &response.router_data.resource_common_data,
             &response.router_data.request,
             &response.response,
+            status_code,
         )
         .map_err(error_stack::Report::new)?;
+        let framework_status = mapped_status.status();
         let mut result = RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 status_code,
@@ -192,12 +183,12 @@ where
 
         if domain_types::flow_status::is_live_status_transformer_connector(self.1) {
             let transformer_status = result.resource_common_data.current_mapped_flow_status();
-            if transformer_status != mapped_status {
+            if transformer_status != framework_status {
                 tracing::warn!(
                     connector = self.1,
                     flow = std::any::type_name::<Flow>(),
                     transformer_status = ?transformer_status,
-                    framework_status = ?mapped_status,
+                    framework_status = ?framework_status,
                     connector_request_reference_id = ?result
                         .resource_common_data
                         .connector_request_reference_id(),
