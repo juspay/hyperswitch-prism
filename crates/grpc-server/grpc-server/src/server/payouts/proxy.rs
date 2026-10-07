@@ -65,16 +65,6 @@ pub(crate) fn get_payout_method_data_action<T: PayoutProxyRequest>(
         .payout_method()
         .and_then(|method| method.payout_method_data.as_ref());
     let vault_header = headers.get(X_EXTERNAL_VAULT_METADATA);
-    if matches!(method, Some(PayoutMethodData::CardProxy(_)))
-        && !supports_card_proxy(metadata.connector.get_connector_name().as_str(), flow)
-    {
-        return Err(unsupported(
-            "CardProxy is not supported for this connector and payout flow",
-            metadata,
-            &flow,
-            "Use Nuvei PayoutTransfer for external-vault proxy payouts",
-        ));
-    }
     match (method, vault_header) {
         (Some(PayoutMethodData::CardProxy(card)), Some(header)) => {
             validate_vault_config(header.peek(), metadata, &flow)?;
@@ -115,10 +105,6 @@ pub(crate) fn get_payout_method_data_action<T: PayoutProxyRequest>(
         .into()),
         (_, None) => Ok(PayoutMethodDataAction::Normal),
     }
-}
-
-fn supports_card_proxy(connector: &str, flow: FlowName) -> bool {
-    connector == "nuvei" && flow == FlowName::PayoutTransfer
 }
 
 fn is_reference_flow(flow: FlowName) -> bool {
@@ -204,16 +190,6 @@ fn validate_vault_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn card_proxy_support_is_limited_to_nuvei_transfer() {
-        assert!(supports_card_proxy("nuvei", FlowName::PayoutTransfer));
-        assert!(!supports_card_proxy("nuvei", FlowName::PayoutCreate));
-        assert!(!supports_card_proxy(
-            "worldpayxml",
-            FlowName::PayoutTransfer
-        ));
-    }
 
     #[test]
     fn vault_metadata_is_forward_compatible_with_reference_flows() {
