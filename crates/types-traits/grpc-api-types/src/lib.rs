@@ -9,6 +9,27 @@ mod types {
     tonic::include_proto!("types");
 }
 
+/// serde `serialize_with` helpers for secret-bearing proto `string` fields (see build.rs).
+/// Plain serializers see the raw value; `hyperswitch_masking::masked_serialize` masks it.
+pub mod masked_serde {
+    use hyperswitch_masking::Secret;
+    use serde::{Serialize, Serializer};
+
+    pub fn string<S: Serializer>(value: &str, serializer: S) -> Result<S::Ok, S::Error> {
+        Secret::<String>::new(value.to_owned()).serialize(serializer)
+    }
+
+    pub fn option_string<S: Serializer>(
+        value: &Option<String>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .clone()
+            .map(Secret::<String>::new)
+            .serialize(serializer)
+    }
+}
+
 pub mod payments {
     pub use super::types::*;
 }

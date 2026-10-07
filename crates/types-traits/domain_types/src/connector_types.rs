@@ -1839,6 +1839,23 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
+/// A request sets up a mandate with the customer present when the shopper has
+/// consented — through an explicit acceptance, or through mandate details supplied
+/// with the request — and the stated intent is to charge again off-session.
+///
+/// This lives in one place because every request type that asks the question has to
+/// answer it the same way. They did not: one of the three omitted the
+/// `setup_mandate_details` half, and a connector reading it would have treated a
+/// mandate set up that way as merchant-initiated.
+pub fn is_customer_initiated_mandate(
+    customer_acceptance: Option<&CustomerAcceptance>,
+    setup_mandate_details: Option<&MandateData>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+) -> bool {
+    (customer_acceptance.is_some() || setup_mandate_details.is_some())
+        && setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+}
+
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     /// Returns true if payment should be automatically captured, false for manual capture.
     ///
@@ -2019,8 +2036,11 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     // }
 
     pub fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+        is_customer_initiated_mandate(
+            self.customer_acceptance.as_ref(),
+            self.setup_mandate_details.as_ref(),
+            self.setup_future_usage,
+        )
     }
 
     pub fn get_metadata_as_object(&self) -> Option<SecretSerdeValue> {
@@ -2140,6 +2160,10 @@ pub enum PaymentsResponseData {
         connector_feature_data: Option<serde_json::Value>,
         connector_response_reference_id: Option<String>,
         status_code: u16,
+        /// Set when the Authenticate leg itself charged the payment (e.g. frictionless 3DS)
+        mandate_reference: Option<Box<MandateReference>>,
+        network_txn_id: Option<String>,
+        network_txn_link_id: Option<String>,
     },
     PostAuthenticateResponse {
         authentication_data: Option<router_request_types::AuthenticationData>,
@@ -2256,8 +2280,11 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
 
 impl<T: PaymentMethodDataTypes> PaymentMethodTokenizationData<T> {
     pub fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+        is_customer_initiated_mandate(
+            self.customer_acceptance.as_ref(),
+            self.setup_mandate_details.as_ref(),
+            self.setup_future_usage,
+        )
     }
 }
 
@@ -2484,9 +2511,27 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
+    /// Stored-credential intent, for connectors whose Authenticate leg can charge
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub enable_partial_authorization: Option<bool>,
+    pub payment_channel: Option<PaymentChannel>,
+    pub billing_descriptor: Option<BillingDescriptor>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
+    pub fn is_customer_initiated_mandate_payment(&self) -> bool {
+        // `PaymentsAuthenticateData` has no `setup_mandate_details`: the Authenticate
+        // request contract carries `customer_acceptance` and `setup_future_usage` only
+        // (`payment.proto`, `PaymentMethodAuthenticationServiceAuthenticateRequest`),
+        // so there is no second source of consent to consider on this flow.
+        is_customer_initiated_mandate(
+            self.customer_acceptance.as_ref(),
+            None,
+            self.setup_future_usage,
+        )
+    }
+
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(common_enums::CaptureMethod::Automatic)

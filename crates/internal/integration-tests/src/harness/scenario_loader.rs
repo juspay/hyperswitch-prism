@@ -114,6 +114,29 @@ pub fn load_scenario(suite: &str, scenario: &str) -> Result<ScenarioDef, Scenari
         })
 }
 
+/// Loads one named scenario as `connector` sees it: the global suite first, then
+/// the connector's `connector_specific_scenarios.json`. Suite runs already merge
+/// that file; this is the same lookup for the single-scenario paths (request
+/// building, `--scenario` runs and the schema check), which otherwise report a
+/// private scenario as not found.
+pub fn load_scenario_for_connector(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    match load_scenario(suite, scenario) {
+        Err(ScenarioError::ScenarioNotFound { .. }) => {
+            load_connector_specific_scenarios(connector, suite)?
+                .remove(scenario)
+                .ok_or_else(|| ScenarioError::ScenarioNotFound {
+                    suite: suite.to_string(),
+                    scenario: scenario.to_string(),
+                })
+        }
+        other => other,
+    }
+}
+
 /// Loads suite execution metadata including dependency graph and scope.
 pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
     let path = suite_spec_file_path(suite);
@@ -128,6 +151,46 @@ pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
 
     serde_json::from_str::<SuiteSpec>(&content)
         .map_err(|source| ScenarioError::SuiteSpecParse { path, source })
+}
+
+/// Loads suite execution metadata as `connector` runs it: the global
+/// `suite_spec.json` plus the connector's `specs.json` `suite_dependencies`
+/// entry for `suite`, if any (`depends_on` becomes `before ++ global ++ after`,
+/// and `dependency_scope` is replaced when the entry sets one).
+///
+/// A connector without an entry gets exactly [`load_suite_spec`]. Every named
+/// dependency scenario must resolve for this connector, so a typo fails the run
+/// instead of silently dropping the prerequisite.
+pub fn load_suite_spec_for_connector(
+    suite: &str,
+    connector: &str,
+) -> Result<SuiteSpec, ScenarioError> {
+    let mut spec = load_suite_spec(suite)?;
+
+    let Some(extra) = load_connector_spec(connector)
+        .and_then(|connector_spec| connector_spec.suite_dependencies.get(suite).cloned())
+    else {
+        return Ok(spec);
+    };
+
+    for dependency in extra.before.iter().chain(extra.after.iter()) {
+        if let Some(scenario) = dependency.scenario() {
+            load_scenario_for_connector(dependency.suite(), scenario, connector)?;
+        }
+    }
+
+    let global = std::mem::take(&mut spec.depends_on);
+    spec.depends_on = extra
+        .before
+        .into_iter()
+        .chain(global)
+        .chain(extra.after)
+        .collect();
+    if let Some(scope) = extra.dependency_scope {
+        spec.dependency_scope = scope;
+    }
+
+    Ok(spec)
 }
 
 /// Loads optional connector-specific browser automation hooks.
