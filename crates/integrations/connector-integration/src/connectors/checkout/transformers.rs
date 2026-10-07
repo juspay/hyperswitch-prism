@@ -1059,8 +1059,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else if item.router_data.request.is_mandate_payment() {
             match item.router_data.request.mit_category {
                 Some(common_enums::MitCategory::Installment) => CheckoutPaymentType::Installment,
-                Some(common_enums::MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                _ => CheckoutPaymentType::Unscheduled,
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+                ) => CheckoutPaymentType::Recurring,
+                Some(
+                    common_enums::MitCategory::Unscheduled
+                    | common_enums::MitCategory::Resubmission,
+                )
+                | None => CheckoutPaymentType::Unscheduled,
             }
         } else {
             CheckoutPaymentType::Regular
@@ -1550,11 +1556,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Some(common_enums::MitCategory::Installment) => {
                         CheckoutPaymentType::Installment
                     }
-                    Some(common_enums::MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(common_enums::MitCategory::Unscheduled) | None => {
-                        CheckoutPaymentType::Unscheduled
-                    }
-                    _ => CheckoutPaymentType::Unscheduled,
+                    Some(
+                        common_enums::MitCategory::Recurring
+                        | common_enums::MitCategory::Subscription,
+                    ) => CheckoutPaymentType::Recurring,
+                    Some(
+                        common_enums::MitCategory::Unscheduled
+                        | common_enums::MitCategory::Resubmission,
+                    )
+                    | None => CheckoutPaymentType::Unscheduled,
                 };
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
@@ -1580,13 +1590,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(common_enums::MitCategory::Installment) => {
                                 CheckoutPaymentType::Installment
                             }
-                            Some(common_enums::MitCategory::Recurring) => {
+                            Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
                                 CheckoutPaymentType::Recurring
                             }
-                            Some(common_enums::MitCategory::Unscheduled) | None => {
-                                CheckoutPaymentType::Unscheduled
-                            }
-                            _ => CheckoutPaymentType::Unscheduled,
+                            Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission) | None => CheckoutPaymentType::Unscheduled,
                         };
                         Ok((
                             payment_source,
@@ -1603,13 +1610,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(common_enums::MitCategory::Installment) => {
                                 CheckoutPaymentType::Installment
                             }
-                            Some(common_enums::MitCategory::Recurring) => {
+                            Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
                                 CheckoutPaymentType::Recurring
                             }
-                            Some(common_enums::MitCategory::Unscheduled) | None => {
-                                CheckoutPaymentType::Unscheduled
-                            }
-                            _ => CheckoutPaymentType::Unscheduled,
+                            Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission) | None => CheckoutPaymentType::Unscheduled,
                         };
 
                         let token_type = match network_token_data.token_source {
@@ -1679,10 +1683,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(common_enums::MitCategory::Installment) => {
                                 CheckoutPaymentType::Installment
                             }
-                            Some(common_enums::MitCategory::Recurring) => {
-                                CheckoutPaymentType::Recurring
-                            }
-                            _ => CheckoutPaymentType::Unscheduled,
+                            Some(
+                                common_enums::MitCategory::Recurring
+                                | common_enums::MitCategory::Subscription,
+                            ) => CheckoutPaymentType::Recurring,
+                            Some(
+                                common_enums::MitCategory::Unscheduled
+                                | common_enums::MitCategory::Resubmission,
+                            )
+                            | None => CheckoutPaymentType::Unscheduled,
                         };
 
                         let payment_source =
@@ -1973,8 +1982,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             match item.router_data.request.mit_category {
                 Some(common_enums::MitCategory::Installment) => CheckoutPaymentType::Installment,
-                Some(common_enums::MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                _ => CheckoutPaymentType::Unscheduled,
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+                ) => CheckoutPaymentType::Recurring,
+                Some(
+                    common_enums::MitCategory::Unscheduled
+                    | common_enums::MitCategory::Resubmission,
+                )
+                | None => CheckoutPaymentType::Unscheduled,
             }
         };
 

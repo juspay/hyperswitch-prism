@@ -205,7 +205,9 @@ fn derive_ecommerce_indicator(
 
     match mit_category {
         Some(MitCategory::Installment) => EcommerceIndicator::MailTelephoneOrderInstalment,
-        Some(MitCategory::Recurring) => EcommerceIndicator::MailTelephoneOrderRecurring,
+        Some(MitCategory::Recurring | MitCategory::Subscription) => {
+            EcommerceIndicator::MailTelephoneOrderRecurring
+        }
         None if is_recurring => EcommerceIndicator::MailTelephoneOrderRecurring,
         None => EcommerceIndicator::MailTelephoneOrderSingle,
         Some(MitCategory::Unscheduled | MitCategory::Resubmission) => {

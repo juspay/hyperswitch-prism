@@ -13644,6 +13644,9 @@ impl ForeignFrom<grpc_api_types::payments::MitCategory> for common_enums::MitCat
             grpc_api_types::payments::MitCategory::RecurringMit => {
                 common_enums::MitCategory::Recurring
             }
+            grpc_api_types::payments::MitCategory::SubscriptionMit => {
+                common_enums::MitCategory::Subscription
+            }
             grpc_api_types::payments::MitCategory::InstallmentMit => {
                 common_enums::MitCategory::Installment
             }

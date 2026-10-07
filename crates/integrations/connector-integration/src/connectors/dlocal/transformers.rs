@@ -537,7 +537,9 @@ pub enum StoredCredentialType {
 impl From<Option<common_enums::MitCategory>> for StoredCredentialType {
     fn from(category: Option<common_enums::MitCategory>) -> Self {
         match category {
-            Some(common_enums::MitCategory::Recurring) => Self::Subscription,
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => Self::Subscription,
             Some(common_enums::MitCategory::Installment) => Self::Installments,
             Some(common_enums::MitCategory::Unscheduled) => Self::UnscheduledCardOnFile,
             Some(common_enums::MitCategory::Resubmission) => Self::UnscheduledCardOnFile,

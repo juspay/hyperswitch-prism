@@ -193,7 +193,9 @@ fn sale_txn_type(is_auto_capture: bool) -> MerchanteTransactionType {
 /// `Resubmission` (retry has no distinct Mastercard indicator).
 fn mit_indicator(category: Option<MitCategory>) -> MerchanteCoFMitIndicator {
     match category {
-        Some(MitCategory::Recurring) => MerchanteCoFMitIndicator::Subscription,
+        Some(MitCategory::Recurring | MitCategory::Subscription) => {
+            MerchanteCoFMitIndicator::Subscription
+        }
         Some(MitCategory::Installment) => MerchanteCoFMitIndicator::Installment,
         Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
             MerchanteCoFMitIndicator::Unscheduled
