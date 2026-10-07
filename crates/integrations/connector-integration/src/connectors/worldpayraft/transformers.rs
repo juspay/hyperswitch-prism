@@ -8,7 +8,9 @@ use domain_types::{
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
-    payment_method_data::{Card, CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        Card, CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -230,11 +232,19 @@ pub struct WorldpayraftAmounts {
     pub transaction_amount: common_utils::types::StringMajorUnit,
 }
 
+/// PANs retain their holder type; no-CVC cards always contain validated PCI data.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WorldpayraftAuthorizePan<T: PaymentMethodDataTypes> {
+    Card(RawCardNumber<T>),
+    CardWithNoCvc(cards::CardNumber),
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftCardInfo {
+pub struct WorldpayraftCardInfo<T: PaymentMethodDataTypes> {
     #[serde(rename = "PAN")]
-    pub pan: Secret<String>,
+    pub pan: WorldpayraftAuthorizePan<T>,
     pub expiration_date: Secret<String>,
 }
 
@@ -282,9 +292,9 @@ pub struct WorldpayraftRequestTraceNumbers {
 /// Inner fields shared by both creditauth and debitpreauth requests.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftCardAuthInner {
+pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     pub misc_amounts_balances: WorldpayraftAmounts,
-    pub card_info: WorldpayraftCardInfo,
+    pub card_info: WorldpayraftCardInfo<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_verification_data: Option<WorldpayraftCardVerificationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -309,18 +319,18 @@ pub struct WorldpayraftCardAuthInner {
 /// Debit cards (auto-capture):    `{ "debitpurchase": { ... } }` → POST /debit/purchase
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum WorldpayraftAuthorizeRequest {
+pub enum WorldpayraftAuthorizeRequest<T: PaymentMethodDataTypes> {
     Credit {
-        creditauth: WorldpayraftCardAuthInner,
+        creditauth: WorldpayraftCardAuthInner<T>,
     },
     Debit {
-        debitpreauth: WorldpayraftCardAuthInner,
+        debitpreauth: WorldpayraftCardAuthInner<T>,
     },
     CreditPurchase {
-        creditpurchase: WorldpayraftCardAuthInner,
+        creditpurchase: WorldpayraftCardAuthInner<T>,
     },
     DebitPurchase {
-        debitpurchase: WorldpayraftCardAuthInner,
+        debitpurchase: WorldpayraftCardAuthInner<T>,
     },
 }
 
@@ -378,24 +388,24 @@ pub enum WorldpayraftAuthorizeResponse {
 }
 
 // =============================================================================
-// TryFrom: RouterDataV2 → WorldpayraftAuthorizeRequest
+// TryFrom: RouterDataV2 → WorldpayraftAuthorizeRequest<T>
 // =============================================================================
 
 /// Extracted card fields used to build the Authorize request inner struct.
-struct CardFields {
-    pan: Secret<String>,
+struct CardFields<T: PaymentMethodDataTypes> {
+    pan: WorldpayraftAuthorizePan<T>,
     expiration_date: Secret<String>,
     is_debit: bool,
     card_verification_data: Option<WorldpayraftCardVerificationData>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<&Card<T>> for CardFields
+    TryFrom<&Card<T>> for CardFields<T>
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(card: &Card<T>) -> Result<Self, Self::Error> {
-        let pan = Secret::new(card.card_number.peek().to_string());
+        let pan = WorldpayraftAuthorizePan::Card(card.card_number.clone());
         let expiration_date = card.get_expiry_date_as_yymm().change_context(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "card.card_exp_year / card.card_exp_month",
@@ -425,11 +435,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<&CardWithNoCvc> for CardFields {
+impl<T: PaymentMethodDataTypes> TryFrom<&CardWithNoCvc> for CardFields<T> {
     type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(card: &CardWithNoCvc) -> Result<Self, Self::Error> {
-        let pan = Secret::new(card.card_number.get_card_no());
+        let pan = WorldpayraftAuthorizePan::CardWithNoCvc(card.card_number.clone());
         let year = card.get_card_expiry_year_2_digit().change_context(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "card.card_exp_year",
@@ -478,7 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayraftAuthorizeRequest
+    > for WorldpayraftAuthorizeRequest<T>
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
@@ -1139,16 +1149,16 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftSetupMandateCardInfo {
+pub struct WorldpayraftSetupMandateCardInfo<T: PaymentMethodDataTypes> {
     #[serde(rename = "PAN")]
-    pub pan: Secret<String>,
+    pub pan: RawCardNumber<T>,
     pub expiration_date: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct WorldpayraftSetupMandateInner {
-    pub card_info: WorldpayraftSetupMandateCardInfo,
+pub struct WorldpayraftSetupMandateInner<T: PaymentMethodDataTypes> {
+    pub card_info: WorldpayraftSetupMandateCardInfo<T>,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
@@ -1158,8 +1168,8 @@ pub struct WorldpayraftSetupMandateInner {
 
 /// Wrapper for the tokenize request body.
 #[derive(Debug, Serialize)]
-pub struct WorldpayraftSetupMandateRequest {
-    pub tokenize: WorldpayraftSetupMandateInner,
+pub struct WorldpayraftSetupMandateRequest<T: PaymentMethodDataTypes> {
+    pub tokenize: WorldpayraftSetupMandateInner<T>,
 }
 
 // =============================================================================
@@ -1200,7 +1210,7 @@ pub struct WorldpayraftSetupMandateResponse {
 }
 
 // =============================================================================
-// TryFrom: RouterDataV2 → WorldpayraftSetupMandateRequest
+// TryFrom: RouterDataV2 → WorldpayraftSetupMandateRequest<T>
 // =============================================================================
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1214,7 +1224,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayraftSetupMandateRequest
+    > for WorldpayraftSetupMandateRequest<T>
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
@@ -1258,7 +1268,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
 
-        let pan = Secret::new(card.card_number.peek().to_string());
+        let pan = card.card_number.clone();
 
         let payment_id = &router_data
             .resource_common_data
@@ -1369,8 +1379,9 @@ pub struct WorldpayraftRepeatProcFlags {
     pub recurring_bill_pay: Option<String>,
 }
 
-/// CardInfo for RepeatPayment — uses a plain Secret<String> PAN (the stored TokenizedPAN),
-/// not a generic RawCardNumber<T>.
+/// RepeatPayment sends the connector's stored TokenizedPAN, independently of the
+/// request's PCI/vault holder. RawCardNumber<T> would tie this opaque connector
+/// token to T::Inner (a validated cards::CardNumber for DefaultPCIHolder).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRepeatCardInfo {
