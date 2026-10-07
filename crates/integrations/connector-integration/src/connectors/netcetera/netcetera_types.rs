@@ -518,13 +518,13 @@ pub enum ChallengeWindowSizeEnum {
 pub struct Sdk {
     #[serde(rename = "sdkAppID")]
     sdk_app_id: Option<String>,
-    sdk_enc_data: Option<String>,
+    sdk_enc_data: Option<Secret<String>>,
     sdk_ephem_pub_key: Option<std::collections::HashMap<String, String>>,
     sdk_max_timeout: Option<u8>,
     sdk_reference_number: Option<String>,
     #[serde(rename = "sdkTransID")]
     sdk_trans_id: Option<String>,
-    sdk_server_signed_content: Option<String>,
+    sdk_server_signed_content: Option<Secret<String>>,
     sdk_type: Option<SdkType>,
     default_sdk_type: Option<DefaultSdkType>,
     split_sdk_type: Option<SplitSdkType>,
@@ -532,6 +532,16 @@ pub struct Sdk {
 
 impl From<domain_types::connector_types::SdkInformation> for Sdk {
     fn from(sdk_info: domain_types::connector_types::SdkInformation) -> Self {
+        let sdk_type = sdk_info
+            .sdk_type
+            .map(SdkType::from)
+            .unwrap_or(SdkType::DefaultSdk);
+        // defaultSdkType applies only to the Default-SDK; sending it for another SDK type
+        // contradicts sdkType in the AReq.
+        let default_sdk_type = matches!(sdk_type, SdkType::DefaultSdk).then(|| DefaultSdkType {
+            sdk_variant: "01".to_string(),
+            wrapped_ind: None,
+        });
         Self {
             sdk_app_id: Some(sdk_info.sdk_app_id),
             sdk_enc_data: Some(sdk_info.sdk_enc_data),
@@ -539,15 +549,9 @@ impl From<domain_types::connector_types::SdkInformation> for Sdk {
             sdk_max_timeout: Some(sdk_info.sdk_max_timeout),
             sdk_reference_number: Some(sdk_info.sdk_reference_number),
             sdk_trans_id: Some(sdk_info.sdk_trans_id),
-            sdk_server_signed_content: None,
-            sdk_type: sdk_info
-                .sdk_type
-                .map(SdkType::from)
-                .or(Some(SdkType::DefaultSdk)),
-            default_sdk_type: Some(DefaultSdkType {
-                sdk_variant: "01".to_string(),
-                wrapped_ind: None,
-            }),
+            sdk_server_signed_content: sdk_info.sdk_server_signed_content,
+            sdk_type: Some(sdk_type),
+            default_sdk_type,
             split_sdk_type: None,
         }
     }

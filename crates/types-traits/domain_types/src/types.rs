@@ -1247,15 +1247,20 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkInformation>
         )?;
         Ok(Self {
             sdk_app_id: value.sdk_app_id,
+            // EMVCo requires sdkEncData alongside sdkEphemPubKey for the APP channel.
             sdk_enc_data: value
                 .sdk_enc_data
-                .map(|data| data.expose())
-                .unwrap_or_default(),
+                .filter(|data| !data.peek().is_empty())
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "sdk_information.sdk_enc_data",
+                    context: IntegrationErrorContext::default(),
+                })?,
             sdk_ephem_pub_key,
             sdk_trans_id: value.sdk_trans_id,
             sdk_reference_number: value.sdk_reference_number,
             sdk_max_timeout,
             sdk_type,
+            sdk_server_signed_content: value.sdk_server_signed_content,
             device_details: value
                 .device_details
                 .map(|details| connector_types::DeviceDetails {

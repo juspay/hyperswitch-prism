@@ -2423,12 +2423,13 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdkInformation {
     pub sdk_app_id: String,
-    pub sdk_enc_data: String,
+    pub sdk_enc_data: Secret<String>,
     pub sdk_ephem_pub_key: std::collections::HashMap<String, String>,
     pub sdk_trans_id: String,
     pub sdk_reference_number: String,
     pub sdk_max_timeout: u8,
     pub sdk_type: Option<SdkType>,
+    pub sdk_server_signed_content: Option<Secret<String>>,
     pub device_details: Option<DeviceDetails>,
 }
 

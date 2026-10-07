@@ -642,7 +642,7 @@ pub struct AuthenticationResponse {
     pub acs_trans_id: Option<String>,
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,
-    pub acs_signed_content: Option<String>,
+    pub acs_signed_content: Option<Secret<String>>,
     pub trans_status_reason: Option<String>,
 }
 
@@ -726,7 +726,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             acs_signed_content: response
                                 .authentication_response
                                 .acs_signed_content
-                                .clone(),
+                                .clone()
+                                .map(|content| content.expose()),
                             acs_reference_number: response
                                 .authentication_response
                                 .acs_reference_number

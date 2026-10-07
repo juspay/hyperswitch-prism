@@ -26,7 +26,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -279,6 +279,26 @@ macros::create_all_prerequisites!(
                 self.common_get_content_type().to_string().into(),
             )])
         }
+        // The pair is absent when an external vault (e.g. VGS) terminates TLS on the
+        // outbound route; the vault-proxy path ignores client certificates either way.
+        pub fn client_certificate<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> Option<Secret<String>> {
+            match &req.connector_config {
+                ConnectorSpecificConfig::Netcetera { certificate, .. } => certificate.clone(),
+                _ => None,
+            }
+        }
+        pub fn client_certificate_key<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> Option<Secret<String>> {
+            match &req.connector_config {
+                ConnectorSpecificConfig::Netcetera { private_key, .. } => private_key.clone(),
+                _ => None,
+            }
+        }
     }
 );
 
@@ -341,6 +361,18 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate(req))
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate_key(req))
+        }
         fn get_url(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
@@ -377,6 +409,18 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate(req))
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate_key(req))
+        }
         fn get_url(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
@@ -412,6 +456,18 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
+        }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate(req))
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.client_certificate_key(req))
         }
         fn get_url(
             &self,

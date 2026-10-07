@@ -153,7 +153,7 @@ pub struct AuthenticationData {
     pub message_extension: Option<Secret<serde_json::Value>>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     /// JWS-signed content from the ACS, validated by the 3DS SDK on an app-channel challenge.
-    pub acs_signed_content: Option<String>,
+    pub acs_signed_content: Option<Secret<String>>,
     /// ACS identifier assigned by the scheme.
     pub acs_reference_number: Option<String>,
     /// Directory Server identifier for the card range. Static per scheme, not a

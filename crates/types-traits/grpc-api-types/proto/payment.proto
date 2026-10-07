@@ -1403,7 +1403,7 @@ message AuthenticationData {
   optional DecoupledAuthenticationType authentication_type = 17;
   // JWS-signed content from the ACS, validated by the 3DS SDK on an
   // app-channel challenge.
-  optional string acs_signed_content = 18;
+  optional SecretString acs_signed_content = 18;
   // ACS identifier assigned by the scheme, shown during the challenge.
   optional string acs_reference_number = 19;
   // Directory Server identifier for the card range, from the 3DS Server's
