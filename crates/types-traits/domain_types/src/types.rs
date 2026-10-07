@@ -847,6 +847,9 @@ impl Connectors {
             ConnectorEnum::GlobalpaymentsRealex => {
                 patched.globalpayments_realex.apply(params_patch);
             }
+            ConnectorEnum::Worldpayraft => {
+                patched.worldpayraft.apply(params_patch);
+            }
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
             }
@@ -857,7 +860,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, worldpayraft",
                             connector
                         )),
                         ..Default::default()
@@ -11099,6 +11102,25 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
                     .collect()
             })
             .unwrap_or_default();
+        let dispute_amount_error = |detail: &str| IntegrationError::AmountConversionFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(detail.to_string()),
+                ..Default::default()
+            },
+        };
+        let minor_amount = common_utils::types::AmountConvertor::convert_back(
+            &common_utils::types::StringMinorUnitForConnector,
+            value.amount,
+            value.currency,
+        )
+        .change_context(dispute_amount_error(
+            "dispute webhook amount is not a minor-unit integer",
+        ))?
+        .get_amount_as_i64();
+        let currency = grpc_api_types::payments::Currency::foreign_try_from(value.currency)
+            .change_context(dispute_amount_error(
+                "dispute webhook currency has no gRPC Currency equivalent",
+            ))?;
         Ok(Self {
             connector_dispute_id: Some(value.dispute_id),
             connector_transaction_id: None,
@@ -11106,13 +11128,16 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(grpc_api_types::payments::Money {
+                minor_amount,
+                currency: currency.into(),
+            }),
             dispute_date: None,
             service_date: None,
             shipping_date: None,
             due_date: None,
             evidence_documents: vec![],
-            dispute_reason: None,
+            dispute_reason: value.connector_reason_code,
             dispute_message: value.dispute_message,
             connector_reference_id: value.connector_response_reference_id.clone(),
             // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id

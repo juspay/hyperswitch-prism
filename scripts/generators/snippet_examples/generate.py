@@ -2661,9 +2661,16 @@ def _preprocess_kt_payload(flow_key: str, proto_req: dict) -> dict:
         if isinstance(cri, dict) and "mandate_id_type" in cri:
             mit = cri["mandate_id_type"]
             if isinstance(mit, dict) and "connector_mandate_id" in mit:
+                inner = mit["connector_mandate_id"]
+                processed = dict(proto_req)
+                if isinstance(inner, dict) and set(inner) != {"connector_mandate_id"}:
+                    # ConnectorMandateReferenceId carrying more than the id (e.g. the
+                    # SecretString mandate_metadata): drop only the oneof level so each
+                    # field is emitted against its real type.
+                    processed["connector_recurring_payment_id"] = {"connector_mandate_id": inner}
+                    return processed
                 # Rewrite: { mandate_id_type: { connector_mandate_id: val } }
                 # →        { connector_mandate_id: { connector_mandate_id: val } }
-                processed = dict(proto_req)
                 processed["connector_recurring_payment_id"] = {
                     "connector_mandate_id": {
                         "connector_mandate_id": mit["connector_mandate_id"],

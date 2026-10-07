@@ -1,0 +1,383 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImdyYWNlLXdvcmxkcGF5cmFmdC10ZXN0LTEifQ.eyJhdWQiOiJFbnRlcnByaXNlQXV0aCIsImlzcyI6Imh0dHBzOi8vYXBpcy5jZXJ0LndvcmxkcGF5LmNvbS9hdXRoZW50aWNhdGlvbiIsImp0aSI6ImdyYWNlLWZpeHR1cmUtMDAwMSIsInN1YiI6IkVOVEVSUFJJU0VBVVRIIiwibmJmIjoxNzAwMDAwMDAwLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.fxM8D9dAectoAJNXIA0chs4789t6nenGmwF7tCiNX-IOMiHGIX47hcvLoXLDjdYv0QfE3aSg9PMpGbkKUdLZSxg4HNAiX42AEdjNw4YKwR17BjBnMcPcFXB4XZUqjIHYr9wfqwULvYuSmexBWSqYqrD-h27cbGVN2CVWUxQf2GcBOMNtpEiLx6TKBhuXQ3iM-NwNvCMrwW5pAzrHrZNL1_D311_uBnOdOeSZhKCedenr_Q4kA1ymEGLVcWtWIiZixjZvr5fdUKFkukMeTJW0ednzPBUD7Sls061-GhPBdmlQmmMGLMtdxyvtSTdy84TS6FQjL8PGxYQ1oM2muAFtew",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "eventType": "authorizations.created",
+          "notificationId": "64197a5d-d3e1-7y3g-5432-6c1074e270rf",
+          "eventCount": 2,
+          "version": "2.0",
+          "createdAt": "2023-02-01 10:05:16.113000+00:00",
+          "data": {
+            "authorizations": [
+              {
+                "transactionDate": "2023-02-01 12:19:31",
+                "transactionProcessDate": "2023-02-01 13:19:31",
+                "transactionAmount": 123877,
+                "discount": 5.58,
+                "tipAmount": 7.19,
+                "transactionStatus": {
+                  "code": "AA",
+                  "shortDescription": "Approval",
+                  "longDescription": "Approval"
+                },
+                "transactionType": {
+                  "code": "IP",
+                  "shortDescription": "Purchase",
+                  "longDescription": "Purchase"
+                },
+                "originalAcquirerTransactionId": "01056789000012340000",
+                "acquirerTransactionId": "01056789000012340010",
+                "authCode": "075898",
+                "authAmount": 50,
+                "authCharacteristics": {
+                  "code": "A",
+                  "shortDescription": "Card present",
+                  "longDescription": "Card present"
+                },
+                "currency": "USD",
+                "convenienceFee": 2.52,
+                "surchargeAmount": 3.09,
+                "shippingFee": 25.04,
+                "cardDetails": {
+                  "cardNumber": "123456****122875",
+                  "cardType": "CREDIT",
+                  "cardNetwork": {
+                    "code": "D",
+                    "shortDescription": "AMERICANEXPRESS",
+                    "longDescription": "AMERICANEXPRESS"
+                  },
+                  "expirationDate": "0227",
+                  "cvv": {
+                    "status": {
+                      "code": 1,
+                      "shortDescription": "CVV2 value provided / present",
+                      "longDescription": "CVV2 value provided / present"
+                    },
+                    "response": {
+                      "code": "M",
+                      "shortDescription": "CVV2 Match",
+                      "longDescription": "CVV2 Match"
+                    }
+                  },
+                  "healthCare": false
+                },
+                "cardHolderDetails": {
+                  "name": "Adam Smith",
+                  "phoneNumber": "1112224444",
+                  "email": "asmith@test.com",
+                  "addressLine1": "23 Ivy Grove Lane",
+                  "addressLine2": "Apt # 5",
+                  "city": "Atlanta",
+                  "state": "GA",
+                  "postalCode": "67854",
+                  "country": "USA",
+                  "aniMatchResult": {
+                    "code": "00",
+                    "shortDescription": "Performed",
+                    "longDescription": "Name match performed"
+                  },
+                  "aniResponse": {
+                    "code": "01",
+                    "shortDescription": "Match",
+                    "longDescription": "Match - An exact match to the data the issuer has on record"
+                  }
+                },
+                "tokenDetails": {
+                  "token": "LH5678U00021356",
+                  "networkTokenIndicator": "1"
+                },
+                "merchantDetails": {
+                  "superChainCode": "AC000",
+                  "chainCode": "0H657G",
+                  "divisionNumber": "019",
+                  "storeNumber": "023100234",
+                  "merchantName": "TREAS CORP",
+                  "billingDescriptor": "TREAS CORP Merchant",
+                  "merchantId": "415044800113"
+                },
+                "cardNetworkFields": {
+                  "networkTransactionId": "000000000001678",
+                  "bankNetReferenceNumber": "MWE0NXJH8",
+                  "bankNetSettlementDate": "0213",
+                  "transactionLinkId": "A123467890B1234567890"
+                },
+                "customerFields": {
+                  "field1": "0000000000012345",
+                  "field2": "587553"
+                },
+                "paymentGatewayInfo": {
+                  "posApplicationId": "10328",
+                  "posApplicationName": "BillerSolutions.Worldpay.Express",
+                  "posApplicationVersion": "Gateway-version 1.0.2",
+                  "customerReferenceNumber": "59075211112223330000",
+                  "gatewayTransactionId": "133218004",
+                  "referenceNumber": "123456789012"
+                },
+                "softPos": {
+                  "deviceType": "1",
+                  "virtualTerminalId": "1013"
+                },
+                "traceNumber": "833753",
+                "posEntryMode": "01 - KEY ENTERED",
+                "preAuthIndicator": false,
+                "transactionId": "000000001000000",
+                "bankId": "BOFA",
+                "terminalId": "000031582940002",
+                "terminalNumber": "001",
+                "emv": "Y",
+                "terminalAttendanceIndicator": 1,
+                "terminalTypeIndicator": "E",
+                "terminalClassificationCode": "CC",
+                "avsResponse": {
+                  "code": "Y",
+                  "shortDescription": "Address matches",
+                  "longDescription": "Address and 5 digit ZIP code match"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "worldpayraft_auth_created_approved",
+      "webhook_secrets": {
+        "secret": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"grace-worldpayraft-test-1\",\"n\":\"nO27h8fQ1XPMZdBfw-TvZ_kXEhMOL7nyjYuVvd1gHt-tMZY1XKpFX_xRZ09ubMSLH8AUKY3nVp8M6eRylT2nkCxxLL-3dDEkU-pOsMyO26dJgyWvKe1QZ4Z3PhVov9Jxn0dVCbmIAAo_NTb1RZrFrRItU2ZoyfN6hJyCv8QM7HbLsxgOtpwTI5l8r_8l6WOGgrlTJJK9ufPv95AnmCuyhTrr4UUH07iqmp2Bs6PP45QbnGKl3Nx4ndEyc5Rp87zjKLSdFEcKz3yETxKfsiholdd9BtqR8HEpQf-wO6nkJ22AD1a2p00VEQscgn2prUrRfXMFW_9WT3a8nDMiT-O61w\",\"e\":\"AQAB\"}]}"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImdyYWNlLXdvcmxkcGF5cmFmdC10ZXN0LTEifQ.eyJhdWQiOiJFbnRlcnByaXNlQXV0aCIsImlzcyI6Imh0dHBzOi8vYXBpcy5jZXJ0LndvcmxkcGF5LmNvbS9hdXRoZW50aWNhdGlvbiIsImp0aSI6ImdyYWNlLWZpeHR1cmUtMDAwMSIsInN1YiI6IkVOVEVSUFJJU0VBVVRIIiwibmJmIjoxNzAwMDAwMDAwLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.fxM8D9dAectoAJNXIA0chs4789t6nenGmwF7tCiNX-IOMiHGIX47hcvLoXLDjdYv0QfE3aSg9PMpGbkKUdLZSxg4HNAiX42AEdjNw4YKwR17BjBnMcPcFXB4XZUqjIHYr9wfqwULvYuSmexBWSqYqrD-h27cbGVN2CVWUxQf2GcBOMNtpEiLx6TKBhuXQ3iM-NwNvCMrwW5pAzrHrZNL1_D311_uBnOdOeSZhKCedenr_Q4kA1ymEGLVcWtWIiZixjZvr5fdUKFkukMeTJW0ednzPBUD7Sls061-GhPBdmlQmmMGLMtdxyvtSTdy84TS6FQjL8PGxYQ1oM2muAFtew",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "eventType": "authorizations.created",
+          "notificationId": "64197a5d-d3e1-7y3g-5432-6c1074e270rf",
+          "eventCount": 2,
+          "version": "2.0",
+          "createdAt": "2023-02-01 10:05:16.233000+00:00",
+          "data": {
+            "authorizations": [
+              {
+                "transactionDate": "2023-02-01 12:19:31",
+                "transactionProcessDate": "2023-02-01 13:19:31",
+                "transactionAmount": 185.9,
+                "discount": 5.5,
+                "tipAmount": 7.19,
+                "transactionStatus": {
+                  "code": "ND",
+                  "shortDescription": "DECLINE",
+                  "longDescription": "DECLINE",
+                  "denial": {
+                    "code": "14",
+                    "shortDescription": "Invalid acct",
+                    "longDescription": "Invalid account number"
+                  }
+                },
+                "transactionType": {
+                  "code": "IP",
+                  "shortDescription": "Purchase",
+                  "longDescription": "Purchase"
+                },
+                "originalAcquirerTransactionId": "01056789000012340000",
+                "acquirerTransactionId": "01056789000012340010",
+                "authAmount": 185.9,
+                "authCharacteristics": {
+                  "code": "F",
+                  "shortDescription": "Card not present",
+                  "longDescription": "Card not present - Account Funding"
+                },
+                "currency": "USD",
+                "convenienceFee": 2.59,
+                "surchargeAmount": 3.09,
+                "shippingFee": 25.07,
+                "cardDetails": {
+                  "cardNumber": "123456****222875",
+                  "cardType": "CREDIT",
+                  "cardNetwork": {
+                    "code": "A",
+                    "shortDescription": "VISA",
+                    "longDescription": "VISA"
+                  },
+                  "expirationDate": "0227",
+                  "cvv": {
+                    "status": {
+                      "code": 9,
+                      "shortDescription": "CVV2 value not on card",
+                      "longDescription": "CVV2 value not on card"
+                    },
+                    "response": {
+                      "code": "S",
+                      "shortDescription": "CVV2 Should Be Present; Merchant indicates Not Present",
+                      "longDescription": "CVV2 Should Be Present; Merchant indicates Not Present"
+                    }
+                  },
+                  "healthCare": true
+                },
+                "cardHolderDetails": {
+                  "name": "Adam Smith",
+                  "phoneNumber": "1112224444",
+                  "email": "asmith@test.com",
+                  "addressLine1": "23 Ivy Grove Lane",
+                  "addressLine2": "Apt # 5",
+                  "city": "Atlanta",
+                  "state": "GA",
+                  "postalCode": "67854",
+                  "country": "USA",
+                  "aniMatchResult": {
+                    "code": "00",
+                    "shortDescription": "Performed",
+                    "longDescription": "Name match performed"
+                  },
+                  "aniResponse": {
+                    "code": "50",
+                    "shortDescription": "Partial Match",
+                    "longDescription": "Partial Match - Determined by the card issuer"
+                  }
+                },
+                "tokenDetails": {
+                  "token": "LH5678U00021356",
+                  "networkTokenIndicator": "1"
+                },
+                "merchantDetails": {
+                  "superChainCode": "AC000",
+                  "chainCode": "0H657G",
+                  "divisionNumber": "019",
+                  "storeNumber": "023100234",
+                  "merchantName": "TREAS CORP",
+                  "billingDescriptor": "TREAS CORP Merchant",
+                  "merchantId": "415044800113"
+                },
+                "cardNetworkFields": {
+                  "networkTransactionId": "000000000001678",
+                  "bankNetReferenceNumber": "MWE0NXJH8",
+                  "bankNetSettlementDate": "0213",
+                  "transactionLinkId": "A123467890B1234567890"
+                },
+                "customerFields": {
+                  "field1": "0000000000012345",
+                  "field2": "587553"
+                },
+                "paymentGatewayInfo": {
+                  "posApplicationId": "10328",
+                  "posApplicationName": "BillerSolutions.Worldpay.Express",
+                  "posApplicationVersion": "Gateway-version 1.0.2",
+                  "customerReferenceNumber": "59075211112223330000",
+                  "gatewayTransactionId": "133218004",
+                  "referenceNumber": "123456789012"
+                },
+                "softPos": {
+                  "deviceType": "1",
+                  "virtualTerminalId": "1013"
+                },
+                "traceNumber": "833753",
+                "posEntryMode": "05 - INTEGRATED CIRCUIT CARD READ (EMV)",
+                "preAuthIndicator": false,
+                "transactionId": "000000001000000",
+                "bankId": "HSBK",
+                "terminalId": "000031582940002",
+                "terminalNumber": "001",
+                "emv": "Y",
+                "terminalAttendanceIndicator": 1,
+                "terminalTypeIndicator": "E",
+                "terminalClassificationCode": "CC",
+                "avsResponse": {
+                  "code": "Z",
+                  "shortDescription": "Partial match",
+                  "longDescription": "Five digit ZIP matches but address does not match"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "worldpayraft_auth_created_declined",
+      "webhook_secrets": {
+        "secret": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"grace-worldpayraft-test-1\",\"n\":\"nO27h8fQ1XPMZdBfw-TvZ_kXEhMOL7nyjYuVvd1gHt-tMZY1XKpFX_xRZ09ubMSLH8AUKY3nVp8M6eRylT2nkCxxLL-3dDEkU-pOsMyO26dJgyWvKe1QZ4Z3PhVov9Jxn0dVCbmIAAo_NTb1RZrFrRItU2ZoyfN6hJyCv8QM7HbLsxgOtpwTI5l8r_8l6WOGgrlTJJK9ufPv95AnmCuyhTrr4UUH07iqmp2Bs6PP45QbnGKl3Nx4ndEyc5Rp87zjKLSdFEcKz3yETxKfsiholdd9BtqR8HEpQf-wO6nkJ22AD1a2p00VEQscgn2prUrRfXMFW_9WT3a8nDMiT-O61w\",\"e\":\"AQAB\"}]}"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImdyYWNlLXdvcmxkcGF5cmFmdC10ZXN0LTEifQ.eyJhdWQiOiJFbnRlcnByaXNlQXV0aCIsImlzcyI6Imh0dHBzOi8vYXBpcy5jZXJ0LndvcmxkcGF5LmNvbS9hdXRoZW50aWNhdGlvbiIsImp0aSI6ImdyYWNlLWZpeHR1cmUtMDAwMSIsInN1YiI6IkVOVEVSUFJJU0VBVVRIIiwibmJmIjoxNzAwMDAwMDAwLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.AxM8D9dAectoAJNXIA0chs4789t6nenGmwF7tCiNX-IOMiHGIX47hcvLoXLDjdYv0QfE3aSg9PMpGbkKUdLZSxg4HNAiX42AEdjNw4YKwR17BjBnMcPcFXB4XZUqjIHYr9wfqwULvYuSmexBWSqYqrD-h27cbGVN2CVWUxQf2GcBOMNtpEiLx6TKBhuXQ3iM-NwNvCMrwW5pAzrHrZNL1_D311_uBnOdOeSZhKCedenr_Q4kA1ymEGLVcWtWIiZixjZvr5fdUKFkukMeTJW0ednzPBUD7Sls061-GhPBdmlQmmMGLMtdxyvtSTdy84TS6FQjL8PGxYQ1oM2muAFtew",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "eventType": "transaction.disputecases.created",
+          "notificationId": "3dc66c3a-04ca-4bf4-81f2-8f91691df223",
+          "eventCount": 1,
+          "version": "2.0",
+          "createdAt": "2021-10-26 18:10:37.123000+00:00",
+          "data": {
+            "hierarchy": {
+              "salesOrganizationCode": "99",
+              "salesOrganizationName": "COZES",
+              "salesChannelCode": "78",
+              "salesChannelName": "Worldpay",
+              "partnerGroupId": "78",
+              "partnerGroupName": "Worldpay",
+              "superChainCode": "AB099",
+              "superChainName": "My Superchain Name",
+              "chainCode": "0Z0086",
+              "chainName": "My Chain Name",
+              "storeNumber": "000000001",
+              "storeName": "HARP ENGRAVING",
+              "divisionCode": "DIV0001",
+              "divisionName": "Marketing One",
+              "merchantId": "4445091191700",
+              "merchantName": "Mazys"
+            },
+            "caseDetails": {
+              "id": "9213299999",
+              "orderId": "A65433BC",
+              "transactionId": "582257733169554",
+              "worldpayTransactionId": "1959998920",
+              "status": "OPEN",
+              "originalTransactionDate": "2021-07-24",
+              "originalTransactionAmount": 123.45,
+              "originalTransactionAmountCurrencyType": "USD",
+              "transactionType": {
+                "code": "D",
+                "description": "Deposit"
+              },
+              "acquirerReferenceNumber": "23212345654321345678912",
+              "cardNetwork": "DISC",
+              "bin": "543322",
+              "cardNumber": "2344",
+              "stage": {
+                "code": "CH1",
+                "description": "First Chargeback"
+              },
+              "action": {
+                "code": "FCHG",
+                "description": "First Chargeback",
+                "amount": 123.45
+              },
+              "dateProcessedByAcquirer": "2021-07-24",
+              "reportDate": "2021-07-24",
+              "replyByDate": "2021-07-24",
+              "owner": "Ops",
+              "sourceSystemCaseId": "2022109999",
+              "reason": {
+                "code": "NC",
+                "description": "NOT CLASSIFIED"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "worldpayraft_invalid_jwt",
+      "webhook_secrets": {
+        "secret": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"grace-worldpayraft-test-1\",\"n\":\"nO27h8fQ1XPMZdBfw-TvZ_kXEhMOL7nyjYuVvd1gHt-tMZY1XKpFX_xRZ09ubMSLH8AUKY3nVp8M6eRylT2nkCxxLL-3dDEkU-pOsMyO26dJgyWvKe1QZ4Z3PhVov9Jxn0dVCbmIAAo_NTb1RZrFrRItU2ZoyfN6hJyCv8QM7HbLsxgOtpwTI5l8r_8l6WOGgrlTJJK9ufPv95AnmCuyhTrr4UUH07iqmp2Bs6PP45QbnGKl3Nx4ndEyc5Rp87zjKLSdFEcKz3yETxKfsiholdd9BtqR8HEpQf-wO6nkJ22AD1a2p00VEQscgn2prUrRfXMFW_9WT3a8nDMiT-O61w\",\"e\":\"AQAB\"}]}"
+      }
+    }
+  }
+}

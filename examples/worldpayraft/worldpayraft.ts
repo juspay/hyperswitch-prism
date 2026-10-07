@@ -5,9 +5,9 @@
 // Worldpayraft — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx worldpayraft.ts checkout_autocapture
 
-import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring"];
+import { PaymentClient, EventClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -41,11 +41,38 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
+            "shippingAddress": {
+                "line1": {"value": "500 Elm St"},  // Address Details.
+                "city": {"value": "Dayton"},
+                "state": {"value": "OH"},
+                "zipCode": {"value": "45402"}
+            },
             "billingAddress": {
+                "firstName": {"value": "Jane"},  // Personal Information.
+                "lastName": {"value": "Doe"},
+                "line1": {"value": "123 Main St"},  // Address Details.
+                "city": {"value": "Cincinnati"},
+                "state": {"value": "OH"},
+                "zipCode": {"value": "45201"}
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
-        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
+        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
+        "billingDescriptor": {  // Statement Descriptor.
+            "name": {"value": "ACME WIDGETS"},  // Customer's billing name.
+            "city": {"value": "CINCINNATI"}  // Customer's billing city.
+        },
+        "l2L3Data": {  // Level 2 / Level 3 data for enhanced payment processing.
+            "orderInfo": {  // Order-level information.
+                "orderDetails": [  // Line items for the order.
+                    {
+                        "productName": "Blue widget",  // Name of the product that is being purchased.
+                        "quantity": 3,  // The quantity of the product to be purchased.
+                        "amount": 1250  // Amount per quantity (in minor currency units).
+                    }
+                ]
+            }
+        }
     };
 }
 
@@ -56,6 +83,31 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"eventType\":\"authorizations.created\",\"notificationId\":\"64197a5d-d3e1-7y3g-5432-6c1074e270rf\",\"eventCount\":1,\"version\":\"2.0\",\"createdAt\":\"2023-02-01 10:05:16.113000+00:00\",\"data\":{\"authorizations\":[{\"transactionStatus\":{\"code\":\"AA\",\"shortDescription\":\"Approval\"},\"preAuthIndicator\":false,\"customerFields\":{\"field1\":\"4006642557\"},\"authCode\":\"075898\",\"traceNumber\":\"833753\"}]}}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -122,8 +174,11 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
-            "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"}
             }
         },
         "returnUrl": "https://example.com/recurring-return",
@@ -175,6 +230,13 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
             "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
             "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         }
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId
     };
 }
 
@@ -251,6 +313,28 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     return { status: refundResponse.status, error: refundResponse.error } as any;
 }
 
+// Void Payment
+// Cancel an authorized but not-yet-captured payment.
+async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId!));
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
+}
+
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -264,9 +348,27 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('0000000000000001'));
 
     return captureResponse;
+}
+
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -314,10 +416,19 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
     return setupResponse;
 }
 
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('0000000000000001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner
