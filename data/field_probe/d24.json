@@ -180,6 +180,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::CardRedirect(Webpay {}) and PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) — no card data is sent to /v3/deposits"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::CardRedirect(Webpay {}) and PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) — no card data is sent to /v3/deposits"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::CardRedirect(Webpay {}) and PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) — no card data is sent to /v3/deposits"

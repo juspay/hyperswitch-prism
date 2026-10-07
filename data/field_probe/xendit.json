@@ -215,6 +215,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"

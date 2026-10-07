@@ -210,6 +210,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"

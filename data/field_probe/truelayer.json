@@ -180,6 +180,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Truelayer"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Truelayer"

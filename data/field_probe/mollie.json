@@ -212,6 +212,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"

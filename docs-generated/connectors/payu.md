@@ -144,7 +144,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay Dec | x |
 | Apple Pay SDK | x |
 | Google Pay | x |
-| Google Pay Dec | x |
+| Google Pay CRYPTOGRAM_3DS | x |
+| Google Pay PAN_ONLY | x |
 | Google Pay SDK | x |
 | PayPal SDK | x |
 | Amazon Pay | x |

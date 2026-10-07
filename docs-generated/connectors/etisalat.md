@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L127) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L104) · [Rust](../../examples/etisalat/etisalat.rs#L162)
+**Examples:** [Python](../../examples/etisalat/etisalat.py#L127) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L104) · [Rust](../../examples/etisalat/etisalat.rs#L165)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +145,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L146) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L120) · [Rust](../../examples/etisalat/etisalat.rs#L178)
+**Examples:** [Python](../../examples/etisalat/etisalat.py#L146) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L120) · [Rust](../../examples/etisalat/etisalat.rs#L181)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L171) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L142) · [Rust](../../examples/etisalat/etisalat.rs#L201)
+**Examples:** [Python](../../examples/etisalat/etisalat.py#L171) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L142) · [Rust](../../examples/etisalat/etisalat.rs#L204)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L196) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L164) · [Rust](../../examples/etisalat/etisalat.rs#L224)
+**Examples:** [Python](../../examples/etisalat/etisalat.py#L196) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L164) · [Rust](../../examples/etisalat/etisalat.rs#L227)
 
 ## API Reference
 
@@ -191,7 +191,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay Dec | ⚠ |
 | Apple Pay SDK | ⚠ |
 | Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay CRYPTOGRAM_3DS | ⚠ |
+| Google Pay PAN_ONLY | ⚠ |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
@@ -303,7 +304,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L225) · [Kotlin](../../examples/etisalat/etisalat.kt#L182) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L228) · [Kotlin](../../examples/etisalat/etisalat.kt#L182) · [Rust](../../examples/etisalat/etisalat.rs)
 
 #### PaymentService.Capture
 
@@ -314,7 +315,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L234) · [Kotlin](../../examples/etisalat/etisalat.kt#L194) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L237) · [Kotlin](../../examples/etisalat/etisalat.kt#L194) · [Rust](../../examples/etisalat/etisalat.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -325,7 +326,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L243) · [Kotlin](../../examples/etisalat/etisalat.kt#L204) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L246) · [Kotlin](../../examples/etisalat/etisalat.kt#L204) · [Rust](../../examples/etisalat/etisalat.rs)
 
 #### PaymentService.Refund
 
@@ -336,7 +337,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L261) · [Kotlin](../../examples/etisalat/etisalat.kt#L264) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L264) · [Kotlin](../../examples/etisalat/etisalat.kt#L264) · [Rust](../../examples/etisalat/etisalat.rs)
 
 #### PaymentService.Void
 
@@ -360,4 +361,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L252) · [Kotlin](../../examples/etisalat/etisalat.kt#L233) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L255) · [Kotlin](../../examples/etisalat/etisalat.kt#L233) · [Rust](../../examples/etisalat/etisalat.rs)

@@ -180,6 +180,10 @@
         "status": "error",
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
       "GooglePayThirdPartySdk": {
         "status": "error",
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"

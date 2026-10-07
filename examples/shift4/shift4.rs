@@ -219,7 +219,12 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
     RecurringPaymentServiceChargeRequest {
         connector_recurring_payment_id: Some(MandateReference {
             // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            mandate_id_type: Some(mandate_reference::MandateIdType::ConnectorMandateId(
+                ConnectorMandateReferenceId {
+                    connector_mandate_id: Some("probe-mandate-123".to_string()),
+                    ..Default::default()
+                },
+            )),
             ..Default::default()
         }),
         amount: Some(Money {

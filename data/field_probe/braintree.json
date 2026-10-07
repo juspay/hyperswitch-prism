@@ -208,6 +208,10 @@
         "status": "not_supported",
         "error": "Selected payment method through braintree is not supported by Braintree"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
       "GooglePayThirdPartySdk": {
         "status": "supported",
         "proto_request": {

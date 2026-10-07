@@ -350,6 +350,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"

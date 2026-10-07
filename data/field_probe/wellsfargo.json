@@ -219,6 +219,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"

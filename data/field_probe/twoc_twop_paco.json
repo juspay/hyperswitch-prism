@@ -180,6 +180,10 @@
         "status": "error",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
+      },
       "GooglePayThirdPartySdk": {
         "status": "error",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."

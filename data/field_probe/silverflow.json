@@ -211,6 +211,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Silverflow"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Silverflow"

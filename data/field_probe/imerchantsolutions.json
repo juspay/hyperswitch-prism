@@ -298,6 +298,50 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"googlepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "auth_method": "PAN_ONLY"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://imerchantsolutions.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"googlepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+        }
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."

@@ -2359,7 +2359,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             (
                                 cartes_params.as_ref().map(|cb| cb.cavv_algorithm.clone()),
                                 cartes_params.as_ref().map(|cb| cb.cb_exemption.clone()),
-                                cartes_params.as_ref().and_then(|cb| cb.cb_score).map(|score| score.to_string()),
+                                cartes_params
+                                    .as_ref()
+                                    .and_then(|cb| cb.cb_score)
+                                    .map(|score| score.to_string()),
                             )
                         }
                         _ => (None, None, None),

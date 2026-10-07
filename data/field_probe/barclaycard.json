@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Stuck on field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required — Missing required field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required — Missing required field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method `google_pay_third_party_sdk` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `google_pay_third_party_sdk`"

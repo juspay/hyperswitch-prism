@@ -246,6 +246,10 @@
         "status": "error",
         "error": "Stuck on field: google_pay.tokenization_data.token. Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token — Missing required field: google_pay.tokenization_data.token. Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: google_pay.tokenization_data.token. Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token — Missing required field: google_pay.tokenization_data.token. Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Datatrans. Datatrans Authorize supports Google Pay and Apple Pay only"

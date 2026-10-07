@@ -302,6 +302,10 @@
         "status": "error",
         "error": "Stuck on field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data — Missing required field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data — Missing required field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet Payment Method"

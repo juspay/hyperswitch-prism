@@ -301,6 +301,10 @@
           "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"probe_txn_001\",\"source_data\":{\"type\":\"network_token\",\"network_token\":{\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"three_ds\":{\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\"}}}}"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Missing required field: google_pay_decrypted_data.cryptogram. Pay.com network_token requires a cryptogram; PAN_ONLY tokens are not supported. Use CRYPTOGRAM_3DS in your Google Pay configuration."
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."

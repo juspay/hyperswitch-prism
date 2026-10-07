@@ -180,6 +180,10 @@
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"

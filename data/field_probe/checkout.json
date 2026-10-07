@@ -327,6 +327,50 @@
           "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "auth_method": "PAN_ONLY"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"billing_address\":{},\"account_holder\":null},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+        }
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"

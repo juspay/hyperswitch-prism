@@ -192,7 +192,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay Dec | ✓ |
 | Apple Pay SDK | ✓ |
 | Google Pay | ✓ |
-| Google Pay Dec | ✓ |
+| Google Pay CRYPTOGRAM_3DS | ✓ |
+| Google Pay PAN_ONLY | ✓ |
 | Google Pay SDK | ✓ |
 | PayPal SDK | ✓ |
 | Amazon Pay | ✓ |
@@ -319,6 +320,54 @@ Authorize a payment amount on a payment method. This reserves funds without capt
       "encrypted_data": {
         "token_type": "PAYMENT_GATEWAY",
         "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
+    }
+  }
+}
+```
+
+##### Google Pay CRYPTOGRAM_3DS
+
+```python
+"payment_method": {
+  "google_pay_sdk": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "decrypted_data": {
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "application_primary_account_number": "4111111111111111",
+        "cryptogram": "AAAAAA==",
+        "eci_indicator": "05",
+        "auth_method": "CRYPTOGRAM_3DS"
+      }
+    }
+  }
+}
+```
+
+##### Google Pay PAN_ONLY
+
+```python
+"payment_method": {
+  "google_pay_sdk": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "decrypted_data": {
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "application_primary_account_number": "4111111111111111",
+        "auth_method": "PAN_ONLY"
       }
     }
   }

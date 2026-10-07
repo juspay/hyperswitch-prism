@@ -180,6 +180,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Tamara"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Tamara"

@@ -140,6 +140,9 @@
       "GooglePayDecrypted": {
         "status": "not_implemented"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented"
       },

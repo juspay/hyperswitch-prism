@@ -219,6 +219,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\"), auth_method: Some(Cryptogram) }) }))"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: None, eci_indicator: None, auth_method: Some(PanOnly) }) }))"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))"

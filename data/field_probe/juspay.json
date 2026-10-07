@@ -485,6 +485,52 @@
           "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOOGLEPAY&format=json&redirect_after_payment=true"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "auth_method": "PAN_ONLY"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOOGLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
       "GooglePayThirdPartySdk": {
         "status": "supported",
         "proto_request": {

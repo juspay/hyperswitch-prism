@@ -180,6 +180,10 @@
         "status": "error",
         "error": "Invalid connector configuration: merchant_private_key"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Invalid connector configuration: merchant_private_key"
+      },
       "GooglePayThirdPartySdk": {
         "status": "error",
         "error": "Invalid connector configuration: merchant_private_key"

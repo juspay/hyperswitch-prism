@@ -290,6 +290,10 @@
         "status": "error",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through worldpay is not supported by Worldpay"

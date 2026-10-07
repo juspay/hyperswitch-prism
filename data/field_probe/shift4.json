@@ -313,6 +313,10 @@
         "status": "not_supported",
         "error": "Pre-decrypted Google Pay for Authorize is not supported by Shift4. Shift4 accepts Google Pay only as the encrypted `googlePay.token`, which it decrypts itself. It has no request field for a decrypted PAN / DPAN, cryptogram or ECI and rejects them as unrecognized fields, so decrypted Google Pay data can be neither charged nor stored as a payment method."
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Pre-decrypted Google Pay for Authorize is not supported by Shift4. Shift4 accepts Google Pay only as the encrypted `googlePay.token`, which it decrypts itself. It has no request field for a decrypted PAN / DPAN, cryptogram or ECI and rejects them as unrecognized fields, so decrypted Google Pay data can be neither charged nor stored as a payment method."
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Apple Pay / Google Pay third-party SDK token for Authorize is not supported by Shift4. The token was issued by a third-party wallet SDK. Shift4 accepts a card wallet only as the Apple Pay or Google Pay encrypted payment token."

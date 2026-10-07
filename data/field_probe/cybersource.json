@@ -491,6 +491,58 @@
           "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"capture\":true,\"captureOptions\":null,\"paymentSolution\":\"012\"},\"paymentInformation\":{\"tokenizedCard\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"cryptogram\":\"AAAAAA==\",\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{\"ucafCollectionIndicator\":null,\"cavv\":null,\"ucafAuthenticationData\":null,\"xid\":null,\"directoryServerTransactionId\":null,\"specificationVersion\":null,\"paSpecificationVersion\":null,\"veresEnrolled\":null,\"eciRaw\":null,\"paresStatus\":null,\"authenticationDate\":null,\"effectiveAuthenticationType\":null,\"challengeCode\":null,\"signedParesStatusReason\":null,\"challengeCancelCode\":null,\"networkScore\":null,\"acsTransactionId\":null,\"cavvAlgorithm\":null}}"
         }
       },
+      "GooglePayPanOnly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "auth_method": "PAN_ONLY"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"capture\":true,\"captureOptions\":null,\"paymentSolution\":\"012\"},\"paymentInformation\":{\"tokenizedCard\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"cryptogram\":null,\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{\"ucafCollectionIndicator\":null,\"cavv\":null,\"ucafAuthenticationData\":null,\"xid\":null,\"directoryServerTransactionId\":null,\"specificationVersion\":null,\"paSpecificationVersion\":null,\"veresEnrolled\":null,\"eciRaw\":null,\"paresStatus\":null,\"authenticationDate\":null,\"effectiveAuthenticationType\":null,\"challengeCode\":null,\"signedParesStatusReason\":null,\"challengeCancelCode\":null,\"networkScore\":null,\"acsTransactionId\":null,\"cavvAlgorithm\":null}}"
+        }
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"

@@ -180,6 +180,10 @@
         "status": "not_supported",
         "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"

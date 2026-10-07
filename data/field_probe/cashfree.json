@@ -180,6 +180,10 @@
         "status": "error",
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
+      "GooglePayPanOnly": {
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+      },
       "GooglePayThirdPartySdk": {
         "status": "error",
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"

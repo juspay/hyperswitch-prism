@@ -279,6 +279,10 @@
         "status": "not_supported",
         "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."

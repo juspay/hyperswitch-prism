@@ -89,6 +89,9 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
 function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
     return {
         "connectorRecurringPaymentId": {  // Reference to existing mandate.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe-mandate-123"
+            }
         },
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).

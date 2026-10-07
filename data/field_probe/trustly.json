@@ -180,6 +180,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"

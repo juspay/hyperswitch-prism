@@ -166,7 +166,7 @@ def _build_proxy_setup_recurring_request():
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(
                 connector_mandate_id="probe-mandate-123",
             ),
         ),

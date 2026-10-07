@@ -215,6 +215,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"

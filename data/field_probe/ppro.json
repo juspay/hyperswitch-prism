@@ -304,6 +304,10 @@
         "status": "not_supported",
         "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "payment method google_pay is not supported by PPRO is not supported by ppro"

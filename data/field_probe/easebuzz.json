@@ -205,6 +205,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
+      "GooglePayPanOnly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"

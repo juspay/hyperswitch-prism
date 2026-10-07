@@ -201,8 +201,14 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                     errors::IntegrationError::InvalidDataFormat {
                         field_name: "authentication_data.created_at",
                         context: errors::IntegrationErrorContext {
-                            suggested_action: Some("Provide the original authentication time in Unix epoch seconds".to_owned()),
-                            additional_context: Some("The authentication timestamp is outside the supported range".to_owned()),
+                            suggested_action: Some(
+                                "Provide the original authentication time in Unix epoch seconds"
+                                    .to_owned(),
+                            ),
+                            additional_context: Some(
+                                "The authentication timestamp is outside the supported range"
+                                    .to_owned(),
+                            ),
                             doc_url: None,
                         },
                     },

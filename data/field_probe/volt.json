@@ -180,6 +180,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
+      "GooglePayPanOnly": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
