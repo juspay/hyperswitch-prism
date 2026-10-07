@@ -104,7 +104,21 @@ fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     payment_channel: &Option<common_enums::PaymentChannel>,
 ) -> Option<bool> {
-    if matches!(payment_method_data, PaymentMethodData::Card(_))
+    // hyperswitch tests `payment_method_data.is_card_payment()` while still holding the raw card.
+    // By the time prism sees a split-payment Authorize the router has swapped the card for a
+    // connector token, so matching only `Card` dropped `moto` on every tokenised MOTO payment.
+    // `token_payment_method_type: None` is the card arm of that token -- Apple Pay / Google Pay
+    // are wallets, which `is_card_payment()` excludes too. Same reading as the Authorize
+    // transformer below.
+    let is_card_payment = match payment_method_data {
+        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::PaymentMethodToken(token_data) => {
+            token_data.token_payment_method_type.is_none()
+        }
+        _ => false,
+    };
+
+    if is_card_payment
         && matches!(
             payment_channel,
             Some(
