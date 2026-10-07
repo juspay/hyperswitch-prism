@@ -267,6 +267,7 @@ pub enum PayoutConnectorEnum {
     Trustly,
     GotymeSanlam,
     Mifinity,
+    Paysafe,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -284,6 +285,7 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Truelayer => Ok(Self::Truelayer),
             ConnectorEnum::Trustly => Ok(Self::Trustly),
             ConnectorEnum::Mifinity => Ok(Self::Mifinity),
+            ConnectorEnum::Paysafe => Ok(Self::Paysafe),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -331,6 +333,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Trustly(_) => Ok(Self::Trustly),
             AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             AuthType::Mifinity(_) => Ok(Self::Mifinity),
+            AuthType::Paysafe(_) => Ok(Self::Paysafe),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",

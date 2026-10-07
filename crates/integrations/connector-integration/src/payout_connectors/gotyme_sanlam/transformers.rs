@@ -350,7 +350,8 @@ impl
                 | PayoutMethodData::Bank(_)
                 | PayoutMethodData::Wallet(_)
                 | PayoutMethodData::BankRedirect(_)
-                | PayoutMethodData::Passthrough(_),
+                | PayoutMethodData::Passthrough(_)
+                | PayoutMethodData::GiftCard(_),
             ) => Err(IntegrationError::NotSupported {
                 message: get_unimplemented_payment_method_error_message("GotymeSanlam"),
                 connector: "GotymeSanlam",

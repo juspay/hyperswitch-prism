@@ -802,6 +802,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PayoutMethodData::Wallet(_) => Err(unsupported_enroll_rail("wallet")),
             PayoutMethodData::BankRedirect(_) => Err(unsupported_enroll_rail("bank redirect")),
             PayoutMethodData::Passthrough(_) => Err(unsupported_enroll_rail("passthrough")),
+            PayoutMethodData::GiftCard(_) => Err(unsupported_enroll_rail("gift card")),
         }
     }
 }

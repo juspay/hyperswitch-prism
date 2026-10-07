@@ -312,6 +312,7 @@ pub struct PayoutCustomer {
     pub connector_customer_id: Option<String>,
     pub phone_number: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl PayoutCustomer {

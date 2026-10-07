@@ -907,6 +907,7 @@ impl Connectors {
             }
             PayoutConnectorEnum::Truelayer => patched.truelayer.apply(params_patch),
             PayoutConnectorEnum::Mifinity => patched.mifinity.apply(params_patch),
+            PayoutConnectorEnum::Paysafe => patched.paysafe.apply(params_patch),
         }
         Ok(patched)
     }
