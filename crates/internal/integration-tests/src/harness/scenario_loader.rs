@@ -114,6 +114,22 @@ pub fn load_scenario(suite: &str, scenario: &str) -> Result<ScenarioDef, Scenari
         })
 }
 
+/// Loads a global or connector-specific scenario and rejects duplicate names.
+pub fn load_scenario_for_connector(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    let mut scenarios = load_suite_scenarios(suite)?;
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+    scenarios
+        .remove(scenario)
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })
+}
+
 /// Loads suite execution metadata including dependency graph and scope.
 pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
     let path = suite_spec_file_path(suite);
