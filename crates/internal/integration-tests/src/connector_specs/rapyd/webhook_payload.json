@@ -1,0 +1,452 @@
+{
+  "_webhook_config": {
+    "signature_algorithm": "base64(hex(HMAC-SHA256(key = secret_key, message = url_path + salt + timestamp + access_key + secret_key + body)))",
+    "signature_location": "headers salt, timestamp, signature",
+    "secret_format": "JSON string {\"access_key\": ..., \"secret_key\": ...} passed as webhook_secrets.secret",
+    "note": "Every fixture is signed with the invented key pair carried in its own webhook_secrets.secret (not an account credential), over the compact JSON form of body that the harness sends, so HandleEvent verifies the signature for real. The harness has no Rapyd signature generator: when a body, uri, salt or timestamp changes, recompute the signature header with the formula above. invalid_signature carries a signature that does not match.",
+    "webhook_secret_key": "rapyd_fixture_key_pair_is_inline"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f60718",
+          "timestamp": "1791326507",
+          "signature": "ZTVkY2JiYTgzZTg5NmQ3ZGVmZWU0OGMyOTRjY2E5ZGY0NjU3NmRiYTdlYmU2Njc5ODQ4MDJhMmIyZmY0MjZmMg=="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "mid": "",
+            "paid": true,
+            "order": null,
+            "amount": 1,
+            "escrow": null,
+            "status": "CLO",
+            "address": null,
+            "dispute": null,
+            "fx_rate": 1,
+            "invoice": "",
+            "outcome": null,
+            "paid_at": 1711008868,
+            "refunds": null,
+            "captured": true,
+            "ewallets": [
+              {
+                "amount": 1,
+                "percent": 100,
+                "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+                "refunded_amount": 0
+              }
+            ],
+            "metadata": {},
+            "refunded": false,
+            "auth_code": null,
+            "flow_type": "",
+            "created_at": 1711008868,
+            "error_code": "",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "expiration": 1711613668,
+            "fixed_side": "",
+            "is_partial": false,
+            "description": "",
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "failure_code": "",
+            "instructions": [],
+            "payment_fees": null,
+            "redirect_url": "",
+            "visual_codes": {},
+            "cancel_reason": null,
+            "currency_code": "EUR",
+            "group_payment": "",
+            "receipt_email": "",
+            "textual_codes": {},
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "receipt_number": "",
+            "transaction_id": "",
+            "failure_message": "",
+            "initiation_type": "customer_present",
+            "original_amount": 1,
+            "refunded_amount": 0,
+            "error_payment_url": "https://error.rapyd.net",
+            "payment_method_data": {
+              "id": "card_0d83436af31300bf263dd5ef379b8230",
+              "name": "John Doe",
+              "type": "gb_visa_card",
+              "image": "",
+              "last4": "1111",
+              "category": "card",
+              "metadata": null,
+              "acs_check": "unchecked",
+              "cvv_check": "unchecked",
+              "bin_details": {
+                "type": "DEBIT",
+                "brand": "VISA",
+                "level": "CREDIT",
+                "issuer": "JPMORGAN CHASE BANK, N.A.",
+                "country": "US",
+                "bin_number": "411111"
+              },
+              "next_action": "not_applicable",
+              "webhook_url": "",
+              "expiration_year": "25",
+              "expiration_month": "05",
+              "fingerprint_token": "ocfp_e599f990674473ce6283b245e9ad2467",
+              "supporting_documentation": "",
+              "payment_account_reference": "V0010013018036782991622965076"
+            },
+            "payment_method_type": "gb_visa_card",
+            "save_payment_method": true,
+            "complete_payment_url": "https://complete.rapyd.net",
+            "remitter_information": {},
+            "statement_descriptor": "Doc Team",
+            "merchant_reference_id": "",
+            "payment_method_options": {},
+            "merchant_requested_amount": null,
+            "merchant_requested_currency": null,
+            "payment_method_type_category": "card",
+            "merchant_advice_code": null,
+            "merchant_advice_message": null,
+            "merchant_ewallet": null,
+            "transaction_link_id": null
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_completed",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rak_fixture_access_key_0001\",\"secret_key\":\"rsk_fixture_secret_key_0001\"}"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "b2c3d4e5f6071829",
+          "timestamp": "1791326508",
+          "signature": "OTA1NjY0Y2IwOWY4ZmZiOTAwZThmZDY0NzhjMTExNGNkMDgyMmQ4Y2I1Mzg3ZDk4M2JlM2ZhNGE1MmExYjU1NQ=="
+        },
+        "body": {
+          "id": "wh_6d0b1efc39424f33556a300434cccc74",
+          "type": "PAYMENT_FAILED",
+          "data": {
+            "id": "payment_02e5ecc4b7e0395148e8eba68ad63120",
+            "mid": "mid_5c5d6187ccd4dd5c16142459e8911350",
+            "paid": false,
+            "order": null,
+            "amount": 0,
+            "escrow": null,
+            "status": "ERR",
+            "address": null,
+            "dispute": null,
+            "fx_rate": 1,
+            "invoice": "",
+            "outcome": null,
+            "paid_at": 0,
+            "refunds": null,
+            "captured": true,
+            "ewallets": [
+              {
+                "amount": 1065,
+                "percent": 100,
+                "ewallet_id": "ewallet_d94e54f70c3c401f15430cd6eb3c23d2",
+                "refunded_amount": 0
+              }
+            ],
+            "metadata": {},
+            "refunded": false,
+            "auth_code": null,
+            "flow_type": "",
+            "created_at": 1736262161,
+            "error_code": "ERROR_PROCESSING_CARD - [65]",
+            "ewallet_id": "ewallet_d94e54f70c3c401f15430cd6eb3c23d2",
+            "expiration": 1738854296,
+            "fixed_side": "",
+            "is_partial": false,
+            "description": "",
+            "capture": true,
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "instructions": {},
+            "payment_fees": null,
+            "redirect_url": "https://sboxcheckout.rapyd.net/3ds/challenge.html?redirection_data=%MjM12%22bcs_action_url%22https%2Fsboxapi.rapyd.net%2Fv1%2Fsimulate%2Facs%2Fchallenge%2F",
+            "visual_codes": {},
+            "cancel_reason": null,
+            "currency_code": "ISK",
+            "group_payment": "",
+            "receipt_email": "",
+            "textual_codes": {},
+            "customer_token": "cus_ad212a1b326bb00dd6a663b44e574ad3",
+            "payment_method": null,
+            "receipt_number": "",
+            "transaction_id": "",
+            "failure_code": "65",
+            "failure_message": "Authentication Required or Activity Limit Exceeded",
+            "initiation_type": "customer_present",
+            "original_amount": 1065,
+            "refunded_amount": 0,
+            "error_payment_url": "http://www.rapyd.net/error.html",
+            "payment_method_data": {
+              "id": null,
+              "name": "John Doe",
+              "type": "gb_mastercard_card",
+              "image": "",
+              "last4": "2867",
+              "category": "card",
+              "metadata": null,
+              "acs_check": "unavailable",
+              "cvv_check": "fail",
+              "bin_details": {
+                "type": "DEBIT",
+                "brand": "VISA",
+                "level": "CLASSIC",
+                "issuer": "LLOYDS BANK PLC",
+                "country": "GB",
+                "bin_number": "492181"
+              },
+              "next_action": "not_applicable",
+              "webhook_url": "",
+              "expiration_year": "27",
+              "expiration_month": "12",
+              "fingerprint_token": "ocfp_9f72969f8df38764e698d57bca0ec75a",
+              "payment_account_reference": "V0010013018036782991622965076",
+              "supporting_documentation": ""
+            },
+            "payment_method_type": "gb_mastercard_card",
+            "complete_payment_url": "http://www.rapyd.net",
+            "remitter_information": {},
+            "statement_descriptor": "Doc Team",
+            "authentication_result": {
+              "eci": "07",
+              "result": "N",
+              "version": "2.2.0",
+              "cardholder_info": "The purchase connot be completed at this time. For additional information please contact your card issuer."
+            },
+            "merchant_reference_id": "",
+            "payment_method_options": {
+              "3d_required": true
+            },
+            "merchant_requested_amount": null,
+            "merchant_requested_currency": null,
+            "payment_method_type_category": "card",
+            "merchant_advice_code": "02",
+            "merchant_advice_message": "Try again later",
+            "merchant_ewallet": null,
+            "transaction_link_id": "E7iAc-7Sr5Nt7sPs_OX3Xy"
+          },
+          "trigger_operation_id": "9846cf13-6983-4888-88d4-c0b378dec372",
+          "status": "NEW",
+          "created_at": 1736262296,
+          "extended_timestamp": 1736262296981
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rak_fixture_access_key_0001\",\"secret_key\":\"rsk_fixture_secret_key_0001\"}"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "c3d4e5f60718293a",
+          "timestamp": "1791326509",
+          "signature": "MTAyYmRkNzE1MGQ1YTYwM2YwOTEyYTc0NTVmOTJkZjM4ODFkZDUyZjE0MDBlOTkxOTU4Y2ZiNzE3YjcyZjdhMw=="
+        },
+        "body": {
+          "id": "c73cd65e-988c-473a-8d03-06a15d52a3e7",
+          "token": "wh_1abe7fd19f96fe553fc613a1f3ff20ca",
+          "organization_id": "df301b60-8a9d-4a5a-a315-39b699230cb1",
+          "org_pk": 0,
+          "type": "REFUND_COMPLETED",
+          "data": {
+            "id": "refund_102ae6d1286b07ce8b3768b93eab9a24",
+            "amount": 87.36,
+            "payment": "payment_ccc04715a1021b821025b8d8c0a0eed8",
+            "currency": "ILS",
+            "failure_reason": "",
+            "failure_code": "",
+            "metadata": {},
+            "reason": "Direct Refund",
+            "status": "Completed",
+            "receipt_number": 0,
+            "created_at": 1768959,
+            "updated_at": 1768960,
+            "merchant_ewallet": null,
+            "merchant_reference_id": "030016",
+            "payment_created_at": 1768958,
+            "payment_method_type": "il_mastercard_card",
+            "ewallets": [
+              {
+                "ewallet": "ewallet_cd59fae56ce5b9564ecb52d7f9eb0c37",
+                "amount": 87.36
+              }
+            ],
+            "proportional_refund": true,
+            "merchant_debited_amount": null,
+            "merchant_debited_currency": null,
+            "fx_rate": null,
+            "fixed_side": null
+          },
+          "attempts": [],
+          "trigger_operation_id": "3567b315-a73c-4415-8206-c598d70ac665",
+          "first_attempt_at": 0,
+          "last_attempt_at": 0,
+          "status": "",
+          "created_at": 0,
+          "next_attempt_at": 0,
+          "uri": ""
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_refund_completed",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rak_fixture_access_key_0001\",\"secret_key\":\"rsk_fixture_secret_key_0001\"}"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "c80024ab89f6ecc9",
+          "timestamp": "1791303367",
+          "signature": "aW52YWxpZC1zaWduYXR1cmU="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "mid": "",
+            "paid": true,
+            "order": null,
+            "amount": 1,
+            "escrow": null,
+            "status": "CLO",
+            "address": null,
+            "dispute": null,
+            "fx_rate": 1,
+            "invoice": "",
+            "outcome": null,
+            "paid_at": 1711008868,
+            "refunds": null,
+            "captured": true,
+            "ewallets": [
+              {
+                "amount": 1,
+                "percent": 100,
+                "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+                "refunded_amount": 0
+              }
+            ],
+            "metadata": {},
+            "refunded": false,
+            "auth_code": null,
+            "flow_type": "",
+            "created_at": 1711008868,
+            "error_code": "",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "expiration": 1711613668,
+            "fixed_side": "",
+            "is_partial": false,
+            "description": "",
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "failure_code": "",
+            "instructions": [],
+            "payment_fees": null,
+            "redirect_url": "",
+            "visual_codes": {},
+            "cancel_reason": null,
+            "currency_code": "EUR",
+            "group_payment": "",
+            "receipt_email": "",
+            "textual_codes": {},
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "receipt_number": "",
+            "transaction_id": "",
+            "failure_message": "",
+            "initiation_type": "customer_present",
+            "original_amount": 1,
+            "refunded_amount": 0,
+            "error_payment_url": "https://error.rapyd.net",
+            "payment_method_data": {
+              "id": "card_0d83436af31300bf263dd5ef379b8230",
+              "name": "John Doe",
+              "type": "gb_visa_card",
+              "image": "",
+              "last4": "1111",
+              "category": "card",
+              "metadata": null,
+              "acs_check": "unchecked",
+              "cvv_check": "unchecked",
+              "bin_details": {
+                "type": "DEBIT",
+                "brand": "VISA",
+                "level": "CREDIT",
+                "issuer": "JPMORGAN CHASE BANK, N.A.",
+                "country": "US",
+                "bin_number": "411111"
+              },
+              "next_action": "not_applicable",
+              "webhook_url": "",
+              "expiration_year": "25",
+              "expiration_month": "05",
+              "fingerprint_token": "ocfp_e599f990674473ce6283b245e9ad2467",
+              "supporting_documentation": "",
+              "payment_account_reference": "V0010013018036782991622965076"
+            },
+            "payment_method_type": "gb_visa_card",
+            "save_payment_method": true,
+            "complete_payment_url": "https://complete.rapyd.net",
+            "remitter_information": {},
+            "statement_descriptor": "Doc Team",
+            "merchant_reference_id": "",
+            "payment_method_options": {},
+            "merchant_requested_amount": null,
+            "merchant_requested_currency": null,
+            "payment_method_type_category": "card",
+            "merchant_advice_code": null,
+            "merchant_advice_message": null,
+            "merchant_ewallet": null,
+            "transaction_link_id": null
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"rak_fixture_access_key_0001\",\"secret_key\":\"rsk_fixture_secret_key_0001\"}"
+      }
+    }
+  }
+}
