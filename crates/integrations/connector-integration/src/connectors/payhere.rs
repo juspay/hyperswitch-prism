@@ -28,7 +28,6 @@ use serde::Serialize;
 use super::macros;
 use crate::types::ResponseRouterData;
 use base64::Engine;
-use common_utils::types::StringMajorUnit;
 use transformers::*;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 

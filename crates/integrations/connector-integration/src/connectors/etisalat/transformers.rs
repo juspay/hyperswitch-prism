@@ -1,5 +1,8 @@
 use common_enums::{AttemptStatus, CaptureMethod, Currency, RefundStatus};
-use common_utils::types::StringMajorUnit;
+use common_utils::{
+    types::{StringMajorUnit, StringMajorUnitForConnector},
+    AmountConvertor, ConnectorAmountExt,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, Void},
     connector_types::{
@@ -358,14 +361,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `minor_amount_capturable` is None on this path (domain_types hardcodes it);
         // derive partial vs full from the authorized amount in resource_common_data.amount.
         // Partial captures keep the residual balance (RVS:N). Full captures release it (RVS:Y).
-        let authorized = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|m| m.amount);
+        let authorized = item.router_data.resource_common_data.amount.as_ref();
         let is_partial = match authorized {
-            Some(auth_amount) => request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => amount.is_less_than_money(auth_amount).change_context(
+                IntegrationError::AmountConversionFailed {
+                    context: utils::amount_conversion_ctx(
+                        "authorized and captured amount comparison",
+                        &request.minor_amount_to_capture,
+                        &request.currency,
+                    ),
+                },
+            )?,
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -849,14 +855,32 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
 
         // `minor_amount_capturable` is None on the Capture path; derive partial/full
         // from the authorized amount in resource_common_data.amount instead.
-        let authorized = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|m| m.amount);
+        let authorized = item.router_data.resource_common_data.amount.as_ref();
         let is_partial = match authorized {
-            Some(auth_amount) => item.router_data.request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => StringMajorUnitForConnector
+                .convert(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                )
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Failed to convert the Etisalat captured amount for comparison"
+                                .to_string(),
+                        ),
+                    },
+                })?
+                .is_less_than_money(auth_amount)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Failed to compare the Etisalat authorized and captured amounts"
+                                .to_string(),
+                        ),
+                    },
+                })?,
             None => false,
         };
         let success_status = if is_partial {

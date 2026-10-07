@@ -436,10 +436,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::types::MinorUnit::new(request_data.amount_to_capture),
-                request_data.currency,
-            )
+            .convert(request_data.minor_amount_to_capture, request_data.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -525,10 +522,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::types::MinorUnit::new(request_data.refund_amount),
-                request_data.currency,
-            )
+            .convert(request_data.minor_refund_amount, request_data.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -844,9 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                request_data
-                    .minor_amount
-                    .unwrap_or(common_utils::types::MinorUnit::new(0)),
+                request_data.minor_amount.unwrap_or_default(),
                 request_data.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

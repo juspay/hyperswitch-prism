@@ -934,7 +934,7 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let is_zero_amount = item.request.minor_amount == MinorUnit::new(0);
+        let is_zero_amount = item.request.minor_amount == MinorUnit::default();
         // Shift4 rejects a zero-amount charge that asks to be captured with
         // HTTP 400 `{"type":"invalid_request","message":"Zero amount charge cannot
         // be captured"}` (verified against api.shift4.com). A zero-amount charge is
@@ -1499,7 +1499,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 // AVS / CVV / ANI results are reported on both the success and the
                 // decline path — a declined charge is precisely when the merchant
@@ -1556,7 +1557,8 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -1631,7 +1633,8 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -2381,7 +2384,7 @@ impl<T: PaymentMethodDataTypes>
         // Same rule as Authorize: Shift4 rejects a captured zero-amount charge
         // ("Zero amount charge cannot be captured"), and no funds move on one.
         let captured =
-            item.request.minor_amount != MinorUnit::new(0) && item.request.is_auto_capture();
+            item.request.minor_amount != MinorUnit::default() && item.request.is_auto_capture();
 
         let is_payment_method_charge =
             matches!(source, Shift4RepeatPaymentSource::PaymentMethod { .. });
@@ -2500,7 +2503,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -2961,7 +2965,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `captured: true` on a `first_recurring` charge and still stores the card
         // or payment method under the customer (sandbox, card and Apple Pay,
         // followed by a successful MIT on the stored credential).
-        let captured = amount != MinorUnit::new(0);
+        let captured = amount != MinorUnit::default();
 
         // NOT SUPPORTED BY SHIFT4, deliberately dropped rather than approximated
         // (same reasoning as the Authorize builder):
@@ -3015,7 +3019,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // non-zero setup is sent captured, so it keeps the status Shift4 reports
         // for that charge (`Charged` on success).
         if status == AttemptStatus::Authorized
-            && item.router_data.request.minor_amount == Some(MinorUnit::new(0))
+            && item.router_data.request.minor_amount == Some(MinorUnit::default())
         {
             status = AttemptStatus::Charged;
         }
@@ -3096,7 +3100,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                amount_captured: minor_amount_captured
+                    .map(domain_types::utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 connector_customer,
                 connector_response,

@@ -1,6 +1,6 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, FloatMajorUnit,
-    StringMajorUnit,
+    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, ConnectorAmountExt,
+    FloatMajorUnit, StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -1517,20 +1517,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 field_name: "minor_amount",
                 context: Default::default(),
             })?;
+        let converted_amount = item
+            .connector
+            .amount_converter
+            .convert(minor_amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd setup mandate",
+                    &minor_amount,
+                    &request.currency,
+                ),
+            })?;
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
-        let amount = if minor_amount.get_amount_as_i64() == 0 {
+        let amount = if converted_amount.is_zero().change_context(
+            IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd setup mandate zero check",
+                    &minor_amount,
+                    &request.currency,
+                ),
+            },
+        )? {
             StringMajorUnit::zero()
         } else {
-            item.connector
-                .amount_converter
-                .convert(minor_amount, request.currency)
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
-                        "rapyd setup mandate",
-                        &minor_amount,
-                        &request.currency,
-                    ),
-                })?
+            converted_amount
         };
 
         let payment_method = match &request.payment_method_data {
@@ -1825,19 +1835,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.minor_amount.get_amount_as_i64() == 0 {
+        let converted_amount = item
+            .connector
+            .amount_converter
+            .convert(request.minor_amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd repeat payment",
+                    &request.minor_amount,
+                    &request.currency,
+                ),
+            })?;
+        let amount = if converted_amount.is_zero().change_context(
+            IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd repeat payment zero check",
+                    &request.minor_amount,
+                    &request.currency,
+                ),
+            },
+        )? {
             StringMajorUnit::zero()
         } else {
-            item.connector
-                .amount_converter
-                .convert(request.minor_amount, request.currency)
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
-                        "rapyd repeat payment",
-                        &request.minor_amount,
-                        &request.currency,
-                    ),
-                })?
+            converted_amount
         };
 
         // The saved card token stored at CIT/SetupMandate time is the mandate

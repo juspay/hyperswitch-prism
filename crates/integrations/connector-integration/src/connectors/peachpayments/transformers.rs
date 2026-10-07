@@ -3,7 +3,7 @@ use super::{requests, responses, PeachpaymentsRouterData};
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::ext_traits::StringExt;
-use common_utils::{consts, errors::CustomResult, types::MinorUnit, SecretSerdeValue};
+use common_utils::{consts, errors::CustomResult, SecretSerdeValue};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -649,7 +649,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ecommerce_card_payment_only_transaction_data:
                 requests::PeachpaymentsRefundTransactionData {
                     amount: requests::PeachpaymentsAmount {
-                        amount: MinorUnit::new(item.router_data.request.refund_amount),
+                        amount: item.router_data.request.minor_refund_amount,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },

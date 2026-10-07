@@ -7,7 +7,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::{ByteSliceExt, BytesExt},
-    types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},

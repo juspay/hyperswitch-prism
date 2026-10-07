@@ -48,7 +48,7 @@ fn get_worldpayxml_auth_code(
             )
         })
 }
-use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
+use common_utils::{errors::CustomResult, pii::SecretSerdeValue, ConnectorAmountExt};
 
 const API_VERSION: &str = "1.4";
 const WORLDPAYXML_SUPPORTED_3DS_MAJOR_VERSION: u64 = 2;
@@ -1357,11 +1357,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Worldpay registers the agreement on a zero-amount verification order. A non-zero setup
         // would authorise funds that nothing subsequently captures.
-        if router_data
+        let connector_amount = router_data
             .request
             .minor_amount
-            .is_some_and(|amount| amount.get_amount_as_i64() > 0)
-        {
+            .map(|amount| {
+                super::WorldpayxmlAmountConvertor::convert(amount, router_data.request.currency)
+            })
+            .transpose()?;
+        let is_non_zero_setup = connector_amount
+            .as_ref()
+            .map(ConnectorAmountExt::is_positive)
+            .transpose()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?
+            .unwrap_or(false);
+        if is_non_zero_setup {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "SetupMandate with a non-zero amount".to_string(),
                 connector: "worldpayxml".to_string(),
@@ -1421,10 +1432,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data
-                .request
-                .minor_amount
-                .unwrap_or_else(common_utils::types::MinorUnit::zero),
+            router_data.request.minor_amount.unwrap_or_default(),
             router_data.request.currency,
         )?;
 

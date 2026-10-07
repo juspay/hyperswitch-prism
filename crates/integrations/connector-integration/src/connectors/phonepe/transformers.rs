@@ -3,7 +3,7 @@ use common_enums;
 use common_utils::{
     crypto::{self, GenerateDigest},
     ext_traits::Encode,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -61,7 +61,7 @@ struct PhonepePaymentRequestPayload {
     merchant_transaction_id: String,
     #[serde(rename = "merchantUserId", skip_serializing_if = "Option::is_none")]
     merchant_user_id: Option<Secret<String>>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "callbackUrl")]
     callback_url: String,
     #[serde(rename = "mobileNumber", skip_serializing_if = "Option::is_none")]
@@ -99,7 +99,7 @@ struct PhonepeWalletDebitPayload {
     merchant_id: Secret<String>,
     #[serde(rename = "merchantTransactionId")]
     merchant_transaction_id: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "mobileNumber")]
     mobile_number: Secret<String>,
     #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
@@ -217,7 +217,7 @@ pub struct PhonepeSyncResponseData {
     #[serde(rename = "transactionId", skip_serializing_if = "Option::is_none")]
     transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<String>,
     #[serde(rename = "responseCode", skip_serializing_if = "Option::is_none")]
@@ -1385,7 +1385,7 @@ struct PhonepeCaptureRequestPayload {
     original_transaction_id: String,
     #[serde(rename = "merchantTransactionId")]
     merchant_transaction_id: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
 }
 
 /// Top-level capture request structure: base64-encoded payload + checksum
@@ -1717,7 +1717,7 @@ struct PhonepeRefundRequestPayload {
     original_transaction_id: String,
     #[serde(rename = "merchantTransactionId")]
     merchant_transaction_id: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
     callback_url: Option<String>,
 }
@@ -2082,7 +2082,7 @@ pub struct PhonepeWebhookPayload {
     pub merchant_transaction_id: String,
     #[serde(rename = "transactionId")]
     pub transaction_id: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub state: String,
     #[serde(rename = "responseCode")]
     pub response_code: Option<String>,

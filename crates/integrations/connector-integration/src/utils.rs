@@ -337,13 +337,13 @@ pub(crate) fn safe_base64_decode(base64_data: String) -> Result<Vec<u8>, Error> 
 
 pub fn deserialize_zero_minor_amount_as_none<'de, D>(
     deserializer: D,
-) -> Result<Option<MinorUnit>, D::Error>
+) -> Result<Option<common_utils::ConnectorMinorUnit>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {
-    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    let amount = Option::<common_utils::ConnectorMinorUnit>::deserialize(deserializer)?;
     match amount {
-        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        Some(value) if value == common_utils::ConnectorMinorUnit::default() => Ok(None),
         _ => Ok(amount),
     }
 }

@@ -1184,7 +1184,7 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+                amount_captured: minor_amount_captured.map(utils::legacy_amount_as_i64),
                 minor_amount_captured,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: Some(raw_status.clone()),

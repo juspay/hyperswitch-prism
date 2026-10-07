@@ -11,7 +11,7 @@ use common_utils::{
     events,
     ext_traits::ByteSliceExt,
     request::{Method, RequestContent},
-    types::{AmountConvertor, MinorUnit},
+    types::AmountConvertor,
 };
 use domain_types::errors::{IntegrationError, WebhookError};
 use domain_types::{
@@ -65,7 +65,8 @@ pub(crate) mod headers {
 #[derive(Clone)]
 pub struct Razorpay<T> {
     #[allow(dead_code)]
-    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    pub(crate) amount_converter:
+        &'static (dyn AmountConvertor<Output = common_utils::ConnectorMinorUnit> + Sync),
     #[allow(dead_code)]
     _phantom: std::marker::PhantomData<T>,
 }

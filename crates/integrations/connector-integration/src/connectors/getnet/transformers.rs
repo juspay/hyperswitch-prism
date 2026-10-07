@@ -1150,17 +1150,13 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        let capture_amount = router_data.request.amount_to_capture;
-
-        let capture_amount_minor = MinorUnit::new(capture_amount);
-
         Ok(Self {
             idempotency_key: router_data
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
             payment_id,
-            amount: capture_amount_minor,
+            amount: router_data.request.minor_amount_to_capture,
         })
     }
 }

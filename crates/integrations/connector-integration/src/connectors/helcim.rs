@@ -2,7 +2,7 @@ pub mod transformers;
 
 use common_utils::{
     consts::NO_ERROR_CODE, errors::CustomResult, events, ext_traits::BytesExt,
-    fp_utils::generate_id, types::FloatMajorUnit,
+    fp_utils::generate_id,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},

@@ -3,7 +3,8 @@
 mod tests {
     use common_enums::Currency;
     use common_utils::{
-        types::{MinorUnit, StringMajorUnitForConnector},
+        proto_boundary::MinorUnitProtoAccess,
+        types::{MinorUnit, StringMajorUnitForConnector, StringMinorUnitForConnector},
         AmountConvertor,
     };
 
@@ -111,6 +112,41 @@ mod tests {
         assert!(
             failed_test_cases.is_empty(),
             "The following test cases failed: {failed_test_cases:?}"
+        );
+    }
+
+    #[test]
+    fn test_default_one_uses_connector_amount_format() {
+        let major_converter = StringMajorUnitForConnector;
+        let minor_converter = StringMinorUnitForConnector;
+
+        assert_eq!(
+            major_converter
+                .default_one(Currency::USD)
+                .unwrap()
+                .get_amount_as_string(),
+            "0.01"
+        );
+        assert_eq!(
+            major_converter
+                .default_one(Currency::JPY)
+                .unwrap()
+                .get_amount_as_string(),
+            "1"
+        );
+        assert_eq!(
+            major_converter
+                .default_one(Currency::BHD)
+                .unwrap()
+                .get_amount_as_string(),
+            "0.001"
+        );
+        assert_eq!(
+            minor_converter
+                .default_one(Currency::USD)
+                .unwrap()
+                .to_string(),
+            "1"
         );
     }
 }

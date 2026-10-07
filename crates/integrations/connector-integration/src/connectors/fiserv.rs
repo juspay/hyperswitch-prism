@@ -7,7 +7,6 @@ use common_utils::{
     events,
     ext_traits::BytesExt,
     request::RequestContent,
-    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},

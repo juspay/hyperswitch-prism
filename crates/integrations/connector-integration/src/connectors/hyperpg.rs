@@ -7,7 +7,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::{ByteSliceExt, ValueExt},
-    FloatMajorUnit,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
