@@ -379,7 +379,8 @@
                   "card_exp_year": "2030",
                   "application_primary_account_number": "4111111111111111",
                   "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
+                  "eci_indicator": "05",
+                  "auth_method": "CRYPTOGRAM_3DS"
                 }
               }
             }
@@ -399,7 +400,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"wallet\":{\"googlePay\":{\"encodedPaymentToken\":\"{\\\"cardExpMonth\\\":\\\"03\\\",\\\"cardExpYear\\\":\\\"2030\\\",\\\"applicationPrimaryAccountNumber\\\":\\\"4111111111111111\\\",\\\"cryptogram\\\":\\\"AAAAAA==\\\",\\\"eciIndicator\\\":\\\"05\\\"}\"},\"walletType\":\"GOOGLE_PAY\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_txn_001\"},\"merchantTransactionId\":\"probe_txn_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"wallet\":{\"googlePay\":{\"encodedPaymentToken\":\"{\\\"cardExpMonth\\\":\\\"03\\\",\\\"cardExpYear\\\":\\\"2030\\\",\\\"applicationPrimaryAccountNumber\\\":\\\"4111111111111111\\\",\\\"cryptogram\\\":\\\"AAAAAA==\\\",\\\"eciIndicator\\\":\\\"05\\\",\\\"authMethod\\\":\\\"CRYPTOGRAM_3DS\\\"}\"},\"walletType\":\"GOOGLE_PAY\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_txn_001\"},\"merchantTransactionId\":\"probe_txn_001\"}"
         }
       },
       "GooglePayThirdPartySdk": {
