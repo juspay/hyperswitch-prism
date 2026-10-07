@@ -72,6 +72,65 @@ macro_rules! __flow_mapping_non_terminal_count {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __validate_flow_mapping_outcomes {
+    ($connector_name:expr, CreateOrder, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector_name:expr, PreAuthenticate, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector_name:expr, Authenticate, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector_name:expr, PostAuthenticate, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector_name:expr, Authorize, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector_name:expr, $flow:ident, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(
+            @require_success $connector_name, $($mapping)*
+        );
+    };
+    (@allow_without_success $($mapping:tt)*) => {
+        const _: () = {
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
+            const NON_TERMINAL_COUNT: usize =
+                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+
+            assert!(
+                SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
+                "flow status mapping must declare at least one outcome"
+            );
+        };
+    };
+    (@require_success $connector_name:expr, $($mapping:tt)*) => {
+        const _: () = {
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
+            const NON_TERMINAL_COUNT: usize =
+                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+
+            assert!(
+                SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
+                "flow status mapping must declare at least one outcome"
+            );
+            assert!(
+                SUCCESS_COUNT > 0
+                    || $crate::flow_status::const_contains_str(
+                        common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
+                        $connector_name,
+                    ),
+                "success mapping is mandatory for terminal flows unless the connector is listed in ASYNC_ACK_STATUS_MAPPING_CONNECTORS"
+            );
+        };
+    };
+}
+
 /// Maps connector-native statuses directly into [`ConnectorFlowStatus`].
 ///
 /// Mapping bodies construct typed outcomes with `success!`, `failure!`, and
@@ -94,25 +153,9 @@ macro_rules! impl_flow_status_mapping {
             context: $context_from:expr $(,)?
         } $(,)?
     ) => {
-        const _: () = {
-            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
-            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
-            const NON_TERMINAL_COUNT: usize =
-                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
-
-            assert!(
-                SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
-                "flow status mapping must declare at least one outcome"
-            );
-            assert!(
-                SUCCESS_COUNT > 0
-                    || $crate::flow_status::const_contains_str(
-                        common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
-                        $connector_name,
-                    ),
-                "success mapping is mandatory unless the connector is listed in ASYNC_ACK_STATUS_MAPPING_CONNECTORS"
-            );
-        };
+        $crate::__validate_flow_mapping_outcomes!(
+            $connector_name, $flow, $($mapping)*
+        );
 
         $crate::paste::paste! {
             impl $(<$($generic)*>)?
@@ -196,25 +239,9 @@ macro_rules! impl_flow_status_mapping {
             source: $source_from:expr $(,)?
         } $(,)?
     ) => {
-        const _: () = {
-            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
-            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
-            const NON_TERMINAL_COUNT: usize =
-                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
-
-            assert!(
-                SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
-                "flow status mapping must declare at least one outcome"
-            );
-            assert!(
-                SUCCESS_COUNT > 0
-                    || $crate::flow_status::const_contains_str(
-                        common_enums::ASYNC_ACK_STATUS_MAPPING_CONNECTORS,
-                        $connector_name,
-                    ),
-                "success mapping is mandatory unless the connector is listed in ASYNC_ACK_STATUS_MAPPING_CONNECTORS"
-            );
-        };
+        $crate::__validate_flow_mapping_outcomes!(
+            $connector_name, $flow, $($mapping)*
+        );
 
         $crate::paste::paste! {
             impl $(<$($generic)*>)?
@@ -465,11 +492,11 @@ mod tests {
 
     crate::impl_flow_status_mapping! {
         connector: StatuslessMappingConnector,
-        connector_name: "adyen",
-        flow: Void,
+        connector_name: "statusless",
+        flow: Authorize,
         source: (),
         mapping: |_status| {
-            non_terminal!(Pending)
+            non_terminal!(AuthenticationPending)
         },
         runtime: {
             request: Request,
@@ -592,6 +619,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(mapped.status(), AttemptStatus::Pending);
+        assert_eq!(mapped.status(), AttemptStatus::AuthenticationPending);
     }
 }
