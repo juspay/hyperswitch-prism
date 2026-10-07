@@ -1218,8 +1218,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkInformation>
             .map(|_| value.sdk_type())
             .map(connector_types::SdkType::foreign_try_from)
             .transpose()?;
+        // EMVCo requires sdkEphemPubKey for the APP channel (the only channel carrying
+        // sdkInformation) under every SDK type, so a missing or partial JWK is never valid.
         let sdk_ephem_pub_key = value
             .sdk_ephem_pub_key
+            .filter(|jwk| {
+                [&jwk.kty, &jwk.crv, &jwk.x, &jwk.y]
+                    .iter()
+                    .all(|member| !member.is_empty())
+            })
             .map(|jwk| {
                 HashMap::from([
                     ("kty".to_string(), jwk.kty),
@@ -1228,7 +1235,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkInformation>
                     ("y".to_string(), jwk.y),
                 ])
             })
-            .unwrap_or_default();
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "sdk_information.sdk_ephem_pub_key",
+                context: IntegrationErrorContext::default(),
+            })?;
         let sdk_max_timeout = u8::try_from(value.sdk_max_timeout).change_context(
             IntegrationError::InvalidDataFormat {
                 field_name: "sdk_information.sdk_max_timeout",
