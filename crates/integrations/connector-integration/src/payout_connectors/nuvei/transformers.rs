@@ -267,14 +267,13 @@ impl NuveiPayoutResponse {
             NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
             NuveiPaymentStatus::Success => match self.transaction_status {
                 Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
-                Some(
-                    NuveiTransactionStatus::Declined
-                    | NuveiTransactionStatus::Error
-                    | NuveiTransactionStatus::Redirect,
-                ) => Ok(PayoutStatus::Failure),
+                Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
+                    Ok(PayoutStatus::Failure)
+                }
                 Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
                     Ok(PayoutStatus::Pending)
                 }
+                Some(NuveiTransactionStatus::Redirect) => Ok(PayoutStatus::Ineligible),
                 None => Err(Report::new(
                     crate::utils::response_handling_fail_for_connector(status_code, "nuvei"),
                 )),
@@ -377,14 +376,14 @@ mod tests {
     }
 
     #[test]
-    fn redirect_is_a_terminal_failure_for_server_to_server_payouts() {
+    fn redirect_is_ineligible_for_server_to_server_payouts() {
         let response = response(
             NuveiPaymentStatus::Success,
             Some(NuveiTransactionStatus::Redirect),
         );
         assert_eq!(
             response.payout_status(200).expect("status should map"),
-            PayoutStatus::Failure
+            PayoutStatus::Ineligible
         );
     }
 
