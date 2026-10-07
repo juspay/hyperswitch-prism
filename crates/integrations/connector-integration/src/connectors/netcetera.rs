@@ -279,24 +279,33 @@ macros::create_all_prerequisites!(
                 self.common_get_content_type().to_string().into(),
             )])
         }
-        // The pair is absent when an external vault (e.g. VGS) terminates TLS on the
-        // outbound route; the vault-proxy path ignores client certificates either way.
-        pub fn client_certificate<F, FCD, Req, Res>(
+        /// mTLS client identity from `NetceteraConfig`. A call routed through an external
+        /// vault's injector does not need it (the vault owns the outbound TLS); a direct call
+        /// cannot complete the handshake without it, so the pair is required there.
+        pub fn mtls_identity<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> Option<Secret<String>> {
-            match &req.connector_config {
-                ConnectorSpecificConfig::Netcetera { certificate, .. } => certificate.clone(),
-                _ => None,
-            }
-        }
-        pub fn client_certificate_key<F, FCD, Req, Res>(
-            &self,
-            req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> Option<Secret<String>> {
-            match &req.connector_config {
-                ConnectorSpecificConfig::Netcetera { private_key, .. } => private_key.clone(),
-                _ => None,
+            routed_through_vault: bool,
+        ) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), IntegrationError> {
+            let (certificate, private_key) = match &req.connector_config {
+                ConnectorSpecificConfig::Netcetera {
+                    certificate,
+                    private_key,
+                    ..
+                } => (certificate.clone(), private_key.clone()),
+                _ => (None, None),
+            };
+            match (certificate, private_key) {
+                (Some(certificate), Some(private_key)) => Ok((Some(certificate), Some(private_key))),
+                _ if routed_through_vault => Ok((None, None)),
+                (None, _) => Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_config.netcetera.certificate",
+                    context: Default::default(),
+                })?,
+                (Some(_), None) => Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_config.netcetera.private_key",
+                    context: Default::default(),
+                })?,
             }
         }
     }
@@ -365,13 +374,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate(req))
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.0)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate_key(req))
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.1)
         }
         fn get_url(
             &self,
@@ -413,13 +422,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate(req))
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.0)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate_key(req))
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.1)
         }
         fn get_url(
             &self,
@@ -461,13 +470,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate(req))
+            // PostAuthenticate carries no card, so it never goes through the vault injector.
+            Ok(self.mtls_identity(req, false)?.0)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.client_certificate_key(req))
+            Ok(self.mtls_identity(req, false)?.1)
         }
         fn get_url(
             &self,

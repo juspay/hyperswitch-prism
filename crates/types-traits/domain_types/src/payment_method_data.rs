@@ -138,6 +138,10 @@ pub struct Card<T: PaymentMethodDataTypes> {
 pub trait PaymentMethodDataTypes: Clone {
     type Inner: Default + Debug + Send + Eq + PartialEq + Serialize + DeserializeOwned + Clone;
 
+    /// Whether the card is a vault alias. Such requests reach the connector through the
+    /// external vault's injector, which owns the outbound TLS connection.
+    const IS_VAULT_TOKEN: bool;
+
     fn peek_inner(inner: &Self::Inner) -> &str;
     fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError>;
 }
@@ -166,6 +170,8 @@ impl<T: PaymentMethodDataTypes> RawCardNumber<T> {
 impl PaymentMethodDataTypes for DefaultPCIHolder {
     type Inner = cards::CardNumber;
 
+    const IS_VAULT_TOKEN: bool = false;
+
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
     }
@@ -185,6 +191,8 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 
 impl PaymentMethodDataTypes for VaultTokenHolder {
     type Inner = Secret<String>; //Token
+
+    const IS_VAULT_TOKEN: bool = true;
 
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
