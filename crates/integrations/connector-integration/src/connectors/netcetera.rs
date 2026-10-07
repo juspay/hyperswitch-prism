@@ -239,6 +239,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // Prerequisites (Bridge structs + connector struct + new())
 // ---------------------------------------------------------------------------
 
+/// mTLS client identity attached to a Netcetera request.
+#[derive(Default)]
+pub struct MtlsIdentity {
+    certificate: Option<Secret<String>>,
+    private_key: Option<Secret<String>>,
+}
+
 macros::create_all_prerequisites!(
     connector_name: Netcetera,
     generic_type: T,
@@ -286,7 +293,7 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
             routed_through_vault: bool,
-        ) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), IntegrationError> {
+        ) -> CustomResult<MtlsIdentity, IntegrationError> {
             let (certificate, private_key) = match &req.connector_config {
                 ConnectorSpecificConfig::Netcetera {
                     certificate,
@@ -296,8 +303,11 @@ macros::create_all_prerequisites!(
                 _ => (None, None),
             };
             match (certificate, private_key) {
-                (Some(certificate), Some(private_key)) => Ok((Some(certificate), Some(private_key))),
-                _ if routed_through_vault => Ok((None, None)),
+                (Some(certificate), Some(private_key)) => Ok(MtlsIdentity {
+                    certificate: Some(certificate),
+                    private_key: Some(private_key),
+                }),
+                _ if routed_through_vault => Ok(MtlsIdentity::default()),
                 (None, _) => Err(IntegrationError::MissingRequiredField {
                     field_name: "connector_config.netcetera.certificate",
                     context: Default::default(),
@@ -374,13 +384,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.0)
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.certificate)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.1)
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.private_key)
         }
         fn get_url(
             &self,
@@ -422,13 +432,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.0)
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.certificate)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.1)
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.private_key)
         }
         fn get_url(
             &self,
@@ -471,13 +481,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
             // PostAuthenticate carries no card, so it never goes through the vault injector.
-            Ok(self.mtls_identity(req, false)?.0)
+            Ok(self.mtls_identity(req, false)?.certificate)
         }
         fn get_certificate_key(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-            Ok(self.mtls_identity(req, false)?.1)
+            Ok(self.mtls_identity(req, false)?.private_key)
         }
         fn get_url(
             &self,
