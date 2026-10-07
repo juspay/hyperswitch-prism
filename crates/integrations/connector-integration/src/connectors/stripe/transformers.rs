@@ -1643,7 +1643,9 @@ fn create_stripe_payment_method<
         PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok((
             StripePaymentMethodData::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
                 payment_method_data_type: StripePaymentMethodType::Card,
-                payment_method_data_card_number: card_details.card_number.clone(),
+                payment_method_data_card_number: card_details
+                    .card_number
+                    .try_card_number("Stripe")?,
                 payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
                 payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
                 payment_method_data_card_cvc: None,
@@ -5604,7 +5606,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok(
                 Self::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
                     payment_method_data_type: StripePaymentMethodType::Card,
-                    payment_method_data_card_number: card_details.card_number.clone(),
+                    payment_method_data_card_number: card_details
+                        .card_number
+                        .try_card_number("Stripe")?,
                     payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
                     payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
                     payment_method_data_card_cvc: None,
@@ -6094,7 +6098,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             StripeCardNetworkTransactionIdData {
                                 payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number:
-                                    card_details_for_network_transaction_id.card_number.clone(),
+                                    card_details_for_network_transaction_id
+                                        .card_number
+                                        .try_card_number("Stripe")?,
                                 payment_method_data_card_exp_month:
                                     card_details_for_network_transaction_id
                                         .card_exp_month
@@ -6425,7 +6431,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
                 StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
                     payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: card_details.card_number.clone(),
+                    token_card_number: card_details.card_number.try_card_number("Stripe")?,
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
                     billing: billing_address,
