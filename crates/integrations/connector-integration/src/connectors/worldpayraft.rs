@@ -321,7 +321,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // customerFields.field1: payments correlate on that (the same id Authorize reports as
         // connector_transaction_id), disputes on the Worldpay case id (dispute payloads carry no
         // payment key).
-        if let Some(item) = envelope.payment_event_item() {
+        if let Some(item) = envelope.payment_event_item()? {
             let connector_transaction_id = item.api_transaction_id()?;
             return Ok(Some(WebhookResourceReference::Payment(
                 PaymentWebhookReference {
@@ -346,7 +346,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let envelope = worldpayraft::parse_webhook_envelope(&request.body)?;
-        let item = envelope.payment_event_item().ok_or_else(|| {
+        let item = envelope.payment_event_item()?.ok_or_else(|| {
             error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
                 "Worldpay notification carries no authorizations/settlements item to process",
             )

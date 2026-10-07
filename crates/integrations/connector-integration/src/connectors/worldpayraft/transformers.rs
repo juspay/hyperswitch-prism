@@ -431,10 +431,11 @@ pub(super) fn build_business_error(
         .as_deref()
         .filter(|code| !code.is_empty());
     // The wire spelling of a published ReturnCode (strum Display); an unpublished one has none.
+    // `Successful` (0000) only says the message was processed: a decline carries it, so it is
+    // not an error code (the ResponseCode is) and falls through to NO_ERROR_CODE when absent.
     let return_code = match inner.return_code {
-        WorldpayraftReturnCode::Unknown => None,
-        WorldpayraftReturnCode::Successful
-        | WorldpayraftReturnCode::EditError
+        WorldpayraftReturnCode::Unknown | WorldpayraftReturnCode::Successful => None,
+        WorldpayraftReturnCode::EditError
         | WorldpayraftReturnCode::LogicError
         | WorldpayraftReturnCode::SystemIssue => Some(inner.return_code.to_string()),
     };
@@ -447,7 +448,10 @@ pub(super) fn build_business_error(
     let message = return_text
         .clone()
         .or_else(|| response_code_text.map(str::to_string))
-        .or_else(|| return_code_meaning(&inner.return_code).map(str::to_string))
+        .or_else(|| match inner.return_code {
+            WorldpayraftReturnCode::Successful => None,
+            _ => return_code_meaning(&inner.return_code).map(str::to_string),
+        })
         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
     let reason = match &inner.error_information {
         Some(info) => match (&info.field_in_error, &info.error_text) {
@@ -2601,7 +2605,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => Some(card),
             _ => None,
         };
-        let expiration_date = card.and_then(|card| card.get_expiry_date_as_yymm().ok());
+        // The request builder already parsed this same expiry with `?`, so a failure here is not
+        // expected; the money has moved, so the response is kept (not failed) and the miss logged.
+        let expiration_date = card.and_then(|card| {
+            card.get_expiry_date_as_yymm()
+                .inspect_err(|_| {
+                    tracing::warn!("card expiry could not be re-derived for connector_feature_data")
+                })
+                .ok()
+        });
         let card_network = card.and_then(card_brand);
         let tokenized_pan = inner.tokenized_pan();
         let network_transaction_ids = inner.network_ids();
@@ -4030,7 +4042,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => Some(card),
             _ => None,
         };
-        let expiration_date = card.and_then(|card| card.get_expiry_date_as_yymm().ok());
+        // The request builder already parsed this same expiry with `?`, so a failure here is not
+        // expected; the money has moved, so the response is kept (not failed) and the miss logged.
+        let expiration_date = card.and_then(|card| {
+            card.get_expiry_date_as_yymm()
+                .inspect_err(|_| {
+                    tracing::warn!("card expiry could not be re-derived for connector_feature_data")
+                })
+                .ok()
+        });
         let card_network = card.and_then(card_network_of);
         let network_transaction_ids = inner.network_ids();
 
@@ -5469,24 +5489,41 @@ impl WorldpayraftPaymentEventItem<'_> {
 }
 
 impl WorldpayraftWebhookEnvelope {
-    /// The first payment item of a payment event; `None` for every other event type.
-    pub(super) fn payment_event_item(&self) -> Option<WorldpayraftPaymentEventItem<'_>> {
+    /// The payment item of a payment event; `None` for every other event type.
+    ///
+    /// An event must carry exactly one item: a payload with several has no field that says which
+    /// one belongs to the payment being processed, so it is rejected rather than guessed at.
+    pub(super) fn payment_event_item(
+        &self,
+    ) -> Result<Option<WorldpayraftPaymentEventItem<'_>>, error_stack::Report<errors::WebhookError>>
+    {
+        fn single<T>(
+            items: Option<&Vec<T>>,
+        ) -> Result<Option<&T>, error_stack::Report<errors::WebhookError>> {
+            match items.map(Vec::as_slice) {
+                None | Some([]) => Ok(None),
+                Some([item]) => Ok(Some(item)),
+                Some(items) => Err(error_stack::report!(
+                    errors::WebhookError::WebhookBodyDecodingFailed
+                )
+                .attach_printable(format!(
+                    "payment event carries {} items; exactly one is supported",
+                    items.len()
+                ))),
+            }
+        }
         match self.event_type {
-            WorldpayraftEventType::AuthorizationsCreated => self
-                .data
-                .authorizations
-                .as_ref()
-                .and_then(|items| items.first())
-                .map(WorldpayraftPaymentEventItem::Authorization),
-            WorldpayraftEventType::SettlementsCreated => self
-                .data
-                .settlements
-                .as_ref()
-                .and_then(|items| items.first())
-                .map(WorldpayraftPaymentEventItem::Settlement),
+            WorldpayraftEventType::AuthorizationsCreated => {
+                Ok(single(self.data.authorizations.as_ref())?
+                    .map(WorldpayraftPaymentEventItem::Authorization))
+            }
+            WorldpayraftEventType::SettlementsCreated => {
+                Ok(single(self.data.settlements.as_ref())?
+                    .map(WorldpayraftPaymentEventItem::Settlement))
+            }
             WorldpayraftEventType::DisputeCasesCreated
             | WorldpayraftEventType::DisputeCasesStatusUpdated
-            | WorldpayraftEventType::Other => None,
+            | WorldpayraftEventType::Other => Ok(None),
         }
     }
 
@@ -5510,7 +5547,7 @@ pub(super) fn get_webhook_event_type(
     match envelope.event_type {
         WorldpayraftEventType::AuthorizationsCreated
         | WorldpayraftEventType::SettlementsCreated => {
-            let item = envelope.payment_event_item().ok_or_else(|| {
+            let item = envelope.payment_event_item()?.ok_or_else(|| {
                 error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable("payment event carries no authorizations/settlements item")
             })?;
