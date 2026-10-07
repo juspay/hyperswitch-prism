@@ -237,7 +237,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                 field_name: "transaction_status",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Invalid transaction status format. Expected one of: Y, N, U, A, R, C, D, I. Provided: '{}'",
+                        "Invalid transaction status format. Expected one of: Y, N, U, A, R, C, D, I, S. Provided: '{}'",
                         trans_status
                     )),
                     ..Default::default()

@@ -6643,6 +6643,9 @@ impl ForeignFrom<common_enums::TransactionStatus> for grpc_api_types::payments::
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::SecurePaymentConfirmationRequired
+            }
         }
     }
 }
@@ -6658,6 +6661,7 @@ impl ForeignFrom<grpc_api_types::payments::TransactionStatus> for common_enums::
             grpc_api_types::payments::TransactionStatus::ChallengeRequired => Self::ChallengeRequired,
             grpc_api_types::payments::TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::ChallengeRequiredDecoupledAuthentication,
             grpc_api_types::payments::TransactionStatus::InformationOnly => Self::InformationOnly,
+            grpc_api_types::payments::TransactionStatus::SecurePaymentConfirmationRequired => Self::SecurePaymentConfirmationRequired,
         }
     }
 }

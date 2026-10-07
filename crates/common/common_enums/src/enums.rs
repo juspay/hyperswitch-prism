@@ -2905,6 +2905,9 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+    /// Challenge using Secure Payment Confirmation (SPC); Available for supporting EMV 3DS 2.3.1 and later versions.
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
