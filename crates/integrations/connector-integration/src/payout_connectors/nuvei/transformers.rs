@@ -102,24 +102,19 @@ fn nuvei_context(
     }
 }
 
-fn validate_payout_currency(
-    source_currency: common_enums::Currency,
+fn convert_payout_amount(
+    amount: common_utils::types::MinorUnit,
     destination_currency: common_enums::Currency,
-) -> Result<common_enums::Currency, Report<IntegrationError>> {
-    match source_currency == destination_currency {
-        true => Ok(source_currency),
-        false => Err(IntegrationError::NotSupported {
-            message: "Cross-currency payouts".to_owned(),
-            connector: "nuvei",
+) -> Result<StringMajorUnit, Report<IntegrationError>> {
+    StringMajorUnitForConnector
+        .convert(amount, destination_currency)
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "amount",
             context: nuvei_context(
-                format!(
-                    "Nuvei payout source currency {source_currency} differs from destination currency {destination_currency}"
-                ),
-                "Use the same source and destination currency for Nuvei payouts",
+                "Nuvei payout amount could not be converted to destination currency units",
+                "Provide an amount valid for the destination currency",
             ),
-        }
-        .into()),
-    }
+        })
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -146,18 +141,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })),
         }?;
         let request = &data.request;
-        let payout_currency =
-            validate_payout_currency(request.source_currency, request.destination_currency)?;
-        let amount = StringMajorUnitForConnector
-            .convert(request.amount, payout_currency)
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "amount",
-                context: nuvei_context(
-                    "Nuvei payout amount could not be converted to major currency units",
-                    "Provide an amount valid for the source currency",
-                ),
-            })?;
-        let currency = payout_currency.to_string();
+        let amount = convert_payout_amount(request.amount, request.destination_currency)?;
+        let currency = request.destination_currency.to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {
             reference if !reference.trim().is_empty() => Ok(reference),
@@ -356,15 +341,15 @@ mod tests {
     }
 
     #[test]
-    fn payout_currency_rejects_cross_currency_requests() {
+    fn payout_amount_uses_destination_currency_units() {
         assert_eq!(
-            validate_payout_currency(common_enums::Currency::USD, common_enums::Currency::USD)
-                .expect("matching currency should be accepted"),
-            common_enums::Currency::USD
-        );
-        assert!(
-            validate_payout_currency(common_enums::Currency::USD, common_enums::Currency::EUR)
-                .is_err()
+            convert_payout_amount(
+                common_utils::types::MinorUnit::new(1234),
+                common_enums::Currency::JPY,
+            )
+            .expect("JPY amount should convert")
+            .get_amount_as_string(),
+            "1234"
         );
     }
 
