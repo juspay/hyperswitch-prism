@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.07.2
+
+### Features
+
+- **payments:** Support a vault-aliased card with a network transaction ID on the repeat payment flow ([#2434](https://github.com/juspay/connector-service/pull/2434)) ([`0cccbfc`](https://github.com/juspay/connector-service/commit/0cccbfca76cb349dff3790b09858592f25c115cc))
+
+### Bug Fixes
+
+- **connector:** [dLocal] Populate connector_mandate_id for setup mandate flow ([#2458](https://github.com/juspay/connector-service/pull/2458)) ([`78ef96c`](https://github.com/juspay/connector-service/commit/78ef96c5d4f091b8c0a7902e78813e552cc9dc4e))
+
+**Full Changelog:** [`2026.10.07.1...2026.10.07.2`](https://github.com/juspay/connector-service/compare/2026.10.07.1...2026.10.07.2)
+
+- - -
+
 ## 2026.10.07.1
 
 ### Features
