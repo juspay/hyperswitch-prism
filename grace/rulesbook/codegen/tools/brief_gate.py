@@ -38,7 +38,7 @@ def _looks_like_path(v):
     return ("/" in v and " " not in v) or v.endswith((".rs", ".md", ".proto", ".json"))
 
 
-def check_brief(doc, plan_item_ids=None):
+def check_brief(doc, plan_item_ids=None, foundation_ids=None):
     """-> (checks, inconclusive, needs_human)."""
     checks, inc, human = [], [], []
 
@@ -98,8 +98,9 @@ def check_brief(doc, plan_item_ids=None):
     if plan_item_ids is None:
         inc.append("no plan item ids supplied: coverage against plan not checked")
     else:
-        extra = sorted(set(ids) - set(plan_item_ids))
-        absent = sorted(set(plan_item_ids) - set(ids))
+        allowed = set(plan_item_ids) | set(foundation_ids or ())
+        extra = sorted(set(ids) - allowed)
+        absent = sorted(set(plan_item_ids) - set(ids))   # foundation absence is not a drop
         add("BRIEF-07", "items_match_plan", not extra and not absent,
             "invented=%s dropped=%s" % (extra or "none", absent or "none"),
             [{"invented": extra[:8], "dropped": absent[:8]}])
@@ -166,12 +167,18 @@ def main():
 
     checks, inc, human = [], [], []
     plan_ids = None
+    foundation = None     # must exist even if the plan fails to load, below
     if a.plan:
         try:
             pd = json.load(open(a.plan))
             plan_ids = [it.get("id") for u in (pd.get("units") or [])
                         if (a.unit is None or u.get("unit") == a.unit)
                         for it in (u.get("items") or []) if not it.get("withdrawn")]
+            # plan §2 foundation items are carried by the FIRST planned unit's brief
+            # (2.3b RULES 1: "NEW implements plan §4[UNIT] (+ §2 for the first unit)"),
+            # so they are legitimate brief entries, not invented ones.
+            foundation = [it.get("id") for it in (pd.get("foundation") or [])
+                          if not it.get("withdrawn")]
         except Exception as e:
             inc.append("plan unreadable (%s): coverage not checked" % str(e)[:60])
 
@@ -183,7 +190,7 @@ def main():
             return emit({"pass": False, "checks": [], "inconclusive": [],
                          "needs_human": ["brief unreadable: %s" % str(e)[:80]],
                          "summary": {}}, a.out, 2)
-        c, i, h = check_brief(doc, plan_ids)
+        c, i, h = check_brief(doc, plan_ids, foundation)
         checks += c; inc += i; human += h
         n_items = len(doc.get("items") or [])
 
@@ -239,6 +246,21 @@ def _replay():
     assert not [x for x in c if x["id"] == "BRIEF-07"][0]["pass"], "a dropped item must fail"
     c, _, _ = check_brief(good, ["P-Refund-99"])
     assert not [x for x in c if x["id"] == "BRIEF-07"][0]["pass"], "an invented item must fail"
+    # plan §2 foundation items in the first unit's brief are legitimate, not invented --
+    # this is what the live run caught: BRIEF-07 reported invented=[P-foundation-01..07]
+    fnd = json.loads(json.dumps(good))
+    fnd["items"].append(dict(good["items"][0], item_id="P-foundation-01"))
+    c, _, _ = check_brief(fnd, ["P-Refund-01"], ["P-foundation-01"])
+    assert [x for x in c if x["id"] == "BRIEF-07"][0]["pass"], "foundation ids must be allowed"
+    # ...but a genuinely invented id still fails even with foundation allowed
+    inv = json.loads(json.dumps(good))
+    inv["items"].append(dict(good["items"][0], item_id="P-Nonsense-99"))
+    c, _, _ = check_brief(inv, ["P-Refund-01"], ["P-foundation-01"])
+    assert not [x for x in c if x["id"] == "BRIEF-07"][0]["pass"], "invented id must still fail"
+    # ...and an absent foundation id is NOT a drop (only non-first units omit them)
+    c, _, _ = check_brief(good, ["P-Refund-01"], ["P-foundation-01"])
+    assert [x for x in c if x["id"] == "BRIEF-07"][0]["pass"], "absent foundation is not a drop"
+
     # no plan supplied -> inconclusive, never a silent pass
     c, i, _ = check_brief(good, None)
     assert i and not any(x["id"] == "BRIEF-07" for x in c)
