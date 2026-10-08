@@ -225,18 +225,6 @@ pub enum JpmorganAmountType {
     Variable,
 }
 
-impl std::str::FromStr for JpmorganAmountType {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "exact" => Ok(Self::Exact),
-            "variable" => Ok(Self::Variable),
-            _ => Err(()),
-        }
-    }
-}
-
 /// JPMorgan recurring agreement details.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

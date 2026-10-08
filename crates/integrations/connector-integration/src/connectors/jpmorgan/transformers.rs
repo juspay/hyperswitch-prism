@@ -1448,13 +1448,6 @@ impl responses::JpmorganVerificationResponse {
                 ..Default::default()
             }));
         }
-        // The transaction identifier becomes the stored verification resource,
-        // so a malformed value is refused.
-        if !(4..=40).contains(&self.transaction_id.len())
-            || self.transaction_id.trim() != self.transaction_id
-        {
-            return Err(requests::JpmorganSyncResource::response_error(http_code));
-        }
         metadata
             .get_mut("jpmorgan")
             .and_then(serde_json::Value::as_object_mut)
@@ -2394,5 +2387,17 @@ impl requests::JpmorganSyncResource {
             },
         }
         .into()
+    }
+}
+
+impl std::str::FromStr for requests::JpmorganAmountType {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "exact" => Ok(Self::Exact),
+            "variable" => Ok(Self::Variable),
+            _ => Err(()),
+        }
     }
 }
