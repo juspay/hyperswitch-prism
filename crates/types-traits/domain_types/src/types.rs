@@ -33,6 +33,7 @@ use common_utils::{
     Method, SecretSerdeValue,
 };
 use error_stack::{report, ResultExt};
+use grpc_api_types::payments::google_pay_decrypted_data::AuthMethod;
 use grpc_api_types::payments::{
     self as grpc_payment_types, recipient_account::AccountType as RecipientAccountType,
     recipient_bank_account::BankAccountType as RecipientBankAccountType, AuthenticationType,
@@ -92,8 +93,6 @@ impl payment_method_data::GooglePayDecryptedData {
         value: Option<i32>,
     ) -> Result<Option<common_enums::GooglePayAuthMethod>, error_stack::Report<IntegrationError>>
     {
-        use grpc_api_types::payments::google_pay_decrypted_data::AuthMethod;
-
         let method = value
             .map(AuthMethod::try_from)
             .transpose()

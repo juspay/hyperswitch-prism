@@ -258,36 +258,22 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
         month: &Secret<String>,
         year: &Secret<String>,
     ) -> Result<requests::Expiry, Error> {
-        let month_str = month.peek();
-        let parsed_month = if (1..=2).contains(&month_str.len())
-            && month_str.bytes().all(|c| c.is_ascii_digit())
-        {
-            month_str
-                .parse::<i32>()
-                .ok()
-                .filter(|value| (1..=12).contains(value))
-        } else {
-            None
-        };
-        let year_str = year.peek();
-        let parsed_year =
-            if matches!(year_str.len(), 2 | 4) && year_str.bytes().all(|c| c.is_ascii_digit()) {
-                utils::pad_expiry_year_to_four_digits(year)
-                    .peek()
-                    .parse::<i32>()
-                    .ok()
-                    .filter(|value| (2018..=2999).contains(value))
-            } else {
-                None
-            };
-        match (parsed_month, parsed_year) {
-            (Some(month), Some(year)) => Ok(requests::Expiry {
-                month: Secret::new(month),
-                year: Secret::new(year),
-            }),
-            (None, _) => Err(Self::invalid_wallet_field("wallet.expiry.month").into()),
-            (_, None) => Err(Self::invalid_wallet_field("wallet.expiry.year").into()),
-        }
+        let exp_month = month
+            .peek()
+            .parse::<u8>()
+            .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?;
+        cards::validate::CardExpirationMonth::try_from(exp_month)
+            .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?;
+        let exp_year = utils::pad_expiry_year_to_four_digits(year)
+            .peek()
+            .parse::<u16>()
+            .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?;
+        let exp_year = cards::validate::CardExpirationYear::try_from(exp_year)
+            .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?;
+        Ok(requests::Expiry {
+            month: Secret::new(i32::from(exp_month)),
+            year: Secret::new(i32::from(exp_year.get_year())),
+        })
     }
 
     fn wallet_authentication(
