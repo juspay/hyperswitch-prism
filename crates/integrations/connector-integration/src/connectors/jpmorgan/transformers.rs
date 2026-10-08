@@ -412,24 +412,19 @@ impl requests::JpmorganRecurring {
                 .into());
             }
         };
-        let is_variable_amount = match terms.amount_type.as_deref() {
-            Some("exact") => false,
-            Some("variable") => true,
-            Some(_) => {
-                return Err(IntegrationError::InvalidDataFormat {
-                    field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
-                    context: Self::input_context(),
-                }
-                .into());
-            }
-            None => {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
-                    context: Self::input_context(),
-                }
-                .into());
-            }
-        };
+        let amount_type = terms
+            .amount_type
+            .as_deref()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
+                context: Self::input_context(),
+            })?
+            .parse::<requests::JpmorganAmountType>()
+            .map_err(|_| IntegrationError::InvalidDataFormat {
+                field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
+                context: Self::input_context(),
+            })?;
+        let is_variable_amount = amount_type == requests::JpmorganAmountType::Variable;
         let agreement_id = terms
             .external_subscription_id
             .as_deref()
@@ -1453,6 +1448,8 @@ impl responses::JpmorganVerificationResponse {
                 ..Default::default()
             }));
         }
+        // The transaction identifier becomes the stored verification resource,
+        // so a malformed value is refused.
         if !(4..=40).contains(&self.transaction_id.len())
             || self.transaction_id.trim() != self.transaction_id
         {
@@ -1552,6 +1549,8 @@ impl<T: PaymentMethodDataTypes, F>
                         },
                     })?
                 };
+                // The stored context rides the metadata channel that later
+                // requests read back, so preserve it explicitly.
                 // A payment identifier is not a reusable payment credential.
                 *mandate_reference = None;
                 if let Some(previous) = previous {
@@ -1623,6 +1622,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPSyncResponse, Self>>
                         ..
                     }) = &mut result
                     {
+                        // The stored context rides the metadata channel that later requests read back.
                         *mandate_reference = None;
                         *connector_metadata = Some(serde_json::json!({"jpmorgan": preserved}));
                     }
@@ -1939,6 +1939,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             .into());
         }
+        // A replacement mandate needs a fresh setup because JPMorgan exposes
+        // no mandate-update path.
         if request.off_session == Some(true)
             || request.mandate_id.is_some()
             || request.request_incremental_authorization
