@@ -837,6 +837,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     initiator_type: None,
                     account_on_file: None,
                     is_amount_final: None,
+                    recurring: None,
                 })
             }
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
