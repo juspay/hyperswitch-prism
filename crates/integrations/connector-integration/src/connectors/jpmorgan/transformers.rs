@@ -555,6 +555,80 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_amount_final: None,
                 })
             }
+            PaymentMethodData::NetworkToken(token_data) => {
+                if router_data.resource_common_data.auth_type
+                    == common_enums::AuthenticationType::ThreeDs
+                {
+                    return Err(IntegrationError::NotImplemented(
+                        "3DS payments".to_string(),
+                        Default::default(),
+                    )
+                    .into());
+                }
+                let capture_method = map_capture_method(router_data.request.capture_method)?;
+
+                let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
+
+                let authentication = token_data
+                    .token_cryptogram
+                    .as_ref()
+                    .map(|cryptogram| {
+                        requests::JpmorganCard::<T>::wallet_authentication(
+                            cryptogram,
+                            &token_data.eci,
+                        )
+                    })
+                    .transpose()?;
+
+                let card = requests::JpmorganCard {
+                    account_number: RawCardNumber(T::inner_from_card_number(
+                        token_data
+                            .token_number
+                            .get_card_no()
+                            .parse::<cards::CardNumber>()
+                            .map_err(|_| {
+                                requests::JpmorganCard::<T>::invalid_wallet_field(
+                                    "network_token.token_number",
+                                )
+                            })?,
+                    )),
+                    expiry: requests::JpmorganCard::<T>::wallet_expiry(
+                        &token_data.token_exp_month,
+                        &token_data.token_exp_year,
+                    )?,
+                    account_number_type: Some(requests::JpmorganAccountNumberType::NetworkToken),
+                    wallet_provider: None,
+                    authentication,
+                };
+
+                let payment_method_type = requests::JpmorganPaymentMethodType {
+                    card: Some(card),
+                    ach: None,
+                    googlepay: None,
+                    token: None,
+                };
+
+                let amount = JpmorganAmountConvertor::convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )?;
+
+                Ok(Self {
+                    capture_method,
+                    currency: router_data.request.currency,
+                    amount,
+                    merchant,
+                    payment_method_type,
+                    account_holder: None,
+                    statement_descriptor: None,
+                    merchant_order_number: None,
+                    initiator_type: None,
+                    account_on_file: None,
+                    is_amount_final: None,
+                })
+            }
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
