@@ -2170,6 +2170,7 @@ message DecryptedWalletTokenDetailsForNetworkTransactionId {
     optional string eci = 5;
     optional TokenSource token_source = 6;
     optional CardNetwork card_network = 7;
+    optional SecretString device_manufacturer_identifier = 8;
 }
 
 /// Source of the token

@@ -111,7 +111,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   Givex: ["number", "cvc"],
   ProxyCardDetailsForNetworkTransactionId: ["cardNumber", "cardExpMonth", "cardExpYear", "nickName", "cardHolderName"],
   CardDetailsForNetworkTransactionId: ["cardNumber", "cardExpMonth", "cardExpYear", "nickName", "cardHolderName"],
-  DecryptedWalletTokenDetailsForNetworkTransactionId: ["decryptedToken", "tokenExpMonth", "tokenExpYear", "cardHolderName"],
+  DecryptedWalletTokenDetailsForNetworkTransactionId: ["decryptedToken", "tokenExpMonth", "tokenExpYear", "cardHolderName", "deviceManufacturerIdentifier"],
   NetworkTokenData: ["tokenNumber", "tokenExpMonth", "tokenExpYear", "tokenCryptogram", "nickName"],
   Metadata: ["general"],
   Customer: ["email", "phoneNumber", "dateOfBirth"],
