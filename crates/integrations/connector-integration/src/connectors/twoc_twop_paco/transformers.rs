@@ -288,6 +288,8 @@ pub struct PacoBillingAddress {
     pub bill_addr_line3: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_addr_post_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_state: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -925,6 +927,9 @@ where
             bill_addr_line2: common.get_optional_billing_line2(),
             bill_addr_line3: common.get_optional_billing_line3(),
             bill_addr_post_code: common.get_optional_billing_zip(),
+            bill_addr_state: common
+                .get_optional_billing_state()
+                .filter(|state| state.peek().chars().count() <= 3),
         });
 
     let paco_shipping_address = common
