@@ -3816,6 +3816,8 @@ pub struct AuthorizationRequest {
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
     pub business_country: Option<String>,
+    /// Authorize-only opt-in for address verification using supplied billing details.
+    pub enable_avs_check: Option<bool>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3952,6 +3954,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
+            enable_avs_check: req.enable_avs_check,
         }
     }
 }
@@ -4034,6 +4037,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             recipient_details: None,
             additional_connector_details: None,
             business_country: None,
+            enable_avs_check: req.enable_avs_check,
         }
     }
 }
@@ -5207,6 +5211,7 @@ impl<
                 .business_country
                 .as_ref()
                 .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
+            enable_avs_check: value.enable_avs_check,
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -21187,6 +21192,7 @@ pub fn tokenized_authorize_to_base(
         recipient_details: None,
         additional_connector_details: None,
         business_country: None,
+        enable_avs_check: v.enable_avs_check,
     }
 }
 
@@ -21381,6 +21387,7 @@ pub fn proxied_authorize_to_base(
         recipient_details: None,
         additional_connector_details: None,
         business_country: None,
+        enable_avs_check: v.enable_avs_check,
     })
 }
 

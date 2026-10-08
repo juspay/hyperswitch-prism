@@ -148,6 +148,9 @@ message CompositeAuthorizeRequest {
   // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
   optional AdditionalConnectorDetails additional_connector_details = 62;
   optional string business_country = 63;
+
+  // Authorize-only AVS opt-in, forwarded to PaymentServiceAuthorizeRequest.
+  optional bool enable_avs_check = 64;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -826,6 +829,9 @@ message CompositeVerifyRedirectResponseRequest {
   // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
   optional AdditionalConnectorDetails additional_connector_details = 58;
   optional string business_country = 59;
+
+  // Preserve the AVS opt-in for authorization after redirect verification.
+  optional bool enable_avs_check = 60;
 }
 
 // Response message for composite verify redirect response flow.
