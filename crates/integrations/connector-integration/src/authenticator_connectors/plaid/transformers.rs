@@ -568,11 +568,7 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
             .map(|acct| {
                 (
                     acct.account_id.peek().to_owned(),
-                    plaid_account_to_bank_account(
-                        acct,
-                        request_currency,
-                        institution_name.clone(),
-                    ),
+                    plaid_account_to_bank_account(acct, request_currency, institution_name.clone()),
                 )
             })
             .collect();

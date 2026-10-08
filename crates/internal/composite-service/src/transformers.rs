@@ -1075,7 +1075,9 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
     }
 }
 
-impl ForeignFrom<&CompositePaymentMethodEligibilityRequest> for PaymentMethodServiceTokenizeRequest {
+impl ForeignFrom<&CompositePaymentMethodEligibilityRequest>
+    for PaymentMethodServiceTokenizeRequest
+{
     #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodEligibilityRequest) -> Self {
         Self {
