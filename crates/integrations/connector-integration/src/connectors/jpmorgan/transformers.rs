@@ -2360,19 +2360,19 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             PaymentMethodData::Wallet(WalletData::GooglePay(wallet)) => {
                 match &wallet.tokenization_data {
                     domain_types::payment_method_data::GpayTokenizationData::Decrypted(data) => {
-                        let account_number_type = match data.auth_method {
-                            Some(common_enums::GooglePayAuthMethod::PanOnly) => {
+                        let method = data.auth_method.unwrap_or_else(|| {
+                            if data.cryptogram.is_some() || data.eci_indicator.is_some() {
+                                common_enums::GooglePayAuthMethod::Cryptogram
+                            } else {
+                                common_enums::GooglePayAuthMethod::PanOnly
+                            }
+                        });
+                        let account_number_type = match method {
+                            common_enums::GooglePayAuthMethod::PanOnly => {
                                 requests::JpmorganAccountNumberType::Pan
                             }
-                            Some(common_enums::GooglePayAuthMethod::Cryptogram) => {
+                            common_enums::GooglePayAuthMethod::Cryptogram => {
                                 requests::JpmorganAccountNumberType::DeviceToken
-                            }
-                            None => {
-                                return Err(IntegrationError::MissingRequiredField {
-                                    field_name: "google_pay.auth_method",
-                                    context: Self::mit_context(),
-                                }
-                                .into())
                             }
                         };
                         (
