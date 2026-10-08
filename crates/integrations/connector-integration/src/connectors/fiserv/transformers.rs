@@ -835,6 +835,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -851,6 +852,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -905,6 +910,7 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -921,6 +927,10 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -973,6 +983,7 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure {
@@ -989,6 +1000,10 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1051,6 +1066,7 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -1067,6 +1083,10 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1124,6 +1144,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1193,6 +1217,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1238,6 +1266,10 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         });
 
         Ok(router_data_out)

@@ -13,16 +13,14 @@
 //!      JCB 13.00 with cvv2) uses `KEY_ENTERED_INPUT`, so JCB falls through
 //!      to the channel default below.
 //!
-//!   2. **CIT-setup that stores credentials** ⇒ `KEY_ENTERED_INPUT`
-//!      Cert pushback row:
-//!      "cardDataInputMode tag must be set to 'KEY_ENTERED_INPUT' on the
-//!      0.00 Visa card authentication in step 5 as this transaction will
-//!      be used to store credentials for payment" (and the 2.00 Mastercard
-//!      step-5 row).
+//!   2. **CIT-setup that stores credentials** (Visa / Mastercard sCIT)
+//!      ⇒ `MERCHANT_INITIATED_TRANSACTION_CARD_CREDENTIAL_STORED_ON_FILE`
 //!
-//!   3. **MIT** ⇒ `MERCHANT_INITIATED_TRANSACTION_CARD_CREDENTIAL_STORED_ON_FILE`
+//!   3. Any other CIT-setup ⇒ `KEY_ENTERED_INPUT`
 //!
-//!   4. Otherwise the channel default from `TerminalDataBlock`.
+//!   4. **MIT** ⇒ `MERCHANT_INITIATED_TRANSACTION_CARD_CREDENTIAL_STORED_ON_FILE`
+//!
+//!   5. Otherwise the channel default from `TerminalDataBlock`.
 
 use super::super::profile::{TerminalDataBlock, TxProfile};
 use super::super::transformers::TsysTransitCardDataInputMode;
@@ -40,12 +38,13 @@ pub fn card_data_input_mode(
         return ManuallyEnteredWithKeyedCidAmexJcb;
     }
 
-    // 2. CIT-setup that stores credentials for future use of Visa card
-    if profile.cof_phase.is_cit_setup() && profile.card_family.is_visa() {
+    // 2. CIT-setup that stores credentials for future use of a Visa or
+    //    Mastercard card (sCIT).
+    if profile.cof_phase.is_cit_setup() && profile.card_family.is_visa_or_mastercard() {
         return MerchantInitiatedTransactionCardCredentialStoredOnFile;
     }
 
-    // 3. CIT-setup that stores credentials.
+    // 3. Any other CIT-setup that stores credentials.
     if profile.cof_phase.is_cit_setup() {
         return KeyEnteredInput;
     }
@@ -53,7 +52,7 @@ pub fn card_data_input_mode(
     // 4. MIT (any kind) OR CIT-using-stored — both replay a stored
     //    credential, so both carry the STORED_ON_FILE input mode (cert MOTO
     //    25.50 Visa / 29.75 MC CIT-using-stored rows use this too).
-    if profile.cof_phase.is_mit() || profile.cof_phase.is_cit_using_stored() {
+    if profile.cof_phase.is_mit() {
         return MerchantInitiatedTransactionCardCredentialStoredOnFile;
     }
 

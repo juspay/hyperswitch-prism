@@ -1,0 +1,59 @@
+{
+  "_webhook_config": {
+    "signature_algorithm": "md5(merchant_id + order_id + payhere_amount + payhere_currency + status_code + upper(md5(merchant_secret))), uppercase hex",
+    "signature_location": "body field md5sig (application/x-www-form-urlencoded payload)",
+    "note": "PayHere webhooks are form bodies with the signature embedded in the md5sig field, so the harness cannot inject it into a header. The md5sig values below are pre-computed with merchant_secret = PayHere sandbox merchant secret; the payload is base64 for the proto bytes field."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/payhere",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "bWVyY2hhbnRfaWQ9MTIzNzcwMSZvcmRlcl9pZD1waF93ZWJob29rX29yZGVyX3N1Y2Nlc3MmcGF5bWVudF9pZD0zMjAwMzI0ODcmcGF5aGVyZV9hbW91bnQ9NDAuMDAmcGF5aGVyZV9jdXJyZW5jeT1MS1Imc3RhdHVzX2NvZGU9MiZtZXRob2Q9VklTQSZjdXN0b21lcl9tZXNzYWdlPVRoYW5rK3lvdStmb3IreW91citwdXJjaGFzZSZtZDVzaWc9QTM1Njc2MDVGRDBFQUVGMjU0NDIyQUFGNkE3QjczRDk="
+      },
+      "merchant_event_id": "payhere_webhook_payment_succeeded"
+    }
+  },
+  "payment_pending": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/payhere",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "bWVyY2hhbnRfaWQ9MTIzNzcwMSZvcmRlcl9pZD1waF93ZWJob29rX29yZGVyX3BlbmRpbmcmcGF5bWVudF9pZD0zMjAwMzI0ODgmcGF5aGVyZV9hbW91bnQ9NDAuMDAmcGF5aGVyZV9jdXJyZW5jeT1MS1Imc3RhdHVzX2NvZGU9MCZtZXRob2Q9VklTQSZjdXN0b21lcl9tZXNzYWdlPSZtZDVzaWc9QjM4MEE4QzRCRUEyNUMyRUZCRUI0RjkwRjBEREJFRDI="
+      },
+      "merchant_event_id": "payhere_webhook_payment_pending"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/payhere",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "bWVyY2hhbnRfaWQ9MTIzNzcwMSZvcmRlcl9pZD1waF93ZWJob29rX29yZGVyX2ZhaWxlZCZwYXloZXJlX2Ftb3VudD00MC4wMCZwYXloZXJlX2N1cnJlbmN5PUxLUiZzdGF0dXNfY29kZT0tMSZtZXRob2Q9VklTQSZjdXN0b21lcl9tZXNzYWdlPSZtZDVzaWc9RDAyMTU1OThEMEMzQkJFRDlBQzQ4QUJBQzk3NkZEQ0Y="
+      },
+      "merchant_event_id": "payhere_webhook_payment_failed"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/payhere",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "bWVyY2hhbnRfaWQ9MTIzNzcwMSZvcmRlcl9pZD1waF93ZWJob29rX29yZGVyX3N1Y2Nlc3MmcGF5bWVudF9pZD0zMjAwMzI0ODcmcGF5aGVyZV9hbW91bnQ9NDAuMDAmcGF5aGVyZV9jdXJyZW5jeT1MS1Imc3RhdHVzX2NvZGU9MiZtZXRob2Q9VklTQSZjdXN0b21lcl9tZXNzYWdlPVRoYW5rK3lvdStmb3IreW91citwdXJjaGFzZSZtZDVzaWc9MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+      },
+      "merchant_event_id": "payhere_webhook_invalid_sig"
+    }
+  }
+}

@@ -21,13 +21,65 @@ To implement a new connector capture flow using these patterns:
 # Replace placeholders:
 {ConnectorName} → NewPayment
 {connector_name} → new_payment
-{AmountType} → StringMinorUnit (if API expects "1000" for $10.00)
+{AmountType} → StringMinorUnit (ONLY if the API literally expects "1000" for $10.00 — read the spec; see the amount-unit note below)
 {content_type} → "application/json" (if API uses JSON)
 {capture_endpoint} → "v1/payments/{id}/capture" (your capture API endpoint)
 {auth_type} → HeaderKey (if using Bearer token auth)
 ```
 
 **✅ Result**: Complete, production-ready connector capture flow implementation in ~20 minutes
+
+## ⚠️ `PaymentsCaptureData` — the real field list
+
+Verified against `crates/types-traits/domain_types/src/connector_types.rs` at HEAD.
+Read this before writing a single line: several fields older guides referred to
+never existed in this contract.
+
+```rust
+pub struct PaymentsCaptureData {
+    pub amount_to_capture: i64,                       // NON-Option
+    pub minor_amount_to_capture: MinorUnit,
+    pub currency: Currency,
+    pub connector_transaction_id: ResponseId,         // NON-Option; use get_connector_transaction_id()
+    pub multiple_capture_data: Option<MultipleCaptureRequestData>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub metadata: Option<SecretSerdeValue>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsDetails>,
+    pub split_settlement: Option<Box<SplitSettlement>>,
+}
+```
+
+Consequences:
+
+| Old idiom | Why it fails | Use instead |
+|---|---|---|
+| `request.payment_amount` | field does not exist → **E0609** | there is no authorized amount in the request; see below |
+| `request.amount_to_capture.is_none()` | not an `Option` → **E0599** | `amount_to_capture` is always present |
+| `request.amount_to_capture == Some(x)` | type mismatch → **E0308** | `request.amount_to_capture == x` (i64) or compare `minor_amount_to_capture` |
+| `request.connector_transaction_id.as_ref().unwrap()` | it is a `ResponseId` enum | `request.get_connector_transaction_id()?` |
+
+**Partial-capture detection is connector-specific.** The capture request tells you
+what to capture, never what was authorized. Get the authorized amount from what
+the connector returned on Authorize — carried forward via `connector_feature_data`
+or `metadata` — or use `multiple_capture_data` when the connector reports captures
+itself. Do not invent a request field to compare against.
+
+Snippets below therefore refer to two placeholders you must supply per connector:
+
+- `authorized_minor_amount: MinorUnit` — the authorized amount you carried
+  forward from Authorize.
+- `get_authorized_amount_from_metadata(router_data) -> CustomResult<Option<MinorUnit>, IntegrationError>`
+  — your connector's reader for it (typically deserializing
+  `router_data.request.connector_feature_data` or `.metadata`).
+
+Neither is a field on `PaymentsCaptureData`. If your connector cannot recover the
+authorized amount, skip the full-vs-partial branch entirely and let the PSP
+reject an over-capture.
 
 ## Critical Implementation Rules (From PR Feedback)
 
@@ -65,9 +117,9 @@ if item.amount.get_amount_as_i64() <= 0 { ... } // Already validated upstream
 
 // CORRECT - API-required validation with purpose
 // Purpose: API requires original transaction reference for capture
-let transaction_id = router_data.request.connector_transaction_id
-    .as_ref()
-    .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
+// `connector_transaction_id` is a `ResponseId`, not an Option. The accessor
+// already raises IntegrationError::MissingConnectorTransactionID { context }.
+let transaction_id = router_data.request.get_connector_transaction_id()?;
 ```
 
 ## Table of Contents
@@ -187,8 +239,11 @@ fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, IntegrationEr
     let base_url = self.connector_base_url_payments(req);
     let transaction_id = req.request.get_connector_transaction_id()?;
     
-    // Choose endpoint based on capture type
-    if is_full_capture(&req.request) {
+    // Choose endpoint based on capture type.
+    // `is_full_capture` needs the AUTHORIZED amount as its second argument —
+    // `PaymentsCaptureData` does not carry it. See the field-list section at the
+    // top of this file for where `authorized_minor_amount` comes from.
+    if is_full_capture(&req.request, authorized_minor_amount) {
         Ok(format!("{}/api/payments/{}/settlements", base_url, transaction_id))
     } else {
         Ok(format!("{}/api/payments/{}/partialSettlements", base_url, transaction_id))
@@ -273,7 +328,12 @@ These connectors implement the PaymentCapture trait but have empty/stub implemen
 - **Stub implementations**: 14/22 (64%)
 - **Most common pattern**: Macro-based with JSON requests
 - **Most common auth**: HeaderKey (Bearer token)
-- **Most common amount format**: MinorUnit/StringMinorUnit
+- **Amount format**: read the vendor spec and match its wire format — there is no
+  safe default. The real HEAD distribution across connectors is
+  `StringMajorUnit` 34, `FloatMajorUnit` 26, `MinorUnit` 21, `StringMinorUnit` 19.
+  All five unit types live in `crates/common/common_utils/src/types.rs`:
+  `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`,
+  `StringTwoDecimalUnit`.
 
 ## Modern Macro-Based Pattern (Recommended)
 
@@ -337,7 +397,7 @@ macros::create_all_prerequisites!(
         // Add other flows as needed...
     ],
     amount_converters: [
-        amount_converter: {AmountUnit} // StringMinorUnit, StringMajorUnit, MinorUnit
+        amount_converter: {AmountUnit} // one of MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit — match the vendor wire format
     ],
     member_functions: {
         // Same build_headers and connector_base_url functions as authorization flow
@@ -349,7 +409,9 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            // `connector_auth_type` was removed from RouterDataV2 (a7a696c3a).
+            // Auth now comes from `req.connector_config: ConnectorSpecificConfig`.
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -388,11 +450,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Extract transaction ID from connector_transaction_id
-            let transaction_id = match &req.request.connector_transaction_id {
-                Some(id) => id,
-                None => return Err(errors::IntegrationError::MissingConnectorTransactionID.into()),
-            };
+            // Extract transaction ID from connector_transaction_id (a ResponseId).
+            let transaction_id = req.request.get_connector_transaction_id()?;
             
             let base_url = self.connector_base_url_payments(req);
             
@@ -412,12 +471,20 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stub for Capture flow
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+// `SourceVerification` is NON-GENERIC (crates/types-traits/interfaces/src/verification.rs:20)
+// — it takes NO flow/data/request/response type parameters. Writing
+// `SourceVerification<Capture, ...>` is E0107. There is exactly ONE impl per
+// connector, not one per flow, and the same is true of `BodyDecoding`
+// (crates/types-traits/interfaces/src/decode.rs).
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for {ConnectorName}<T>
 {
-    // Stub implementation - will be replaced in Phase 10
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
 }
 ```
 
@@ -445,7 +512,7 @@ pub struct {ConnectorName}CaptureRequest {
     // Common capture request fields across connectors:
 
     // Amount fields (choose based on connector requirements)
-    pub amount: {AmountType}, // MinorUnit, StringMinorUnit, StringMajorUnit
+    pub amount: {AmountType}, // MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit
     pub currency: String,
 
     // Transaction reference (varies by connector - include if used in request body)
@@ -579,11 +646,8 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
         let router_data = &item.router_data;
         
         // Validate that we have a connector transaction ID
-        let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .as_ref()
-            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
+        // `connector_transaction_id` is a `ResponseId`, not an `Option<String>`.
+        let transaction_id = router_data.request.get_connector_transaction_id()?;
 
         Ok(Self {
             amount: item.amount, // Converted amount from RouterData
@@ -592,7 +656,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
             reference: Some(router_data.resource_common_data.connector_request_reference_id.clone()),
             // Only include fields that connector actually requires
             // AVOID setting fields to None - remove them from struct instead
-            merchant_account: Some(get_merchant_account(&router_data.connector_auth_type)?),
+            merchant_account: Some(get_merchant_account(&router_data.connector_config)?),
             description: Some(format!("Capture for payment {}", transaction_id)),
         })
     }
@@ -609,13 +673,12 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         
-        let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .as_ref()
-            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
+        // `connector_transaction_id` is a `ResponseId`, not an `Option<String>`.
+        let transaction_id = router_data.request.get_connector_transaction_id()?;
 
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        // `ConnectorSpecificConfig`, not `ConnectorAuthType` — see
+        // crates/integrations/connector-integration/src/connectors/travelhub.rs
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
             capture_transaction_request: {ConnectorName}CaptureRequestInternal {
@@ -654,16 +717,30 @@ impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Cap
                     status: common_enums::AttemptStatus::Failure,
                     ..router_data.resource_common_data.clone()
                 },
+                // `ErrorResponse` has 13 fields and an `impl Default` — prefer
+                // `..Default::default()` over listing every one.
+                // `attempt_status` is `Option<FlowStatus>`, NOT
+                // `Option<AttemptStatus>`; wrap with `FlowStatus::Payment(..)`.
+                // Never force a terminal status on the shared error path: that is
+                // how a charged payment gets reported as FAILURE. Decide it from
+                // the connector's own signal; leave it `None` when you cannot.
                 response: Err(ErrorResponse {
-                    code: response.error_code.clone().unwrap_or_default(),
+                    code: response
+                        .error_code
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                     message: error.clone(),
                     reason: Some(error.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    // `error_is_terminal()` is a PLACEHOLDER for your connector's own
+                    // predicate over its error payload — it is not a method on any
+                    // shared type. Implement it on your response struct, or drop
+                    // this field (Default gives `None`) if the payload cannot say.
+                    attempt_status: response
+                        .error_is_terminal()
+                        .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -671,14 +748,19 @@ impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Cap
 
         // Success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
+            // Enum struct-variants have NO functional-update syntax — every one of
+            // the 11 fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -710,7 +792,149 @@ impl<T> TryFrom<({AmountType}, T)> for {ConnectorName}RouterData<T> {
 }
 ```
 
+### The flow-status stub macro (`macro_connector_flow_status_impls!`)
+
+Every one of the 112 connectors at HEAD invokes this macro exactly once, in the
+main connector file, to declare the flows it does **not** implement. Without it
+the trait impls for those flows are missing and the connector will not compile.
+It lives at `crates/integrations/connector-integration/src/connectors/macros.rs`
+(~line 1827) and takes two flow lists:
+
+```rust
+// Copied from crates/integrations/connector-integration/src/connectors/travelhub.rs:455
+macros::macro_connector_flow_status_impls!(
+    connector: {ConnectorName},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Accept,
+        ClientAuthenticationToken,
+        CreateConnectorCustomer,
+        GetConnectorCustomer,
+        DefendDispute,
+        MandateRevoke,
+        Authenticate,
+        IncrementalAuthorization,
+        CreateOrder,
+        PostAuthenticate,
+        PreAuthenticate,
+        PaymentMethodToken,
+        VoidPC,
+        RepeatPayment,
+        ServerAuthenticationToken,
+        ServerSessionAuthenticationToken,
+        // ... every flow this connector does not implement
+    ],
+    not_supported: [
+        // flows the connector's API genuinely cannot do
+    ]
+);
+```
+
+Both list keys are optional — there are separate matcher arms for
+`not_implemented` alone, `not_supported` alone, and both together — but at least
+one must be present.
+
+Two sibling macros in the same file:
+
+- `macro_connector_local_flow_implementation!` (~:2425) — flows that make **no**
+  outbound HTTP call and are resolved locally.
+- `macro_connector_payout_implementation!` (~:1448) — payout flow stubs; see
+  `travelhub.rs` for a real invocation.
+
+Read the macro's first matcher arm in `macros.rs` before inventing argument keys,
+and copy a real invocation from a connector file rather than from memory.
+
+### In-band failure inside a 2xx response
+
+Many connectors return HTTP 200 with a failure status in the body. That is still
+a failure and MUST be returned as `Err(ErrorResponse { .. })`, not as a successful
+`PaymentsResponseData`. Branch on a success predicate — the shared helper is
+`domain_types::utils::is_payment_failure` (`crates/types-traits/domain_types/src/utils.rs:231`),
+which reports `true` for `AuthenticationFailed`, `AuthorizationFailed`,
+`CaptureFailed`, `VoidFailed`, `Expired` and `Failure`.
+
+```rust
+let status = common_enums::AttemptStatus::from(response.status.clone());
+
+if utils::is_payment_failure(status) {
+    return Ok(Self {
+        resource_common_data: PaymentFlowData {
+            status,
+            ..router_data.resource_common_data.clone()
+        },
+        response: Err(ErrorResponse {
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error_message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error_message.clone(),
+            status_code: item.http_code,
+            attempt_status: Some(FlowStatus::Payment(status)),
+            connector_transaction_id: Some(response.id.clone()),
+            ..Default::default()
+        }),
+        ..router_data.clone()
+    });
+}
+// ... success path builds PaymentsResponseData::TransactionResponse
+```
+
+`NO_ERROR_CODE` and `NO_ERROR_MESSAGE` come from
+`crates/common/common_utils/src/consts.rs` — real connectors use them 247 times.
+Never `.unwrap_or_default()` an error code or message: an empty string tells the
+merchant nothing and hides the connector's own failure text.
+
 ## Status Mapping Best Practices
+
+### CRITICAL: two layers, two different rules
+
+Reviewers require **both** halves and reject either one alone:
+
+1. **Deserialization layer** — the wire enum in `transformers.rs` MUST carry
+   `#[serde(other)] Unknown`. Without it, a status string the vendor adds later
+   fails the whole response parse.
+2. **Status-mapping layer** — the `match` that turns that enum into
+   `AttemptStatus` MUST be **exhaustive**, with no `_ =>` arm. A catch-all here
+   silently maps an unknown vendor state onto a status you never verified; when
+   the compiler forces you to name `Unknown` you make a deliberate choice.
+
+```rust
+// transformers.rs — DESERIALIZATION layer
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum {ConnectorName}CaptureStatus {
+    Captured,
+    Settled,
+    Pending,
+    Failed,
+    #[serde(other)]
+    Unknown, // REQUIRED: absorbs statuses added after this file was written
+}
+
+// STATUS-MAPPING layer — exhaustive, no `_ =>`
+impl From<{ConnectorName}CaptureStatus> for common_enums::AttemptStatus {
+    fn from(status: {ConnectorName}CaptureStatus) -> Self {
+        match status {
+            {ConnectorName}CaptureStatus::Captured
+            | {ConnectorName}CaptureStatus::Settled => Self::Charged,
+            {ConnectorName}CaptureStatus::Pending => Self::Pending,
+            {ConnectorName}CaptureStatus::Failed => Self::Failure,
+            // Named explicitly: an unrecognised state is NOT a success.
+            {ConnectorName}CaptureStatus::Unknown => Self::Pending,
+        }
+    }
+}
+```
+
+Matching on a raw `&str` (`response.status.as_str()`) forces a `_ =>` arm and
+loses this protection — define the typed enum instead. Some snippets further down
+this file still match on strings for brevity; treat the typed-enum form above as
+the one to copy.
 
 ### CRITICAL: Never Hardcode Status
 
@@ -885,28 +1109,37 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
         // Validation 1: Connector transaction ID is required
         // Purpose: API requires original transaction reference for capture
         // Consequence: Without this, capture request will fail with 400 error
-        let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .as_ref()
-            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
+        // `connector_transaction_id` is a `ResponseId`, NOT an `Option<String>`.
+        // Use the accessor, which already returns the right IntegrationError.
+        let transaction_id = router_data.request.get_connector_transaction_id()?;
 
         // Validation 2: Capture amount must not exceed authorized amount
         // Purpose: API enforces this constraint and rejects over-captures
         // Consequence: Without this check, we get error code "AMOUNT_EXCEEDS_AUTH"
-        let capture_amount = router_data.request.amount_to_capture
-            .unwrap_or(router_data.request.payment_amount);
+        //
+        // NOTE: `PaymentsCaptureData` has NO `payment_amount` field, and
+        // `amount_to_capture: i64` is NOT an Option. The authorized amount is not
+        // part of the capture request at all — it has to come from what the
+        // connector returned on Authorize (carried forward in
+        // `connector_feature_data` / `metadata`). Only add the guard below when
+        // you actually have that value; most connectors let the PSP reject the
+        // over-capture instead.
+        let capture_amount = router_data.request.minor_amount_to_capture;
 
-        if capture_amount > router_data.request.payment_amount {
-            return Err(IntegrationError::InvalidRequestData {
-                message: "Capture amount cannot exceed authorized amount".to_string(),
-            }.into());
+        if let Some(authorized_amount) = get_authorized_amount_from_metadata(router_data)? {
+            if capture_amount > authorized_amount {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "amount_to_capture",
+                    context: Default::default(),
+                }
+                .into());
+            }
         }
 
         Ok(Self {
             amount: item.amount,
             currency: router_data.request.currency.to_string(),
-            transaction_id: transaction_id.clone(),
+            transaction_id,
         })
     }
 }
@@ -917,28 +1150,40 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
 **Unnecessary (DO NOT DO THIS):**
 ```rust
 // AVOID: Unnecessary validation - currency is already validated upstream
+// (`InvalidRequestData` is not a real variant either — see below.)
 if router_data.request.currency.to_string().len() != 3 {
-    return Err(IntegrationError::InvalidRequestData {
-        message: "Currency must be 3 characters".to_string(),
-    }.into());
+    return Err(IntegrationError::InvalidDataFormat {
+        field_name: "currency",
+        context: Default::default(),
+    }
+    .into());
 }
 
 // AVOID: Unnecessary validation - amount is already validated upstream
 if item.amount.get_amount_as_i64() <= 0 {
-    return Err(IntegrationError::InvalidRequestData {
-        message: "Amount must be positive".to_string(),
-    }.into());
+    return Err(IntegrationError::InvalidDataFormat {
+        field_name: "amount",
+        context: Default::default(),
+    }
+    .into());
 }
 ```
 
 **Necessary (GOOD):**
 ```rust
 // GOOD: API-specific validation required by connector
+// `IntegrationError::InvalidRequestData` does NOT exist. Every variant is
+// struct-shaped and carries a `context: IntegrationErrorContext`; free text goes
+// into `context.additional_context`. Real list: domain_types/src/errors.rs.
 if router_data.request.currency != Currency::USD
-    && router_data.request.currency != Currency::EUR {
-    return Err(IntegrationError::InvalidRequestData {
+    && router_data.request.currency != Currency::EUR
+{
+    return Err(IntegrationError::CurrencyNotSupported {
         message: "Connector only supports USD and EUR for captures".to_string(),
-    }.into());
+        connector: "{connector_name}",
+        context: Default::default(),
+    }
+    .into());
 }
 ```
 
@@ -995,9 +1240,11 @@ fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, Inte
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
-    // Determine if this is a full or partial capture
-    let is_full_capture = req.request.amount_to_capture.is_none() || 
-        req.request.amount_to_capture == Some(req.request.payment_amount);
+    // Determine if this is a full or partial capture.
+    // `amount_to_capture` is `i64` (NOT an Option) and there is no `payment_amount`
+    // field, so "full vs partial" can only be answered against the authorized
+    // amount the connector itself reported on Authorize — see `is_full_capture`.
+    let is_full_capture = is_full_capture(&req.request, authorized_minor_amount);
     
     if is_full_capture {
         // Full settlement endpoint (typically requires empty body)
@@ -1156,12 +1403,15 @@ impl TryFrom<ResponseRouterData<ConnectorCaptureResponse, ...>> for RouterDataV2
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: reference,
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         });
         
         Ok(router_data)
@@ -1174,10 +1424,17 @@ impl TryFrom<ResponseRouterData<ConnectorCaptureResponse, ...>> for RouterDataV2
 ```rust
 // Generic helper functions for multi-endpoint implementations
 
-/// Determine if this is a full capture based on amounts
-fn is_full_capture(request: &PaymentsCaptureData) -> bool {
-    request.amount_to_capture.is_none() || 
-    request.amount_to_capture == Some(request.payment_amount)
+/// Determine if this is a full capture based on amounts.
+///
+/// `PaymentsCaptureData` (domain_types/src/connector_types.rs) carries ONLY what
+/// to capture — `amount_to_capture: i64` (non-Option) and
+/// `minor_amount_to_capture: MinorUnit`. There is **no** `payment_amount` field,
+/// so the authorized amount MUST be supplied by the caller: read it from what the
+/// connector returned on Authorize (threaded through `connector_feature_data` /
+/// `metadata`), or use `multiple_capture_data` when the connector tracks
+/// captures itself.
+fn is_full_capture(request: &PaymentsCaptureData, authorized_amount: MinorUnit) -> bool {
+    request.minor_amount_to_capture == authorized_amount
 }
 
 /// Extract transaction ID from various link formats
@@ -1188,7 +1445,7 @@ fn extract_transaction_id(href: &str) -> Option<String> {
 /// Generate unique reference for partial captures
 fn generate_capture_reference(router_data: &RouterDataV2<Capture, ...>) -> String {
     format!("capture-{}-{}", 
-        router_data.request.connector_transaction_id.as_ref().unwrap(),
+        router_data.request.get_connector_transaction_id().unwrap_or_default(),
         chrono::Utc::now().timestamp()
     )
 }
@@ -1389,9 +1646,9 @@ impl TryFrom<CaptureRouterData> for CaptureRequest {
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         
-        // Check if this is a full capture
-        let is_full_capture = router_data.request.amount_to_capture.is_none() ||
-            router_data.request.amount_to_capture == Some(router_data.request.payment_amount);
+        // Check if this is a full capture. `amount_to_capture` is a plain `i64`;
+        // the authorized amount is connector-specific state, not a request field.
+        let is_full_capture = is_full_capture(&router_data.request, authorized_minor_amount);
         
         if is_full_capture {
             // Return empty object for full settlements
@@ -1465,7 +1722,7 @@ impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let is_full_capture = is_full_capture_amount(&router_data.request);
+        let is_full_capture = is_full_capture_amount(&router_data.request, authorized_minor_amount);
         
         if is_full_capture {
             // Minimal request for full capture
@@ -1480,12 +1737,7 @@ impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
         } else {
             // Full request for partial capture
             Ok(Self {
-                transaction_id: Some(
-                    router_data.request.connector_transaction_id
-                        .as_ref()
-                        .ok_or(IntegrationError::MissingConnectorTransactionID)?
-                        .clone()
-                ),
+                transaction_id: Some(router_data.request.get_connector_transaction_id()?),
                 amount: Some(item.amount.get_amount_as_i64()),
                 currency: Some(router_data.request.currency.to_string()),
                 reference: Some(router_data.resource_common_data.connector_request_reference_id.clone()),
@@ -1496,12 +1748,12 @@ impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
     }
 }
 
-// Helper function to determine capture type
-fn is_full_capture_amount(request: &PaymentsCaptureData) -> bool {
-    match request.amount_to_capture {
-        None => true, // No amount specified = full capture
-        Some(capture_amount) => capture_amount == request.payment_amount,
-    }
+// Helper function to determine capture type.
+// `amount_to_capture` is NOT an Option, so there is no "no amount specified"
+// case to fall back on; compare against the authorized amount you carried
+// forward from Authorize.
+fn is_full_capture_amount(request: &PaymentsCaptureData, authorized_amount: MinorUnit) -> bool {
+    request.minor_amount_to_capture == authorized_amount
 }
 ```
 
@@ -1555,7 +1807,7 @@ impl TryFrom<CaptureRouterData> for NullAwareCaptureRequest {
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let is_full_capture = is_full_capture_amount(&router_data.request);
+        let is_full_capture = is_full_capture_amount(&router_data.request, authorized_minor_amount);
         
         let (amount, sequence) = if is_full_capture {
             (CaptureAmount::FullCapture, None)
@@ -1570,7 +1822,9 @@ impl TryFrom<CaptureRouterData> for NullAwareCaptureRequest {
         };
         
         Ok(Self {
-            transaction_id: router_data.request.connector_transaction_id.clone(),
+            // `connector_transaction_id` is a `ResponseId`, not an `Option<String>` —
+            // go through the accessor.
+            transaction_id: Some(router_data.request.get_connector_transaction_id()?),
             amount,
             sequence,
         })
@@ -1622,16 +1876,16 @@ impl TryFrom<CaptureRouterData> for Value {
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let is_full_capture = is_full_capture_amount(&router_data.request);
+        let is_full_capture = is_full_capture_amount(&router_data.request, authorized_minor_amount);
         let has_sequence_support = check_sequence_support(&router_data);
         
+        // `connector_transaction_id` is a `ResponseId`, NOT an `Option<String>`:
+        // `.is_some()` on it is E0599. The accessor yields the String or errors.
+        let transaction_id = router_data.request.get_connector_transaction_id()?;
+
         let request = DynamicCaptureRequestBuilder::new()
-            // Always include transaction reference if available
-            .add_field_if(
-                "transactionId", 
-                &router_data.request.connector_transaction_id, 
-                router_data.request.connector_transaction_id.is_some()
-            )
+            // Always include the transaction reference
+            .add_field_if("transactionId", &transaction_id, true)
             // Include amount only for partial captures
             .add_field_if(
                 "amount", 
@@ -1765,9 +2019,7 @@ fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
 ) -> CustomResult<String, IntegrationError> {
-    let transaction_id = req.request.connector_transaction_id
-        .as_ref()
-        .ok_or(IntegrationError::MissingConnectorTransactionID)?;
+    let transaction_id = req.request.get_connector_transaction_id()?;
     
     let base_url = self.connector_base_url_payments(req);
     
@@ -1855,8 +2107,7 @@ enum CaptureEndpoint {
 
 fn determine_capture_endpoint(request: &PaymentsCaptureData) -> Result<CaptureEndpoint, IntegrationError> {
     // Logic to determine the appropriate endpoint
-    let is_full_capture = request.amount_to_capture.is_none() || 
-        request.amount_to_capture == Some(request.payment_amount);
+    let is_full_capture = is_full_capture(request, authorized_minor_amount);
     
     // Check for batch processing requirements
     if should_use_batch_processing(request) {
@@ -1974,8 +2225,9 @@ enum ComplexityLevel {
 }
 
 fn analyze_capture_context(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> Result<CaptureContext, IntegrationError> {
-    let is_partial = router_data.request.amount_to_capture.is_some() &&
-        router_data.request.amount_to_capture != Some(router_data.request.payment_amount);
+    // `amount_to_capture: i64` is always present — partiality is decided purely
+    // by comparing it to the authorized amount, which is connector-specific state.
+    let is_partial = !is_full_capture(&router_data.request, authorized_minor_amount);
     
     let complexity_level = if !is_partial && supports_empty_body_capture(&router_data) {
         ComplexityLevel::Empty
@@ -2002,7 +2254,7 @@ fn supports_empty_body_capture(router_data: &RouterDataV2<Capture, PaymentFlowDa
 fn is_simple_capture_scenario(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> bool {
     // Determine if this is a simple capture scenario
     // Could be based on amount, merchant type, payment method, etc.
-    router_data.request.payment_amount.get_amount_as_i64() < 10000 // Example: amounts under $100
+    router_data.request.amount_to_capture < 10000 // `amount_to_capture` is already i64 minor units
 }
 
 fn supports_sequence_tracking(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> bool {
@@ -2191,12 +2443,15 @@ impl TryFrom<ResponseRouterData<Value, RouterDataV2<Capture, PaymentFlowData, Pa
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: reference,
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         });
         
         Ok(router_data)
@@ -2386,15 +2641,17 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         
-        // Handle partial vs full capture
-        let capture_amount = match router_data.request.amount_to_capture {
-            Some(amount) => amount, // Partial capture
-            None => router_data.request.payment_amount, // Full capture
-        };
-        
+        // `amount_to_capture: i64` is NOT an Option, and there is no
+        // `payment_amount` field on `PaymentsCaptureData` — the value you were
+        // asked to capture is always present.
+        let capture_amount = router_data.request.minor_amount_to_capture;
+
         Ok(Self {
             amount: item.amount, // Already converted
-            is_partial_capture: router_data.request.amount_to_capture.is_some(),
+            // Partial-capture detection is connector-specific: compare against the
+            // authorized amount the connector reported on Authorize (carried in
+            // `connector_feature_data` / `metadata`), or use `multiple_capture_data`.
+            is_partial_capture: !is_full_capture(&router_data.request, authorized_minor_amount),
             // ...
         })
     }
@@ -2412,9 +2669,17 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
         // Validate currency matches original authorization
         if let Some(original_currency) = &router_data.request.currency {
             if original_currency != &router_data.request.currency {
-                return Err(IntegrationError::InvalidRequestData {
-                    message: "Capture currency must match authorization currency".to_string(),
-                }.into());
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "currency",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Capture currency must match authorization currency"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
             }
         }
         
@@ -2437,15 +2702,11 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         
-        let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .as_ref()
-            .ok_or_else(|| {
-                IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                , context: Default::default() }
-            })?;
+        // `connector_transaction_id` is a `ResponseId`, not an `Option`, so there is
+        // nothing to `.as_ref().ok_or_else()`. The accessor already raises
+        // `IntegrationError::MissingConnectorTransactionID { context }` when the
+        // variant is not `ResponseId::ConnectorTransactionId`.
+        let transaction_id = router_data.request.get_connector_transaction_id()?;
         
         // Continue with request building...
     }
@@ -2462,18 +2723,32 @@ impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, ...>> for Router
         
         // Handle capture-specific errors
         if let Some(error_code) = &response.error_code {
+            // Flow-aware and non-terminal by default. Only the codes the vendor
+            // documents as terminal get a terminal status; anything unrecognised
+            // stays `None` so the framework does not freeze the attempt on a
+            // status we did not actually observe.
+            // Exemplars: connectors/flywire.rs:362-370, connectors/noon.rs:499-512.
             let attempt_status = match error_code.as_str() {
-                "ALREADY_CAPTURED" => common_enums::AttemptStatus::Charged,
-                "INSUFFICIENT_AUTHORIZATION" => common_enums::AttemptStatus::PartialCharged,
-                "EXPIRED_AUTHORIZATION" => common_enums::AttemptStatus::Failure,
-                "INVALID_TRANSACTION_STATE" => common_enums::AttemptStatus::Failure,
-                _ => common_enums::AttemptStatus::Failure,
+                "ALREADY_CAPTURED" => Some(common_enums::AttemptStatus::Charged),
+                "INSUFFICIENT_AUTHORIZATION" => {
+                    Some(common_enums::AttemptStatus::PartialCharged)
+                }
+                "EXPIRED_AUTHORIZATION" => Some(common_enums::AttemptStatus::Failure),
+                "INVALID_TRANSACTION_STATE" => Some(common_enums::AttemptStatus::Failure),
+                _ => None,
             };
-            
+
             return Ok(Self {
                 response: Err(ErrorResponse {
-                    attempt_status: Some(attempt_status),
-                    // ... other error fields
+                    code: error_code.clone(),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    status_code: item.http_code,
+                    // `Option<FlowStatus>` — wrap the AttemptStatus.
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
+                    ..Default::default()
                 }),
                 // ...
             });
@@ -2496,7 +2771,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
             // Use a deterministic idempotency key
             idempotency_key: Some(format!(
                 "capture-{}-{}", 
-                router_data.request.connector_transaction_id.as_ref().unwrap(),
+                router_data.request.get_connector_transaction_id()?,
                 router_data.resource_common_data.connector_request_reference_id
             )),
             // ... other fields
@@ -2545,7 +2820,7 @@ mod capture_tests {
         let router_data = create_test_capture_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -2572,7 +2847,7 @@ mod capture_tests {
         let router_data = create_test_capture_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 400,
         };
 
@@ -2586,9 +2861,11 @@ mod capture_tests {
 
     #[test]
     fn test_missing_transaction_id_error() {
-        // Test error when connector_transaction_id is missing
+        // Test error when connector_transaction_id is not a usable transaction id.
+        // `connector_transaction_id` is a `ResponseId`, not an `Option`, so assigning
+        // `None` is E0308 — set a variant the accessor rejects instead.
         let mut router_data = create_test_capture_router_data();
-        router_data.request.connector_transaction_id = None;
+        router_data.request.connector_transaction_id = ResponseId::NoResponseId;
 
         let connector_req = {ConnectorName}CaptureRequest::try_from(&router_data);
         assert!(connector_req.is_err());
@@ -2601,7 +2878,9 @@ mod capture_tests {
         let router_data = create_test_capture_router_data();
         
         let url = connector.get_url(&router_data).unwrap();
-        assert!(url.contains(&router_data.request.connector_transaction_id.unwrap()));
+        assert!(url.contains(
+            &router_data.request.get_connector_transaction_id().unwrap()
+        ));
     }
 
     fn create_test_capture_router_data() -> RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData> {
@@ -2610,12 +2889,24 @@ mod capture_tests {
             resource_common_data: PaymentFlowData {
                 // ... test data
             },
+            // Real field list — crates/types-traits/domain_types/src/connector_types.rs
             request: PaymentsCaptureData {
-                connector_transaction_id: Some("test_txn_123".to_string()),
+                amount_to_capture: 1000,                       // i64, NOT an Option
+                minor_amount_to_capture: MinorUnit::new(1000),
                 currency: Currency::USD,
-                payment_amount: MinorUnit::new(1000),
-                amount_to_capture: Some(MinorUnit::new(1000)), // Full capture
-                // ... other test fields
+                connector_transaction_id: ResponseId::ConnectorTransactionId(
+                    "test_txn_123".to_string(),
+                ),
+                multiple_capture_data: None,
+                connector_feature_data: None,
+                integrity_object: None,
+                browser_info: None,
+                capture_method: None,
+                metadata: None,
+                order_tax_amount: None,
+                merchant_order_id: None,
+                split_payments: None,
+                split_settlement: None,
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 // ... response data
@@ -2646,7 +2937,9 @@ mod capture_integration_tests {
         
         // Test URL generation
         let url = connector.get_url(&request_data).unwrap();
-        assert!(url.contains("capture") || url.contains(&request_data.request.connector_transaction_id.unwrap()));
+        // `connector_transaction_id` is a `ResponseId`; `.unwrap()` on it is E0599.
+        let transaction_id = request_data.request.get_connector_transaction_id().unwrap();
+        assert!(url.contains("capture") || url.contains(&transaction_id));
         
         // Test request body generation
         let request_body = connector.get_request_body(&request_data).unwrap();
@@ -2795,7 +3088,7 @@ mod capture_integration_tests {
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Adyen`, `PayPal`, `NewPayment` | **Always required** - Used in struct names |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `adyen`, `paypal`, `new_payment` | **Always required** - Used in config keys |
-| `{AmountType}` | Amount type (same as auth flow) | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Must match auth flow** |
+| `{AmountType}` | Amount type (same as auth flow) | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Must match auth flow** and the vendor wire format |
 | `{content_type}` | Request content type | `"application/json"`, `"application/x-www-form-urlencoded"` | **Same as auth flow** |
 | `{capture_endpoint}` | Capture API endpoint path | `"v1/payments/{id}/capture"`, `"captures"`, `"submit_for_settlement"` | **From API docs** |
 | `{auth_type}` | Authentication type | `HeaderKey`, `SignatureKey`, `BodyKey` | **Same as auth flow** |

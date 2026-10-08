@@ -103,14 +103,6 @@
         "error": { "must_exist": true },
         "error.connector_details.message": { "contains": "not supported" }
       }
-    },
-    "no3ds_fail_payment": {
-      "assert": {
-        "status": { "one_of": ["CHARGED", "FAILURE", "AUTHORIZATION_FAILED"] },
-        "connector_transaction_id": { "must_exist": true },
-        "error": null,
-        "error.connector_details.message": null
-      }
     }
   },
   "PaymentService/Capture": {

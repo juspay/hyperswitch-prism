@@ -682,6 +682,10 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
@@ -796,6 +800,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
             splits: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -831,6 +836,10 @@ fn build_payments_response_result(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }))
     } else {
         Ok(Ok(PaymentsResponseData::try_from(response)?))

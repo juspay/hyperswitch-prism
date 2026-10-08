@@ -42,7 +42,7 @@ mod tests {
                 flow: PhantomData,
                 resource_common_data: MerchantAuthenticationFlowData {
                     merchant_id: common_utils::id_type::MerchantId::default(),
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     return_url: None,
@@ -51,6 +51,8 @@ mod tests {
                     merchant_request_id: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
+                    typed_connector_response: None,
                     connector_response_headers: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -72,6 +74,7 @@ mod tests {
                     country_codes,
                     locale: None,
                     permissions: None,
+                    native_app_identifier: None,
                 },
                 response: Err(ErrorResponse::default()),
             }
@@ -89,6 +92,7 @@ mod tests {
                 customer_phone_number: None,
                 customer_phone_country_code: None,
                 salutation: None,
+                date_of_birth: None,
             }
         }
 
@@ -229,12 +233,13 @@ mod tests {
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -244,6 +249,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
@@ -388,12 +395,13 @@ mod tests {
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -403,6 +411,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),

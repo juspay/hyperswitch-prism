@@ -352,9 +352,16 @@ Plus:
 **Critical architectural violations specific to UCS**
 
 Examples:
-- Using `RouterData` instead of `RouterDataV2`
+- Using `RouterData` instead of `RouterDataV2`, or giving `RouterDataV2` three
+  type parameters instead of four (`Flow, ResourceCommonData, Request, Response`)
 - Using `ConnectorIntegration` instead of `ConnectorIntegrationV2`
 - Wrong import paths (hyperswitch_* vs domain_types)
+- Reading auth from a `connector_auth_type` field — it was removed from
+  `RouterDataV2`; auth comes from `req.connector_config: ConnectorSpecificConfig`
+- Generic per-flow `SourceVerification` / `BodyDecoding` impls — both traits are
+  non-generic, one impl per connector
+- `build_error_response` with two parameters instead of three, or referencing
+  `ConnectorEvent` instead of `events::Event`
 
 ---
 
@@ -619,6 +626,10 @@ A: After every quality review that identifies new patterns or observes existing 
 
 **For Your First Implementation:**
 
+0. Read `guides/types/types.md` and the "Common UCS Pitfalls" section of
+   `guides/connector_integration_guide.md` — they carry the current Rust contract
+   (trait signatures, struct field lists, error variants). Anything you copy from
+   an older guide must be checked against `crates/` before it goes in.
 1. Read `guides/feedback.md` - Section 1: Critical Patterns
 2. Review flow-specific patterns for your target flow
 3. Start implementation following UCS templates

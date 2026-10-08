@@ -379,6 +379,7 @@ fn get_payments_response(connector_response: TsysResponse, http_code: u16) -> Pa
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -726,6 +727,7 @@ fn get_payments_sync_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -1176,6 +1178,7 @@ fn get_setup_mandate_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 
@@ -1475,5 +1478,9 @@ fn get_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }

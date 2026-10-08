@@ -424,6 +424,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                                     network_decline_code: None,
                                     network_advice_code: None,
                                     network_error_message: None,
+                                    typed_connector_response: None,
+                                    raw_connector_response: None,
+                                    raw_connector_request: None,
+                                    typed_connector_request: None,
                                 }),
                                 resource_common_data: PaymentFlowData {
                                     status: AttemptStatus::Failure,
@@ -448,6 +452,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                                     incremental_authorization_allowed: None,
                                     status_code: item.http_code,
                                     splits: None,
+                                    payment_account_reference: None,
                                 }),
                                 resource_common_data: PaymentFlowData {
                                     status: final_status,
@@ -470,6 +475,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: AttemptStatus::Failure,
@@ -501,6 +510,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Failure,
@@ -611,6 +624,10 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -650,8 +667,7 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
                         connector_transaction_id: Some(transaction_data.id.clone()),
                         network_decline_code: card_response
                             .and_then(|c| c.processor_response_code.clone()),
-                        network_advice_code: card_response
-                            .and_then(|c| c.avs_response_code.clone()),
+                        network_advice_code: None,
                         network_error_message: None,
                         ..Default::default()
                     }),
@@ -673,6 +689,7 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -802,6 +819,10 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -819,6 +840,7 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -921,6 +943,10 @@ impl TryFrom<ResponseRouterData<CeleroRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1018,6 +1044,10 @@ impl TryFrom<ResponseRouterData<CeleroRefundSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             }),
@@ -1107,6 +1137,10 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1124,6 +1158,7 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

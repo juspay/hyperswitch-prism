@@ -53,31 +53,42 @@ export const scaffoldCheckpoint: Checkpoint = {
       );
     }
 
-    // Resolve baseUrl from the broadest set of locations the wizard / hand-
+    // Resolve URLs from the broadest set of locations the wizard / hand-
     // crafted task JSON might populate. Previously only the two top-level
     // fields were checked, which caused asiapay's first E2E run to silently
     // skip the scaffold step because the URL was buried in connectorDocs.
+    //
+    // NOTE on the task schema (see TaskDefinition in types.ts):
+    //   task.sandboxUrl → sandbox/test base URL
+    //   task.baseUrl    → PRODUCTION base URL
+    // add_connector.sh's positional arg is the sandbox/default base_url, and the
+    // production URL is passed via --production-url so the superposition production
+    // override (used for live-mode testing) points at the real live host.
     const spec = (task as { integrationSpec?: { baseUrl?: string; sandboxUrl?: string } })
       .integrationSpec;
     const docs = (task as { connectorDocs?: Array<{ urls?: Array<{ url?: string }> }> })
       .connectorDocs;
     const docUrls = (task as { connectorDocUrls?: string[] }).connectorDocUrls;
-    const baseUrl =
+    const productionUrl =
       task.baseUrl?.trim() ||
+      spec?.baseUrl?.trim();
+    const baseUrl =
       task.sandboxUrl?.trim() ||
-      spec?.baseUrl?.trim() ||
       spec?.sandboxUrl?.trim() ||
       docs?.[0]?.urls?.[0]?.url?.trim() ||
-      docUrls?.[0]?.trim();
+      docUrls?.[0]?.trim() ||
+      productionUrl; // last resort: reuse production so we still scaffold
     if (!baseUrl) {
       ctx.log(
-        "[scaffold] No baseUrl/sandboxUrl on task (checked task.baseUrl, " +
-          "task.sandboxUrl, integrationSpec.baseUrl/sandboxUrl, connectorDocs[0], " +
+        "[scaffold] No sandbox/base URL on task (checked task.sandboxUrl, " +
+          "task.baseUrl, integrationSpec.sandboxUrl/baseUrl, connectorDocs[0], " +
           "connectorDocUrls[0]) — skipping add_connector.sh",
         "warn",
       );
       return { passed: true, output: "no baseUrl to scaffold" };
     }
+    // Only pass --production-url when we actually have a distinct live URL.
+    const passProductionUrl = Boolean(productionUrl && productionUrl !== baseUrl);
 
     const projectRoot = task.projectRoot;
     const scriptPath = path.join(
@@ -94,8 +105,15 @@ export const scaffoldCheckpoint: Checkpoint = {
       };
     }
 
+    // <connector> <base_url> [--production-url <url>] --force -y
+    const scriptArgs = [connector, baseUrl];
+    if (passProductionUrl) {
+      scriptArgs.push("--production-url", productionUrl!);
+    }
+    scriptArgs.push("--force", "-y");
+
     ctx.log(
-      `[scaffold] Running add_connector.sh ${connector} ${baseUrl} --force -y`,
+      `[scaffold] Running add_connector.sh ${scriptArgs.join(" ")}`,
       "info"
     );
 
@@ -105,7 +123,7 @@ export const scaffoldCheckpoint: Checkpoint = {
       // surfacing only the tail at the end.
       const child = spawn(
         "bash",
-        [scriptPath, connector, baseUrl, "--force", "-y"],
+        [scriptPath, ...scriptArgs],
         { cwd: projectRoot, stdio: ["ignore", "pipe", "pipe"] }
       );
 

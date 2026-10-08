@@ -4,14 +4,12 @@
 //
 // Billwerk — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example billwerk -- process_checkout_card
-use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
 use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
-use std::str::FromStr;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
@@ -22,7 +20,6 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "refund_get",
     "token_authorize",
     "token_setup_recurring",
-    "tokenize",
     "void",
 ];
 
@@ -94,6 +91,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()
@@ -176,8 +174,6 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
             mandate_type: Some(MandateType {
                 // Type of mandate (single_use or multi_use) with amount details.
                 mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
-                    amount: 0, // Use amount_money instead (will be removed in a future release).
-                    currency: Currency::Usd.into(), // Use amount_money.currency instead (will be removed in a future release).
                     amount_money: Some(Money {
                         // Amount in Money type.
                         minor_amount: 0, // Amount in minor units (e.g., 1000 = $10.00).
@@ -190,35 +186,6 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
             ..Default::default()
         }),
         setup_future_usage: Some(FutureUsage::OffSession.into()),
-        ..Default::default()
-    }
-}
-
-pub fn build_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
-    PaymentMethodServiceTokenizeRequest {
-        amount: Some(Money {
-            // Payment Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        payment_method: Some(PaymentMethod {
-            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
-                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
-                card_exp_month: Some(Secret::new("03".to_string())),
-                card_exp_year: Some(Secret::new("2030".to_string())),
-                card_cvc: Some(Secret::new("737".to_string())),
-                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-                ..Default::default()
-            })),
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            // Address Information.
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
         ..Default::default()
     }
 }
@@ -327,18 +294,6 @@ pub async fn process_token_setup_recurring(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentMethodService.Tokenize
-#[allow(dead_code)]
-pub async fn process_tokenize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .tokenize(build_tokenize_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("token: {}", response.payment_method_token))
-}
-
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -370,10 +325,9 @@ async fn main() {
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
-        "process_tokenize" => process_tokenize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_recurring_charge, process_refund, process_refund_get, process_token_authorize, process_token_setup_recurring, process_tokenize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_recurring_charge, process_refund, process_refund_get, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };

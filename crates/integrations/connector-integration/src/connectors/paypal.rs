@@ -55,6 +55,7 @@ use crate::{
         PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
         PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
     },
+    finalize_connector_response,
     types::ResponseRouterData,
     utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping},
     with_error_response_body,
@@ -200,6 +201,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id,
             status,
             connector_response_reference_id: None,
@@ -337,6 +339,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: 200,
                 response_headers: None,
                 connector_reason_code: None,
+                additional_details: None,
             },
         )
     }
@@ -599,6 +602,7 @@ macros::create_all_prerequisites!(
 
         with_error_response_body!(event_builder, response);
 
+        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let error_reason = response.details.clone().map(|order_errors| {
             order_errors
                 .iter()
@@ -642,8 +646,12 @@ macros::create_all_prerequisites!(
             connector_transaction_id: response.debug_id,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None
-})
+            network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        })
     }
     }
 );
@@ -734,7 +742,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let body = if matches!(
             req.request.payment_method_data,
             PaymentMethodData::Wallet(WalletData::PaypalSdk(_))
@@ -750,10 +758,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data: req.to_owned(),
             };
             let connector_req = PaypalPaymentsRequest::try_from(connector_router_data)?;
+            let typed = events::MaskedSerdeValue::from_masked_optional(
+                &connector_req,
+                "typed_connector_request",
+            );
 
-            Some(common_utils::request::RequestContent::Json(Box::new(
-                connector_req,
-            )))
+            Some(common_utils::request::ConnectorRequestData::new(
+                common_utils::request::RequestContent::Json(Box::new(connector_req)),
+                typed,
+            ))
         };
 
         Ok(body)
@@ -781,19 +794,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -854,6 +855,7 @@ macros::macro_connector_implementation!(
 
         with_error_response_body!(event_builder, response);
 
+        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error.clone(),
@@ -863,8 +865,12 @@ macros::macro_connector_implementation!(
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None
-})
+            network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        })
         }
     }
 );
@@ -1377,7 +1383,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsPostAuthenticateData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
 
@@ -1408,19 +1414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1493,11 +1487,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let verification_request = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            verification_request,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &verification_request,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(verification_request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -1526,19 +1525,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 res.status_code,
                 "paypal",
             ))?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&verification_response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response: verification_response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        finalize_connector_response!(event_builder, verification_response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1717,6 +1704,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let error_reason = response
             .details
             .clone()
@@ -1769,6 +1758,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

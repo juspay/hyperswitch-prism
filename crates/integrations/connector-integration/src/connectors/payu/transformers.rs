@@ -497,7 +497,11 @@ pub struct PayuSyncRequest {
 pub struct PayuSyncResponse {
     pub status: Option<i32>, // 0 = error, non-zero = success
     pub msg: Option<String>, // Status message
-    pub transaction_details: Option<std::collections::HashMap<String, PayuTransactionDetail>>, // Map of txnId -> details
+    // BTreeMap, not HashMap: sync responses can carry several transactions for one
+    // txnid, and downstream code picks the FIRST — with a HashMap that pick is
+    // per-process random, so the reported transaction id and status change from
+    // run to run over identical response bytes.
+    pub transaction_details: Option<std::collections::BTreeMap<String, PayuTransactionDetail>>, // Map of txnId -> details
     pub result: Option<serde_json::Value>, // Optional result field
     #[serde(alias = "field3")]
     pub field3: Option<String>, // Additional field
@@ -957,6 +961,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1050,6 +1058,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1101,6 +1110,7 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         };
 
                         Ok(Self {
@@ -1124,6 +1134,10 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             network_error_message: None,
                             network_advice_code: None,
                             network_decline_code: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         };
 
                         Ok(Self {
@@ -1149,6 +1163,10 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -1370,6 +1388,10 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1400,6 +1422,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1557,6 +1580,10 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1585,6 +1612,7 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1749,6 +1777,10 @@ impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 response: Err(error_response),
@@ -1973,6 +2005,10 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -2096,6 +2132,10 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             });

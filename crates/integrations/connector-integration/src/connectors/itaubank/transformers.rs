@@ -1,8 +1,10 @@
 use domain_types::{
-    connector_flow::*, connector_types::*, errors::IntegrationError,
+    connector_flow::*, connector_types::*, errors::ConnectorError, errors::IntegrationError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     router_data::ConnectorSpecificConfig, router_data_v2::RouterDataV2,
 };
+
+use crate::types::ResponseRouterData;
 
 const CLIENT_CREDENTIALS_GRANT_TYPE: &str = "client_credentials";
 
@@ -105,4 +107,28 @@ pub struct ItaubankAccessTokenResponse {
     pub access_token: String,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
+}
+
+impl<F> TryFrom<ResponseRouterData<ItaubankAccessTokenResponse, Self>>
+    for RouterDataV2<
+        F,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<ItaubankAccessTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let token_res = item.response;
+        data.response = Ok(ServerAuthenticationTokenResponseData {
+            access_token: token_res.access_token.into(),
+            token_type: token_res.token_type,
+            expires_in: token_res.expires_in,
+        });
+        Ok(data)
+    }
 }

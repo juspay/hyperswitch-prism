@@ -335,6 +335,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data.clone()
             })
@@ -358,6 +362,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -494,6 +499,10 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             })
@@ -524,6 +533,7 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -637,6 +647,10 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data.clone()
             })
@@ -660,6 +674,7 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -774,6 +789,10 @@ impl TryFrom<ResponseRouterData<PaymeRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data.clone()
             })
@@ -1013,6 +1032,10 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data.clone()
             })
@@ -1038,6 +1061,7 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -1200,6 +1224,10 @@ impl TryFrom<ResponseRouterData<PaymeGenerateSaleResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data.clone()
             })

@@ -8,6 +8,7 @@
 package examples.givepayments
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
@@ -15,6 +16,7 @@ import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
 import payments.HttpMethod
 import payments.PaymentMethodType
@@ -25,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.GivepaymentsConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "parse_event", "recurring_charge", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -179,7 +181,7 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
@@ -204,6 +206,42 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }.build()
     val response = client.parse_event(request)
     println("Webhook parsed: type=${response.eventType.name}")
+}
+
+// Flow: PaymentService.ProxyAuthorize
+fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_proxy_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        customerBuilder.apply {
+            emailBuilder.value = "test@example.com"  // Customer's email address.
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        authType = AuthenticationType.NO_THREE_DS
+        returnUrl = "https://example.com/return"
+        browserInfoBuilder.apply {
+            userAgent = "Mozilla/5.0 (probe-bot)"
+            ipAddress = "1.2.3.4"  // Device Information.
+        }
+    }.build()
+    val response = client.proxy_authorize(request)
+    println("Status: ${response.status.name}")
 }
 
 // Flow: RecurringPaymentService.Charge
@@ -285,9 +323,10 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
+        "proxyAuthorize" -> proxyAuthorize(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, get, handleEvent, parseEvent, recurringCharge, refund, refundGet")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, get, handleEvent, parseEvent, proxyAuthorize, recurringCharge, refund, refundGet")
     }
 }

@@ -13,7 +13,7 @@ use domain_types::{
             PayoutGetResponse, PayoutTransferRequest, PayoutTransferResponse,
         },
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -119,6 +119,17 @@ pub enum DeutschebankVopMatchStatus {
     Nmtc,
 }
 
+impl DeutschebankVopMatchStatus {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Mtch => "MTCH",
+            Self::Cmtc => "CMTC",
+            Self::Noap => "NOAP",
+            Self::Nmtc => "NMTC",
+        }
+    }
+}
+
 impl From<DeutschebankVopMatchStatus> for PayoutStatus {
     fn from(value: DeutschebankVopMatchStatus) -> Self {
         match value {
@@ -160,16 +171,20 @@ pub struct DeutschebankVopDebtor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankVopResponse {
-    // DB's VoP response fields.
+    // DB's VoP response fields. `payeeNameMatch` does not follow from the field
+    // name, so it keeps an explicit rename.
     #[serde(rename = "payeeNameMatch")]
     pub match_status: Option<DeutschebankVopMatchStatus>,
-    #[serde(
-        rename = "additionalInfo",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub additional_info: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matched_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noap_description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_noap_retryable: Option<bool>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
@@ -201,9 +216,9 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let req = &item.router_data;
         let payee_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
-        let payee_name = extract_customer_name(
-            req.request.customer.as_ref(),
-            "Payee name is required for Deutsche Bank VoP check",
+        let payee_name = extract_payee_account_holder_name(
+            req.request.payout_method_data.as_ref(),
+            "Payee account_holder_name is required for Deutsche Bank VoP check",
         )?;
 
         Ok(Self {
@@ -245,37 +260,62 @@ pub fn derive_message_id(merchant_id: &str, reference: &str) -> String {
     .to_string()
 }
 
+/// Builds the eligibility outcome for a VoP response.
+///
+/// A conclusive refusal (`NMTC` / `NOAP`) is reported as an `ErrorResponse`.
+/// `MTCH` / `CMTC` are successes.
 pub fn build_eligibility_response(
-    vop_body: DeutschebankVopResponse,
+    vop_body: &DeutschebankVopResponse,
+    match_status: DeutschebankVopMatchStatus,
     vop_id: String,
     http_code: u16,
-) -> Result<PayoutEligibilityResponse, error_stack::Report<ConnectorError>> {
-    let match_status =
-        vop_body
-            .match_status
-            .ok_or_else(|| ConnectorError::ResponseDeserializationFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(http_code),
-                    additional_context: Some(
-                        "Deutsche Bank VoP response missing `payeeNameMatch`".to_string(),
-                    ),
-                },
-            })?;
-    let payout_status = PayoutStatus::from(match_status);
-    let is_eligible = matches!(
-        match_status,
-        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
-    );
+) -> Result<PayoutEligibilityResponse, ErrorResponse> {
+    match match_status {
+        // A match or a close match permits the payout.
+        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc => {
+            let mut connector_metadata = serde_json::Map::new();
+            connector_metadata.insert(
+                "vop_status".to_string(),
+                serde_json::Value::String(match_status.code().to_string()),
+            );
+            if let Some(info) = vop_body.additional_info.clone() {
+                connector_metadata.insert(
+                    "additional_info".to_string(),
+                    serde_json::Value::String(info),
+                );
+            }
 
-    let connector_payout_id = is_eligible.then_some(vop_id);
-
-    Ok(PayoutEligibilityResponse {
-        merchant_payout_id: None,
-        payout_status,
-        connector_payout_id,
-        payout_eligible: Some(is_eligible),
-        status_code: http_code,
-    })
+            Ok(PayoutEligibilityResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::from(match_status),
+                connector_payout_id: None,
+                payout_eligible: Some(true),
+                status_code: http_code,
+                connector_metadata: Some(Secret::new(serde_json::Value::Object(
+                    connector_metadata,
+                ))),
+                connector_eligibility_reference_id: Some(vop_id),
+            })
+        }
+        DeutschebankVopMatchStatus::Noap | DeutschebankVopMatchStatus::Nmtc => Err(ErrorResponse {
+            code: match_status.code().to_string(),
+            message: vop_body
+                .additional_info
+                .clone()
+                .unwrap_or_else(|| match_status.code().to_string()),
+            reason: vop_body.additional_info.clone(),
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(vop_id),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }),
+    }
 }
 
 impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
@@ -301,9 +341,24 @@ impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
                 .resource_common_data
                 .connector_request_reference_id,
         );
-        let response = build_eligibility_response(item.response, vop_id, item.http_code)?;
+        let match_status = item.response.match_status.ok_or_else(|| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Deutsche Bank VoP response missing `payeeNameMatch`".to_string(),
+                    ),
+                },
+            }
+        })?;
+
         Ok(Self {
-            response: Ok(response),
+            response: build_eligibility_response(
+                &item.response,
+                match_status,
+                vop_id,
+                item.http_code,
+            ),
             ..item.router_data
         })
     }
@@ -450,8 +505,8 @@ pub struct DeutschebankCreditTransfer {
     pub creditor: DeutschebankParty,
     #[serde(rename = "creditorAccount")]
     pub creditor_account: DeutschebankAccount,
-    #[serde(rename = "creditorAgent")]
-    pub creditor_agent: DeutschebankAgent,
+    #[serde(rename = "creditorAgent", skip_serializing_if = "Option::is_none")]
+    pub creditor_agent: Option<DeutschebankAgent>,
 }
 
 #[derive(Debug, Serialize)]
@@ -503,11 +558,11 @@ impl
         let creditor_bic = extract_payee_bic(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
         let debtor_agent_bic = resolve_debtor_agent_bic(req.request.source_bank_data.as_ref())?;
-        // Creditor = payee (from customer.name); debtor = the ordering party,
+        // Creditor = payee (from payout_method_data account_holder_name); debtor = the ordering party,
         // sourced from source_bank_data rather than falling back to the payee.
-        let creditor_name = extract_customer_name(
-            req.request.customer.as_ref(),
-            "Creditor name is required for Deutsche Bank SEPA payment",
+        let creditor_name = extract_payee_account_holder_name(
+            req.request.payout_method_data.as_ref(),
+            "Creditor account_holder_name is required for Deutsche Bank SEPA payment",
         )?;
         let debtor_name = extract_debtor_name(req.request.source_bank_data.as_ref())?;
 
@@ -634,11 +689,9 @@ impl
                             },
                             currency: None,
                         },
-                        creditor_agent: DeutschebankAgent {
-                            financial_institution_identification: DeutschebankBic {
-                                bicfi: creditor_bic,
-                            },
-                        },
+                        creditor_agent: creditor_bic.map(|bic| DeutschebankAgent {
+                            financial_institution_identification: DeutschebankBic { bicfi: bic },
+                        }),
                     }],
                 }],
             },
@@ -890,23 +943,9 @@ fn extract_payee_iban(
 
 fn extract_payee_bic(
     payout_method_data: Option<&PayoutMethodData>,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
-        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic: Some(bic), .. }))) => {
-            Ok(bic.clone())
-        }
-        Some(PayoutMethodData::Bank(Bank::Sepa(_))) => Err(error_stack::report!(
-            IntegrationError::MissingRequiredField {
-                field_name: "payout_method_data.bank.sepa.bic",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Deutsche Bank SEPA requires the creditor agent BIC".to_string(),
-                    ),
-                    suggested_action: Some("Set `payout_method_data.bank.sepa.bic`.".to_string(),),
-                    doc_url: None,
-                },
-            }
-        )),
+        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic, .. }))) => Ok(bic.clone()),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Deutsche Bank only supports SEPA bank payouts".to_string(),
             connector: "Deutschebank",
@@ -914,7 +953,7 @@ fn extract_payee_bic(
                 additional_context: Some(
                     "Provide `payout_method_data.bank.sepa` with iban + bic".to_string(),
                 ),
-                suggested_action: Some("Use SEPA bank payout method.".to_string(),),
+                suggested_action: Some("Use SEPA bank payout method.".to_string()),
                 doc_url: None,
             },
         })),
@@ -1050,8 +1089,10 @@ fn validate_sepa_purpose_code(value: &str) -> Result<(), error_stack::Report<Int
 pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::macros::format_description;
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    time::OffsetDateTime::now_utc().format(&fmt).change_context(
-        IntegrationError::RequestEncodingFailed {
+    common_utils::date_time::now()
+        .assume_utc()
+        .format(&fmt)
+        .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "formatting current UTC datetime for Deutsche Bank request".to_string(),
@@ -1059,13 +1100,12 @@ pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<In
                 suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
-        },
-    )
+        })
 }
 
 fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::format_description::well_known::Iso8601;
-    (time::OffsetDateTime::now_utc().date() + time::Duration::days(1))
+    (common_utils::date_time::now().assume_utc().date() + time::Duration::days(1))
         .format(&Iso8601::DATE)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
@@ -1167,23 +1207,28 @@ pub(super) fn split_pem_bundle(
     Ok((cert_chain, Secret::new(key_pem)))
 }
 
-fn extract_customer_name(
-    customer: Option<&domain_types::payouts::payouts_types::PayoutCustomer>,
+fn extract_payee_account_holder_name(
+    payout_method_data: Option<&PayoutMethodData>,
     purpose_description: &'static str,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    customer
-        .and_then(|c| c.name.as_ref())
-        .map(|n| Secret::new(n.clone()))
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "customer.name",
+    match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer {
+            account_holder_name: Some(name),
+            ..
+        }))) => Ok(name.clone()),
+        _ => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.bank.sepa.account_holder_name",
                 context: IntegrationErrorContext {
                     additional_context: Some(purpose_description.to_string()),
                     suggested_action: Some(
-                        "Set `customer.name` on the payout request.".to_string()
+                        "Set `payout_method_data.bank.sepa.account_holder_name` on the payout \
+                         request."
+                            .to_string(),
                     ),
                     doc_url: None,
                 },
-            })
-        })
+            }
+        )),
+    }
 }

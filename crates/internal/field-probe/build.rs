@@ -14,6 +14,9 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+/// Flows probed once per payment method through dedicated generators.
+const PAYMENT_METHOD_ITERATED_FLOWS: &[&str] = &["authorize", "tokenize"];
+
 fn main() {
     println!("cargo:rerun-if-changed=../../ffi/ffi/src/services/payments.rs");
     println!("cargo:rerun-if-changed=../../types-traits/grpc-api-types/proto/services.proto");
@@ -64,8 +67,9 @@ fn discover_flows_from_ffi() -> Vec<FlowInfo> {
             }
 
             if let (Some(fn_name), Some(request_type)) = (fn_name, request_type) {
-                // Skip authorize - it's handled specially with payment methods
-                if fn_name == "authorize_req_transformer" {
+                if PAYMENT_METHOD_ITERATED_FLOWS
+                    .contains(&fn_name.trim_end_matches("_req_transformer"))
+                {
                     continue;
                 }
                 // Skip req_handler and res_handler variants - they're handled by the base transformer
@@ -144,6 +148,8 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "token_authorize"
             | "proxy_setup_recurring"
             | "token_setup_recurring"
+            | "pre_authenticate"
+            | "post_authenticate"
     );
 
     // Some flows don't have a connector_feature_data field in their request type
@@ -219,13 +225,16 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     .unwrap();
     writeln!(f).unwrap();
 
-    // Generate probe functions
     for flow in flows {
-        generate_probe_function(&mut f, flow);
+        if !PAYMENT_METHOD_ITERATED_FLOWS.contains(&flow.key.as_str()) {
+            generate_probe_function(&mut f, flow);
+        }
     }
 
     // Generate authorize with PM
     generate_authorize_probe(&mut f);
+
+    generate_tokenize_probe(&mut f);
 
     // Generate parse_event probe (custom signature, not a req_transformer!)
     generate_parse_event_probe(&mut f);
@@ -399,6 +408,51 @@ fn generate_authorize_probe(f: &mut fs::File) {
     writeln!(f, "            }},").unwrap();
     writeln!(f, "            |req, field| {{").unwrap();
     writeln!(f, "                smart_patch(req, \"authorize\", field);").unwrap();
+    writeln!(f, "            }},").unwrap();
+    writeln!(f, "        )").unwrap();
+    writeln!(f, "    }}").unwrap();
+    writeln!(f).unwrap();
+}
+
+fn generate_tokenize_probe(f: &mut fs::File) {
+    writeln!(f, "    /// Probe tokenize with payment method").unwrap();
+    writeln!(f, "    pub fn probe_tokenize(").unwrap();
+    writeln!(f, "        connector: &ConnectorEnum,").unwrap();
+    writeln!(f, "        pm_name: &str,").unwrap();
+    writeln!(f, "        payment_method: PaymentMethod,").unwrap();
+    writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
+    writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
+    writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
+    writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let _ = pm_name; // Unused, for API consistency").unwrap();
+    writeln!(
+        f,
+        "        let mut req = base_tokenize_request_with_pm(payment_method);"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "        apply_connector_flow_overrides(&mut req, connector, \"tokenize\");"
+    )
+    .unwrap();
+    writeln!(f, "        run_probe(").unwrap();
+    writeln!(f, "            \"tokenize\",").unwrap();
+    writeln!(f, "            req,").unwrap();
+    writeln!(f, "            |req| {{").unwrap();
+    writeln!(
+        f,
+        "                ffi::services::payments::tokenize_req_transformer::<PciFfi>("
+    )
+    .unwrap();
+    writeln!(f, "                    req,").unwrap();
+    writeln!(f, "                    config,").unwrap();
+    writeln!(f, "                    connector.clone(),").unwrap();
+    writeln!(f, "                    auth.clone(),").unwrap();
+    writeln!(f, "                    metadata,").unwrap();
+    writeln!(f, "                )").unwrap();
+    writeln!(f, "            }},").unwrap();
+    writeln!(f, "            |req, field| {{").unwrap();
+    writeln!(f, "                smart_patch(req, \"tokenize\", field);").unwrap();
     writeln!(f, "            }},").unwrap();
     writeln!(f, "        )").unwrap();
     writeln!(f, "    }}").unwrap();
@@ -744,7 +798,12 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
             flow.transformer_fn
         )
         .unwrap();
-        writeln!(f, "            has_payment_methods: false,").unwrap();
+        writeln!(
+            f,
+            "            has_payment_methods: {},",
+            flow.key == "tokenize"
+        )
+        .unwrap();
         writeln!(f, "        }},").unwrap();
     }
 
@@ -764,6 +823,9 @@ fn generate_dispatcher(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "        match key {{").unwrap();
 
     for flow in flows {
+        if flow.key == "tokenize" {
+            continue; // payment-method-iterated, dispatched by probe_flow_by_definition
+        }
         writeln!(
             f,
             "            \"{}\" => Some(probe_{}(connector, config, auth, metadata)),",

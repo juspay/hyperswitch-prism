@@ -58,6 +58,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payment_methods::recharge),
         )
         .route(
+            "/composite/payment_methods/eligibility",
+            post(handlers::composite::payment_methods::eligibility),
+        )
+        .route(
             "/composite/pre_authenticate",
             post(handlers::composite::payments::pre_authenticate),
         )

@@ -23,7 +23,6 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 use std::fmt::Debug;
 use time::format_description::well_known::Iso8601;
-use time::OffsetDateTime;
 
 pub fn get_error_code(response_code: Option<&responses::PeachpaymentsResponseCode>) -> String {
     match response_code {
@@ -81,6 +80,10 @@ fn get_webhook_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -94,6 +97,7 @@ fn get_webhook_response(
             incremental_authorization_allowed: None,
             status_code,
             splits: None,
+            payment_account_reference: None,
         })
     };
 
@@ -376,7 +380,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             ecommerce_card_payment_only_transaction_data: transaction_data,
             pos_data: None,
-            send_date_time: OffsetDateTime::now_utc()
+            send_date_time: common_utils::date_time::now()
+                .assume_utc()
                 .format(&Iso8601::DEFAULT)
                 .map_err(|e| IntegrationError::RequestEncodingFailed {
                     context: IntegrationErrorContext {
@@ -413,6 +418,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -426,6 +435,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 (status, response)
@@ -468,6 +478,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -526,6 +537,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -601,6 +613,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -858,7 +871,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             ecommerce_card_payment_only_transaction_data: transaction_data,
             pos_data: None,
-            send_date_time: OffsetDateTime::now_utc()
+            send_date_time: common_utils::date_time::now()
+                .assume_utc()
                 .format(&Iso8601::DEFAULT)
                 .map_err(|e| IntegrationError::RequestEncodingFailed {
                     context: IntegrationErrorContext {
@@ -901,6 +915,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     // Use the transaction_id as the connector_mandate_id
@@ -925,6 +943,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 (status, response)
@@ -1115,7 +1134,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             ecommerce_card_payment_only_transaction_data: transaction_data,
             pos_data: None,
-            send_date_time: OffsetDateTime::now_utc()
+            send_date_time: common_utils::date_time::now()
+                .assume_utc()
                 .format(&Iso8601::DEFAULT)
                 .map_err(|e| IntegrationError::RequestEncodingFailed {
                     context: IntegrationErrorContext {
@@ -1153,6 +1173,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1168,6 +1192,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 (status, response)

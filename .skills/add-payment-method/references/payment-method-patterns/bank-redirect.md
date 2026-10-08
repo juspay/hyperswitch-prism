@@ -118,12 +118,13 @@ let status = match response.status {
     BankRedirectStatus::Failed => AttemptStatus::Failure,
 };
 
+// redirection_data is Option<Box<RedirectForm>> -- the Box is mandatory.
 let redirection_data = if status == AttemptStatus::AuthenticationPending {
-    Some(RedirectForm::Form {
+    Some(Box::new(RedirectForm::Form {
         endpoint: response.redirect_url.expose(),
         method: Method::Get,
         form_fields: Default::default(),
-    })
+    }))
 } else {
     None
 };
@@ -146,9 +147,20 @@ fn get_attempt_status(item: BankRedirectPaymentStatus) -> AttemptStatus {
 }
 ```
 
+Note the two halves reviewers require, and why one without the other fails:
+
+- **Deserialization layer** -- the connector status enum needs
+  `#[serde(other)] Unknown` so an unrecognised wire value parses instead of failing the
+  whole response.
+- **Status-mapping layer** -- the `match` must stay exhaustive over named variants. A
+  catch-all `_ =>` here silently swallows a status the vendor adds later; `Unknown` is a
+  real, named arm, which is why it is spelled out above.
+
 ## Key Implementation Notes
 
-- Amount unit varies: StringMajorUnit (Adyen, Mollie), MinorUnit (Volt, Stripe)
+- Amount unit varies: StringMajorUnit (Adyen, Mollie), MinorUnit (Volt, Stripe). There is no
+  safe default -- read the vendor spec. All five unit types live in
+  `crates/common/common_utils/src/types.rs`.
 - Always provide `return_url` for redirect callback
 - Bank redirect is always async; implement PSync and webhook handling
 - Some connectors require access tokens (Trustpay, Volt) obtained via OAuth

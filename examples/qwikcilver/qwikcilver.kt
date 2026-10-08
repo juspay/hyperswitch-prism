@@ -8,6 +8,7 @@
 package examples.qwikcilver
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.MerchantAuthenticationClient
 import payments.ConnectorConfig

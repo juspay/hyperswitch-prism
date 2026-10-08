@@ -178,6 +178,7 @@ macro_rules! res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -194,6 +195,7 @@ macro_rules! res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -206,6 +208,7 @@ macro_rules! res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -230,6 +233,7 @@ macro_rules! res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                external_services::service::ConnectorHttpErrorHandling::ReturnAsError,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -381,6 +385,7 @@ macro_rules! payout_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -397,6 +402,7 @@ macro_rules! payout_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -409,6 +415,7 @@ macro_rules! payout_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -435,6 +442,7 @@ macro_rules! payout_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                external_services::service::ConnectorHttpErrorHandling::ReturnAsError,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -586,6 +594,7 @@ macro_rules! surcharge_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -602,6 +611,7 @@ macro_rules! surcharge_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -614,6 +624,7 @@ macro_rules! surcharge_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -640,6 +651,7 @@ macro_rules! surcharge_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                external_services::service::ConnectorHttpErrorHandling::ReturnAsError,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
@@ -769,6 +781,7 @@ macro_rules! frm_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -785,6 +798,7 @@ macro_rules! frm_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -797,6 +811,7 @@ macro_rules! frm_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -821,6 +836,7 @@ macro_rules! frm_res_transformer {
                 &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
+                external_services::service::ConnectorHttpErrorHandling::ReturnAsError,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))

@@ -32,8 +32,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
-        "connector_customer_id": ""
+        "phone_number": {
+          "value": "auto_generate"
+        }
       },
       "address": {
         "shipping_address": {

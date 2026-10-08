@@ -125,7 +125,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
-        let auth_type = AuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth_type = AuthType::try_from(&item.router_data.connector_config)?;
         let router_data = &item.router_data;
         
         Ok(Self {
@@ -291,11 +291,17 @@ pub struct {ConnectorName}AuthType {
     pub api_secret: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+// Auth is read from `ConnectorSpecificConfig`, NOT from a `connector_auth_type` field —
+// `RouterDataV2` lost `connector_auth_type` on 2026-03-14 (a7a696c3a); the field is now
+// `req.connector_config: ConnectorSpecificConfig` (domain_types/src/router_data_v2.rs:14).
+// `ConnectorSpecificConfig` has ONE struct variant PER CONNECTOR (domain_types/src/router_data.rs:301),
+// not generic HeaderKey/BodyKey/SignatureKey variants — add your connector's variant there and
+// match on it. Exemplar: connectors/travelhub/transformers.rs:46 and connectors/volt/transformers.rs:402.
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, .. } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_secret: api_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
@@ -306,7 +312,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 // Header construction
 fn get_auth_header(
     &self,
-    auth_type: &ConnectorAuthType,
+    auth_type: &ConnectorSpecificConfig,
 ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
@@ -324,11 +330,11 @@ pub struct {ConnectorName}AuthType {
     pub merchant_account: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, key1, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_account: key1.to_owned(),
             }),
@@ -340,7 +346,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 // Header construction
 fn get_auth_header(
     &self,
-    auth_type: &ConnectorAuthType,
+    auth_type: &ConnectorSpecificConfig,
 ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
@@ -357,11 +363,11 @@ pub struct {ConnectorName}AuthType {
     pub basic_auth: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, key1, .. } => {
                 let credentials = format!("{}:{}", key1.peek(), api_key.peek());
                 let encoded = base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
                 Ok(Self {
@@ -376,7 +382,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 // Header construction
 fn get_auth_header(
     &self,
-    auth_type: &ConnectorAuthType,
+    auth_type: &ConnectorSpecificConfig,
 ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
@@ -539,6 +545,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, ...>> for RouterDataV2<...> {
             connector_refund_id: item.response.id,
             refund_status, // Pending - not yet completed
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
         Ok(router_data)
     }
@@ -580,6 +587,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, ...>> for RouterDataV2<...> {
             connector_refund_id: item.response.id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
         Ok(router_data)
     }
@@ -649,6 +657,20 @@ RefundResponse {
 
 ### Common Connector Status Mappings
 
+> **Two halves, both required.** Reviewers check for both:
+> 1. **Deserialization layer** — type the connector's refund status as an enum whose last variant
+>    is `#[serde(other)] Unknown`, so an unrecognised wire value parses instead of failing the
+>    whole response. Real example: `TravelhubResult` at
+>    `connectors/travelhub/transformers.rs:494-509`.
+> 2. **Status-mapping layer** — the `match` is EXHAUSTIVE over that enum with an explicit
+>    `Unknown` arm and NO catch-all `_ =>`. Real example: `map_travelhub_refund_status` at
+>    `connectors/travelhub/transformers.rs:570`.
+>
+> The `&str` helpers below are the fallback for vendors that never enumerate their values. Their
+> wildcard MUST stay non-terminal (`Pending`) and logged: mapping an unknown refund status to
+> `Failure` strands a refund that actually settled, and mapping it to `Success` reports money
+> returned that never moved.
+
 #### Worldpay
 ```rust
 fn map_worldpay_refund_status(status: &str) -> RefundStatus {
@@ -656,7 +678,10 @@ fn map_worldpay_refund_status(status: &str) -> RefundStatus {
         "sentForRefund" => RefundStatus::Pending,
         "refunded" => RefundStatus::Success,
         "refused" | "failed" => RefundStatus::Failure,
-        _ => RefundStatus::Pending,
+        other => {
+            router_env::logger::warn!(connector_status = %other, "unmapped refund status");
+            RefundStatus::Pending
+        }
     }
 }
 ```
@@ -668,7 +693,10 @@ fn map_stripe_refund_status(status: &str) -> RefundStatus {
         "pending" => RefundStatus::Pending,
         "succeeded" => RefundStatus::Success,
         "failed" | "canceled" => RefundStatus::Failure,
-        _ => RefundStatus::Pending,
+        other => {
+            router_env::logger::warn!(connector_status = %other, "unmapped refund status");
+            RefundStatus::Pending
+        }
     }
 }
 ```
@@ -680,7 +708,10 @@ fn map_adyen_refund_status(status: &str) -> RefundStatus {
         "[refund-received]" => RefundStatus::Pending,
         "received" => RefundStatus::Success,
         "error" | "refused" => RefundStatus::Failure,
-        _ => RefundStatus::Pending,
+        other => {
+            router_env::logger::warn!(connector_status = %other, "unmapped refund status");
+            RefundStatus::Pending
+        }
     }
 }
 ```
@@ -696,11 +727,15 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refu
         item: ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>,
     ) -> Result<Self, Self::Error> {
         // Map connector-specific status to standard RefundStatus
-        let refund_status = match item.response.status.as_str() {
+        let refund_status = match item.response.status.to_lowercase().as_str() {
             "pending" | "processing" | "initiated" => RefundStatus::Pending,
             "completed" | "success" | "succeeded" => RefundStatus::Success,
             "failed" | "declined" | "refused" => RefundStatus::Failure,
-            _ => RefundStatus::Pending, // Default to pending for unknown statuses
+            other => {
+                // Non-terminal on purpose; RSync resolves it later.
+                router_env::logger::warn!(connector_status = %other, "unmapped refund status");
+                RefundStatus::Pending
+            }
         };
 
         // Extract refund ID - be flexible about sources
@@ -712,6 +747,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refu
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
         Ok(router_data)
     }
@@ -749,14 +785,31 @@ fn validate_refund_amount(
     refund_amount: MinorUnit,
     original_amount: MinorUnit,
 ) -> Result<(), IntegrationError> {
+    // `IntegrationError` has no `InvalidRequestData` variant (real list:
+    // crates/types-traits/domain_types/src/errors.rs:115). Free-form detail belongs in
+    // `IntegrationErrorContext::additional_context`.
     if refund_amount > original_amount {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "Refund amount cannot exceed original payment amount".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "refund_amount",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Refund amount cannot exceed original payment amount".to_string(),
+                ),
+                suggested_action: None,
+                doc_url: None,
+            },
         });
     }
     if refund_amount <= MinorUnit::zero() {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "Refund amount must be greater than zero".to_string(),
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "refund_amount",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Refund amount must be greater than zero".to_string(),
+                ),
+                suggested_action: None,
+                doc_url: None,
+            },
         });
     }
     Ok(())
@@ -780,7 +833,8 @@ fn try_from(
     if is_partial_refund(&router_data.request) {
         return Err(IntegrationError::NotSupported {
             message: "Partial refunds are not supported by this connector".to_string(),
-            connector: "{ConnectorName, context: Default::default() }".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
         .into());
     }
@@ -790,8 +844,11 @@ fn try_from(
 }
 
 fn is_partial_refund(request: &RefundsData) -> bool {
-    // Compare refund amount with original payment amount
-    request.minor_refund_amount < request.payment_amount
+    // Both operands must be the SAME type. `RefundsData` carries the amounts twice
+    // (domain_types/src/connector_types.rs:3471): `payment_amount: i64` /
+    // `refund_amount: i64`, and `minor_payment_amount: MinorUnit` /
+    // `minor_refund_amount: MinorUnit`. Compare minor-with-minor.
+    request.minor_refund_amount < request.minor_payment_amount
 }
 ```
 
@@ -806,7 +863,8 @@ fn try_from(
     if router_data.request.reason.is_some() {
         return Err(IntegrationError::NotSupported {
             message: "Refund reasons are not supported by this connector".to_string(),
-            connector: "{ConnectorName, context: Default::default() }".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
         .into());
     }
@@ -817,32 +875,32 @@ fn try_from(
 }
 ```
 
-**Example: Refunds not supported for certain payment methods**:
+**Example: rejecting a refund the connector cannot perform**:
+
+> `RefundsData` has **no** `payment_method` field — verify with
+> `awk '/pub struct RefundsData/,/^}/' crates/types-traits/domain_types/src/connector_types.rs`.
+> The fields available to gate on are `refund_amount` / `payment_amount` (and their `minor_*`
+> counterparts), `currency`, `capture_method`, `connector_transaction_id`, and the carriers
+> `connector_feature_data` / `refund_connector_metadata`.
+> If the connector's refund support depends on the **payment method**, that fact is not in
+> `RefundsData`: it must be written into `connector_metadata` during Authorize and read back
+> here. Do not match on a field this struct does not have.
+
 ```rust
 fn try_from(
     item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
 ) -> Result<Self, Self::Error> {
     let router_data = &item.router_data;
+    let req = &router_data.request;
 
-    // Check if payment method supports refunds
-    match &router_data.request.payment_method {
-        PaymentMethod::Wallet(WalletData::ApplePay) => {
-            return Err(IntegrationError::NotSupported {
-                message: "Refunds for Apple Pay are not supported by this connector".to_string(),
-                connector: "{ConnectorName, context: Default::default() }".to_string(),
-            }
-            .into());
+    // Gate on a field RefundsData actually carries. Partial refunds are the common case:
+    if req.refund_amount != req.payment_amount {
+        return Err(IntegrationError::NotSupported {
+            message: "Partial refunds are not supported by this connector".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
-        PaymentMethod::BankTransfer(_) => {
-            return Err(IntegrationError::NotSupported {
-                message: "Refunds for bank transfers are not supported by this connector".to_string(),
-                connector: "{ConnectorName, context: Default::default() }".to_string(),
-            }
-            .into());
-        }
-        _ => {
-            // Supported payment method, continue
-        }
+        .into());
     }
 
     Ok(Self {
@@ -858,17 +916,26 @@ fn try_from(
 ) -> Result<Self, Self::Error> {
     let router_data = &item.router_data;
 
-    // Check if payment is too old for refund (e.g., 180 days)
-    if let Some(payment_date) = router_data.request.payment_created_at {
+    // NOTE: `RefundsData` (crates/types-traits/domain_types/src/connector_types.rs:3471) has NO
+    // `payment_created_at` field — do not invent one. If the connector needs the original
+    // payment's age, the connector must have persisted it itself; read it back from
+    // `router_data.request.refund_connector_metadata` (or `connector_feature_data`) and parse it
+    // out. If neither is populated, this check cannot be performed client-side and belongs on
+    // the connector's own error path instead.
+    let payment_date: Option<time::PrimitiveDateTime> =
+        extract_payment_date(&router_data.request.refund_connector_metadata);
+
+    if let Some(payment_date) = payment_date {
         let days_since_payment = calculate_days_since(payment_date);
 
         if days_since_payment > 180 {
             return Err(IntegrationError::NotSupported {
                 message: format!(
-                    "Refunds are not supported for payments older than 180 days (payment is {, context: Default::default() } days old)",
+                    "Refunds are not supported for payments older than 180 days (payment is {} days old)",
                     days_since_payment
                 ),
-                connector: "{ConnectorName}".to_string(),
+                connector: "{connector_name_lower}",
+                context: Default::default(),
             }
             .into());
         }
@@ -893,10 +960,11 @@ fn try_from(
     if UNSUPPORTED_CURRENCIES.contains(&router_data.request.currency.to_string().as_str()) {
         return Err(IntegrationError::NotSupported {
             message: format!(
-                "Refunds for {, context: Default::default() } currency are not supported by this connector",
+                "Refunds for {} currency are not supported by this connector",
                 router_data.request.currency
             ),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{connector_name_lower}",
+            context: Default::default(),
         }
         .into());
     }
@@ -929,10 +997,11 @@ fn try_from(
    ```rust
    IntegrationError::NotSupported {
        message: format!(
-           "Refund amount ${, context: Default::default() } exceeds maximum refundable amount ${} for this connector",
+           "Refund amount ${} exceeds maximum refundable amount ${} for this connector",
            refund_amount, max_amount
        ),
-       connector: "{ConnectorName}".to_string(),
+       connector: "{connector_name_lower}",
+            context: Default::default(),
    }
    ```
 
@@ -982,7 +1051,7 @@ mod refund_tests {
         let router_data = create_test_refund_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 

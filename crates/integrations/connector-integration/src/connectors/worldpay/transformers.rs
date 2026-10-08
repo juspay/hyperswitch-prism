@@ -168,7 +168,7 @@ fn fetch_payment_instrument<
                     month: Secret::new(expiry_month),
                     year: Secret::new(expiry_year),
                 },
-                card_number: RawCardNumber(raw_card_details.card_number)
+                card_number: RawCardNumber(raw_card_details.card_number.try_card_number("Worldpay")?)
             }))
         }
         PaymentMethodData::MandatePayment => {
@@ -206,7 +206,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::GcashRedirect(_)
             | WalletDataPaymentMethod::ApplePayRedirect(_)
             | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
-            | WalletDataPaymentMethod::DanaRedirect {}
+            | WalletDataPaymentMethod::DanaRedirect {} | WalletDataPaymentMethod::GrabpayRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
             | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -234,9 +234,10 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-            | WalletDataPaymentMethod::PaymayaRedirect(_)
+            | WalletDataPaymentMethod::PaymayaRedirect(_) | WalletDataPaymentMethod::PayhereRedirect {}
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-            | WalletDataPaymentMethod::Skrill(_) => {
+            | WalletDataPaymentMethod::Skrill(_)
+            | WalletDataPaymentMethod::Neteller(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -1099,6 +1100,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -1110,6 +1112,10 @@ impl<F, T>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -1123,6 +1129,10 @@ impl<F, T>
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
         Ok(Self {
@@ -1195,6 +1205,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1267,6 +1278,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1402,6 +1414,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {

@@ -175,6 +175,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::ApplePayRedirect(_) => "apple_pay_redirect",
         WalletData::ApplePayThirdPartySdk(_) => "apple_pay_third_party_sdk",
         WalletData::DanaRedirect {} => "dana_redirect",
+        WalletData::GrabpayRedirect {} => "grabpay_redirect",
         WalletData::GooglePay(_) => "google_pay",
         WalletData::GooglePayRedirect(_) => "google_pay_redirect",
         WalletData::GooglePayThirdPartySdk(_) => "google_pay_third_party_sdk",
@@ -204,7 +205,9 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
         WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
         WalletData::Skrill(_) => "skrill",
+        WalletData::Neteller(_) => "neteller",
         WalletData::PaymayaRedirect(_) => "paymaya_redirect",
+        WalletData::PayhereRedirect {} => "payhere_redirect",
     }
 }
 
@@ -511,6 +514,7 @@ fn transform_payment_response<F, Req>(
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             };
 
@@ -551,6 +555,10 @@ fn transform_payment_response<F, Req>(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -623,6 +631,10 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -1173,6 +1185,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status,
@@ -1194,6 +1207,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),
@@ -1512,6 +1526,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1552,6 +1567,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -1676,7 +1695,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let pi = requests::RepeatPaymentInformation::Cards(Box::new(
                     requests::CardWithNtiPaymentInformation {
                         card: requests::CardWithNti {
-                            number: ccard.card_number.clone(),
+                            number: ccard.card_number.try_card_number("Barclaycard")?,
                             expiration_month: ccard.card_exp_month.clone(),
                             expiration_year: ccard.card_exp_year.clone(),
                             security_code: None,
@@ -1826,6 +1845,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1866,6 +1886,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -2084,6 +2108,10 @@ fn build_auth_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

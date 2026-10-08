@@ -2,8 +2,9 @@ use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
-use crate::utils::{
-    convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+use crate::{
+    state_codes::convert_state_to_code,
+    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
 };
 
 #[derive(Clone, Default, Debug)]
@@ -130,6 +131,25 @@ impl Address {
             .ok_or_else(missing_field_err("phone"))
     }
 
+    /// The phone number on its own, without the country code.
+    ///
+    /// Unlike [`Self::get_phone_with_country_code`], which returns the two
+    /// joined into one string and errors when absent, this leaves them separate
+    /// for connectors that model them as distinct fields.
+    pub fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.number.clone())
+    }
+
+    /// The dialling code on its own. Pairs with
+    /// [`Self::get_optional_phone_number`].
+    pub fn get_optional_phone_country_code(&self) -> Option<String> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.country_code.clone())
+    }
+
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.address
             .as_ref()
@@ -152,6 +172,12 @@ impl Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_last_name())
+    }
+
+    /// Phone number in E.123 international format (`+<country><number>`).
+    /// `None` when the address has no phone or no number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.phone.as_ref()?.get_e123_phone_number()
     }
 }
 
@@ -310,11 +336,36 @@ impl AddressDetails {
         )))
     }
 
+    /// Join `line1` and `line2` into a single street line, space-separated.
+    ///
+    /// Unlike [`Self::get_combined_address_line`], this never errors: it returns
+    /// whichever line is present, or `None` when neither is. Use it for
+    /// connectors that model the street as one optional field, where a missing
+    /// `line2` — the common case — must not fail the request.
+    pub fn get_optional_combined_address_line(&self) -> Option<Secret<String>> {
+        match (self.line1.as_ref(), self.line2.as_ref()) {
+            (Some(line1), Some(line2)) => {
+                Some(Secret::new(format!("{} {}", line1.peek(), line2.peek())))
+            }
+            (Some(line), None) | (None, Some(line)) => Some(line.clone()),
+            (None, None) => None,
+        }
+    }
+
+    pub fn get_optional_line1(&self) -> Option<Secret<String>> {
+        self.line1.clone()
+    }
     pub fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
     }
+    pub fn get_optional_city(&self) -> Option<Secret<String>> {
+        self.city.clone()
+    }
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
+    }
+    pub fn get_optional_state(&self) -> Option<Secret<String>> {
+        self.state.clone()
     }
 
     pub fn to_state_code(&self) -> Result<Secret<String>, Error> {
@@ -327,7 +378,9 @@ impl AddressDetails {
             common_enums::CountryAlpha2::CA => Ok(Secret::new(
                 convert_canada_state_to_code(&state.peek().to_string()).to_string(),
             )),
-            _ => Ok(state.clone()),
+            country => Ok(convert_state_to_code(*country, state.peek())
+                .map(|code| Secret::new(code.to_string()))
+                .unwrap_or_else(|| state.clone())),
         }
     }
 
@@ -386,6 +439,42 @@ impl PhoneDetails {
             number.peek()
         )))
     }
+
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
+    /// Fails soft: an unusable part yields the best string available rather than
+    /// erroring or dropping the number.
+    ///
+    /// The number is emitted *compact* (`+447700900123`), without E.123's optional
+    /// visual separators — grouping digits correctly is country-specific and there's
+    /// no phone-number library here. The `+` and country code are the parts that
+    /// typically carry meaning downstream.
+    ///
+    /// A national trunk `0` is deliberately **not** stripped, so a caller sending
+    /// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
+    /// the zero is wrong for the countries that keep it (Italy, notably), and a
+    /// separate country-code field implies callers send the national significant
+    /// number rather than the dialling form.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.number
+            .as_ref()
+            .map(|number| number.peek().trim())
+            .filter(|number| !number.is_empty())
+            .map(|number| {
+                // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
+                let country_code = self
+                    .country_code
+                    .as_deref()
+                    .map(str::trim)
+                    .map(|code| code.trim_start_matches('+'))
+                    .map(|code| code.strip_prefix("00").unwrap_or(code))
+                    .filter(|code| !code.is_empty());
+                Secret::new(match country_code {
+                    Some(code) if !number.starts_with('+') => format!("+{code}{number}"),
+                    // Already international, or no country to prefix — send as-is.
+                    _ => number.to_owned(),
+                })
+            })
+    }
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
@@ -441,6 +530,8 @@ pub struct OrderDetailsWithAmount {
     pub discount_percentage: Option<f64>,
     // Discount type applied to this item
     pub discount_type: Option<String>,
+    /// The image URL of the product
+    pub product_link: Option<String>,
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}

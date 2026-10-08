@@ -3,7 +3,10 @@
   "suite_type": "dependent",
   "depends_on": [
     "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
-    "PaymentService/Authorize"
+    {
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_manual_capture_incremental_auth"
+    }
   ],
   "strict_dependencies": true
 }

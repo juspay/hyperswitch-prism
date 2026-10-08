@@ -43,31 +43,31 @@
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "status": "not_supported",
+        "error": "Apple Pay payload that is still encrypted is not supported by checkout"
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -87,7 +87,9 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {
@@ -118,55 +120,55 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Card": {
         "status": "supported",
@@ -205,79 +207,79 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: google_pay_decrypted_data — Missing required field: google_pay_decrypted_data"
+        "status": "not_supported",
+        "error": "Google Pay payload that is still encrypted is not supported by checkout"
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -321,276 +323,280 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"06\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens, ACH bank debit and network tokens (Visa/Mastercard)"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       }
     },
     "capture": {
@@ -706,7 +712,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -717,7 +738,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -769,7 +804,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_proxy_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_proxy_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       }
     },
@@ -808,7 +843,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_proxy_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_proxy_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
         }
       }
     },
@@ -956,20 +991,77 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_tokenized_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+        }
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_tokenized_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+        }
       }
     },
     "verify_redirect": {

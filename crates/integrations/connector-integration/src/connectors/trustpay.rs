@@ -224,6 +224,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: webhook_response
                 .payment_information
                 .references
@@ -338,6 +339,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: 200,
                 response_headers: None,
                 connector_reason_code: reason_info.reason.code,
+                additional_details: None,
             },
         )
     }
@@ -669,6 +671,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 if let Some(i) = event_builder {
                     i.set_connector_response(&response_data);
                 }
+                let typed = macros::serialize_typed_connector_payload(
+                    &response_data,
+                    "typed_connector_response",
+                );
                 let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message =
                     utils::get_error_code_error_message_based_on_priority(
@@ -699,6 +705,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {

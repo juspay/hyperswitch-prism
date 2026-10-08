@@ -25,12 +25,12 @@ Key characteristics:
 
 1. **Different parent enum arm.** The router dispatches `PaymentMethodData::NetworkToken(token_data)` to a dedicated `TryFrom<(&..., &NetworkTokenData)>` impl on each connector; see the dispatch at `crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:2171` and `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:3689`.
 2. **Different connector-side payment-method tag.** Connectors carry network-token payloads under a distinct serde tag — Adyen emits `"type": "networkToken"` (`crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:208-209`), Cybersource uses a `PaymentInformation::NetworkToken` untagged variant (`crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:798`), ACI uses `tokenAccount.type = NETWORK` (`crates/integrations/connector-integration/src/connectors/aci/transformers.rs:532-534`).
-3. **Mandatory cryptogram/ECI.** Network tokens require a one-time cryptogram and an ECI indicator (EMV 3DS), whereas raw `Card` and `CardToken` do not. ECI is preserved in the struct at `crates/types-traits/domain_types/src/payment_method_data.rs:317` so downstream transformers can copy it into the authorization request.
+3. **Mandatory cryptogram/ECI.** Network tokens require a one-time cryptogram and an ECI indicator (EMV 3DS), whereas raw `Card` and `PaymentMethodToken` do not. ECI is preserved in the struct at `crates/types-traits/domain_types/src/payment_method_data.rs:432` so downstream transformers can copy it into the authorization request.
 
 ## Table of Contents
 
 1. [Field Enumeration](#field-enumeration)
-2. [NetworkToken vs Card vs CardToken](#networktoken-vs-card-vs-cardtoken)
+2. [NetworkToken vs Card vs PaymentMethodToken](#networktoken-vs-card-vs-paymentmethodtoken)
 3. [Architecture Overview](#architecture-overview)
 4. [Helper Methods](#helper-methods)
 5. [Connectors With Full Implementation](#connectors-with-full-implementation)
@@ -80,29 +80,29 @@ pub struct NetworkTokenData {
 
 Note on "Required" column: the "Yes / No / Conditionally" determination is based on what the struct's type system enforces (all `Option<T>` fields are syntactically optional) combined with what connector transformers actually demand at runtime. Fields 4 and 11 are typed `Option<_>` but are frequently `.ok_or(MissingRequiredField)`'d by connectors — see citations above.
 
-## NetworkToken vs Card vs CardToken
+## NetworkToken vs Card vs PaymentMethodToken
 
-These three `PaymentMethodData` arms are often confused because all three represent "a card-like credential." They are fundamentally different and live in separate enum arms of `PaymentMethodData<T>` (`crates/types-traits/domain_types/src/payment_method_data.rs:247-271`):
+These three `PaymentMethodData` arms are often confused because all three represent "a card-like credential." They are fundamentally different and live in separate enum arms of `PaymentMethodData<T>` (`crates/types-traits/domain_types/src/payment_method_data.rs:362-386`):
 
 ```rust
-// crates/types-traits/domain_types/src/payment_method_data.rs:247-271
+// crates/types-traits/domain_types/src/payment_method_data.rs:362-386
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
-    Card(Card<T>),                                              // raw PAN
+    Card(Card<T>),                                              // raw PAN (:363)
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     // ...
-    CardToken(CardToken),                                       // connector-vault reference
+    PaymentMethodToken(PaymentMethodToken),                     // vault/wallet token reference (:382)
     // ...
-    NetworkToken(NetworkTokenData),                             // scheme-issued DPAN + cryptogram
+    NetworkToken(NetworkTokenData),                             // scheme-issued DPAN + cryptogram (:384)
     // ...
 }
 ```
 
 ### Side-by-side comparison
 
-| Dimension | `Card<T>` | `CardToken` | `NetworkToken` |
+| Dimension | `Card<T>` | `PaymentMethodToken` | `NetworkToken` |
 |-----------|-----------|-------------|----------------|
-| **Enum arm** | `PaymentMethodData::Card(Card<T>)` at line 249 | `PaymentMethodData::CardToken(CardToken)` at line 267 | `PaymentMethodData::NetworkToken(NetworkTokenData)` at line 269 |
-| **Struct definition** | `Card<T>` (generic over PCI holder) at `crates/types-traits/domain_types/src/payment_method_data.rs` — raw PAN + CVV + expiry | `CardToken` at `crates/types-traits/domain_types/src/payment_method_data.rs:383-389` — just `card_holder_name` and `card_cvc`; the token itself is referenced elsewhere (mandate_id / payment_method_token field on router data) | `NetworkTokenData` at `crates/types-traits/domain_types/src/payment_method_data.rs:306-318` — DPAN + cryptogram + ECI |
+| **Enum arm** | `PaymentMethodData::Card(Card<T>)` at line 363 | `PaymentMethodData::PaymentMethodToken(PaymentMethodToken)` at line 382 (renamed from `CardToken` by `70e0883df`; `CardToken` no longer exists) | `PaymentMethodData::NetworkToken(NetworkTokenData)` at line 384 |
+| **Struct definition** | `Card<T>` (generic over PCI holder) at `crates/types-traits/domain_types/src/payment_method_data.rs` — raw PAN + CVV + expiry | `PaymentMethodToken` at `crates/types-traits/domain_types/src/payment_method_data.rs:494-498` — `token: Secret<String>` (the credential) plus `token_payment_method_type: Option<TokenPaymentMethod>` | `NetworkTokenData` at `crates/types-traits/domain_types/src/payment_method_data.rs:421-433` — DPAN + cryptogram + ECI |
 | **Who issues the token?** | N/A — raw PAN, not a token | **Connector / PSP vault** (Stripe `pm_xxx`, Checkout `src_xxx`, Adyen `recurringDetailReference`). The token is **opaque** and only meaningful to the issuing connector. | **Card network** (Visa VTS, Mastercard MDES, Amex ATS). The token is a real BIN-routable PAN surrogate that *any* downstream processor on the network rail can understand. |
 | **PAN surfaced on the wire?** | Yes — raw PAN travels to acquirer | No — connector dereferences server-side | Yes — but it's a DPAN, not the funding PAN |
 | **Cryptogram required?** | No | No | **Yes** (on-session); sometimes optional for MIT |
@@ -110,8 +110,8 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
 | **Portability across PSPs?** | Trivial (it's just a PAN) | **Not portable** — connector-specific token ID | **Portable within a network** — Visa token usable via any Visa-connected acquirer |
 | **PCI scope for merchant** | Full PCI DSS SAQ-D | Reduced — never handle PAN | Reduced — DPAN is not the funding PAN |
 | **Typical lifetime** | Card-expiry bound | Connector-vault lifetime (indefinite until deleted) | Token-expiry bound (independent of funding-card expiry; networks rotate tokens) |
-| **Grace-UCS dispatch site example** | `PaymentMethodData::Card(card) => Self::try_from((&item, card))` (Cybersource, Adyen, every connector) | `PaymentMethodData::CardToken(_)` — at the pinned SHA **no connector has a full CardToken impl** in the authorize flow; all return `IntegrationError::not_implemented` (see Stripe `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1516`, Cybersource `crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:2188`). Sibling pattern being authored in parallel by Wave 5C at `authorize/card_token/pattern_authorize_card_token.md`. | `PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data))` (Cybersource `crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:2171`, Adyen `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:3689`, ACI `crates/integrations/connector-integration/src/connectors/aci/transformers.rs:719`, Trustpay `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1669`) |
-| **Related pattern doc** | `authorize/card/pattern_authorize_card.md` | `authorize/card_token/pattern_authorize_card_token.md` (Wave 5C) | This document |
+| **Grace-UCS dispatch site example** | `PaymentMethodData::Card(card) => Self::try_from((&item, card))` (Cybersource, Adyen, every connector) | `PaymentMethodData::PaymentMethodToken(_)` — at the pinned SHA **no connector has a full `PaymentMethodToken` impl** in the authorize flow; all return `IntegrationError::not_implemented(message, context)` (see Stripe `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1516`). Sibling pattern: `authorize/payment_method_token/pattern_authorize_payment_method_token.md`. | `PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data))` (Cybersource `crates/integrations/connector-integration/src/connectors/cybersource/transformers.rs:2171`, Adyen `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:3689`, ACI `crates/integrations/connector-integration/src/connectors/aci/transformers.rs:719`, Trustpay `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1669`) |
+| **Related pattern doc** | `authorize/card/pattern_authorize_card.md` | `authorize/payment_method_token/pattern_authorize_payment_method_token.md` | This document |
 
 ### Decision tree: which arm am I looking at?
 
@@ -120,7 +120,7 @@ Is the credential a raw 16-19 digit PAN + CVV?
 ├── YES → Card<T>
 └── NO
     ├── Is it an opaque, connector-specific reference string (e.g. "pm_1234", "tok_abc")?
-    │   └── YES → CardToken
+    │   └── YES → PaymentMethodToken
     └── Is it a 16-19 digit network-issued surrogate that looks like a PAN, with an
         accompanying cryptogram + ECI and originates from VTS/MDES/ATS?
         └── YES → NetworkToken
@@ -483,7 +483,7 @@ When adding NetworkToken support to a new connector's Authorize flow:
 ### Sibling PM patterns
 
 - **Card** — `authorize/card/pattern_authorize_card.md`. Raw-PAN path. Response patterns and status-mapping are shared with NetworkToken.
-- **CardToken** — `authorize/card_token/pattern_authorize_card_token.md` (authored in parallel by Wave 5C; path committed here for forward reference). Connector-vault reference path; not yet implemented by any connector at the pinned SHA.
+- **PaymentMethodToken** — `authorize/payment_method_token/pattern_authorize_payment_method_token.md`. Vault/wallet token reference path; not yet implemented by any connector at the pinned SHA.
 - **Wallet** — `authorize/wallet/pattern_authorize_wallet.md`. Covers Apple Pay / Google Pay predecrypt flows that *also* produce DPANs but are routed via `WalletData`, not `NetworkToken`.
 
 ### Source types

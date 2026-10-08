@@ -1,0 +1,576 @@
+{
+  "connector": "payhere",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for payhere"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Affirm": {
+        "status": "not_implemented"
+      },
+      "Afterpay": {
+        "status": "not_implemented"
+      },
+      "Alfamart": {
+        "status": "not_implemented"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented"
+      },
+      "ApplePay": {
+        "status": "not_implemented"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented"
+      },
+      "Bacs": {
+        "status": "not_implemented"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented"
+      },
+      "BancontactCard": {
+        "status": "not_implemented"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Becs": {
+        "status": "not_implemented"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented"
+      },
+      "Bizum": {
+        "status": "not_implemented"
+      },
+      "Blik": {
+        "status": "not_implemented"
+      },
+      "Bluecode": {
+        "status": "not_implemented"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Boleto": {
+        "status": "not_implemented"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Card": {
+        "status": "not_implemented"
+      },
+      "CashappQr": {
+        "status": "not_implemented"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "ClassicReward": {
+        "status": "not_implemented"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented"
+      },
+      "Efecty": {
+        "status": "not_implemented"
+      },
+      "Eft": {
+        "status": "not_implemented"
+      },
+      "Eps": {
+        "status": "not_implemented"
+      },
+      "FamilyMart": {
+        "status": "not_implemented"
+      },
+      "GCash": {
+        "status": "not_implemented"
+      },
+      "Giropay": {
+        "status": "not_implemented"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented"
+      },
+      "GooglePay": {
+        "status": "not_implemented"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented"
+      },
+      "Ideal": {
+        "status": "not_implemented"
+      },
+      "Indomaret": {
+        "status": "not_implemented"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented"
+      },
+      "Interac": {
+        "status": "not_implemented"
+      },
+      "KakaoPay": {
+        "status": "not_implemented"
+      },
+      "Klarna": {
+        "status": "not_implemented"
+      },
+      "Lawson": {
+        "status": "not_implemented"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "MbWay": {
+        "status": "not_implemented"
+      },
+      "Mifinity": {
+        "status": "not_implemented"
+      },
+      "MiniStop": {
+        "status": "not_implemented"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Netbanking": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented"
+      },
+      "OpenBanking": {
+        "status": "not_implemented"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented"
+      },
+      "Oxxo": {
+        "status": "not_implemented"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented"
+      },
+      "PayEasy": {
+        "status": "not_implemented"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented"
+      },
+      "PayURedirect": {
+        "status": "not_implemented"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented"
+      },
+      "Pix": {
+        "status": "not_implemented"
+      },
+      "Przelewy24": {
+        "status": "not_implemented"
+      },
+      "Pse": {
+        "status": "not_implemented"
+      },
+      "RedCompra": {
+        "status": "not_implemented"
+      },
+      "RedPagos": {
+        "status": "not_implemented"
+      },
+      "RevolutPay": {
+        "status": "not_implemented"
+      },
+      "SamsungPay": {
+        "status": "not_implemented"
+      },
+      "Satispay": {
+        "status": "not_implemented"
+      },
+      "Seicomart": {
+        "status": "not_implemented"
+      },
+      "Sepa": {
+        "status": "not_implemented"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented"
+      },
+      "SevenEleven": {
+        "status": "not_implemented"
+      },
+      "Skrill": {
+        "status": "not_implemented"
+      },
+      "Sofort": {
+        "status": "not_implemented"
+      },
+      "Swish": {
+        "status": "not_implemented"
+      },
+      "TouchNGo": {
+        "status": "not_implemented"
+      },
+      "Trustly": {
+        "status": "not_implemented"
+      },
+      "Twint": {
+        "status": "not_implemented"
+      },
+      "UpiCollect": {
+        "status": "not_implemented"
+      },
+      "UpiIntent": {
+        "status": "not_implemented"
+      },
+      "UpiQr": {
+        "status": "not_implemented"
+      },
+      "Vipps": {
+        "status": "not_implemented"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented"
+      },
+      "Webpay": {
+        "status": "not_implemented"
+      },
+      "Wero": {
+        "status": "not_implemented"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for payhere"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for payhere"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for payhere"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://sandbox.payhere.lk/merchant/v1/oauth/token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for payhere"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for payhere"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for payhere"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for payhere"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for payhere"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for payhere"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: eligibility flow for payhere"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token) — Failed to obtain authentication type. payhere: PSync needs an access token from CreateServerAuthenticationToken (Missing required field: access_token)"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for payhere"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for payhere"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for payhere"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for payhere"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for payhere"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for payhere"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for payhere"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for payhere"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for payhere"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for payhere"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for payhere"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for payhere"
+      }
+    }
+  }
+}

@@ -731,6 +731,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -766,6 +767,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -821,6 +823,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -872,6 +875,10 @@ fn get_error_response<T>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }))
 }
 
@@ -891,6 +898,10 @@ fn create_failure_error_response<T: ToString>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -986,6 +997,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1028,6 +1040,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1084,6 +1097,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1853,6 +1867,7 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2303,6 +2318,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeCancelResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2428,6 +2444,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2892,6 +2909,7 @@ pub(super) fn build_webhook_dispute_response(
             connector_response_reference_id: None,
             dispute_message: dispute_data.reason.clone(),
             connector_reason_code: dispute_data.reason_code.clone(),
+            additional_details: None,
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: 200,
             response_headers: None,
@@ -3077,6 +3095,7 @@ fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> S
             "D".to_string()
         }
         common_enums::TransactionStatus::InformationOnly => "I".to_string(),
+        common_enums::TransactionStatus::SecurePaymentConfirmationRequired => "S".to_string(),
     }
 }
 
@@ -3129,6 +3148,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -3434,6 +3454,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })

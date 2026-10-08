@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/mandate_payment/pattern_authorize_mandate_payment.md

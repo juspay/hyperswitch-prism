@@ -2,7 +2,10 @@ use std::fmt::Debug;
 
 use serde::Serialize;
 
-use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
+use crate::{
+    connectors::macros, finalize_connector_response, types::ResponseRouterData,
+    with_error_response_body,
+};
 use common_enums::CurrencyUnit;
 use common_utils::{
     errors::CustomResult,
@@ -266,6 +269,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code.clone(),
@@ -276,6 +281,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -424,7 +433,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -442,27 +451,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "redsys: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        let router_data: RouterDataV2<
-            PSync,
-            PaymentFlowData,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        > = <ResponseRouterData<
-            responses::RedsysSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        > as TryInto<
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        >>::try_into(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(crate::utils::response_handling_fail_for_connector(
-            res.status_code,
-            "redsys",
-        ))?;
-
-        Ok(router_data)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -621,7 +610,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
@@ -639,23 +628,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "redsys: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        let router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData> =
-            <ResponseRouterData<
-                responses::RedsysSyncResponse,
-                RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-            > as TryInto<
-                RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-            >>::try_into(ResponseRouterData {
-                response,
-                router_data: data.clone(),
-                http_code: res.status_code,
-            })
-            .change_context(crate::utils::response_handling_fail_for_connector(
-                res.status_code,
-                "redsys",
-            ))?;
-
-        Ok(router_data)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

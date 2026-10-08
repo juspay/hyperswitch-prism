@@ -19,6 +19,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "customer_create",
     "get",
     "parse_event",
+    "proxy_setup_recurring",
     "recurring_charge",
     "refund",
     "refund_get",
@@ -95,7 +96,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
@@ -119,6 +120,44 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
     }
 }
 
+pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurringRequest {
+    PaymentServiceProxySetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
+        amount: Some(Money {
+            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        card_proxy: Some(ProxyCardDetails {
+            // Card proxy for vault-aliased payments.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_cvc: Some(Secret::new("123".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            connector_customer_id: Some("probe_customer_001".to_string()), // Customer ID in the connector system.
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(),
+        setup_future_usage: Some(FutureUsage::OffSession.into()),
+        ..Default::default()
+    }
+}
+
 pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
     RecurringPaymentServiceChargeRequest {
         connector_recurring_payment_id: Some(MandateReference {
@@ -136,6 +175,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()
@@ -298,6 +338,18 @@ pub async fn process_parse_event(
     Ok(format!("{response:?}"))
 }
 
+// Flow: PaymentService.ProxySetupRecurring
+#[allow(dead_code)]
+pub async fn process_proxy_setup_recurring(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
 pub async fn process_recurring_charge(
@@ -399,6 +451,7 @@ async fn main() {
         "process_customer_create" => process_customer_create(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
@@ -406,7 +459,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_customer_create, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_customer_create, process_get, process_parse_event, process_proxy_setup_recurring, process_recurring_charge, process_refund, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };

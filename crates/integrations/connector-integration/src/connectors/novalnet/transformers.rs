@@ -462,6 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -488,8 +489,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                     Default::default(),
                 )
@@ -715,6 +718,10 @@ pub fn get_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -815,6 +822,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -918,6 +926,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1017,6 +1026,7 @@ impl<
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1535,6 +1545,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1622,6 +1633,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCaptureResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1833,6 +1845,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -2168,6 +2181,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -2223,8 +2237,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                     Default::default(),
                 ))?,
@@ -2391,7 +2407,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         let novalnet_card =
                             NovalNetPaymentData::RawCardForNTI(NovalnetRawCardDetails {
-                                card_number: raw_card_details.card_number.clone(),
+                                card_number: raw_card_details
+                                    .card_number
+                                    .try_card_number("Novalnet")?,
                                 card_expiry_month: raw_card_details.card_exp_month.clone(),
                                 card_expiry_year: raw_card_details.card_exp_year.clone(),
                                 scheme_tid: network_transaction_id.network_transaction_id.into(),
@@ -2488,6 +2506,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         let transaction_status = response.status;
 
                         Ok(Self {
+                            connector_returned_payment_method_details: None,
                             status: common_enums::AttemptStatus::from(transaction_status),
                             resource_id: Some(
                                 transaction_id
@@ -2527,6 +2546,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         })
                     }
                     NovalnetAPIStatus::Failure => Ok(Self {
+                        connector_returned_payment_method_details: None,
                         status: common_enums::AttemptStatus::Failure,
                         resource_id: Some(
                             transaction_id

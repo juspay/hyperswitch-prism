@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -132,4 +132,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/tesouro/tesouro.py) · [TypeScript](../../examples/tesouro/tesouro.ts#L35) · [Kotlin](../../examples/tesouro/tesouro.kt#L38) · [Rust](../../examples/tesouro/tesouro.rs)
+**Examples:** [Python](../../examples/tesouro/tesouro.py) · [TypeScript](../../examples/tesouro/tesouro.ts#L35) · [Kotlin](../../examples/tesouro/tesouro.kt#L39) · [Rust](../../examples/tesouro/tesouro.rs)

@@ -1,0 +1,13 @@
+{
+  "connector": "payhere",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "payhere_redirect"
+  ],
+  "unsupported_scenarios": {}
+}

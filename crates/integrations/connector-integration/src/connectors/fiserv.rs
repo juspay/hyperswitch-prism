@@ -30,8 +30,6 @@ use interfaces::{
 };
 use ring::hmac;
 use serde::Serialize;
-use time::OffsetDateTime;
-use uuid::Uuid;
 
 pub mod transformers;
 
@@ -187,7 +185,7 @@ macros::create_all_prerequisites!(
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
             let temp_request_body_for_sig = self.get_request_body(req)?;
-            let payload_string_for_sig = match temp_request_body_for_sig {
+            let payload_string_for_sig = match temp_request_body_for_sig.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })
                     .attach_printable("Failed to serialize JSON request body for signature")?,
@@ -199,8 +197,8 @@ macros::create_all_prerequisites!(
                     .attach_printable("Unsupported request body type for signature generation")?
 };
 
-            let timestamp_ms = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-            let client_request_id = Uuid::new_v4().to_string();
+            let timestamp_ms = i128::from(common_utils::date_time::now_unix_millis());
+            let client_request_id = common_utils::fp_utils::generate_uuid_v4();
 
             let auth_type_for_sig = transformers::FiservAuthType::try_from(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -295,6 +293,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .or(response.details.as_ref())
             .and_then(|e| e.first());
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: first_error_detail
@@ -307,6 +307,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

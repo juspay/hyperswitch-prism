@@ -1,4 +1,6 @@
 {
   "connector": "itaubank",
-  "supported_suites": []
+  "supported_suites": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+  ]
 }

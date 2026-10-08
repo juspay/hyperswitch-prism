@@ -279,6 +279,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
@@ -289,6 +291,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -818,6 +824,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             stage: common_enums::DisputeStage::Dispute,
             dispute_id: notif.event.tid.to_string(),
             connector_reason_code: reason_code,
+            additional_details: None,
             status: common_enums::DisputeStatus::foreign_try_from(dispute_status)
                 .map_err(|e| e.change_context(WebhookError::WebhookProcessingFailed))?,
             connector_response_reference_id: None,

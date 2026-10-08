@@ -155,7 +155,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -164,7 +164,11 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, events::connector_api_logs::ConnectorEvent,
+    connector_types,
+};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    events,
 };
 use serde::Serialize;
 use transformers::{
@@ -212,7 +216,7 @@ macros::create_all_prerequisites!(
         // Add other flows as needed...
     ],
     amount_converters: [
-        amount_converter: {AmountUnit} // Choose: MinorUnit, StringMinorUnit, StringMajorUnit
+        amount_converter: {AmountUnit} // MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit — match the vendor wire format
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -223,7 +227,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -255,7 +259,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        // Real signature: crates/types-traits/interfaces/src/api.rs:25.
+        // `ConnectorAuthType` was deleted from RouterDataV2 on 2026-03-14
+        // (a7a696c3a); taking `&ConnectorAuthType` here is E0407.
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -266,29 +273,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         )])
     }
 
+    // Real signature: crates/types-traits/interfaces/src/api.rs:50 — THREE
+    // parameters besides `&self`. The event type is `events::Event`; there is no
+    // `ConnectorEvent` in the connector crate, and `events::Event` has no
+    // `set_error_response_body` method. The same third parameter was added to
+    // `get_error_response_v2` and `get_5xx_error_response`
+    // (interfaces/src/connector_integration_v2.rs).
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            // `ErrorResponse` has 13 fields and an `impl Default`
+            // (domain_types/src/router_data.rs) — prefer `..Default::default()`.
+            ..Default::default()
         })
     }
 }
@@ -331,14 +341,21 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stub
-use interfaces::verification::SourceVerification;
+// `SourceVerification` and `BodyDecoding` are NON-GENERIC
+// (crates/types-traits/interfaces/src/verification.rs:20, interfaces/src/decode.rs):
+// no type parameters, ONE impl per connector rather than one per flow.
+// `SourceVerification<MandateRevoke, ...>` is E0107.
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+use interfaces::{decode::BodyDecoding, verification::SourceVerification};
 
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for {ConnectorName}<T>
 {
-    // Stub implementation
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
 }
 ```
 
@@ -360,7 +377,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -375,15 +392,24 @@ pub struct {ConnectorName}AuthType {
     pub api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = IntegrationError;
+// `ConnectorAuthType` is GONE. Auth is a per-connector struct variant of
+// `ConnectorSpecificConfig` (domain_types/src/router_data.rs:301) — you add
+// yours there and match only on it.
+// Exemplar: connectors/travelhub/transformers.rs:46
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
+    type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
+            // Any other variant means the request was routed to the wrong connector.
+            _ => Err(error_stack::report!(
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default(),
+                }
+            )),
         }
     }
 }
@@ -440,6 +466,11 @@ pub enum {ConnectorName}RevokeStatus {
     Cancelled,
     Revoked,
     Failed,
+    /// REQUIRED at the DESERIALIZATION layer: absorbs a status the vendor adds
+    /// later instead of failing the whole parse. The matching status-mapping
+    /// `match` must then be EXHAUSTIVE (no `_ =>`); reviewers demand both halves.
+    #[serde(other)]
+    Unknown,
 }
 
 // Pattern 2: Nested response (Noon-style)
@@ -642,6 +673,8 @@ pub enum RevokeStatus {
     Cancelled,
     Revoked,
     Failed,
+    #[serde(other)]
+    Unknown, // REQUIRED: see the note on {ConnectorName}RevokeStatus above
 }
 ```
 
@@ -728,38 +761,44 @@ fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String
 
 ```rust
 impl ConnectorCommon for {ConnectorName} {
+    // THREE parameters besides `&self` — `_connector_config` was added so
+    // connectors with encrypted error bodies can decrypt them.
+    // See crates/types-traits/interfaces/src/api.rs:50.
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
-
-        // Map mandate revoke-specific error codes
+        // Map mandate revoke-specific error codes.
+        // `attempt_status: Option<FlowStatus>` — a bare `AttemptStatus` is E0308.
+        // Flow-aware and NON-TERMINAL BY DEFAULT: forcing `Some(Failure)` in the
+        // catch-all on the shared error path is how a charged payment gets
+        // reported as FAILURE. A blanket `None` is also wrong (a hard-declined
+        // refund then stays Pending and retries) — decide per code.
+        // Exemplars: connectors/flywire.rs:362-370, connectors/noon.rs:499-512.
         let attempt_status = match response.error_code.as_deref() {
             Some("mandate_not_found") => Some(common_enums::AttemptStatus::Failure),
             Some("mandate_already_cancelled") => Some(common_enums::AttemptStatus::Failure),
-            Some("unauthorized") => Some(common_enums::AttemptStatus::Failure),
+            Some("unauthorized") => Some(common_enums::AttemptStatus::AuthenticationFailed),
             Some("invalid_mandate_id") => Some(common_enums::AttemptStatus::Failure),
-            _ => Some(common_enums::AttemptStatus::Failure),
+            _ => None,
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status,
+            attempt_status: attempt_status.map(FlowStatus::Payment),
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            // `ErrorResponse` has 13 fields and an `impl Default`
+            // (domain_types/src/router_data.rs) — prefer `..Default::default()`.
+            ..Default::default()
         })
     }
 }
@@ -873,7 +912,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Adyen`, `Noon` | **Always required** |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `adyen`, `noon` | **Always required** |
-| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **If connector uses amounts elsewhere** |
+| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **If connector uses amounts elsewhere.** Read the vendor spec — there is no safe default (`common_utils/src/types.rs`) |
 | `{mandate_endpoint}` | Mandate API endpoint | `"mandates/{id}/cancel"`, `"subscriptions/{id}"` | **From API docs** |
 | `{Major\|Minor}` | Currency unit choice | `Major` or `Minor` | **Choose one** |
 

@@ -6,7 +6,7 @@ use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
 // use api_models::errors::types::{ Extra};
-#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr, serde::Serialize)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
@@ -66,7 +66,7 @@ impl ApiError {
 
 /// Fields used when mapping request-phase connector errors to gRPC `IntegrationError`.
 /// Does not depend on generated proto types.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct IntegrationErrorContext {
     /// Human-readable remediation (maps to `IntegrationError.suggested_action`).
     pub suggested_action: Option<String>,
@@ -82,7 +82,7 @@ pub struct IntegrationErrorContext {
 ///
 /// For rare cases (e.g. HTTP status unknown **and** [`Self::additional_context`] set), build
 /// [`ConnectorError`] with a struct literal instead of adding more constructor helpers.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct ResponseTransformationErrorContext {
     /// HTTP status from the connector response when known.
     pub http_status_code: Option<u16>,
@@ -110,7 +110,7 @@ pub fn combine_error_message_with_context(
 /// - proto → domain (`ForeignTryFrom`)
 /// - domain → connector bytes (`build_request_v2`)
 /// - request building variants from `ApiClientError` (`HeaderMapConstruction`, etc.)
-#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr, serde::Serialize)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum IntegrationError {
     #[error("Error while obtaining URL for the integration")]
@@ -366,7 +366,7 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationErro
 /// Errors that occur on the response side of a connector call:
 /// - UCS-side: connector bytes → domain (`handle_response_v2`), domain → proto (`generate_payment_*_response`)
 /// - Connector-side: connector returned a 4xx/5xx HTTP error response (parsed by `get_error_response_v2` / `get_5xx_error_response`)
-#[derive(Debug, thiserror::Error, Clone, strum::AsRefStr)]
+#[derive(Debug, thiserror::Error, Clone, strum::AsRefStr, serde::Serialize)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ConnectorError {
     #[error("Failed to deserialize connector response")]
@@ -392,8 +392,8 @@ pub enum ConnectorError {
     /// The `ErrorResponse` is fully parsed by the connector's own `get_error_response_v2` /
     /// `get_5xx_error_response` / `build_error_response` implementation.
     /// `error_response.status_code` carries the actual HTTP status (4xx or 5xx).
-    #[error("Connector returned an error response with status {}", _0.status_code)]
-    ConnectorErrorResponse(ErrorResponse),
+    #[error("Connector returned an error response with status {}", .0.status_code)]
+    ConnectorErrorResponse(Box<ErrorResponse>),
 }
 
 /// Returns documentation URL for error codes.
@@ -462,6 +462,17 @@ impl ConnectorError {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
                 additional_context: None,
+            },
+        }
+    }
+
+    pub fn response_handling_failed_http_status_unknown_with_context(
+        additional_context: Option<String>,
+    ) -> Self {
+        Self::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context,
             },
         }
     }
@@ -546,7 +557,7 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
         match self {
             Self::ConnectorErrorResponse(error_response) => {
                 // Build structured ErrorInfo from available error data
-                let error_info = ForeignFrom::foreign_from(error_response);
+                let error_info = ForeignFrom::foreign_from(error_response.as_ref());
 
                 // Structured error data is fully captured in `error_info`.
                 // Use the connector's top-level message directly as error_message.
@@ -555,6 +566,10 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_code: self.error_code().to_string(),
                     http_status_code: Some(error_response.status_code as u32),
                     error_info,
+                    raw_connector_response: error_response.raw_connector_response.clone(),
+                    raw_connector_request: error_response.raw_connector_request.clone(),
+                    typed_connector_response: error_response.typed_connector_response.clone(),
+                    typed_connector_request: error_response.typed_connector_request.clone(),
                 }
             }
             _ => {
@@ -569,6 +584,10 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_code: self.error_code().to_string(),
                     http_status_code: context.http_status_code.map(|code| code as u32),
                     error_info: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_response: None,
+                    typed_connector_request: None,
                 }
             }
         }
@@ -627,7 +646,7 @@ impl ForeignFrom<&ErrorResponse> for Option<grpc_api_types::payments::ErrorInfo>
 }
 
 /// Errors that occur during webhook processing
-#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr, serde::Serialize)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookError {
     #[error("Webhooks not implemented for this connector ({operation})")]
@@ -1486,6 +1505,10 @@ impl From<ApiErrorResponse> for crate::router_data::ErrorResponse {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }

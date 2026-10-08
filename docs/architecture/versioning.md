@@ -61,18 +61,6 @@ hyperswitch-prism = "1.2.*"
 
 The `[1.2.0,1.3.0)` syntax means: 1.2.0 inclusive, 1.3.0 exclusive.
 
-#### **PHP**
-
-```json
-{
-  "require": {
-    "juspay/hyperswitch-prism": "1.2.*"
-  }
-}
-```
-
-This accepts any `1.2.x` version but not `1.3.0` or `2.0.0`.
-
 <!-- tabs:end -->
 
 ## What You Get Automatically
@@ -145,10 +133,10 @@ Read the changelog. Run your integration tests. Bump the pin.
 
 Prism maintains compatibility across SDK languages for the same minor version:
 
-| Prism Version | Node.js SDK | Python SDK | Java SDK | PHP SDK |
-|---------------------------|-------------|------------|----------|---------|
-| 1.2.x | 1.2.x | 1.2.x | 1.2.x | 1.2.x |
-| 1.3.x | 1.3.x | 1.3.x | 1.3.x | 1.3.x |
+| Prism Version | Node.js SDK | Python SDK | Java SDK |
+|---------------|-------------|------------|----------|
+| 1.2.x | 1.2.x | 1.2.x | 1.2.x |
+| 1.3.x | 1.3.x | 1.3.x | 1.3.x |
 
 All SDKs for version `1.2.x` speak the same protocol, support the same connectors, and handle the same error codes. Mixing SDK versions (Node.js at `1.2.5`, Python at `1.3.0`) works but may produce different behaviors for newer features.
 
@@ -163,9 +151,6 @@ pip show hyperswitch-prism
 
 # Java
 mvn dependency:tree | grep hyperswitch-prism
-
-# PHP
-composer show juspay/hyperswitch-prism
 ```
 
 ## Deprecation Policy

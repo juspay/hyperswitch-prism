@@ -70,6 +70,7 @@ syntax = "proto3";
 package types;
 
 import "payment.proto";
+import "events.proto";
 import "payouts.proto";
 import "surcharge.proto";
 import "frm.proto";

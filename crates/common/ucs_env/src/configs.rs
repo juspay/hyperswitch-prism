@@ -5,13 +5,23 @@ use std::sync::Arc;
 
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
+    connector_response_masking::{
+        CompiledMaskingKeys, ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+    },
     consts,
-    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
+    events::{
+        CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
+        RuntimeMetadataPatch,
+    },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
 use domain_types::{
-    connector_types::ConnectorEnum,
+    connector_types::{
+        AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
+    },
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
@@ -35,6 +45,8 @@ pub struct Config {
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
     #[serde(default)]
+    pub connector_response_masking: ConnectorResponseMaskingConfig,
+    #[serde(default)]
     pub test: TestConfig,
     #[serde(default)]
     pub api_tags: ApiTagConfig,
@@ -48,11 +60,37 @@ pub struct Config {
     /// build. Absent optional values are simply omitted and never fail startup.
     #[serde(default)]
     pub runtime_metadata: RuntimeMetadata,
-    /// Superposition configuration for connector URL resolution
-    /// This is loaded at startup from config/superposition.toml
+    /// Where Superposition policy comes from: the baked file (default) or a remote
+    /// workspace. Loadable from the `[superposition]` table and `CS__SUPERPOSITION__*`
+    /// env vars, but excluded from the per-request `x-config-override` surface via
+    /// `#[patch(ignore)]`: a request header must never be able to repoint the policy
+    /// source or hand the process a different token.
+    #[serde(default)]
+    #[patch(ignore)]
+    pub superposition: SuperpositionClientConfig,
+    /// The initialised Superposition provider (connector URL resolution, the déjà
+    /// sampler). Built at startup from `superposition` + `config/superposition.toml`.
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
+    /// Pre-compiled log fields for golden log lines.
+    /// Compiled at startup from `[log.fields.incoming]` and `[log.fields.outgoing]`.
+    /// Recompiled per-request when `x-config-override` patches `log.fields`.
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub log_fields: Arc<CompiledLogFieldsConfig>,
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub masking_keys: Arc<CompiledMaskingKeys>,
+    /// Déjà record/replay configuration. Loadable from the `[deja]` TOML table and
+    /// `CS__DEJA__*` env vars, but deliberately excluded from the per-request
+    /// `x-config-override` surface via `#[patch(ignore)]`: a request header must never
+    /// be able to enable recording, switch modes, or redirect the sink. The generated
+    /// `ConfigPatch` is `deny_unknown_fields`, so an override mentioning `deja` is rejected.
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    #[patch(ignore)]
+    pub deja: crate::deja_config::DejaConfig,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -73,10 +111,6 @@ fn default_lineage_header() -> String {
 
 fn default_lineage_prefix() -> String {
     consts::LINEAGE_FIELD_PREFIX.to_string()
-}
-
-fn default_true() -> bool {
-    true
 }
 
 /// Test mode configuration for mock server integration
@@ -178,8 +212,20 @@ impl ApiTagConfig {
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Common {
     pub environment: consts::Env,
-    #[serde(default = "default_true")]
+    /// Controls whether raw connector request/response payloads are included in
+    /// responses returned to the client.
+    ///
+    /// Enabling this can significantly increase gRPC response size.
+    #[serde(default = "default_return_connector_data")]
     pub return_raw_connector_data: bool,
+    /// Controls whether typed connector request/response payloads are included
+    /// in responses returned to the client.
+    #[serde(default = "default_return_connector_data")]
+    pub return_typed_connector_data: bool,
+}
+
+fn default_return_connector_data() -> bool {
+    true
 }
 
 impl Default for Common {
@@ -187,6 +233,7 @@ impl Default for Common {
         Self {
             environment: consts::Env::Development,
             return_raw_connector_data: true,
+            return_typed_connector_data: true,
         }
     }
 }
@@ -327,7 +374,34 @@ impl WebhookSourceVerificationCall {
     }
 }
 
+fn is_known_connector(name: &str) -> bool {
+    ConnectorEnum::from_str(name).is_ok()
+        || SurchargeConnectorEnum::from_str(name).is_ok()
+        || PayoutConnectorEnum::from_str(name).is_ok()
+        || FrmConnectorEnum::from_str(name).is_ok()
+        || AuthenticatorConnectorEnum::from_str(name).is_ok()
+}
+
 impl Config {
+    /// Recompute derived / cached fields from the raw config values.
+    ///
+    /// Call this after deserialization **and** after applying a config-override patch.
+    /// Any `#[serde(skip)] #[patch(ignore)]` field that is derived from patchable
+    /// config should be rebuilt here.
+    pub fn post_patch_processing(&mut self) {
+        #[cfg(feature = "log-transformations")]
+        {
+            self.log_fields = Arc::new(CompiledLogFieldsConfig::compile(
+                self.log.fields.enabled,
+                &self.log.fields.incoming,
+                &self.log.fields.outgoing,
+            ));
+            self.masking_keys = Arc::new(CompiledMaskingKeys::compile(
+                &self.connector_response_masking,
+            ));
+        }
+    }
+
     /// Function to build the configuration by picking it from default locations
     pub fn new() -> Result<Self, config::ConfigError> {
         Self::new_with_config_path(None)
@@ -340,22 +414,24 @@ impl Config {
         let env = consts::Env::current_env();
         let config_path = Self::config_path(&env, explicit_config_path);
 
-        let config = Self::builder(&env)?
-            .add_source(config::File::from(config_path).required(false))
-            .add_source(
-                config::Environment::with_prefix(consts::ENV_PREFIX)
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("proxy.bypass_urls")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("database.tenants")
-                    .with_list_parse_key("log.kafka.brokers")
-                    .with_list_parse_key("events.brokers")
-                    .with_list_parse_key("connector_request_kafka.brokers")
-                    .with_list_parse_key("unmasked_headers.keys"),
-            )
-            .build()?;
+        let config_builder =
+            Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
+
+        let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("proxy.bypass_urls")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("database.tenants")
+            .with_list_parse_key("log.kafka.brokers")
+            .with_list_parse_key("events.brokers")
+            .with_list_parse_key("connector_request_kafka.brokers")
+            .with_list_parse_key("unmasked_headers.keys");
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+        let config = config_builder.add_source(environment_source).build()?;
 
         #[allow(clippy::print_stderr)]
         let config: Self = serde_path_to_error::deserialize(config).map_err(|error| {
@@ -363,8 +439,35 @@ impl Config {
             error.into_inner()
         })?;
 
+        let config = {
+            let mut config = config;
+            config.post_patch_processing();
+
+            // Superposition is never a reason to refuse boot. A remote source whose
+            // settings cannot describe a workspace (no endpoint/token/org/workspace) is
+            // reported — the logger is not up yet, so to stderr — and the source is set
+            // back to the file: the process serves policy from the baked
+            // config/superposition.toml, the same fail-open posture as a déjà record
+            // misconfiguration. Payments are never blocked by a policy source.
+            if config.superposition.source == SuperpositionSource::Remote {
+                #[allow(clippy::print_stderr)]
+                if let Err(error) = config.superposition.validate() {
+                    eprintln!(
+                        "superposition configuration error: {error}; source set to file, \
+                         policy comes from the baked config/superposition.toml"
+                    );
+                    config.superposition.source = SuperpositionSource::File;
+                }
+            }
+            config
+        };
+
         // Validate the environment field
         config.common.validate()?;
+
+        // Fail loud at boot on an unsafe déjà configuration (e.g. replay in production).
+        #[cfg(feature = "deja")]
+        config.deja.validate(&config.common.environment)?;
 
         // Fail fast on malformed platform CA config, using the same PEM parser as
         // runtime client construction. Iterates the hand-maintained list in
@@ -380,6 +483,16 @@ impl Config {
                     ))
                 })?;
             }
+        }
+
+        let unknown = config
+            .connector_response_masking
+            .unknown_connectors(is_known_connector);
+        if !unknown.is_empty() {
+            return Err(config::ConfigError::Message(format!(
+                "connector_response_masking.connector_keys: unknown connector(s) `{}`",
+                unknown.join("`, `")
+            )));
         }
 
         Ok(config)

@@ -18,12 +18,15 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "get",
+    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
     "refund",
     "refund_get",
     "setup_recurring",
+    "token_authorize",
+    "token_setup_recurring",
     "void",
 ];
 
@@ -117,6 +120,33 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
@@ -198,6 +228,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()
@@ -270,6 +301,69 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
             accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
             ..Default::default()
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    PaymentServiceTokenAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurringRequest {
+    PaymentServiceTokenSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
+        amount: Some(Money {
+            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            acceptance_type: AcceptanceType::Online.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            online_mandate_details: Some(OnlineMandate {
+                // Details if the acceptance was an online mandate.
+                ip_address: Some("127.0.0.1".to_string()), // IP address from which the mandate was accepted.
+                user_agent: "Mozilla/5.0".to_string(), // User agent string of the browser used for mandate acceptance.
+            }),
+        }),
+        setup_mandate_details: Some(SetupMandateDetails {
+            mandate_type: Some(MandateType {
+                // Type of mandate (single_use or multi_use) with amount details.
+                mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
+                    amount_money: Some(Money {
+                        // Amount in Money type.
+                        minor_amount: 0, // Amount in minor units (e.g., 1000 = $10.00).
+                        currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        setup_future_usage: Some(FutureUsage::OffSession.into()),
         ..Default::default()
     }
 }
@@ -527,6 +621,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -596,6 +700,30 @@ pub async fn process_setup_recurring(
     ))
 }
 
+// Flow: PaymentService.TokenAuthorize
+#[allow(dead_code)]
+pub async fn process_token_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .token_authorize(build_token_authorize_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.TokenSetupRecurring
+#[allow(dead_code)]
+pub async fn process_token_setup_recurring(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .token_setup_recurring(build_token_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -628,14 +756,17 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
+        "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
+        "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };

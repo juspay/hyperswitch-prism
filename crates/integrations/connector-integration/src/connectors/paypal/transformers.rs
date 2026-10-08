@@ -535,6 +535,18 @@ pub struct CardRequestStruct<
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardVaultStruct {
     vault_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attributes: Option<VaultRequestAttributes>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultRequestAttributes {
+    customer: Option<CustomerRequestData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerRequestData {
+    merchant_customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -558,6 +570,8 @@ pub enum CardRequest<
 pub struct CardRequestAttributes {
     vault: Option<PaypalVault>,
     verification: Option<ThreeDsMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer: Option<CustomerRequestData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1031,6 +1045,7 @@ impl<
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1072,6 +1087,7 @@ impl<
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1284,7 +1300,7 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
-        | BankRedirectData::OpenBanking {}
+        | BankRedirectData::OpenBanking { .. }
         | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
             Default::default(),
@@ -1399,6 +1415,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 None => None,
                             },
                             verification,
+                            customer: item
+                                .router_data
+                                .resource_common_data
+                                .customer_id
+                                .clone()
+                                .map(|customer_id| CustomerRequestData {
+                                    merchant_customer_id: Some(customer_id),
+                                }),
                         }),
                     },
                 )));
@@ -1508,7 +1532,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         };
                         let payment_source = Some(PaymentSourceItem::GooglePay(GooglePayRequest {
                             decrypted_token: GooglePayDecryptedToken {
-                                message_id: uuid::Uuid::new_v4().to_string(),
+                                message_id: common_utils::fp_utils::generate_uuid_v4(),
                                 // TODO: message_expiration is hardcoded because HS does not currently
                                 // forward this field from the decrypted GPay payload through the gRPC
                                 // interface. Tracked in https://github.com/juspay/hyperswitch/issues/11684
@@ -1573,6 +1597,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
@@ -1599,8 +1624,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => {
+                | WalletData::Skrill(_)
+                | WalletData::Neteller(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                         connector: "Paypal",
@@ -1673,7 +1700,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => {
+            | CardRedirectData::CardRedirect {}
+            | CardRedirectData::Webpay {} => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                     connector: "Paypal",
@@ -2437,6 +2465,10 @@ where
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..item.router_data
                 })
@@ -2504,6 +2536,7 @@ where
                         .request
                         .get_request_incremental_authorization(),
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),
@@ -2615,6 +2648,7 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -2646,6 +2680,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -2729,6 +2764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -2778,6 +2814,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -2857,6 +2894,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -3040,6 +3078,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -3089,6 +3128,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -3133,6 +3173,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -3291,7 +3332,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     _ => {
                         // Failed: Authentication checks failed
                         let error_message = format!(
-                            "Cannot continue authentication. Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                            "Cannot continue with Authorization due to failed Liability Shift. Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
                             liability_response.payment_source.card.authentication_result.liability_shift,
                             liability_response
                                 .payment_source
@@ -3319,14 +3360,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 attempt_status: Some(FlowStatus::Payment(
                                     common_enums::AttemptStatus::Failure,
                                 )),
-                                code: "authentication_failed".to_string(),
-                                message: "3DS authentication failed".to_string(),
+                                code: NO_ERROR_CODE.to_string(),
+                                message: NO_ERROR_MESSAGE.to_string(),
                                 connector_transaction_id: None,
                                 reason: Some(error_message),
                                 status_code: item.http_code,
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
+                                typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             }),
                             connector_config: item.router_data.connector_config,
                             request: item.router_data.request,
@@ -3589,6 +3634,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             common_enums::PaymentMethodType::Card => Some(PaymentSourceItem::Card(
                 CardRequest::CardVaultStruct(CardVaultStruct {
                     vault_id: Secret::new(connector_mandate_id),
+                    attributes: item
+                        .router_data
+                        .resource_common_data
+                        .customer_id
+                        .clone()
+                        .map(|customer_id| VaultRequestAttributes {
+                            customer: Some(CustomerRequestData {
+                                merchant_customer_id: Some(customer_id),
+                            }),
+                        }),
                 }),
             )),
             common_enums::PaymentMethodType::Paypal => Some(PaymentSourceItem::Paypal(

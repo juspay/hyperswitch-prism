@@ -111,11 +111,14 @@ scenarios:
       - "new connector file plus new transformers file"
       - "new pub mod or pub use in connectors.rs"
       - "new ConnectorEnum variant or convert_connector match arm"
+      - "new connector entry in config/superposition.toml or Connectors::apply match arm"
     must_read_companion_files:
       - "crates/integrations/connector-integration/src/connectors.rs"
       - "crates/integrations/connector-integration/src/default_implementations.rs"
       - "crates/integrations/connector-integration/src/types.rs"
       - "crates/types-traits/domain_types/src/connector_types.rs"
+      - "crates/types-traits/domain_types/src/types.rs"
+      - "config/superposition.toml"
       - "data/field_probe/manifest.json"
     likely_owners:
       - "@juspay/hyperswitch-prism-connectors"

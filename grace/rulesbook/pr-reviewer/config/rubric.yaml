@@ -106,6 +106,7 @@ scenario_checklists:
       - registration points are updated when a new connector is added
       - default implementations are updated when connector-wide optional traits need registration
       - ConnectorEnum and convert_connector stay consistent with connector registry changes
+      - connector base URLs are registered in config/superposition.toml (connector dimension enum + sandbox and production connector_base_url overrides) and the connector is wired into Connectors::apply in types.rs for dynamic URL patching
       - auth, status mapping, amount conversion, and error mapping are connector-correct
       - unsupported flows are explicit rather than silently implied
       - targeted connector tests or harness scenarios exist for the changed behavior
@@ -115,6 +116,7 @@ scenario_checklists:
       - amount or currency transformation changed without regression coverage
       - webhook verification weakened or bypassed
       - auth secrets exposed in code paths, errors, or serialized values
+      - new connector missing config/superposition.toml URL overrides or not added to Connectors::apply (silently unsupported for dynamic URL patching)
 
   core_flow:
     required:

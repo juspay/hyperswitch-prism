@@ -194,22 +194,47 @@ tags: [status-mapping, transformers] # Relevant searchable tags
 **Example:**
 
 ```rust
-// WRONG - Hardcoded string matching
+// WRONG - hardcoded string matching, and a `_ =>` catch-all at the mapping layer
+// that silently maps any new connector status to Pending.
 let status = match response.status.as_str() {
     "success" => AttemptStatus::Charged,
     "fail" => AttemptStatus::Failure,
     _ => AttemptStatus::Pending,
 };
 
-// CORRECT - Enum matching with comprehensive coverage
+// CORRECT - both halves are required.
+// (a) DESERIALIZATION layer: `#[serde(other)]` so an unknown wire value does not
+//     fail the parse.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorStatus {
+    Success,
+    Completed,
+    Pending,
+    Processing,
+    Failed,
+    Declined,
+    Cancelled,
+    RequiresAction,
+    #[serde(other)]
+    Unknown,
+}
+
+// (b) STATUS-MAPPING layer: EXHAUSTIVE, no `_ =>` arm, so the compiler flags a
+//     newly added variant instead of it disappearing into a default.
 let status = match response.status {
     ConnectorStatus::Success | ConnectorStatus::Completed => AttemptStatus::Charged,
     ConnectorStatus::Pending | ConnectorStatus::Processing => AttemptStatus::Pending,
     ConnectorStatus::Failed | ConnectorStatus::Declined => AttemptStatus::Failure,
     ConnectorStatus::Cancelled => AttemptStatus::Voided,
     ConnectorStatus::RequiresAction => AttemptStatus::AuthenticationPending,
+    ConnectorStatus::Unknown => AttemptStatus::Pending,
 };
 ```
+
+> Reviewers require **both** halves. A `#[serde(other)]` with a `_ =>` mapping arm
+> is still rejected, and so is an exhaustive mapping over an enum that cannot
+> deserialize an unknown value.
 
 ### Step 7: Explain Why It Matters
 
@@ -761,21 +786,27 @@ When implementing amount transformations in connector integrations.
 
 **Code Example - CORRECT:**
 ```rust
-use common_utils::types::{MinorUnit, StringMinorUnit};
+use common_utils::types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::utils;
 
-// Use existing utilities instead of recreating
-fn convert_amount(
-    amount: MinorUnit,
-    currency: Currency,
-    unit: CurrencyUnit,
-) -> CustomResult<String, errors::IntegrationError> {
-    match unit {
-        CurrencyUnit::Base => utils::to_currency_base_unit(amount, currency),
-        CurrencyUnit::Minor => Ok(amount.to_string()),
-    }
-}
+// Reuse the shared convertor rather than hand-rolling the arithmetic.
+// `convert_amount` is defined in crates/types-traits/domain_types/src/utils.rs:
+//   pub fn convert_amount<T>(convertor: &dyn AmountConvertor<Output = T>,
+//                            amount: MinorUnit, currency: Currency)
+//       -> Result<T, Report<IntegrationError>>
+let amount: StringMajorUnit = utils::convert_amount(
+    &StringMajorUnitForConnector,
+    router_data.request.minor_amount,
+    router_data.request.currency,
+)?;
 ```
+
+Pick the convertor from the vendor's documented wire format. All five exist in
+`crates/common/common_utils/src/types.rs`: `MinorUnitForConnector`,
+`StringMinorUnitForConnector`, `StringMajorUnitForConnector`,
+`FloatMajorUnitForConnector`, `StringTwoDecimalUnitForConnector`. Do **not**
+default to `StringMinorUnit` - on HEAD the real distribution is StringMajorUnit 34,
+FloatMajorUnit 26, MinorUnit 21, StringMinorUnit 19.
 
 **Why This Is Good:**
 - Reuses battle-tested utility functions
@@ -829,11 +860,16 @@ In request/response transformers that are called for every transaction.
 
 **Code Example - WRONG:**
 ```rust
-fn transform_request(data: &RouterData) -> ConnectorRequest {
+fn transform_request(
+    data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+) -> ConnectorRequest {
     ConnectorRequest {
         // Allocating new strings on every call
-        reference: format!("REF_{}", data.attempt_id.clone()),
-        description: format!("Payment for {}", data.description.clone()),
+        reference: format!("REF_{}", data.resource_common_data.attempt_id.clone()),
+        description: format!(
+            "Payment for {}",
+            data.resource_common_data.description.clone().unwrap_or_default()
+        ),
         // Multiple clones and allocations
     }
 }
@@ -841,15 +877,20 @@ fn transform_request(data: &RouterData) -> ConnectorRequest {
 
 **Code Example - CORRECT:**
 ```rust
-fn transform_request(data: &RouterData) -> ConnectorRequest {
+fn transform_request(
+    data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+) -> ConnectorRequest {
     ConnectorRequest {
         // Borrow when possible, allocate only when necessary
-        reference: format!("REF_{}", data.attempt_id),
-        description: data.description.as_ref(),
+        reference: format!("REF_{}", data.resource_common_data.attempt_id),
+        description: data.resource_common_data.description.clone(),
         // Minimize unnecessary clones
     }
 }
 ```
+
+> `attempt_id` and `description` live on `resource_common_data`
+> (`PaymentFlowData`), not on `RouterDataV2` itself.
 
 **Why This Matters:**
 - Transformers are called on every payment request (hot path)

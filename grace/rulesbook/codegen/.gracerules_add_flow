@@ -169,8 +169,8 @@ Some flows have dependencies that must be implemented first:
 | CreateConnectorCustomer | - |
 | PaymentMethodToken | - |
 | PreAuthenticate | - |
-| Authenticate | PreAuthenticate |
-| PostAuthenticate | Authenticate |
+| Authenticate | - |
+| PostAuthenticate | - |
 | AcceptDispute | - |
 | SubmitEvidence | AcceptDispute |
 | DefendDispute | - |
@@ -183,6 +183,107 @@ Some flows have dependencies that must be implemented first:
 | PayoutCreateLink | PayoutCreate |
 | PayoutCreateRecipient | - |
 | PayoutEnrollDisburseAccount | PayoutCreateRecipient |
+
+**The three authentication markers have no inter-marker prerequisite.** They are always resolved
+together as the `ThreeDS` group in one invocation, and *which* of them exist is decided per
+connector by the LEG-COUNT PROCEDURE in `## FLOW-GROUP MAP (Authoritative)`. Their **runtime**
+order is decided by the connector's `next_authentication_step` override, not by this table. A
+prerequisite chain here would make the legitimate `PreAuthenticate` + `PostAuthenticate` shape
+(nexixpay, moneris, worldpay) formally unresolvable.
+
+## FLOW-GROUP MAP (Authoritative)
+
+Some industry features are carried by several markers that cannot be implemented
+independently. Those are named as a **flow group**, and the group name is a valid
+`{FLOW}` input wherever a marker name is accepted.
+
+| Flow group | Also accepted as             | Markers implemented together                                     |
+|------------|------------------------------|------------------------------------------------------------------|
+| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `Authorize`, plus whichever of `PreAuthenticate`, `Authenticate`, `PostAuthenticate` the LEG-COUNT PROCEDURE selects — which may be none of them |
+
+**A flow group is ONE agent invocation, ONE commit. Do NOT
+decompose it into one invocation per marker.** The markers in a group share
+request and response types, share connector state across legs (the
+`connector_feature_data` round-trip), and are governed by a single
+`next_authentication_step` override that decides which leg runs next. Splitting
+them forces each leg to guess at contracts a later leg will change, and pushes
+all the cross-leg wiring into whichever leg happens to run last — where it
+arrives too late for the legs that needed it.
+
+**The group is not a fixed set of three.** Of the 20 UCS connectors that implement any
+authentication marker, exactly **one** (`getnet`) reaches all three in a single payment; 8 use one
+leg and 6 use two. In Hyperswitch, ~62 of ~154 connectors need **zero** pre-payment legs, and only
+`cybersource` and its fork `barclaycard` need three. Implementing a marker the connector has no call
+for produces dead code at best and a double charge at worst. Determine the count from the
+connector's own documentation before writing any code.
+
+### LEG-COUNT PROCEDURE (Authoritative)
+
+From the connector's 3DS documentation, write down the ordered list of HTTP calls a 3DS card payment
+makes, end to end. Then:
+
+**Step 1 — find the charging call.** Exactly one call in that list moves money. Identify it by these
+signals, in order of strength: (a) it is the same endpoint and body the connector's **non-3DS**
+payment uses; (b) on success it yields the transaction id that Capture / Void / Refund / PSync later
+act on; (c) the docs describe it as payment / sale / auth / charge / settle. **If the same URL
+appears more than once in the list, the charging call is the _last_ occurrence, not the first.**
+
+**Step 2 — the charging call is `Authorize`. Always.** Not `PostAuthenticate`, not "step 3 of 3DS".
+It stays `Authorize` even when the connector's own docs number it as part of the 3DS sequence, even
+when it reuses a URL an earlier leg already used, and even when it needs a correlation id
+(`relatedTransactionId`, `operationId`, `payment_id`, …) carried forward from an earlier leg.
+
+**Step 3 — classify the calls that come BEFORE the charging call, by observable behaviour:**
+
+| The call … | Marker | Legal count |
+|---|---|---|
+| runs silently before anything is shown to the cardholder — enrolment lookup, device-data / DDC collection, session or order bootstrap; returns no ACS redirect, or only a hidden iframe/DDC form | `PreAuthenticate` | 0 or 1 |
+| **issues the cardholder challenge** — returns the ACS URL, a redirect, or a form the browser must be sent to | `Authenticate` | 0 or 1 |
+| runs **after** the browser returns and only **validates** the authentication result (CRes / PARes / a lookup of the outcome), producing CAVV/ECI, and moves **no** money | `PostAuthenticate` | 0 or 1 |
+
+A call matching none of these rows is not an authentication leg; it belongs to a different marker
+(`CreateOrder`, `PaymentMethodToken`, `CreateConnectorCustomer`) — check the marker map below.
+
+**Step 4 — implement only the markers Step 3 selected.** For every marker it did **not** select,
+leave that marker's name in the connector's `macros::macro_connector_flow_status_impls!`
+`not_implemented:` / `not_supported:` list and add no macro wiring and no marker trait. Record the
+selection and its evidence (doc section or URL per call) as a decision. **`N = 0` selected markers is
+a valid and common outcome**: 3DS then rides inside `Authorize`, which returns the redirect, plus the
+browser return.
+
+### INVARIANT — `PostAuthenticate` MUST NEVER MOVE MONEY
+
+The composite loop (`crates/internal/composite-service/src/payments.rs`, loop at `:827`) breaks out
+of three of its four arms. The `PostAuthenticate` arm (`:885`) has **no break**: when it returns,
+control unconditionally re-enters the loop, `next_authentication_step` is called again, and the only
+non-looping successor is `Authorize` — **which charges**. A `PostAuthenticate` that already charged
+therefore produces a **second, independent, full-amount charge**, and that second charge carries no
+CAVV/ECI, so the liability shift is lost too.
+
+The other two arms are different, and the difference is deliberate:
+
+- `Authenticate` (`:861`) breaks on `redirection_data.is_some() || is_terminal_payment_status(status)`
+  — and terminal **includes** `Charged` / `Authorized`. `Authenticate` **may** charge; `redsys` relies
+  on exactly this.
+- `PreAuthenticate` (`:836`) breaks only on `redirection_data.is_some() || is_failure_payment_status(status)`.
+  It may charge **only** if it always returns redirection data or a failure status; otherwise the loop
+  spins.
+
+**Worked counter-example — do not repeat this.** Nuvei REST 1.0 has two 3DS endpoints, not three:
+`/initPayment.do`, then `/payment.do` **with** a `threeD` block, then `/payment.do` **without** it.
+Mapping those three calls onto the three markers puts the settling `/payment.do` in
+`PostAuthenticate`. Step 1 says otherwise: the third call is the same endpoint the non-3DS payment
+uses and is the last occurrence of that URL, so it is the **charging** call and belongs in
+`Authorize`. The correct mapping is `PreAuthenticate` = `/initPayment.do`, `Authenticate` =
+`/payment.do` with `threeD`, **no `PostAuthenticate`**, and `Authorize` = `/payment.do` without
+`threeD`, carrying `relatedTransactionId` from the earlier leg. Hyperswitch reaches the same shape by
+another route — its `Authorize` is `/payment.do`-with-`threeD`, answered `transactionType=Auth3D` →
+`AttemptStatus::AuthenticationPending`, and the settling call is its `CompleteAuthorize`. **UCS's
+`PostAuthenticate` is not HS's `CompleteAuthorize`; HS's `CompleteAuthorize` is UCS's `Authorize`.**
+
+When `{FLOW}` names a group, run the LEG-COUNT PROCEDURE, then look up the selected markers in the
+map below, read `guides/patterns/pattern_authentication_dispatch.md` **first** and all of their
+pattern files before writing code, and implement the selected markers in one pass.
 
 ## FLOW-MARKER → PATTERN MAP (Authoritative)
 
@@ -211,9 +312,10 @@ implementing the flow.
 | `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_server_session_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section in `pattern_server_authentication_token.md`) |
 | `ServerAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
 | `ClientAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
-| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md`                    |
-| `Authenticate`                        | `guides/patterns/pattern_authenticate.md`                       |
-| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md`                   |
+| `ThreeDS` (flow group)                | `guides/patterns/pattern_authentication_dispatch.md` — **read this FIRST**, before any per-marker pattern. It is the only file that states which leg may move money and how the composite loop terminates. |
+| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
+| `Authenticate`                        | `guides/patterns/pattern_authenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
+| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md` + `guides/patterns/pattern_authentication_dispatch.md` |
 | `Accept` / `FlowName::AcceptDispute`  | `guides/patterns/pattern_accept_dispute.md`                     |
 | `SubmitEvidence`                      | `guides/patterns/pattern_submit_evidence.md`                    |
 | `DefendDispute`                       | `guides/patterns/pattern_defend_dispute.md`                     |
@@ -285,8 +387,8 @@ FLOW_DEPENDENCIES = {
     "CreateConnectorCustomer": [],
     "PaymentMethodToken": [],
     "PreAuthenticate": [],
-    "Authenticate": ["PreAuthenticate"],
-    "PostAuthenticate": ["Authenticate"],
+    "Authenticate": [],
+    "PostAuthenticate": [],
     "AcceptDispute": [],
     "SubmitEvidence": ["AcceptDispute"],
     "DefendDispute": [],
@@ -394,6 +496,16 @@ You are the Connector State Analysis Subagent. Your job is to analyze the curren
 # - "flow: Authorize," in create_all_prerequisites!
 # - "macro_connector_implementation!" invocations
 # - impl ConnectorIntegrationV2<...>
+
+# CRITICAL: a flow named inside macro_connector_flow_status_impls! is a STUB, not an
+# implementation. Every connector on HEAD carries that macro with `not_implemented: [...]`
+# and/or `not_supported: [...]` lists. Treat those flows as MISSING.
+# When you implement one of them, you MUST remove its name from that list in the same edit,
+# or you get two conflicting ConnectorIntegrationV2 impls for the same flow (E0119).
+# Also check macro_connector_payout_implementation! - with no `payout_flows:` list it stubs
+# all NINE payout flows (PayoutCreate, PayoutTransfer, PayoutGet, PayoutVoid, PayoutStage,
+# PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutEligibility) by
+# default, so payout flows are covered there unless a `payout_flows: [...]` list narrows it.
 ```
 
 #### STEP 3: Check Foundation Status
@@ -608,6 +720,18 @@ macros::macro_connector_implementation!(
 #[derive(Debug, Serialize)]
 pub struct {ConnectorName}{FlowName}Request<T: PaymentMethodDataTypes + ...> {
     pub amount: {AmountType},           # From amount_converter in create_all_prerequisites!
+                                        # Pick {AmountType} by READING THE VENDOR SPEC and matching
+                                        # its wire format. There are five unit types in
+                                        # crates/common/common_utils/src/types.rs:
+                                        #   MinorUnit             (i64 cents)        -> MinorUnitForConnector
+                                        #   StringMinorUnit       ("1250")           -> StringMinorUnitForConnector
+                                        #   FloatMajorUnit        (12.5)             -> FloatMajorUnitForConnector
+                                        #   StringMajorUnit       ("12.50")          -> StringMajorUnitForConnector
+                                        #   StringTwoDecimalUnit  ("12.50", forced)  -> StringTwoDecimalUnitForConnector
+                                        # There is NO safe default - do not reach for StringMinorUnit
+                                        # "when unclear"; on HEAD the real distribution is
+                                        # StringMajorUnit 34 / FloatMajorUnit 26 / MinorUnit 21 /
+                                        # StringMinorUnit 19.
     pub currency: String,
     pub payment_method: {ConnectorName}PaymentMethod<T>,  # If flow needs payment method
     // Add ONLY fields from API docs - DO NOT add fields "just in case"
@@ -653,13 +777,36 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
-        // Map response to RouterDataV2
-        // CRITICAL: NEVER hardcode status - ALWAYS derive from response
-        // WRONG: status: AttemptStatus::Charged
-        // CORRECT: status: map_{connector}_status_to_attempt_status(&item.response.status)
-        Ok(Self { /* updated router_data */ })
+        // `ResponseRouterData` fields are `response`, `router_data`, `http_code`
+        // (connector-integration/src/types.rs) - there is NO `item.data`.
+        // `RouterDataV2` fields are: flow, resource_common_data, connector_config,
+        // request, response - there is NO `status` field on it. Attempt/refund status
+        // lives on `resource_common_data`.
+        //
+        // CRITICAL: NEVER hardcode status - ALWAYS derive from the connector response.
+        // WRONG:   Ok(Self { status: AttemptStatus::Charged, ..item.data })
+        // CORRECT:
+        Ok(Self {
+            // Payment flows: PaymentsResponseData::TransactionResponse is an ENUM STRUCT
+            // VARIANT - no `..Default::default()` inside it, list ALL 11 fields or E0063.
+            // Refund flows: RefundsResponseData is a plain struct with 4 fields
+            // (connector_refund_id, refund_status, status_code, acquirer_reference_number).
+            response: Ok({ResponseData}::TransactionResponse { /* list ALL fields */ }),
+            resource_common_data: {FlowData} {
+                status: map_{connector}_status_to_attempt_status(&item.response.status),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
+
+   IN-BAND FAILURE ON A 2xx: many connectors return HTTP 200 with a declined body. When the
+   mapped status is a failure, the transformer MUST return `Err(ErrorResponse { .. })` in the
+   `response` field instead of `Ok(..)`. Branch on a success predicate; the shared helper is
+   `domain_types::utils::is_payment_failure(status)`
+   (`crates/types-traits/domain_types/src/utils.rs`). `ErrorResponse` implements `Default`, so
+   fill only the fields you know and use `..Default::default()`.
 
 ## Part D: Add Status Mapping
 1. Create or update status mapping function:
@@ -672,15 +819,115 @@ fn map_{connector_name}_status_to_attempt_status(
         {ConnectorName}Status::Pending => common_enums::AttemptStatus::Pending,
         {ConnectorName}Status::Failed => common_enums::AttemptStatus::Failure,
         // CRITICAL: Map ALL possible connector status values from API docs
-        // NEVER leave status variants unmapped
+        // NEVER leave status variants unmapped, and NEVER add a catch-all `_ =>` arm here.
+        {ConnectorName}Status::Unknown => common_enums::AttemptStatus::Pending,
     }
 }
+
+   The two halves must BOTH be present - reviewers reject either one alone:
+   - DESERIALIZATION layer: the status enum carries an explicit unknown variant so an
+     unrecognised wire value does not fail the whole response parse.
+     ```rust
+     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+     #[serde(rename_all = "snake_case")]
+     pub enum {ConnectorName}Status {
+         Success,
+         Pending,
+         Failed,
+         #[serde(other)]
+         Unknown,
+     }
+     ```
+     (real example: `connectors/airwallex/transformers.rs` `AirwallexNextActionType`)
+   - STATUS-MAPPING layer: the `match` is EXHAUSTIVE over that enum, including `Unknown`.
+     A catch-all `_ =>` here silently swallows statuses added by the vendor later, so it is
+     a review blocker.
 
 2. CRITICAL STATUS MAPPING RULES:
    - ALWAYS create a dedicated status enum (e.g., {ConnectorName}Status)
    - ALWAYS use the status mapping function in response transformers
    - NEVER hardcode status values like AttemptStatus::Charged directly
    - Map status based on the actual response field, not assumptions
+   - `#[serde(other)] Unknown` at deserialization + exhaustive match at mapping - both, always
+
+## Part E: The Three Macros GRACE Historically Missed (verify against
+## crates/integrations/connector-integration/src/connectors/macros.rs)
+
+`macro_connector_implementation!` only covers flows the connector actually calls out to.
+Every connector on HEAD (112 of 112) ALSO invokes `macro_connector_flow_status_impls!` to
+stub the remaining `ConnectorIntegrationV2` flows; without it the connector does not
+satisfy the dispatcher's trait set and will not compile.
+
+1. `macros::macro_connector_flow_status_impls!` - stubs for flows this connector does not
+   implement. Two lists: `not_implemented:` (we have not built it yet) and `not_supported:`
+   (the vendor has no such API). Real invocation, copied from
+   `connectors/travelhub.rs`:
+
+   ```rust
+   macros::macro_connector_flow_status_impls!(
+       connector: Travelhub,
+       generic_type: T,
+       [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+       not_implemented: [
+           Accept, ClientAuthenticationToken, CreateConnectorCustomer, GetConnectorCustomer,
+           DefendDispute, MandateRevoke, Authenticate, IncrementalAuthorization, CreateOrder,
+           PostAuthenticate, PreAuthenticate, PaymentMethodToken, VoidPC, RepeatPayment,
+           ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+           SubmitEvidence
+       ],
+       not_supported: [
+           VoidPostRefund,
+       ],
+   );
+   ```
+   Either list may be omitted, but a flow must appear in exactly one place: implemented
+   via `macro_connector_implementation!`, OR listed here. Never both.
+
+2. `macros::macro_connector_local_flow_implementation!` - for a flow with NO outbound HTTP
+   call (everything is decided locally in `handle_response`). Argument keys:
+   `connector`, `flow_name`, `resource_common_data`, `flow_request`, `flow_response`,
+   `handle_response` (a path to your handler fn), `generic_type`, `[bounds]`.
+   It emits `get_call_connector_action() -> HandleResponseWithoutBuildRequest` and a
+   `build_request_v2` that returns `Ok(None)`.
+
+3. `macros::macro_connector_payout_implementation!` - payout flow stubs. With no
+   `payout_flows:` list it covers the full default set - NINE flows on HEAD (PayoutCreate,
+   PayoutTransfer, PayoutGet, PayoutVoid, PayoutStage, PayoutCreateLink,
+   PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutEligibility). The stale
+   "eight payout flows" comment in macros.rs itself is wrong - count the list, do not
+   trust the comment:
+
+   ```rust
+   macros::macro_connector_payout_implementation!(
+       connector: Travelhub,
+       generic_type: T,
+       [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+   );
+   ```
+   Pass `payout_flows: [PayoutCreate, PayoutGet, ...]` to narrow it.
+
+## Part F: Non-Generic Marker Traits (E0107 trap)
+
+`SourceVerification` (`crates/types-traits/interfaces/src/verification.rs`) and `BodyDecoding`
+(`.../interfaces/src/decode.rs`) take NO generic flow parameters. Write ONE impl per connector,
+not one per flow:
+
+```rust
+// CORRECT - one non-generic impl for the whole connector
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
+}
+```
+
+`impl<T> SourceVerification<Flow, Data, Req, Resp> for {ConnectorName}<T> {}` per flow is
+E0107 (wrong number of generic arguments). Exemplar:
+`crates/integrations/connector-integration/src/connectors/travelhub.rs`.
 
 ## CRITICAL RULES:
 - NEVER manually implement ConnectorIntegrationV2 - ALWAYS use macros
@@ -700,6 +947,49 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Error Messages**: Use specific NotSupported errors with exact feature names (e.g., "Apple Pay is not supported")
 - **Validation**: Only validate what's required by connector API, add comments explaining why
 - **Struct Cleanliness**: Only include fields actually used by the connector API
+
+### WEBHOOK FLOWS: VERIFIED TRAIT SIGNATURES
+
+`IncomingWebhook` (`crates/types-traits/interfaces/src/connector_types.rs`) is a plain trait
+with default methods - you override only what the connector needs. The error type on every
+method is `WebhookError`, NOT `IntegrationError`. Argument counts are exact:
+
+```rust
+fn get_event_type(
+    &self,
+    _request: RequestDetails,
+) -> Result<EventType, error_stack::Report<WebhookError>>          // ONE arg besides &self
+
+fn get_webhook_event_reference(
+    &self,
+    _request: RequestDetails,
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>>
+
+fn process_payment_webhook(
+    &self,
+    _request: RequestDetails,
+    _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+    _connector_account_details: Option<ConnectorSpecificConfig>,
+    _event_context: Option<domain_types::connector_types::EventContext>,
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>>   // FOUR args besides &self
+
+fn verify_webhook_source(
+    &self,
+    _request: RequestDetails,
+    _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+    _connector_account_details: Option<ConnectorSpecificConfig>,
+) -> Result<bool, error_stack::Report<WebhookError>>
+
+fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck>
+```
+
+Calling `get_event_type` with three arguments, or `process_payment_webhook` with three, is
+E0061. There is NO `transformation_status` field and NO `WebhookTransformationStatus` type
+anywhere in the tree - any snippet that sets one is E0560; delete it.
+
+Source verification is a separate, NON-GENERIC trait: implement `SourceVerification` once for
+the connector (`impl<T: ...> SourceVerification for {ConnectorName}<T> {}`), never once per
+flow. Same for `BodyDecoding`. See Part F above.
 
 #### STEP 8: Cargo Build and Debug
 ```bash

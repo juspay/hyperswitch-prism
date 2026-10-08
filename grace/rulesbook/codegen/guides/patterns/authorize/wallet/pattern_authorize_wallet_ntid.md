@@ -248,6 +248,7 @@ match &item.router_data.request.mandate_reference {
             }
             _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }
     }
@@ -376,7 +377,7 @@ match &router_data.request.mandate_reference {
                 //   NTI attached to previous_payment_id equivalent
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ref c) => { /* card sibling */ }
-            _ => Err(IntegrationError::not_implemented(...)),
+            _ => Err(IntegrationError::not_implemented(..., Default::default())),
         }
     }
     _ => { /* other variants */ }
@@ -525,10 +526,12 @@ where
                     }
                     _ => return Err(IntegrationError::not_implemented(
                         "decrypted-wallet NTID not implemented for this PM".to_string(),
+                        Default::default(),
                     ).into()),
                 },
                 _ => return Err(IntegrationError::not_implemented(
                     "non-NTI MIT not implemented".to_string(),
+                    Default::default(),
                 ).into()),
             };
 

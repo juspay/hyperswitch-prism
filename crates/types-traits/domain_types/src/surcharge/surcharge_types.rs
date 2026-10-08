@@ -6,14 +6,17 @@ use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use hyperswitch_masking::Secret;
 use serde::Serialize;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct SurchargeFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_request_reference_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -32,6 +35,22 @@ impl RawConnectorRequestResponse for SurchargeFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 

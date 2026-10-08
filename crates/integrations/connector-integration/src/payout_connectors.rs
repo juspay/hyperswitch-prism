@@ -7,8 +7,14 @@ pub use self::loonio::LoonioPayouts;
 pub mod paypal;
 pub use self::paypal::PaypalPayouts;
 
+pub mod stripe;
+pub use self::stripe::StripePayouts;
+
 pub mod deutschebank;
 pub use self::deutschebank::DeutschebankPayouts;
+
+pub mod truelayer;
+pub use self::truelayer::TruelayerPayouts;
 
 pub mod worldpayxml;
 pub use self::worldpayxml::WorldpayxmlPayouts;
@@ -16,5 +22,17 @@ pub use self::worldpayxml::WorldpayxmlPayouts;
 pub mod cybersource;
 pub use self::cybersource::CybersourcePayouts;
 
+pub mod gigadat;
+pub use self::gigadat::GigadatPayouts;
+
 pub mod santander;
 pub use self::santander::SantanderPayouts;
+
+pub mod trustly;
+pub use self::trustly::TrustlyPayouts;
+
+pub mod gotyme_sanlam;
+pub use self::gotyme_sanlam::GotymeSanlamPayouts;
+
+pub mod mifinity;
+pub use self::mifinity::MifinityPayouts;

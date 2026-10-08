@@ -1015,12 +1015,15 @@ pub fn verify_redirect_response_transformer(
     use domain_types::utils::ForeignTryFrom as _;
     use interfaces::verification::ConnectorSourceVerificationSecrets;
 
+    let connector_feature_data = payload.connector_feature_data;
+
     let request_details_proto = payload.request_details.ok_or_else(|| {
         Box::new(ConnectorError {
             error_message: "Missing required field: request_details".to_string(),
             error_code: "MISSING_REQUIRED_FIELD".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -1030,6 +1033,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -1043,6 +1047,7 @@ pub fn verify_redirect_response_transformer(
                         error_code: "CONVERSION_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })
                 })
         })
@@ -1073,13 +1078,14 @@ pub fn verify_redirect_response_transformer(
 
     let redirect_details = connector_data
         .connector
-        .process_redirect_response(&updated_request_details)
+        .process_redirect_response(&updated_request_details, connector_feature_data.as_ref())
         .map_err(|e| {
             Box::new(ConnectorError {
                 error_message: format!("{e}"),
                 error_code: "PROCESS_REDIRECT_ERROR".to_string(),
                 http_status_code: None,
                 error_info: None,
+                ..Default::default()
             })
         })?;
 
@@ -1093,6 +1099,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })
 }

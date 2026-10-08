@@ -184,6 +184,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
         amount: Some(usd_money(1000)),
         payment_method: Some(PaymentMethod {
             payment_method: Some(PmVariant::Token(proto::TokenPaymentMethodType {
+                token_payment_method_type: None,
                 token: Some(Secret::new("probe_pm_token".to_string())),
             })),
         }),
@@ -241,10 +242,12 @@ pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityReque
     }
 }
 
-pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
+pub(crate) fn base_tokenize_request_with_pm(
+    payment_method: PaymentMethod,
+) -> PaymentMethodServiceTokenizeRequest {
     PaymentMethodServiceTokenizeRequest {
         amount: Some(usd_money(1000)),
-        payment_method: Some(card_payment_method()),
+        payment_method: Some(payment_method),
         address: Some(PaymentAddress {
             billing_address: Some(Address::default()),
             shipping_address: None,
@@ -423,8 +426,8 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
                     #[allow(deprecated)]
                     proto::MandateAmountData {
-                        amount: 0,
-                        currency: proto::Currency::Usd as i32,
+                        amount: Some(0),
+                        currency: Some(proto::Currency::Usd as i32),
                         amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },

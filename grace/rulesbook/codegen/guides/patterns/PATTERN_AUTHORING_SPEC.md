@@ -65,10 +65,10 @@ All new patterns MUST reference these canonical signatures verbatim. Do not inve
 RouterDataV2<FlowMarker, FlowData, RequestData, ResponseData>
 
 // Canonical flow-data types (resource_common_data)
-PaymentFlowData   // crates/types-traits/domain_types/src/connector_types.rs:422
-RefundFlowData    // crates/types-traits/domain_types/src/connector_types.rs:1779
-DisputeFlowData   // crates/types-traits/domain_types/src/connector_types.rs:2648
-PayoutFlowData    // crates/types-traits/domain_types/src/payouts/payouts_types.rs:13
+PaymentFlowData   // crates/types-traits/domain_types/src/connector_types.rs:796
+RefundFlowData    // crates/types-traits/domain_types/src/connector_types.rs:2767
+DisputeFlowData   // crates/types-traits/domain_types/src/connector_types.rs:3863
+PayoutFlowData    // crates/types-traits/domain_types/src/payouts/payouts_types.rs:17
 
 // Canonical request/response pairs
 RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
@@ -77,13 +77,43 @@ RouterDataV2<Void,      PaymentFlowData, PaymentVoidData,          PaymentsRespo
 RouterDataV2<PSync,     PaymentFlowData, PaymentsSyncData,         PaymentsResponseData>
 RouterDataV2<Refund,    RefundFlowData,  RefundsData,              RefundsResponseData>
 RouterDataV2<RSync,     RefundFlowData,  RefundSyncData,           RefundsResponseData>
-RouterDataV2<SetupMandate,  PaymentFlowData, SetupMandateRequestData, PaymentsResponseData>
+RouterDataV2<SetupMandate,  PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>  // generic: connector_types.rs:3608
 RouterDataV2<CreateOrder,   PaymentFlowData, PaymentCreateOrderData,  PaymentCreateOrderResponse>
 
 // Trait connectors implement
 ConnectorIntegrationV2<Flow, FlowData, RequestData, ResponseData>
 // from interfaces::connector_integration_v2::ConnectorIntegrationV2
+
+// Auth and error hooks — copy these signatures verbatim.
+// interfaces/src/api.rs:25
+fn get_auth_header(
+    &self,
+    _auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, IntegrationError>;
+
+// interfaces/src/api.rs:50 — THREE parameters besides &self
+fn build_error_response(
+    &self,
+    res: domain_types::router_response_types::Response,
+    _event_builder: Option<&mut events::Event>,   // `events::Event`, NOT `ConnectorEvent`
+    _connector_config: &ConnectorSpecificConfig,
+) -> CustomResult<ErrorResponse, ConnectorError>;
+// Same third parameter on `get_error_response_v2` (connector_integration_v2.rs:187) and
+// `get_5xx_error_response` (connector_integration_v2.rs:200).
+
+// interfaces/src/verification.rs:20 and interfaces/src/decode.rs:6 — NON-GENERIC.
+// Exactly ONE impl of each per connector; never one per flow (a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107).
+// Exemplar: connectors/travelhub.rs:174-183
+pub trait SourceVerification { /* .. */ }
+pub trait BodyDecoding { /* .. */ }
 ```
+
+`RouterDataV2` fields (`domain_types/src/router_data_v2.rs:6`): `flow`, `resource_common_data`,
+`connector_config: ConnectorSpecificConfig`, `request`, `response`. There is **no**
+`connector_auth_type` and **no** `connector_meta_data` field — both were removed
+(`a7a696c3a`, 2026-03-14). Per-flow metadata lives on the request or on
+`resource_common_data`.
 
 PM patterns MUST use the `PaymentsAuthorizeData<T>` form (generic `T: PaymentMethodDataTypes`). Patterns MUST NOT reference RouterData (V1).
 
@@ -135,27 +165,63 @@ Authors MUST NOT:
 1. Hardcode statuses inside transformer `TryFrom` blocks (e.g. `status: AttemptStatus::Charged` literal). Map from the connector response instead.
 2. Mock databases or HTTP layers inside documented integration tests. Integration tests in patterns MUST describe real sandbox flows.
 3. Reference retired types. In particular:
-   - The pre-split monolithic `ConnectorError` (replaced per PR #765 by `IntegrationError` and `ConnectorResponseTransformationError`).
-   - Pre-rename auth-token types replaced per PR #855. Use the current `ConnectorAuthType` variants as defined in `domain_types::router_data`.
+   - Treating `ConnectorError` as the request-side error type. The error enum was split: `IntegrationError` (`errors.rs:115`) covers request-building and validation, `ConnectorError` (`errors.rs:371`) covers the response side ONLY and has exactly five variants — `ResponseDeserializationFailed`, `ResponseHandlingFailed`, `UnexpectedResponseError`, `IntegrityCheckFailed`, `ConnectorErrorResponse`. There is no `ConnectorResponseTransformationError` type.
+   - `RouterDataV2::connector_auth_type`. That field was removed on 2026-03-14 (`a7a696c3a`); auth now travels as `connector_config: ConnectorSpecificConfig` (`router_data_v2.rs:14`), whose variants are per-connector (`router_data.rs:301`).
 4. Duplicate utility-function bodies inline. Link to `utility_functions_reference.md` and call the function instead.
 5. Emit handwavy prose ("this usually works", "most connectors do X") without a citation per §8.
 6. Silently omit enum variants in PM patterns. Every variant is accounted for or the pattern FAILs review.
+7. `unwrap_or_default()` on `ErrorResponse.code` or `ErrorResponse.message`. Use
+   `.unwrap_or_else(|| NO_ERROR_CODE.to_string())` / `NO_ERROR_MESSAGE`
+   (`crates/common/common_utils/src/consts.rs:154-156`). Real connectors reference these consts 497 times across 90 files (`grep -roh 'NO_ERROR_CODE\|NO_ERROR_MESSAGE' crates/integrations/connector-integration/src/connectors/ | wc -l`);
+   an empty string in a log is indistinguishable from "the connector sent nothing".
+8. Force a terminal status on a shared error path. `ErrorResponse.attempt_status` is
+   `Option<FlowStatus>` (`domain_types/src/router_data.rs:4233`), and `FlowStatus`
+   (`router_data.rs:4186`) is flow-aware: `Payment(AttemptStatus)`, `Refund(RefundStatus)`,
+   `Dispute(DisputeStatus)`, `Payout(PayoutStatus)`. Hardcoding
+   `Some(FlowStatus::Payment(AttemptStatus::Failure))` on the shared path is what reports a
+   charged payment as FAILURE. A blanket `None` is equally wrong — it leaves a hard-declined
+   refund Pending and retrying forever. Map only what the connector's own payload proves, per
+   flow. Exemplars: `connectors/flywire.rs:355-371` (flow-aware, picks `Refund` vs `Payment`),
+   `connectors/noon.rs:498-512` (minimal form).
+9. Catch-all `_ =>` at the STATUS-MAPPING layer. Two halves are required and reviewers check
+   both: (a) the connector status enum ends with `#[serde(other)] Unknown` at the
+   DESERIALIZATION layer so an unrecognised wire value parses, and (b) the mapping `match` is
+   exhaustive over that enum with an explicit `Unknown` arm and no wildcard. Exemplars:
+   `TravelhubResult` (`connectors/travelhub/transformers.rs:494-509`) and
+   `map_travelhub_status` (`connectors/travelhub/transformers.rs:556-568`), where `Unknown`
+   maps to the non-terminal `AttemptStatus::Pending`.
+10. Prescribe a default amount unit. "Default to `StringMinorUnit` if unclear" is wrong for
+    roughly four connectors in five. Read the vendor spec and match its wire format; the HEAD
+    split is `StringMajorUnit` 24, `FloatMajorUnit` 22, `MinorUnit` 11, `StringMinorUnit` 8,
+    and a fifth type, `StringTwoDecimalUnit`, exists (`common_utils/src/types.rs:443`).
+11. Swallow an in-band 2xx failure. When a connector answers 200 with a failure payload, the
+    transformer MUST return `Err(ErrorResponse { .. })`, branching on a success predicate over
+    the MAPPED status — not on the presence of an `error` field. Reference predicate:
+    `domain_types::utils::is_payment_failure` (`domain_types/src/utils.rs:231`).
+12. Emit a per-flow `SourceVerification` or `BodyDecoding` impl. Both traits are non-generic
+    (`interfaces/src/verification.rs:20`, `interfaces/src/decode.rs:6`); exactly one impl of
+    each per connector. A `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.
+    Exemplar: `connectors/travelhub.rs:174-183`.
+13. Omit `macro_connector_flow_status_impls!`. Every flow the connector does not implement must
+    be listed under `not_implemented:` or `not_supported:` (`connectors/macros.rs:1827`); all
+    111 connectors on HEAD invoke it (all of them), and without it the connector does not compile.
 
 ## Retired types to avoid
 
 The following names MUST NOT appear in any new pattern at this pinned SHA. Occurrences trigger reviewer FAIL unless wrapped in a "retired — do not use" callout.
 
-- `ConnectorError` (monolithic, pre-PR-#765). Replace with `IntegrationError` (request-time) or `ConnectorResponseTransformationError` (response-parse-time).
+- `ConnectorError` used for request-time failures. `ConnectorError` (`crates/types-traits/domain_types/src/errors.rs:371`) is the RESPONSE-side enum and has exactly five variants, four of them struct variants requiring a `context: ResponseTransformationErrorContext`. Request-time failures use `IntegrationError` (`errors.rs:115`). `ConnectorResponseTransformationError` does not exist and MUST NOT be written.
 - `RouterData` (V1). Replace with `RouterDataV2<...>`.
 - `ApiErrorResponse` legacy shape, if referenced. Use `ErrorResponse` from `domain_types::router_data`.
+- `RouterDataV2::connector_auth_type` and `get_auth_header(&ConnectorAuthType)`. The field is gone (removed 2026-03-14, `a7a696c3a`) and the trait method's parameter is `&ConnectorSpecificConfig` (`interfaces/src/api.rs:25`); an impl still taking `&ConnectorAuthType` no longer matches the trait (E0407). Read auth from `req.connector_config` and match your connector's own `ConnectorSpecificConfig` variant (`domain_types/src/router_data.rs:301`). Exemplars: `connectors/travelhub/transformers.rs:46`, `connectors/volt/transformers.rs:398`.
 - Any pre-rename auth-token type from before PR #855 (commit `c9e1025e3`, 2026-04-02). The full rename map is:
   - flow-marker structs in `connector_flow.rs`: `CreateSessionToken` → `ServerSessionAuthenticationToken`; `CreateAccessToken` → `ServerAuthenticationToken`; `SdkSessionToken` → `ClientAuthenticationToken`.
   - traits in `interfaces/src/connector_types.rs`: `PaymentSessionToken` → `ServerSessionAuthentication`; `PaymentAccessToken` → `ServerAuthentication`; `SdkSessionTokenV2` → `ClientAuthentication`.
   - request/response data types in `connector_types.rs`: `PaymentsSdkSessionTokenData` → `ClientAuthenticationTokenRequestData`; `SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`; `SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData`; `AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`; `AccessTokenResponseData` → `ServerAuthenticationTokenResponseData`.
   - top-level response enum in `connector_types.rs`: `SessionToken` (the sdk-data payload enum, NOT `FlowName::SessionToken`) → `ClientAuthenticationTokenData`.
-  Also check `domain_types::router_data::ConnectorAuthType` for the current variant set and use those names exactly.
+  Also check `domain_types::router_data::ConnectorSpecificConfig` (`router_data.rs:301`) for your connector's variant and use its field names exactly.
 - `api::ConnectorIntegration` (V1 trait). Replace with `interfaces::connector_integration_v2::ConnectorIntegrationV2`.
-- Hand-rolled amount conversion helpers. Use the macro-generated amount converter (`macros::create_amount_converter_wrapper!`) and types from `common_utils::types`: `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`.
+- Hand-rolled amount conversion helpers. Use the macro-generated amount converter (`macros::create_amount_converter_wrapper!`, `connectors/macros.rs:1377`) and one of the FIVE unit types in `common_utils::types`: `MinorUnit` (`types.rs:170`), `StringMinorUnit` (`types.rs:305`), `FloatMajorUnit` (`types.rs:336`), `StringMajorUnit` (`types.rs:374`), `StringTwoDecimalUnit` (`types.rs:443`). Pick the one that matches the vendor's documented wire format — do NOT default to `StringMinorUnit`; on HEAD the split is `StringMajorUnit` 24, `FloatMajorUnit` 22, `MinorUnit` 11, `StringMinorUnit` 8.
 
 If the author is unsure whether a type is retired, grep `grace/rulesbook/codegen/guides/utility_functions_reference.md` and `grace/rulesbook/codegen/guides/types/types.md` for the current canonical name. Those two files, at the pinned SHA, are authoritative.
 
@@ -172,7 +238,7 @@ Links MUST be relative markdown links, not absolute paths.
 
 ## Review Rubric
 
-The Wave-8 reviewer will run these seven checks in order. Any check failing returns the artifact to its author.
+The Wave-8 reviewer will run these ten checks in order. Any check failing returns the artifact to its author.
 
 1. **Section order.** The `##` headers MUST appear in the order mandated by §5 (flow) or §6 (PM). Extra sections allowed between required ones; reordering or omission FAILs.
 2. **Citations present.** Every non-obvious factual claim is backed per §8. Grep for banned hedge words without accompanying citations.
@@ -181,8 +247,22 @@ The Wave-8 reviewer will run these seven checks in order. Any check failing retu
 5. **No retired types.** Names listed in §12 MUST NOT appear outside a retired-callout.
 6. **Cross-refs present.** The four requirements of §13 are satisfied with working relative links.
 7. **Code snippets look syntactically plausible.** Rust fences parse as Rust (balanced braces, `impl ... for ...` blocks complete, `use` paths resolve against current crates). The reviewer does not compile them but performs a visual scan.
+8. **Trait signatures match HEAD.** Grep the pattern for `build_error_response`,
+   `get_error_response_v2`, `get_5xx_error_response` (three parameters besides `&self`, third is
+   `&ConnectorSpecificConfig`), `get_auth_header` (`&ConnectorSpecificConfig`),
+   `SourceVerification` / `BodyDecoding` (non-generic, one impl per connector), `get_event_type`
+   (one argument besides `&self`) and `process_payment_webhook` (four). Any mismatch with §7
+   FAILs.
+9. **Struct literals list every field.** `ErrorResponse` has 13 fields and an
+   `impl Default` (`domain_types/src/router_data.rs:4228,4244`), so `..Default::default()` is
+   acceptable. `PaymentsResponseData::TransactionResponse` (11 fields, `connector_types.rs:2009`)
+   and the other enum struct-variants have NO functional-update syntax — every omitted field is
+   E0063, so they must be listed in full.
+10. **No banned anti-pattern from §11 items 7-13.** Grep for `unwrap_or_default()` on an error
+    code/message, `attempt_status: Some(AttemptStatus::` on a shared error path, a `_ =>` arm at
+    the status-mapping layer, and "default to StringMinorUnit" advice.
 
-A pattern passes only when all seven checks pass.
+A pattern passes only when all ten checks pass.
 
 ## File-naming conventions
 
@@ -194,7 +274,7 @@ A pattern passes only when all seven checks pass.
 
 ## Failure → revision loop
 
-A FAIL verdict from the Wave-8 reviewer returns the artifact to its originating author agent with a structured list of failed rubric checks (§14). The author performs one revision cycle and resubmits. If the second submission also FAILs, the artifact escalates to human review rather than entering a third autonomous revision. The reviewer MUST cite rubric-check numbers (1-7) when failing; the author MUST address each cited check in the revision. Revision commits MUST preserve the file path; authors do not rename a pattern during revision. Escalated artifacts block their downstream waves until a human reviewer resolves them; the orchestrator is responsible for re-queueing the PR after human approval.
+A FAIL verdict from the Wave-8 reviewer returns the artifact to its originating author agent with a structured list of failed rubric checks (§14). The author performs one revision cycle and resubmits. If the second submission also FAILs, the artifact escalates to human review rather than entering a third autonomous revision. The reviewer MUST cite rubric-check numbers (1-10) when failing; the author MUST address each cited check in the revision. Revision commits MUST preserve the file path; authors do not rename a pattern during revision. Escalated artifacts block their downstream waves until a human reviewer resolves them; the orchestrator is responsible for re-queueing the PR after human approval.
 
 ## Worked example: minimal conforming flow pattern skeleton
 

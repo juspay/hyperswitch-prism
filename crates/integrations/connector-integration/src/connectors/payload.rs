@@ -262,11 +262,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 context: Default::default(),
             },
         )?;
-        // The API key is the same for all currencies, so we can take any.
+        // The API key is documented-same for all currencies — but that is an
+        // unenforced invariant, so pick by smallest currency code rather than
+        // HashMap iteration's per-process arbitrary entry.
         let api_key = auth
             .auths
-            .values()
-            .next()
+            .iter()
+            .min_by_key(|(currency, _)| currency.to_string())
+            .map(|(_, value)| value)
             .ok_or(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             })?
@@ -297,6 +300,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
@@ -310,6 +315,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

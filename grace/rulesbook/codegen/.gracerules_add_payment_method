@@ -785,30 +785,56 @@ pub enum {ConnectorName}PaymentMethod<T: PaymentMethodDataTypes + ...> {
 ```
 
 ## Part D: Handle Payment Method Specific Response Data
-1. Update response handling if payment method affects response:
+1. Update response handling if the payment method affects the response.
+
+**Know the real struct shapes before you write this.** `RouterDataV2`
+(`crates/types-traits/domain_types/src/router_data_v2.rs`) has exactly five fields —
+`flow`, `resource_common_data`, `connector_config`, `request`, `response`. It has NO
+`payment_method_data` field and NO `status` field; assigning either is E0560. Response-side
+payment-method detail has no dedicated slot on the router data: put what the vendor returns
+into `PaymentsResponseData::TransactionResponse`'s `connector_metadata` /
+`connector_response_reference_id` / `mandate_reference`, or into the flow status. Copy the
+shape from a current connector, e.g.
+`crates/integrations/connector-integration/src/connectors/travelhub/transformers.rs`.
+
+Also note `ResponseRouterData` (`connector-integration/src/types.rs`) has fields `response`,
+`router_data`, `http_code` — there is no `item.data`.
+
+`PaymentsResponseData::TransactionResponse` is an ENUM STRUCT VARIANT, so functional-update
+syntax is not allowed inside it: every one of its 11 fields must be listed or you get E0063.
 
 ```rust
-impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for RouterDataV2<Authorize, ...> {
+impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}AuthorizeResponse, RouterDataV2<Authorize, ...>>>
+    for RouterDataV2<Authorize, ...>
+{
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
-        let response = item.response;
+        let status = map_{connector_name}_status_to_attempt_status(&item.response.status);
 
-        // Handle payment method specific response fields
-        let payment_method_data = match response.payment_method {
-            {ConnectorName}PaymentMethodResponse::Card(card) => {
-                PaymentMethodData::Card(card.into())
-            }
-            {ConnectorName}PaymentMethodResponse::Wallet(wallet) => {
-                PaymentMethodData::Wallet(wallet.into())
-            }
-            // ... handle other payment methods
-        };
+        // In-band failure on a 2xx: return Err(ErrorResponse { .. }) in `response`, not Ok(..).
+        // Predicate helper: domain_types::utils::is_payment_failure(status)
+        // (crates/types-traits/domain_types/src/utils.rs). ErrorResponse implements Default.
 
         Ok(Self {
-            // ... update fields
-            payment_method_data,
-            ..item.data
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: None,
+                connector_metadata: None,   // PM-specific extras from the vendor go here
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: item.response.reference.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
         })
     }
 }
@@ -821,6 +847,22 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for RouterDataV2<Authorize, .
 - Always handle all variants of a payment method type (e.g., all wallet types)
 - Follow existing patterns for similar payment methods
 - Use domain_types imports (not hyperswitch_*)
+- Use REAL error variants. Request phase is `IntegrationError`
+  (`crates/types-traits/domain_types/src/errors.rs`): `NotSupported { message, connector, context }`,
+  `NotImplemented(String, IntegrationErrorContext)`, `InvalidDataFormat { field_name, context }`,
+  `MissingRequiredField { field_name, context }`, `InvalidWallet { context }`,
+  `InvalidWalletToken { wallet_name, context }`, `MismatchedPaymentData { context }`.
+  Response phase is `ConnectorError`, which has EXACTLY five variants:
+  `ResponseDeserializationFailed { context }`, `ResponseHandlingFailed { context }`,
+  `UnexpectedResponseError { context }`,
+  `IntegrityCheckFailed { context, field_names, connector_transaction_id }`, and
+  `ConnectorErrorResponse(Box<ErrorResponse>)`. There is NO `ConnectorError::InvalidData`,
+  no `ConnectorError::NotImplemented`, no `ConnectorError::InvalidCard` (E0599).
+  Both context types derive `Default`, so `context: Default::default()` is valid.
+- A new payment method almost never needs a new amount type, but if it does: pick from the five
+  unit types in `crates/common/common_utils/src/types.rs` (`MinorUnit`, `StringMinorUnit`,
+  `FloatMajorUnit`, `StringMajorUnit`, `StringTwoDecimalUnit`) by reading the vendor spec's wire
+  format. There is no safe default.
 
 #### STEP 7: Implement Payment Method in Other Flows (if applicable)
 

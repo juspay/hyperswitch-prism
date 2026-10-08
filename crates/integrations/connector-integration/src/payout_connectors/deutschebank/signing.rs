@@ -30,7 +30,7 @@ pub fn build_cseal_headers(
     key_id: &Secret<String>,
     signing_private_key: &Secret<String>,
 ) -> Result<CsealHeaders, error_stack::Report<IntegrationError>> {
-    let date = format_http_date(OffsetDateTime::now_utc())?;
+    let date = format_http_date(common_utils::date_time::now().assume_utc())?;
 
     let method_lower = method.to_string().to_lowercase();
 

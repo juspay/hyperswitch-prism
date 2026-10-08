@@ -263,7 +263,8 @@ human-readable message. Worldpay is the canonical example:
 // From crates/integrations/connector-integration/src/connectors/worldpay/transformers.rs:144
 PaymentMethodData::MandatePayment => {
     Err(IntegrationError::not_implemented(
-        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
+        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string(),
+        Default::default(),
     ).into())
 }
 ```
@@ -386,7 +387,7 @@ PaymentMethodData::MandatePayment => {
 **Used by**: Worldpay, Stripe, Adyen, Trustpay (for the MIT path).
 
 **Expected transformer path** inside Authorize: return
-`IntegrationError::not_implemented(...)` with a message steering the caller to
+`IntegrationError::not_implemented(message, context)` with a message steering the caller to
 RepeatPayment.
 
 Illustration (Worldpay):
@@ -395,7 +396,8 @@ Illustration (Worldpay):
 // From crates/integrations/connector-integration/src/connectors/worldpay/transformers.rs:144
 PaymentMethodData::MandatePayment => {
     Err(IntegrationError::not_implemented(
-        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
+        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string(),
+        Default::default(),
     ).into())
 }
 ```
@@ -463,6 +465,7 @@ match &router_data.request.payment_method_data {
     PaymentMethodData::Card(_) => { /* ... */ }
     _ => Err(IntegrationError::not_implemented(
         get_unimplemented_payment_method_error_message("my_connector"),
+        Default::default(),
     ).into()),
 }
 ```
@@ -620,7 +623,8 @@ pub type MandatePaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
 // From crates/integrations/connector-integration/src/connectors/worldpay/transformers.rs:144
 PaymentMethodData::MandatePayment => {
     Err(IntegrationError::not_implemented(
-        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
+        "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string(),
+        Default::default(),
     ).into())
 }
 ```
@@ -763,7 +767,8 @@ Worldpay's wording at `worldpay/transformers.rs:144-148`:
 
 ```rust
 Err(IntegrationError::not_implemented(
-    "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
+    "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string(),
+    Default::default(),
 ).into())
 ```
 

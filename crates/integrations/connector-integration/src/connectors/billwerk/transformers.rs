@@ -3,6 +3,7 @@ pub type RefundsResponseRouterData<F, T> =
 
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    pii::Email,
     types::MinorUnit,
 };
 
@@ -130,7 +131,7 @@ pub enum BillwerkPaymentState {
 #[derive(Debug, Serialize)]
 pub struct BillwerkCustomerObject {
     handle: Option<common_utils::id_type::CustomerId>,
-    email: Option<common_utils::pii::Email>,
+    email: Option<Email>,
     address: Option<Secret<String>>,
     address2: Option<Secret<String>>,
     city: Option<Secret<String>>,
@@ -401,6 +402,10 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -424,6 +429,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -738,7 +744,7 @@ pub struct BillwerkSessionOrder {
 #[derive(Debug, Serialize)]
 pub struct BillwerkSessionCustomer {
     pub handle: String,
-    pub email: Option<String>,
+    pub email: Option<Email>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
 }
@@ -809,10 +815,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let customer = BillwerkSessionCustomer {
             handle: customer_handle,
-            email: customer_info
-                .customer_email
-                .as_ref()
-                .map(|e| e.peek().to_string()),
+            email: customer_info.customer_email.clone(),
             first_name: customer_info
                 .customer_name
                 .as_ref()

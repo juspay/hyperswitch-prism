@@ -4,6 +4,7 @@ use std::{
     marker::{Send, Sync},
 };
 
+use common_enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::VerifySignature,
@@ -70,15 +71,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::macro_connector_payout_implementation!(
-    connector: Stripe,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Stripe<T>
 {
+}
+// Authorize: RequiresCapture = preauth success; Succeeded = auto-capture success.
+// Canceled and Voided map through — both are valid Authorize ALLOWED states.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      Authorize,
+    source:    stripe::StripePaymentStatus,
+    success:   RequiresCapture          => Authorized,
+    failure:   Failed                   => Failure,
+    {
+        Succeeded              => Charged,
+        RequiresPaymentMethod  => Failure,
+        Canceled               => Voided,
+        Processing             => Authorizing,
+        RequiresCustomerAction => AuthenticationPending,
+        RequiresConfirmation   => ConfirmationAwaited,
+        Chargeable             => Authorizing,
+        Consumed               => Authorizing,
+        Pending                => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Stripe<T>
@@ -88,10 +104,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::CreateConnectorCustomer for Stripe<T>
 {
 }
+// PSync is intentionally broad — mirrors whatever state the payment is in.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      PSync,
+    source:    stripe::StripePaymentStatus,
+    success:   Succeeded                => Charged,
+    failure:   Failed                   => Failure,
+    {
+        RequiresCapture        => Authorized,
+        RequiresPaymentMethod  => Failure,
+        Canceled               => Voided,
+        Processing             => Authorizing,
+        RequiresCustomerAction => AuthenticationPending,
+        RequiresConfirmation   => ConfirmationAwaited,
+        Chargeable             => Authorizing,
+        Consumed               => Authorizing,
+        Pending                => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Stripe<T>
 {
 }
+// Stripe uses "canceled" for a voided payment intent; Succeeded means capture
+// already went through so the void failed.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      Void,
+    source:    stripe::StripePaymentStatus,
+    success:   Canceled              => Voided,
+    failure:   Failed                => VoidFailed,
+    {
+        RequiresPaymentMethod => VoidFailed,
+        Succeeded             => VoidFailed,
+        Processing            => Pending,
+        RequiresCustomerAction => Pending,
+        RequiresConfirmation  => Pending,
+        RequiresCapture       => Pending,
+        Chargeable            => Pending,
+        Consumed              => Pending,
+        Pending               => Pending,
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Stripe<T>
 {
@@ -104,6 +162,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Stripe<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      Capture,
+    source:    stripe::StripePaymentStatus,
+    success:   Succeeded             => Charged,
+    failure:   Failed                => CaptureFailed,
+    {
+        RequiresPaymentMethod  => CaptureFailed,
+        Processing             => Pending,
+        Canceled               => Failure,
+        RequiresCustomerAction => Pending,
+        RequiresConfirmation   => Pending,
+        RequiresCapture        => Pending,
+        Chargeable             => Pending,
+        Consumed               => Pending,
+        Pending                => Pending,
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Stripe<T>
 {
@@ -112,9 +191,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Stripe<T>
 {
 }
+// IncrementalAuthorization: same PaymentIntentResponse shape as Authorize.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      IncrementalAuthorization,
+    source:    stripe::StripePaymentStatus,
+    success:   RequiresCapture          => Authorized,
+    failure:   Failed                   => Failure,
+    {
+        Succeeded              => Charged,
+        RequiresPaymentMethod  => Failure,
+        Canceled               => Voided,
+        Processing             => Authorizing,
+        RequiresCustomerAction => AuthenticationPending,
+        RequiresConfirmation   => ConfirmationAwaited,
+        Chargeable             => Authorizing,
+        Consumed               => Authorizing,
+        Pending                => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stripe<T>
 {
+}
+// RepeatPayment (MIT): always auto-capture; Succeeded is the only terminal success.
+// Canceled → Failure (MIT payment rejected/canceled, not a void).
+// RequiresConfirmation → Pending (unusual for MIT but waiting for further action).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow:      RepeatPayment,
+    source:    stripe::StripePaymentStatus,
+    success:   Succeeded                => Charged,
+    failure:   Failed                   => Failure,
+    {
+        RequiresCapture        => Authorized,
+        RequiresPaymentMethod  => Failure,
+        Canceled               => Failure,
+        Processing             => Authorizing,
+        RequiresCustomerAction => AuthenticationPending,
+        RequiresConfirmation   => Pending,
+        Chargeable             => Authorizing,
+        Consumed               => Authorizing,
+        Pending                => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Stripe<T>
@@ -280,12 +401,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: common_enums::PaymentMethod,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        is_wallet_decrypted_network_token: bool,
     ) -> bool {
         matches!(payment_method, common_enums::PaymentMethod::Wallet)
-            && !matches!(
+            && (!matches!(
                 payment_method_type,
                 Some(common_enums::PaymentMethodType::GooglePay)
-            )
+            ) || is_wallet_decrypted_network_token)
     }
 }
 
@@ -453,6 +575,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -479,6 +603,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -682,10 +810,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            let endpoint = if transformers::tokenize_mints_payment_method(&req.request) {
+                "v1/payment_methods"
+            } else {
+                "v1/tokens"
+            };
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                "v1/payment_methods"
+                endpoint
             ))
         }
     }
@@ -712,6 +845,36 @@ macros::macro_connector_implementation!(
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
             )];
+
+            // A Stripe *direct* charge routes by the `Stripe-Account` header, not by
+            // `on_behalf_of`, so a SetupMandate on a connected account has to carry it -- the
+            // sibling CreateConnectorCustomer flow below already does.
+            let transfer_account_id = req
+                .request
+                .split_payments
+                .as_ref()
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
+                })
+                .filter(|stripe_split_payment| {
+                    matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
+                })
+                .map(|stripe_split_payment| stripe_split_payment.transfer_account_id.clone());
+
+            if let Some(transfer_account_id) = transfer_account_id {
+                let mut customer_account_header = vec![(
+                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    transfer_account_id.clone().into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            };
+
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)

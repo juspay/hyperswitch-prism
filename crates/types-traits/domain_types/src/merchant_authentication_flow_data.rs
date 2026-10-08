@@ -1,5 +1,6 @@
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_masking::Secret;
+use std::sync::Arc;
 
 use crate::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -23,7 +24,7 @@ pub struct MerchantAuthenticationFlowData {
 
     /// Resolved connector base URLs — required by every connector impl
     /// to build the target endpoint (e.g. `connectors.paypal.base_url`).
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
 
     /// Idempotency / tracing key forwarded to the connector in the request.
     pub connector_request_reference_id: String,
@@ -49,7 +50,9 @@ pub struct MerchantAuthenticationFlowData {
 
     // ── Observability ──────────────────────────────────────────────────────
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -73,6 +76,19 @@ impl RawConnectorRequestResponse for MerchantAuthenticationFlowData {
     }
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
         self.raw_connector_request.clone()
+    }
+
+    fn set_typed_connector_response(&mut self, r: Option<String>) {
+        self.typed_connector_response = r;
+    }
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+    fn set_typed_connector_request(&mut self, r: Option<String>) {
+        self.typed_connector_request = r;
+    }
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 

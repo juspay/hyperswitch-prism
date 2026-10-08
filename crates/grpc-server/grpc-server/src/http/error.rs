@@ -225,6 +225,15 @@ fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
     }
 }
 
+/// The HTTP status the caller receives for a gRPC error: the connector's exact 4xx/5xx when the
+/// details carry one, else the gRPC-to-HTTP fallback. Shared by the HTTP response and the golden
+/// line so both report the same status.
+pub fn http_status_for_status(status: &tonic::Status) -> StatusCode {
+    let details = extract_error_details_from_status(status);
+    connector_http_status_from_error_details(details.as_ref())
+        .unwrap_or_else(|| grpc_code_to_http_status(status.code()))
+}
+
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
@@ -261,6 +270,10 @@ mod tests {
             error_code: error_code.to_string(),
             http_status_code,
             error_info: None,
+            raw_connector_request: None,
+            raw_connector_response: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
         };
         let encoded = connector_error.encode_to_vec();
 

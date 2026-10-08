@@ -7,7 +7,25 @@ This harness supports connector-specific scenario overrides through a trait-base
 - Keep `src/global_suites/*` as the single global baseline.
 - Let connectors override only what differs.
 - Allow connector-side extra keys in request/assert payloads.
-- Restrict overrides to existing scenarios (no connector-only scenario creation).
+- Restrict `override.json` to existing **global** scenarios. A scenario that exists only for one
+  connector goes in `connector_specific_scenarios.json` instead (see below) — it is additive, and
+  shadowing a global scenario name is a hard loader error.
+- Keep capability statements out of this file; they live in `specs.json`.
+
+## Which file to use
+
+Four files can carry connector-specific test data. Pick the first one that fits:
+
+| Situation | File | Notes |
+|---|---|---|
+| A global scenario already matches, and its assertions are true for this connector | nothing — just list the suite in `specs.json` `supported_suites` | the common case; prefer it |
+| The global scenario needs a connector-specific **input** (test card, metadata blob, 3DS lever) | `override.json` `grpc_req` | RFC 7396 merge patch. **Do not** patch a path that the suite's `suite_spec.json` lists as a `context_map` target — the override is applied *after* the context map (`scenario_api.rs`: `apply_context_map` then `apply_connector_overrides`), so it silently decouples the case from its dependency |
+| The global scenario's **expected outcome** differs for documented reasons | `override.json` `assert` | narrow or re-target a rule. A bare `null` deletion removes the rule entirely — replace it, do not just delete it |
+| The dimension exists **only** for this connector | `connector_specific_scenarios.json` | additive only; a name that collides with a global scenario is a hard error. `assert` is mandatory — `ScenarioDef` has no default for it, so a scenario with no assertions cannot be constructed. It inherits the suite's global `depends_on`; there is no per-scenario dependency override |
+| The scenario genuinely does not apply | `specs.json` `unsupported_scenarios` | skips, does not fail. The reason string is mandatory and is the only record of why |
+
+A waived scenario produces **no row in `report.json`** — it is removed before the run — so a waiver is
+invisible to anything reading the report. Diff `specs.json` to find one.
 
 ## When to use override
 
@@ -111,6 +129,15 @@ Example: remove one baseline assertion rule
   }
 }
 ```
+
+## Declaring a scenario unsupported
+
+Not an override. Use `unsupported_scenarios` in `connector_specs/<connector>/specs.json`
+— it states a capability, so it belongs with `supported_suites` and
+`supported_payment_methods` rather than in this file.
+
+Do not reach for an `assert` override that expects the failure instead. It passes,
+carries no reason, and turns a future real regression green.
 
 ## Trait and registry
 

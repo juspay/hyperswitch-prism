@@ -92,16 +92,19 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
+// The event type is `common_utils::events::Event`; `interfaces::events::connector_api_logs::ConnectorEvent`
+// is not the type the connector traits take. Import the module and write `events::Event`,
+// exactly as connectors/travelhub.rs:6 does.
+use common_utils::events;
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    events::connector_api_logs::ConnectorEvent,
 };
 use serde::Serialize;
 use transformers::{
@@ -177,7 +180,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -216,7 +219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -231,6 +234,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
@@ -240,20 +244,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+        // (definition: crates/integrations/connector-integration/src/utils.rs:61). It expands to
+        // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+        // `set_error_response_body` method on `events::Event`.
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+            // (crates/common/common_utils/src/consts.rs:154-156). Import them:
+            //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+            // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+            // an empty string in a log is indistinguishable from "the connector sent nothing".
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -284,7 +293,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() })?;
             let dispute_id = &req.request.connector_dispute_id;
             Ok(format!("{base_url}/{api_endpoint}/{dispute_id}/evidence"))
         }
@@ -305,7 +314,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -320,12 +329,18 @@ pub struct {ConnectorName}AuthType {
     pub api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+// Auth is read from `ConnectorSpecificConfig`, NOT from a `connector_auth_type` field —
+// `RouterDataV2` lost `connector_auth_type` on 2026-03-14 (a7a696c3a); the field is now
+// `req.connector_config: ConnectorSpecificConfig` (domain_types/src/router_data_v2.rs:14).
+// `ConnectorSpecificConfig` has ONE struct variant PER CONNECTOR (domain_types/src/router_data.rs:301),
+// not generic HeaderKey/BodyKey/SignatureKey variants — add your connector's variant there and
+// match on it. Exemplar: connectors/travelhub/transformers.rs:46 and connectors/volt/transformers.rs:402.
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = IntegrationError;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
@@ -406,7 +421,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<SubmitEvidence, DisputeFlowD
         item: {ConnectorName}RouterData<RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>, T>,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         // Build evidence documents from SubmitEvidenceData
         let mut evidence_documents = Vec::new();
@@ -503,9 +518,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SubmitEvidenceResponse, RouterDat
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                ..Default::default()
             };
 
             Ok(Self {
@@ -553,7 +566,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "Content-Type".to_string(),
             "application/json".to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key = self.get_auth_header(&req.connector_config)?;
         header.append(&mut api_key);
         Ok(header)
     }
@@ -580,7 +593,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>, errors::ConnectorError> {
         let response: {ConnectorName}SubmitEvidenceResponse = res
@@ -588,22 +601,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("{ConnectorName}SubmitEvidenceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        // `common_utils::events::Event` has no `set_response_body` (setters: events.rs:326-346).
+        // Use the crate macro (`use crate::with_response_body;`, utils.rs:70).
+        with_response_body!(event_builder, response);
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed { context: Default::default() })
     }
 
     fn get_error_response_v2(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 ```
@@ -692,6 +708,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse {
@@ -706,20 +723,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -797,7 +810,7 @@ mod tests {
         let router_data = create_test_submit_evidence_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 

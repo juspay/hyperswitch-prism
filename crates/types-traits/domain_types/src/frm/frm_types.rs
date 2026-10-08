@@ -12,14 +12,17 @@ use crate::{
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
 use hyperswitch_masking::Secret;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -38,6 +41,22 @@ impl RawConnectorRequestResponse for FrmFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -104,6 +123,7 @@ pub struct PostRiskCheckRequest {
     pub payment_status: Option<AttemptStatus>,
     pub connector_transaction_id: Option<String>,
     pub payment_connector: Option<grpc_api_types::payments::Connector>,
+    pub address: Option<PaymentAddress>,
 }
 
 /// Response data for post-risk check
@@ -128,6 +148,8 @@ pub struct FrmPaymentOutcomeRequest {
     pub frm_decision: Option<FrmDecision>,
     /// Merchant details (id + MCC) for the Update Order call.
     pub merchant_details: Option<MerchantDetails>,
+    /// Connector-specific feature data (e.g. AVS/CVV verification results) for the Update Order call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -141,6 +163,8 @@ pub struct FrmRefundProcessedRequest {
     pub frm_decision: Option<FrmDecision>,
     /// Merchant details (id + MCC) for the Update Order call.
     pub merchant_details: Option<MerchantDetails>,
+    /// Connector-specific feature data for the notify call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +176,8 @@ pub struct FrmChargebackReceivedRequest {
     pub merchant_dispute_id: Option<String>,
     pub chargeback_reason: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Connector-specific feature data for the notify call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 // ── FRM Notification Responses ────────────────────────────────────────

@@ -30,8 +30,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "address": {
         "billing_address": {
@@ -55,6 +54,10 @@
           },
           "country_alpha2_code": "US"
         }
+      },
+      "browser_info": {
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (integration-tests)"
       },
       "test_mode": true
     },
@@ -100,8 +103,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "address": {
         "billing_address": {
@@ -169,8 +171,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "metadata": {
         "value": "{\"source\":\"mobile\",\"device_id\":\"test-device-123\"}"
@@ -218,8 +219,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },
@@ -261,8 +261,7 @@
         "name": "auto_generate",
         "email": {
           "value": "auto_generate"
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },

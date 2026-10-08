@@ -72,6 +72,7 @@
     - [Create Link](api-reference/services/payout-service/create-link.md)
     - [Create Recipient](api-reference/services/payout-service/create-recipient.md)
     - [Enroll Disburse Account](api-reference/services/payout-service/enroll-disburse-account.md)
+    - [Check Eligibility](api-reference/services/payout-service/eligibility.md)
   - [Domain Schema](api-reference/domain-schema/README.md)
 
 - [FAQs](FAQs.md)
@@ -121,6 +122,7 @@
     - [Create Link](sdks/java/payout-service/create-link.md)
     - [Create Recipient](sdks/java/payout-service/create-recipient.md)
     - [Enroll Disburse Account](sdks/java/payout-service/enroll-disburse-account.md)
+    - [Check Eligibility](sdks/java/payout-service/eligibility.md)
 
 - [Node.js SDK Overview](sdks/node/README.md)
   - [Payment Service Overview](sdks/node/payment-service/README.md)
@@ -166,6 +168,7 @@
     - [Create Link](sdks/node/payout-service/create-link.md)
     - [Create Recipient](sdks/node/payout-service/create-recipient.md)
     - [Enroll Disburse Account](sdks/node/payout-service/enroll-disburse-account.md)
+    - [Check Eligibility](sdks/node/payout-service/eligibility.md)
 
 - [Python SDK Overview](sdks/python/README.md)
   - [Payment Service Overview](sdks/python/payment-service/README.md)
@@ -211,3 +214,4 @@
     - [Create Link](sdks/python/payout-service/create-link.md)
     - [Create Recipient](sdks/python/payout-service/create-recipient.md)
     - [Enroll Disburse Account](sdks/python/payout-service/enroll-disburse-account.md)
+    - [Check Eligibility](sdks/python/payout-service/eligibility.md)

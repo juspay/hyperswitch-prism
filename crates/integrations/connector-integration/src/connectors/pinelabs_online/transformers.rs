@@ -1,4 +1,5 @@
 use common_enums::{AttemptStatus, RefundStatus};
+use common_utils::pii::Email;
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund, ServerAuthenticationToken},
     connector_types::{
@@ -110,7 +111,7 @@ pub struct PurchaseDetails {
 #[derive(Debug, Serialize)]
 pub struct CustomerInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email_id: Option<String>,
+    pub email_id: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -442,7 +443,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineAccessTokenResponse, Self>>
                 )
                 .ok()
                 .map(|expires_at| {
-                    let now = time::OffsetDateTime::now_utc();
+                    let now = common_utils::date_time::now().assume_utc();
                     let duration = expires_at - now;
                     // Subtract a small buffer (60 seconds) to avoid using an expired token.
                     // Use saturating_sub to prevent negative values when token has < 60s remaining.
@@ -595,6 +596,10 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineCreateOrderResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
@@ -894,6 +899,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -916,6 +922,10 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
@@ -962,6 +972,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -984,6 +995,10 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
@@ -1029,6 +1044,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -1051,6 +1067,10 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
@@ -1106,6 +1126,10 @@ impl<F> TryFrom<ResponseRouterData<PinelabsOnlineRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
@@ -1159,6 +1183,10 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineRSyncResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
 
                 Ok(Self {
