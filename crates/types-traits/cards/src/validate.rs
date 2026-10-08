@@ -136,6 +136,11 @@ impl FromStr for CardNumber {
             "6000100611111203",
             "3000100811111072",
             "9000100111111111",
+            // Rapyd's documented sandbox decline cards (Do Not Honor, Stolen Card,
+            // Insufficient Funds). They are not Luhn-valid by design.
+            "4111111111111105",
+            "4111111111111143",
+            "4111111111111151",
         ];
 
         let card_number = card_number.split_whitespace().collect::<String>();

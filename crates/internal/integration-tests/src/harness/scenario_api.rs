@@ -36,7 +36,7 @@ use crate::harness::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
-        load_scenario, load_suite_scenarios, load_suite_spec,
+        load_scenario_for_connector, load_suite_scenarios, load_suite_spec,
         load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
         merge_connector_specific_scenarios, scenario_matches_supported_payment_methods,
         scenario_unsupported_reason,
@@ -67,7 +67,7 @@ fn load_effective_scenario_for_connector(
     scenario: &str,
     connector: &str,
 ) -> Result<(Value, BTreeMap<String, FieldAssert>), ScenarioError> {
-    let base_scenario = load_scenario(suite, scenario)?;
+    let base_scenario = load_scenario_for_connector(suite, scenario, connector)?;
     let mut grpc_req = base_scenario.grpc_req;
     let mut assertions = base_scenario.assert_rules;
 
@@ -3691,14 +3691,9 @@ pub fn run_scenario_test_with_options(
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let target_suite_spec = load_suite_spec(suite)?;
-    let scenarios = load_suite_scenarios(suite)?;
-
-    if !scenarios.contains_key(scenario) {
-        return Err(ScenarioError::ScenarioNotFound {
-            suite: suite.to_string(),
-            scenario: scenario.to_string(),
-        });
-    }
+    // Existence check only: a name is accepted from the global suite or from the
+    // connector's own scenarios, the same two sources the runner resolves it from.
+    load_scenario_for_connector(suite, scenario, connector)?;
 
     let mut results = Vec::new();
     let mut passed = 0usize;
@@ -4907,7 +4902,7 @@ fn execute_single_scenario_with_context(
 ) -> Result<ExecutedScenario, ScenarioError> {
     run_test(Some(suite), Some(scenario), Some(connector))?;
 
-    let base_scenario = load_scenario(suite, scenario)?;
+    let base_scenario = load_scenario_for_connector(suite, scenario, connector)?;
     let mut effective_req = base_scenario.grpc_req;
     let mut assertions = base_scenario.assert_rules;
 

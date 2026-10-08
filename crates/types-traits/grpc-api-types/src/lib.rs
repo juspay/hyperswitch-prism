@@ -9,6 +9,29 @@ mod types {
     tonic::include_proto!("types");
 }
 
+/// `serialize_with` helpers for proto `string` fields that hold a secret (see `build.rs`,
+/// `WebhookSecrets`). They serialize through `Secret<String>`: masked under
+/// `hyperswitch_masking::masked_serialize`, exposed under any other serializer.
+pub mod secret_serde {
+    use hyperswitch_masking::Secret;
+    use serde::Serialize;
+
+    #[allow(clippy::ptr_arg)]
+    pub fn string<S: serde::Serializer>(value: &String, serializer: S) -> Result<S::Ok, S::Error> {
+        Secret::<String>::new(value.clone()).serialize(serializer)
+    }
+
+    pub fn optional_string<S: serde::Serializer>(
+        value: &Option<String>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .clone()
+            .map(Secret::<String>::new)
+            .serialize(serializer)
+    }
+}
+
 pub mod payments {
     pub use super::types::*;
 }

@@ -114,6 +114,32 @@ pub fn load_scenario(suite: &str, scenario: &str) -> Result<ScenarioDef, Scenari
         })
 }
 
+/// Loads one named scenario definition as a given connector sees it.
+///
+/// Lookup order: the global suite file first, then the connector's own
+/// `connector_specific_scenarios.json` for that suite. A name found in neither
+/// is `ScenarioError::ScenarioNotFound`; a failure to read or parse either file
+/// is returned as is.
+///
+/// Because the global file is consulted first, a connector-private scenario can
+/// never shadow a global one here. The merge path
+/// (`merge_connector_specific_scenarios`) rejects such a collision outright.
+pub fn load_scenario_for_connector(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    if let Some(def) = load_suite_scenarios(suite)?.remove(scenario) {
+        return Ok(def);
+    }
+    load_connector_specific_scenarios(connector, suite)?
+        .remove(scenario)
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })
+}
+
 /// Loads suite execution metadata including dependency graph and scope.
 pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
     let path = suite_spec_file_path(suite);

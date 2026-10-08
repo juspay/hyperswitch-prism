@@ -2,6 +2,76 @@
   "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111105"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "error.connector_details.code": {
+          "equals": "ERROR_PROCESSING_CARD - [05]"
+        },
+        "error.connector_details.message": {
+          "contains": "ERROR"
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return"
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        }
+      }
+    },
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_FAILURE"
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "WEBHOOK_REFUND_SUCCESS"
+        }
+      }
     }
   }
 }
