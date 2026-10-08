@@ -93,6 +93,7 @@ pub struct NetworkResponse {
     pub address_verification_result_code: Option<Secret<String>>,
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -170,12 +171,58 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
+pub type JpmorganPSyncResponse = JpmorganResourceResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
 /// response shape for both pre-capture void and post-capture void operations.
 pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
-pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVerificationResponse {
+    pub transaction_id: String,
+    pub request_id: String,
+    pub currency: common_enums::Currency,
+    pub response_status: JpmorganVerificationStatus,
+    pub response_code: String,
+    pub response_message: String,
+    pub host_message: String,
+    pub payment_method_type: PaymentMethodType,
+    pub verification_authentication_result: Option<Secret<serde_json::Value>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganVerificationStatus {
+    Success,
+    Denied,
+    Error,
+    #[serde(other)]
+    Unknown,
+}
+
+pub type JpmorganSetupMandateResponse = JpmorganResourceResponse;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(untagged)]
+pub enum JpmorganResourceResponse {
+    Payment(JpmorganPaymentsResponse),
+    Verification(JpmorganVerificationResponse),
+}
+
+impl<'de> Deserialize<'de> for JpmorganResourceResponse {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        if value.get("transactionState").is_some() {
+            serde_json::from_value(value)
+                .map(Self::Payment)
+                .map_err(serde::de::Error::custom)
+        } else {
+            serde_json::from_value(value)
+                .map(Self::Verification)
+                .map_err(serde::de::Error::custom)
+        }
+    }
+}
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;
