@@ -130,7 +130,8 @@ Tree-writing stages append `claimed.tsv`.
 ```
 {schema: 1, run_id, connector, connector_lc, units[], inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
  min_free_gb_runtime, parallel_hs_build}, started_at, deadline_at, ended_at, status (null | SUCCESS | FAILED | SKIPPED), stopped (null | cause),
- workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref, caps{<key>: n},
+ workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref,
+ caps{<key>: n | true}  <- every row of the caps table, including the non-numeric `stop_early`,
  counters{nn, exec_round, rca_rounds, status_update, review_rounds, amend_links, amend_techspec, amend_plan, amend_hs,
           amend_codegen{<unit>}, e2e, env_repairs, missing{<file>},
           crash{<unit_fs>}},
@@ -820,7 +821,11 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
 
 ## Caps
 
-Single source of truth; stage files cite this section. Copied into `run.json .caps` at init.
+Single source of truth; stage files cite this section. **Every** row is copied into `run.json .caps`
+at init -- `stop_early` included, as `true`. It is not numeric, which is exactly why it gets skipped:
+one run omitted it and the comparison floor's `caps_must_equal` rejected that run for an absent
+anti-cheat key while its quality was fine. A cap the orchestrator cannot read is a cap that is not
+enforced, so transcribe the whole table, not the rows that fit the numeric shape.
 
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
@@ -830,7 +835,7 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 6 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 4 | `env_repairs_per_round` |
 | Review remediation rounds / crash re-spawn per stage | 2 / 2 | `review_remediation_rounds` / `crash_respawn_per_stage` |
-| Stop early | a round where the blocking open count doesn't fall | `stop_early` |
+| Stop early | `true` (the rule: a round where the blocking open count doesn't fall) | `stop_early` |
 | Warm UCS build wait / BASELINE join wait (minutes) | 120 / 180 | `warm_build_wait_min` / `baseline_join_min` |
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
