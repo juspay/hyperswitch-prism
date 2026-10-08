@@ -317,16 +317,30 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             .into());
         }
         let transaction_status = match authentication_data.trans_status {
-            Some(common_enums::TransactionStatus::Success) => Some("Y"),
-            Some(common_enums::TransactionStatus::Failure) => Some("N"),
-            Some(common_enums::TransactionStatus::VerificationNotPerformed) => Some("U"),
-            Some(common_enums::TransactionStatus::NotVerified) => Some("A"),
-            Some(common_enums::TransactionStatus::Rejected) => Some("R"),
-            Some(common_enums::TransactionStatus::ChallengeRequired) => Some("C"),
-            Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication) => {
-                Some("D")
+            Some(common_enums::TransactionStatus::Success) => {
+                Some(responses::JpmorganThreeDsStatus::Authenticated)
             }
-            Some(common_enums::TransactionStatus::InformationOnly) => Some("I"),
+            Some(common_enums::TransactionStatus::Failure) => {
+                Some(responses::JpmorganThreeDsStatus::NotAuthenticated)
+            }
+            Some(common_enums::TransactionStatus::VerificationNotPerformed) => {
+                Some(responses::JpmorganThreeDsStatus::Unavailable)
+            }
+            Some(common_enums::TransactionStatus::NotVerified) => {
+                Some(responses::JpmorganThreeDsStatus::Attempted)
+            }
+            Some(common_enums::TransactionStatus::Rejected) => {
+                Some(responses::JpmorganThreeDsStatus::Rejected)
+            }
+            Some(common_enums::TransactionStatus::ChallengeRequired) => {
+                Some(responses::JpmorganThreeDsStatus::ChallengeRequired)
+            }
+            Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication) => {
+                Some(responses::JpmorganThreeDsStatus::DecoupledAuthentication)
+            }
+            Some(common_enums::TransactionStatus::InformationOnly) => {
+                Some(responses::JpmorganThreeDsStatus::InformationalOnly)
+            }
             Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired) => {
                 return Err(IntegrationError::NotSupported {
                     message: "Secure Payment Confirmation transaction status".to_owned(),
@@ -351,7 +365,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
                 authentication_transaction_id: Some(transaction_id.to_owned()),
                 three_ds_program_protocol: protocol,
                 version2: transaction_status.map(|status| requests::JpmorganThreeDsVersion2 {
-                    three_ds_transaction_status: Some(status.to_owned()),
+                    three_ds_transaction_status: Some(status),
                     three_ds_transaction_status_reason_code: None,
                 }),
             }),
@@ -627,10 +641,14 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
     }
 
     fn validate_cit_context(request: &PaymentsAuthorizeData<T>) -> Result<(), Error> {
+        // Pass-through 3DS evidence is only meaningful for raw card credentials;
+        // wallets carry their own payment proof and must not submit separate
+        // authentication data.
+        let separate_authentication_without_card = request.authentication_data.is_some()
+            && !matches!(request.payment_method_data, PaymentMethodData::Card(_));
         if request.off_session == Some(true)
             || request.mandate_id.is_some()
-            || (request.authentication_data.is_some()
-                && !matches!(request.payment_method_data, PaymentMethodData::Card(_)))
+            || separate_authentication_without_card
             || request.tokenization == Some(common_enums::Tokenization::TokenizeAtPsp)
             || request.request_incremental_authorization == Some(true)
             || request.enable_overcapture == Some(true)

@@ -3,6 +3,30 @@ use serde::{Deserialize, Serialize};
 
 use super::requests::CapMethod;
 
+/// 3DS 2.x transaction status from the directory server
+/// (Visa/Mastercard `transStatus` values).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum JpmorganThreeDsStatus {
+    #[serde(rename = "Y")]
+    Authenticated,
+    #[serde(rename = "A")]
+    Attempted,
+    #[serde(rename = "N")]
+    NotAuthenticated,
+    #[serde(rename = "U")]
+    Unavailable,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "D")]
+    DecoupledAuthentication,
+    #[serde(rename = "I")]
+    InformationalOnly,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JpmorganAuthUpdateResponse {
     pub access_token: Secret<String>,

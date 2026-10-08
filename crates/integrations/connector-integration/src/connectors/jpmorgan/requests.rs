@@ -124,7 +124,7 @@ pub struct JpmorganThreeDs {
 pub struct JpmorganThreeDsVersion2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "threeDSTransactionStatus")]
-    pub three_ds_transaction_status: Option<String>,
+    pub three_ds_transaction_status: Option<super::responses::JpmorganThreeDsStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "threeDSTransactionStatusReasonCode")]
     pub three_ds_transaction_status_reason_code: Option<String>,
