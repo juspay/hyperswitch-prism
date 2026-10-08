@@ -306,7 +306,7 @@
       },
       "GooglePay": {
         "status": "error",
-        "error": "Failed to encode connector request"
+        "error": "Failed to encode connector request. The encrypted Google Pay token must be a JSON object with protocolVersion, signature, and signedMessage."
       },
       "GooglePayDecrypted": {
         "status": "supported",
