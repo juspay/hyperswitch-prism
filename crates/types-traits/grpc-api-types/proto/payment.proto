@@ -2842,6 +2842,10 @@ message PaymentServiceAuthorizeRequest {
 
   // Merchant business country, ISO 3166-1 alpha-2
   optional string business_country = 56;
+
+  // Opt in to address verification using billing details when supported by the
+  // connector. Only true requests AVS; omitted or false leaves it disabled.
+  optional bool enable_avs_check = 57;
 }
 
 // Partner / external-platform application details.
@@ -6519,6 +6523,9 @@ message PaymentServiceTokenAuthorizeRequest {
   // authorize
   optional string connector_order_id = 22;
   optional int64 shipping_cost = 23;    // Cost of shipping for the order
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 24;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6578,6 +6585,9 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 28;
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 29;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

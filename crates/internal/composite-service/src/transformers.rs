@@ -365,6 +365,7 @@ impl
             recipient_details: item.recipient_details.clone(),
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
+            enable_avs_check: item.enable_avs_check,
         }
     }
 }
@@ -1252,6 +1253,7 @@ impl
             recipient_details: request.recipient_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }

@@ -1836,6 +1836,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub customer: Option<CustomerInfo>,
     /// Merchant business country, used for country-specific connector rules.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    /// Opt in to address verification when billing details are available.
+    /// Only `Some(true)` requests AVS; connectors decide how to send it.
+    pub enable_avs_check: Option<bool>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
