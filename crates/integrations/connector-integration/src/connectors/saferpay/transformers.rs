@@ -499,7 +499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(request.minor_amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(request.amount.amount, request.currency)?;
 
         let description = common
             .description
@@ -993,7 +993,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         let amount = SaferpayAmountConvertor::convert(
-            request.amount,
+            request.amount.amount,
             request.currency.ok_or_else(|| missing_field("currency"))?,
         )?;
 
@@ -1144,7 +1144,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map_err(|_| missing_field("connector_transaction_id"))?;
 
         let amount =
-            SaferpayAmountConvertor::convert(request.minor_amount_to_capture, request.currency)?;
+            SaferpayAmountConvertor::convert(request.amount_to_capture.amount, request.currency)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(
@@ -1223,7 +1223,7 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
             .map(|money| money.amount)
             .or_else(|| authorized_amount_from_metadata(request));
         let is_partial = authorized_amount
-            .map(|amount| amount > request.minor_amount_to_capture)
+            .map(|amount| amount > request.amount_to_capture.amount)
             .unwrap_or(true);
 
         let status = response.attempt_status(is_partial);
@@ -1407,7 +1407,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| missing_field("refund_metadata.capture_id"))?;
 
         let amount =
-            SaferpayAmountConvertor::convert(request.minor_refund_amount, request.currency)?;
+            SaferpayAmountConvertor::convert(request.refund_amount.amount, request.currency)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(

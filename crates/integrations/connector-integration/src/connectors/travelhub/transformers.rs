@@ -181,6 +181,19 @@ pub struct TravelhubTravelFare {
     pub stopover_allowed: Option<bool>,
 }
 
+/// TravelHub expects passenger type as its own canonical vocabulary (ADULT /
+/// CHILD / INFANT). Euler airline data often carries IATA fare-style codes
+/// (ADT, CHD, CNN, INF, SRC); map known aliases and drop anything unrecognized
+/// instead of sending a value TravelHub would reject as a schema violation.
+fn normalize_travelhub_passenger_type(passenger_type: &str) -> Option<String> {
+    match passenger_type.trim().to_ascii_uppercase().as_str() {
+        "ADT" | "ADULT" | "SRC" | "SENIOR" => Some("ADULT".to_string()),
+        "CHD" | "CNN" | "CHILD" => Some("CHILD".to_string()),
+        "INF" | "INFANT" => Some("INFANT".to_string()),
+        _ => None,
+    }
+}
+
 fn build_travel_data(
     domain_data: Option<&domain_types::connector_types::DomainData>,
 ) -> Option<TravelhubTravel> {
@@ -205,7 +218,10 @@ fn build_travel_data(
                     middle_name: p.middle_name.clone(),
                 }),
                 ticket_number: p.ticket_number.clone(),
-                passenger_type: p.passenger_type.clone(),
+                passenger_type: p
+                    .passenger_type
+                    .as_deref()
+                    .and_then(normalize_travelhub_passenger_type),
             })
             .collect(),
         flight: airline
@@ -459,7 +475,7 @@ impl<T: PaymentMethodDataTypes>
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -785,7 +801,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount_to_capture,
+            amount: item.request.amount_to_capture.amount,
             currency: item.request.currency,
         })
     }
@@ -1129,7 +1145,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
-            amount: item.request.minor_refund_amount,
+            amount: item.request.refund_amount.amount,
             currency: item.request.currency,
         })
     }
@@ -1388,5 +1404,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Self::try_from(&wrapper.router_data)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use domain_types::connector_types::{AirlineData, AirlinePassenger, DomainData};
+    use serde_json::json;
+
+    use super::build_travel_data;
+
+    #[test]
+    fn build_travel_data_normalizes_iata_passenger_type_for_travelhub() {
+        let domain_data = DomainData {
+            airline_data: Some(AirlineData {
+                airline_code: Some("6E".to_string()),
+                passengers: vec![AirlinePassenger {
+                    passenger_type: Some("ADT".to_string()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let travel = build_travel_data(Some(&domain_data)).expect("travel data");
+        let payload = serde_json::to_value(travel).expect("serialized travel data");
+
+        assert_eq!(payload["passenger"][0]["type"], json!("ADULT"));
     }
 }

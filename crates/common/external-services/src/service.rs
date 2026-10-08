@@ -204,7 +204,7 @@ impl ConnectorRequestReference for domain_types::payouts::payouts_types::PayoutF
 
 impl AdditionalHeaders for domain_types::payouts::payouts_types::PayoutFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
-        None
+        self.vault_headers.as_ref()
     }
 }
 

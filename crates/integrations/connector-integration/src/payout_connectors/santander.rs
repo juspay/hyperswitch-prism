@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 pub mod transformers;
 
 use common_enums::CurrencyUnit;
@@ -182,8 +183,10 @@ fn santander_endpoint_from_method_type(
     }
 }
 
-fn santander_payout_endpoint(
-    payout_method_data: &Option<PayoutMethodData>,
+fn santander_payout_endpoint<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize,
+>(
+    payout_method_data: &Option<PayoutMethodData<T>>,
 ) -> CustomResult<&'static str, IntegrationError> {
     let pmt = match payout_method_data {
         Some(PayoutMethodData::Bank(Bank::Ted(_))) => Some(common_enums::PaymentMethodType::Ted),
@@ -391,13 +394,16 @@ impl
 
 // ===== PAYOUT SERVICE TRAIT =====
 
-impl PayoutEligibilityV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEligibilityV2<T> for SantanderPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEligibility,
         PayoutFlowData,
-        PayoutEligibilityRequest,
+        PayoutEligibilityRequest<T>,
         PayoutEligibilityResponse,
     > for SantanderPayouts
 {
@@ -406,7 +412,7 @@ impl
         _req: &RouterDataV2<
             PayoutEligibility,
             PayoutFlowData,
-            PayoutEligibilityRequest,
+            PayoutEligibilityRequest<T>,
             PayoutEligibilityResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -427,14 +433,25 @@ impl
     }
 }
 
-impl PayoutServiceTrait for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutServiceTrait<T> for SantanderPayouts
+{
+}
 
 // ===== PAYOUT CREATE (POST — create payout with recipient) =====
 
-impl PayoutCreateV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateV2<T> for SantanderPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
-    for SantanderPayouts
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<
+        PayoutCreate,
+        PayoutFlowData,
+        PayoutCreateRequest<T>,
+        PayoutCreateResponse,
+    > for SantanderPayouts
 {
     fn get_http_method(&self) -> common_utils::request::Method {
         common_utils::request::Method::Post
@@ -446,7 +463,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_certificate(
         &self,
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         Ok(auth.certificates)
@@ -454,7 +476,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_certificate_key(
         &self,
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         Ok(auth.private_key)
@@ -462,7 +489,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_url(
         &self,
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> CustomResult<String, IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
@@ -475,7 +507,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_headers(
         &self,
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let access_token = req.resource_common_data.get_access_token()?;
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
@@ -484,7 +521,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_request_body(
         &self,
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderPayoutCreateRequest::try_from(req)?;
         let typed = events::MaskedSerdeValue::from_masked_optional(
@@ -502,13 +544,13 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
         data: &RouterDataV2<
             PayoutCreate,
             PayoutFlowData,
-            PayoutCreateRequest,
+            PayoutCreateRequest<T>,
             PayoutCreateResponse,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
         ConnectorError,
     > {
         let response: SantanderPayoutResponse = res
@@ -538,13 +580,16 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
 // ===== PAYOUT TRANSFER (PATCH — fulfill/authorize payout) =====
 
-impl PayoutTransferV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutTransferV2<T> for SantanderPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutTransfer,
         PayoutFlowData,
-        PayoutTransferRequest,
+        PayoutTransferRequest<T>,
         PayoutTransferResponse,
     > for SantanderPayouts
 {
@@ -561,7 +606,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
@@ -574,7 +619,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
@@ -587,7 +632,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -622,7 +667,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
@@ -636,7 +681,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
@@ -656,13 +701,18 @@ impl
         data: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest<T>,
+            PayoutTransferResponse,
+        >,
         ConnectorError,
     > {
         let response: SantanderPayoutResponse = res
@@ -824,14 +874,23 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 
 // ===== PAYOUT STUB FLOWS =====
 
-impl PayoutStageV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutStageV2<T> for SantanderPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>
     for SantanderPayouts
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+        _req: &RouterDataV2<
+            PayoutStage,
+            PayoutFlowData,
+            PayoutStageRequest<T>,
+            PayoutStageResponse,
+        >,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
@@ -850,13 +909,16 @@ impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, Pay
     }
 }
 
-impl PayoutCreateLinkV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateLinkV2<T> for SantanderPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateLink,
         PayoutFlowData,
-        PayoutCreateLinkRequest,
+        PayoutCreateLinkRequest<T>,
         PayoutCreateLinkResponse,
     > for SantanderPayouts
 {
@@ -865,7 +927,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateLink,
             PayoutFlowData,
-            PayoutCreateLinkRequest,
+            PayoutCreateLinkRequest<T>,
             PayoutCreateLinkResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -886,13 +948,16 @@ impl
     }
 }
 
-impl PayoutCreateRecipientV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateRecipientV2<T> for SantanderPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateRecipient,
         PayoutFlowData,
-        PayoutCreateRecipientRequest,
+        PayoutCreateRecipientRequest<T>,
         PayoutCreateRecipientResponse,
     > for SantanderPayouts
 {
@@ -901,7 +966,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateRecipient,
             PayoutFlowData,
-            PayoutCreateRecipientRequest,
+            PayoutCreateRecipientRequest<T>,
             PayoutCreateRecipientResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -922,13 +987,16 @@ impl
     }
 }
 
-impl PayoutEnrollDisburseAccountV2 for SantanderPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEnrollDisburseAccountV2<T> for SantanderPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEnrollDisburseAccount,
         PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountRequest<T>,
         PayoutEnrollDisburseAccountResponse,
     > for SantanderPayouts
 {
@@ -937,7 +1005,7 @@ impl
         _req: &RouterDataV2<
             PayoutEnrollDisburseAccount,
             PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
+            PayoutEnrollDisburseAccountRequest<T>,
             PayoutEnrollDisburseAccountResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {

@@ -30,6 +30,8 @@ pub enum CurrencyError {
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Currency {
+    #[default]
+    Unspecified,
     AED,
     AFN,
     ALL,
@@ -175,7 +177,6 @@ pub enum Currency {
     TZS,
     UAH,
     UGX,
-    #[default]
     USD,
     UYU,
     UZS,
@@ -1043,6 +1044,7 @@ impl Currency {
 
     pub fn iso_4217(self) -> &'static str {
         match self {
+            Self::Unspecified => "000",
             Self::AED => "784",
             Self::AFN => "971",
             Self::ALL => "008",
@@ -3266,10 +3268,12 @@ pub enum MitCategory {
     Installment,
     /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
     Unscheduled,
-    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    /// Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
     Recurring,
     /// A retried MIT after a previous transaction failed or was declined.
     Resubmission,
+    /// Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+    Subscription,
 }
 
 /// Padding schemes used for cryptographic operations
