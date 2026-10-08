@@ -14,6 +14,12 @@ The failure is not graceful. `FieldAssert` is `#[serde(untagged)]`, and its own 
 not fail that rule, it fails the WHOLE scenario file with `ScenarioFileParse`, taking out
 every suite for that connector.
 
+The second failure class is `ScenarioNotFound`: a §8 id that resolves to nothing. The plan's
+own jq self-check cannot catch it -- it compares `connector_scenarios[]` against the plan's
+`global_scenarios[]` list, and jq cannot open `global_suites/<dir>/scenario.json`. So a run
+escalated it as a PLAN_CONFLICT and burned a plan revision rediscovering it. DIAL-03/04 do
+the literal `load_scenario` lookup, in both directions.
+
 The supported set is read FROM THE HARNESS SOURCE, never hardcoded here, so the gate tracks
 the harness as it changes (the precedent is `2.3b_codegen_unit.md`'s awk extraction over
 `review_themes.md`: "Do not hardcode the check set here. It is read from the guide").
@@ -21,11 +27,13 @@ the harness as it changes (the precedent is `2.3b_codegen_unit.md`'s awk extract
 Contract matches the gates beside it: stdlib only, exit 0 pass / 1 fail / 2 could-not-evaluate,
 a JSON report with `summary` / `inconclusive[]` / `needs_human[]`, and `--replay`.
 """
-import argparse, json, os, re, sys
+import argparse, difflib, json, os, re, sys, tempfile
 
 HARNESS = "crates/internal/integration-tests/src/harness"
 TYPES = HARNESS + "/scenario_types.rs"
 ASSERT = HARNESS + "/scenario_assert.rs"
+# load_scenario() resolves ids here; env var mirrors scenario_root() in scenario_loader.rs
+SUITES = "crates/internal/integration-tests/src/global_suites"
 
 
 def supported_rules(src):
@@ -129,6 +137,112 @@ def check(plan, rules, feats):
     return checks, scanned
 
 
+def suite_root(repo_root):
+    """Mirror `scenario_root()`: the env var wins, else the in-repo default."""
+    return os.environ.get("UCS_SCENARIO_ROOT") or os.path.join(repo_root, SUITES)
+
+
+def disk_scenarios(root, suite):
+    """-> (set of scenario ids, error) for one suite, exactly as `load_scenario` resolves it.
+
+    `suite_dir_name` is `suite.replace('/', '_')` and the file is a top-level
+    `BTreeMap<String, ScenarioDef>`, so its keys ARE the loadable ids. Returns the error
+    rather than raising: a suite the plan names but the harness lacks is a finding, while a
+    scenario.json we cannot parse is could-not-evaluate -- those must not collapse together.
+    """
+    path = os.path.join(root, suite.replace("/", "_"), "scenario.json")
+    if not os.path.isdir(os.path.dirname(path)):
+        return None, "no global suite directory %s" % os.path.dirname(path)
+    try:
+        obj = json.load(open(path))
+    except Exception as e:
+        return None, "UNPARSEABLE %s: %s" % (path, str(e)[:80])
+    if not isinstance(obj, dict):
+        return None, "UNPARSEABLE %s: top level is %s, not a scenario map" % (path, type(obj).__name__)
+    return set(obj), None
+
+
+def check_loadability(plan, root):
+    """DIAL-03/04: every §8 scenario id resolves the way `load_scenario` resolves it.
+
+    The plan's own jq self-check compares `connector_scenarios[]` against the plan's
+    `global_scenarios[]` list only. It cannot open the suite file, so an id that matches
+    nothing on disk (or collides with something on disk) passes planning and dies later --
+    one run escalated it as a PLAN_CONFLICT and spent a plan revision rediscovering it.
+    """
+    cache, unresolved, shadow, inconclusive = {}, [], [], []
+
+    def ids_for(suite):
+        if suite not in cache:
+            cache[suite] = disk_scenarios(root, suite)
+        return cache[suite]
+
+    seen = 0
+    for h in (plan.get("test_hooks") or []):
+        unit = h.get("unit")
+        # must EXIST on disk: these are references to global scenarios
+        for key in ("global_scenarios", "overrides", "waivers"):
+            for e in (h.get(key) or []):
+                suite, name = e.get("suite"), e.get("scenario")
+                if not suite or not name:
+                    continue
+                ids, err = ids_for(suite)
+                if ids is None:
+                    (inconclusive if err.startswith("UNPARSEABLE") else unresolved).append(
+                        {"unit": unit, "bucket": key, "suite": suite, "scenario": name,
+                         "why": err})
+                    continue
+                seen += 1
+                if name not in ids:
+                    unresolved.append({
+                        "unit": unit, "bucket": key, "suite": suite, "scenario": name,
+                        "why": "load_scenario would raise ScenarioNotFound",
+                        # nearest by edit distance, not alphabetical: the first five ids in a
+                        # 27-scenario suite are useless to whoever has to fix this
+                        "did_you_mean": difflib.get_close_matches(name, ids, 5, 0.4)
+                                        or sorted(ids)[:5],
+                        "legal_outcomes": [
+                            "rewrite it as an overrides[] entry against a scenario that does "
+                            "exist in this suite",
+                            "record it in moved_assertions[] naming where the claim is "
+                            "covered instead"]})
+        # must NOT exist on disk: connector_specific_scenarios.json is additive
+        for e in (h.get("connector_scenarios") or []):
+            suite, name = e.get("suite"), e.get("scenario")
+            if not suite or not name:
+                continue
+            ids, err = ids_for(suite)
+            if ids is None:
+                if err.startswith("UNPARSEABLE"):
+                    inconclusive.append({"unit": unit, "bucket": "connector_scenarios",
+                                         "suite": suite, "scenario": name, "why": err})
+                continue  # a missing suite dir is already reported by the reference pass
+            seen += 1
+            if name in ids:
+                shadow.append({"unit": unit, "suite": suite, "scenario": name,
+                               "why": "already a key in the global suite file; the loader "
+                                      "rejects a colliding connector scenario outright",
+                               "legal_outcomes": [
+                                   "move it to overrides[] against that global scenario",
+                                   "rename it so it does not collide"]})
+
+    checks = [
+        {"id": "DIAL-03", "name": "every_referenced_scenario_loads",
+         "pass": not unresolved,
+         "message": ("%d referenced scenario(s) do not resolve via load_scenario" % len(unresolved))
+                    if unresolved else "all %d referenced ids resolve on disk" % seen,
+         "evidence": unresolved[:10]},
+        {"id": "DIAL-04", "name": "connector_scenarios_do_not_shadow_disk",
+         "pass": not shadow,
+         "message": ("%d connector scenario(s) collide with a global scenario on disk "
+                     "(the plan's own jq check only compares against global_scenarios[], so "
+                     "it cannot see this)" % len(shadow)) if shadow
+                    else "no connector scenario collides with the suite file",
+         "evidence": shadow[:10]},
+    ]
+    return checks, inconclusive
+
+
 def emit(report, out, code):
     if out:
         os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
@@ -170,7 +284,17 @@ def main():
                      "needs_human": ["plan unreadable: %s" % str(e)[:80]], "summary": {}}, a.out, 2)
 
     checks, scanned = check(plan, rules, feats)
+    load_checks, inconclusive = check_loadability(plan, suite_root(a.repo_root))
+    checks += load_checks
     ok = all(c["pass"] for c in checks)
+    # an unparseable suite file means we could not evaluate loadability -- reporting that as a
+    # pass would be the same "passes for the wrong reason" failure the brace matcher above fixes
+    if inconclusive:
+        return emit({"pass": False, "checks": checks, "inconclusive": inconclusive,
+                     "needs_human": ["could not read a global suite file; loadability is "
+                                     "unevaluated for the ids listed in inconclusive[]"],
+                     "summary": {"rules_scanned": scanned, "supported_rules": rules,
+                                 "path_features": feats}}, a.out, 2)
     return emit({"pass": ok, "checks": checks, "inconclusive": [], "needs_human": [],
                  "summary": {"rules_scanned": scanned, "supported_rules": rules,
                              "path_features": feats,
@@ -256,10 +380,74 @@ def _replay():
     assert len([e for e in [x for x in c if x["id"] == "DIAL-01"][0]["evidence"]]) == 1, \
         "adding the variant to the harness must drop it from the findings"
 
+    # --- loadability (DIAL-03/04) against a fixture suite tree -------------------------
+    with tempfile.TemporaryDirectory() as root:
+        d = os.path.join(root, "PaymentService_Authorize")
+        os.makedirs(d)
+        with open(os.path.join(d, "scenario.json"), "w") as fh:
+            json.dump({"no3ds_auto_capture_credit_card": {}, "threeds_manual_capture_credit_card": {}}, fh)
+
+        ok_plan = {"test_hooks": [{"unit": "Payments",
+            "global_scenarios": [{"suite": "PaymentService/Authorize",
+                                  "scenario": "no3ds_auto_capture_credit_card"}],
+            "connector_scenarios": [{"suite": "PaymentService/Authorize",
+                                     "scenario": "rapyd_avs_required_reject"}]}]}
+        c, inc = check_loadability(ok_plan, root)
+        assert all(x["pass"] for x in c) and not inc, (c, inc)
+
+        # ScenarioNotFound: the id resolves to nothing, and the fix names both legal outcomes
+        miss = {"test_hooks": [{"unit": "Payments", "global_scenarios": [
+            {"suite": "PaymentService/Authorize", "scenario": "o-scen-r1-Payments"}]}]}
+        c, _ = check_loadability(miss, root)
+        d3 = [x for x in c if x["id"] == "DIAL-03"][0]
+        assert not d3["pass"] and len(d3["evidence"]) == 1, d3
+        assert "ScenarioNotFound" in d3["evidence"][0]["why"], d3
+        assert len(d3["evidence"][0]["legal_outcomes"]) == 2, d3
+        assert d3["evidence"][0]["did_you_mean"], "must suggest ids that do exist"
+        near = {"test_hooks": [{"unit": "Payments", "global_scenarios": [
+            {"suite": "PaymentService/Authorize",
+             "scenario": "threeds_manual_capture_credit_cards"}]}]}
+        ev = [x for x in check_loadability(near, root)[0]
+              if x["id"] == "DIAL-03"][0]["evidence"][0]
+        assert ev["did_you_mean"][0] == "threeds_manual_capture_credit_card", \
+            ("a near miss must suggest the near match first", ev["did_you_mean"])
+
+        # a suite the harness has no global suite for
+        nosuite = {"test_hooks": [{"unit": "Mandates", "overrides": [
+            {"suite": "PaymentService/Imaginary", "scenario": "x"}]}]}
+        c, _ = check_loadability(nosuite, root)
+        assert not [x for x in c if x["id"] == "DIAL-03"][0]["pass"]
+
+        # THE GAP the plan's jq cannot see: a collision with a scenario on DISK, while the
+        # plan's own global_scenarios[] is empty so the jq shadow check finds nothing.
+        shadow = {"test_hooks": [{"unit": "Payments", "global_scenarios": [],
+            "connector_scenarios": [{"suite": "PaymentService/Authorize",
+                                     "scenario": "threeds_manual_capture_credit_card"}]}]}
+        c, _ = check_loadability(shadow, root)
+        d4 = [x for x in c if x["id"] == "DIAL-04"][0]
+        assert not d4["pass"] and len(d4["evidence"]) == 1, d4
+        assert [x for x in c if x["id"] == "DIAL-03"][0]["pass"], "a collision is not an absence"
+
+        # a waiver for a scenario that does not exist is dead config, not a silent pass
+        w = {"test_hooks": [{"unit": "Refunds", "waivers": [
+            {"suite": "PaymentService/Authorize", "scenario": "never_existed",
+             "reason": "PM_NOT_OFFERED: docs - n/a"}]}]}
+        assert not [x for x in check_loadability(w, root)[0] if x["id"] == "DIAL-03"][0]["pass"]
+
+        # an unparseable suite file is could-not-evaluate, never a pass
+        with open(os.path.join(d, "scenario.json"), "w") as fh:
+            fh.write("{ not json")
+        c, inc = check_loadability(ok_plan, root)
+        assert inc and all(i["why"].startswith("UNPARSEABLE") for i in inc), inc
+        assert all(x["pass"] for x in c), "an unreadable file must not manufacture findings"
+
     print("replay OK: the supported set is parsed from the harness enum (not hardcoded), an "
           "unknown rule fails DIAL-01 naming the untagged ScenarioFileParse blast radius, "
           "#json/alternation paths fail DIAL-02, the negation asymmetry is asserted, and a rule "
-          "added to the harness stops being a finding with no edit here")
+          "added to the harness stops being a finding with no edit here; DIAL-03 does the literal "
+          "load_scenario lookup and names both legal outcomes, DIAL-04 catches the on-disk "
+          "collision the plan's jq cannot see, and an unparseable suite file is "
+          "could-not-evaluate rather than a pass")
     return 0
 
 
