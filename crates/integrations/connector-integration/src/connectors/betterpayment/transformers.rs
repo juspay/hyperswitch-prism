@@ -23,6 +23,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::betterpayment::BetterpaymentRouterData, types::ResponseRouterData};
 
+/// Betterpayment order_id only allows SEPA characters (a-zA-Z0-9/-?():.,'+ and space)
+/// and is capped at 35 characters. Underscores are replaced with hyphens; any remaining
+/// non-SEPA characters are dropped rather than forwarded.
+fn sanitize_order_id(reference: &str) -> String {
+    reference
+        .chars()
+        .map(|c| if c == '_' { '-' } else { c })
+        .filter(|c| {
+            c.is_ascii_alphanumeric()
+                || matches!(c, '/' | '-' | '?' | '(' | ')' | ':' | '.' | ',' | '\'' | '+' | ' ')
+        })
+        .take(35)
+        .collect()
+}
+
 #[derive(Debug, Clone)]
 pub struct BetterpaymentAuthType {
     /// API key — used as the HTTP Basic Auth username.
@@ -140,10 +155,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             context: errors::IntegrationErrorContext::default(),
         })?;
 
-        let order_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let order_id = sanitize_order_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         match &request.payment_method_data {
             PaymentMethodData::Wallet(WalletData::Wero(_)) => {
@@ -156,15 +172,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .router_return_url
                     .clone()
                     .ok_or_else(utils::missing_field_err("router_return_url"))?;
-
-                if order_id.len() > 35 {
-                    return Err(error_stack::report!(
-                        errors::IntegrationError::InvalidDataFormat {
-                            field_name: "merchant_reference",
-                            context: errors::IntegrationErrorContext::default(),
-                        }
-                    ));
-                }
 
                 Ok(Self {
                     payment_type: BetterpaymentPaymentType::Wero,
@@ -196,7 +203,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BetterpaymentPaymentStatus {
     Started,
@@ -205,6 +212,7 @@ pub enum BetterpaymentPaymentStatus {
     Declined,
     Canceled,
     Error,
+    #[default]
     #[serde(other)]
     Unknown,
 }
@@ -241,11 +249,13 @@ pub struct BetterpaymentActionData {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BetterpaymentAuthorizeResponse {
-    pub transaction_id: String,
+    pub transaction_id: Option<String>,
+    #[serde(default)]
     pub status: BetterpaymentPaymentStatus,
     pub order_id: Option<String>,
     pub error_code: Option<i64>,
     pub message: Option<String>,
+    pub error_message: Option<String>,
     pub client_action: Option<BetterpaymentClientAction>,
     pub action_data: Option<BetterpaymentActionData>,
 }
@@ -295,11 +305,12 @@ impl<T: PaymentMethodDataTypes>
                 message: connector_response
                     .message
                     .clone()
+                    .or_else(|| connector_response.error_message.clone())
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: connector_response.message,
+                reason: connector_response.message.or(connector_response.error_message),
                 status_code: http_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: Some(connector_response.transaction_id),
+                connector_transaction_id: connector_response.transaction_id,
                 ..Default::default()
             })
         } else {
@@ -317,7 +328,14 @@ impl<T: PaymentMethodDataTypes>
                 None | Some(BetterpaymentClientAction::Unknown) => None,
             };
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(connector_response.transaction_id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    connector_response
+                        .transaction_id
+                        .ok_or_else(utils::missing_field_err("transaction_id"))
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed {
+                            context: Default::default(),
+                        })?,
+                ),
                 redirection_data,
                 connector_metadata: None,
                 mandate_reference: None,
@@ -344,7 +362,7 @@ impl<T: PaymentMethodDataTypes>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BetterpaymentPSyncResponse {
-    pub transaction_id: String,
+    pub transaction_id: Option<String>,
     pub status: BetterpaymentPaymentStatus,
     pub order_id: Option<String>,
     pub amount: Option<f64>,
@@ -388,12 +406,19 @@ impl
                 reason: connector_response.message,
                 status_code: http_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: Some(connector_response.transaction_id),
+                connector_transaction_id: connector_response.transaction_id,
                 ..Default::default()
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(connector_response.transaction_id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    connector_response
+                        .transaction_id
+                        .ok_or_else(utils::missing_field_err("transaction_id"))
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed {
+                            context: Default::default(),
+                        })?,
+                ),
                 redirection_data: None,
                 connector_metadata: None,
                 mandate_reference: None,
