@@ -16,10 +16,8 @@ use std::str::FromStr;
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
-    "capture",
     "proxy_authorize",
     "proxy_setup_recurring",
-    "recurring_charge",
     "refund",
     "setup_recurring",
     "void",
@@ -86,19 +84,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
     }
 }
 
-pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    PaymentServiceCaptureRequest {
-        merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount_to_capture: Some(Money {
-            // Capture Details.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        ..Default::default()
-    }
-}
-
 pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
@@ -159,36 +144,6 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
         }),
         auth_type: AuthenticationType::NoThreeDs.into(),
         setup_future_usage: Some(FutureUsage::OffSession.into()),
-        ..Default::default()
-    }
-}
-
-pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
-    RecurringPaymentServiceChargeRequest {
-        connector_recurring_payment_id: Some(MandateReference {
-            // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
-            ..Default::default()
-        }),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        payment_method: Some(PaymentMethod {
-            // Optional payment Method Information (for network transaction flows).
-            payment_method: Some(payment_method::PaymentMethod::Token(
-                TokenPaymentMethodType {
-                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
-                    ..Default::default()
-                },
-            )),
-            ..Default::default()
-        }),
-        return_url: Some("https://example.com/recurring-return".to_string()),
-        connector_customer_id: Some("cust_probe_123".to_string()),
-        payment_method_type: Some(PaymentMethodType::PayPal.into()),
-        off_session: Some(true), // Behavioral Flags and Preferences.
         ..Default::default()
     }
 }
@@ -284,53 +239,6 @@ pub async fn process_checkout_autocapture(
     Ok(format!(
         "Payment: {:?} — {}",
         authorize_response.status(),
-        authorize_response
-            .connector_transaction_id
-            .as_deref()
-            .unwrap_or("")
-    ))
-}
-
-// Scenario: Card Payment (Authorize + Capture)
-// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-#[allow(dead_code)]
-pub async fn process_checkout_card(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
-    }
-
-    // Step 2: Capture — settle the reserved funds
-    let capture_response = client
-        .capture(
-            build_capture_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-
-    if capture_response.status() == PaymentStatus::Failure {
-        return Err(format!("Capture failed: {:?}", capture_response.error).into());
-    }
-
-    Ok(format!(
-        "Payment completed: {}",
         authorize_response
             .connector_transaction_id
             .as_deref()
@@ -437,22 +345,6 @@ pub async fn process_authorize(
     }
 }
 
-// Flow: PaymentService.Capture
-#[allow(dead_code)]
-pub async fn process_capture(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .capture(
-            build_capture_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -473,18 +365,6 @@ pub async fn process_proxy_setup_recurring(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: RecurringPaymentService.Charge
-#[allow(dead_code)]
-pub async fn process_recurring_charge(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
@@ -535,18 +415,15 @@ async fn main() {
         .unwrap_or_else(|| "process_checkout_autocapture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
-        "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
         "process_void_payment" => process_void_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
-        "process_capture" => process_capture(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
-        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_authorize, process_proxy_authorize, process_proxy_setup_recurring, process_setup_recurring, process_void", flow);
             return;
         }
     };
