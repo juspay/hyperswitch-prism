@@ -171,7 +171,6 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganResourceResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
@@ -202,27 +201,12 @@ pub enum JpmorganVerificationStatus {
     Unknown,
 }
 
-pub type JpmorganSetupMandateResponse = JpmorganResourceResponse;
+pub type JpmorganSetupMandateResponse = JpmorganPSyncResponse;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(untagged)]
-pub enum JpmorganResourceResponse {
+pub enum JpmorganPSyncResponse {
     Payment(JpmorganPaymentsResponse),
     Verification(JpmorganVerificationResponse),
-}
-
-impl<'de> Deserialize<'de> for JpmorganResourceResponse {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if value.get("transactionState").is_some() {
-            serde_json::from_value(value)
-                .map(Self::Payment)
-                .map_err(serde::de::Error::custom)
-        } else {
-            serde_json::from_value(value)
-                .map(Self::Verification)
-                .map_err(serde::de::Error::custom)
-        }
-    }
 }
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

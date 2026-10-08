@@ -1,7 +1,13 @@
 use common_utils::types::MinorUnit;
+use domain_types::connector_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
-use hyperswitch_masking::Secret;
+use error_stack::ResultExt;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
+type Error = error_stack::Report<IntegrationError>;
+type ResponseError = error_stack::Report<ConnectorError>;
 
 /// Client Authentication Token request — obtains an OAuth2 access token
 /// for client-side SDK initialization via JP Morgan's token endpoint.
@@ -358,4 +364,188 @@ pub struct GooglePayIntermediateSigningKey {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePaySignedMessage {
     pub ephemeral_public_key: Secret<String>,
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct JpmorganStoredCredential {
+    pub(super) initialization_reference: String,
+    pub(super) source: JpmorganStorageSource,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum JpmorganStorageSource {
+    Payment,
+    Verification,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(super) struct JpmorganStoredContext {
+    pub(super) stored_credential: JpmorganStoredCredential,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) recurring: Option<JpmorganRecurring>,
+}
+
+impl JpmorganStoredContext {
+    pub(super) fn invalid() -> Error {
+        IntegrationError::InvalidDataFormat {
+            field_name: "connector_feature_data.jpmorgan",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Return successful storage context unchanged for another checkout with the same credential and agreement.".to_owned(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into()
+    }
+
+    pub(super) fn from_value(value: &serde_json::Value) -> Result<Self, Error> {
+        let context: Self = serde_json::from_value(value.clone()).map_err(|_| Self::invalid())?;
+        if context
+            .stored_credential
+            .initialization_reference
+            .trim()
+            .is_empty()
+        {
+            return Err(Self::invalid());
+        }
+        if let Some(recurring) = &context.recurring {
+            if recurring.agreement_id.trim().is_empty()
+                || recurring.agreement_id.chars().count() > 100
+                || recurring.is_variable_amount.is_none()
+                || recurring.recurring_sequence != JpmorganRecurringSequence::First
+            {
+                return Err(Self::invalid());
+            }
+        }
+        Ok(context)
+    }
+
+    pub(super) fn from_request<T: PaymentMethodDataTypes>(
+        request: &PaymentsAuthorizeData<T>,
+        reference: &str,
+    ) -> Result<Option<Self>, Error> {
+        let Some(value) = request
+            .connector_feature_data
+            .as_ref()
+            .and_then(|data| data.peek().get("jpmorgan"))
+        else {
+            return Ok(None);
+        };
+        let context = Self::from_value(value)?;
+        if context.stored_credential.initialization_reference == reference {
+            return Err(Self::invalid());
+        }
+        match request.mit_category {
+            Some(common_enums::MitCategory::Recurring) if context.recurring.is_none() => {
+                return Err(Self::invalid())
+            }
+            Some(common_enums::MitCategory::Unscheduled) if context.recurring.is_some() => {
+                return Err(Self::invalid())
+            }
+            Some(
+                common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission,
+            ) => return Err(Self::invalid()),
+            _ => (),
+        }
+        if let Some(terms) = request.setup_mandate_details.as_ref() {
+            let saved = context.recurring.as_ref().ok_or_else(Self::invalid)?;
+            if terms.update_mandate_id.is_some() {
+                return Err(Self::invalid());
+            }
+            let supplied = JpmorganRecurring::from_initial_mandate(
+                Some(&common_enums::MitCategory::Recurring),
+                Some(terms),
+                &saved.agreement_id,
+            )?;
+            if supplied.as_ref() != Some(saved) {
+                return Err(Self::invalid());
+            }
+        }
+        Ok(Some(context))
+    }
+
+    pub(super) fn metadata(self) -> serde_json::Value {
+        serde_json::json!({"jpmorgan": self})
+    }
+}
+
+pub(super) enum JpmorganSyncResource {
+    Payment(String),
+    Verification(String),
+}
+
+impl JpmorganSyncResource {
+    pub(super) fn from_request(request: &PaymentsSyncData) -> Result<Self, Error> {
+        let invalid_context = || {
+            IntegrationError::InvalidDataFormat {
+            field_name: "connector_feature_data.jpmorgan.resource",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Return the verification resource context unchanged, without a payment transaction ID."
+                        .to_owned(),
+                ),
+                ..Default::default()
+            },
+        }
+        };
+        if let Some(context) = request
+            .connector_feature_data
+            .as_ref()
+            .and_then(|data| data.peek().get("jpmorgan"))
+        {
+            let context = context.as_object().ok_or_else(invalid_context)?;
+            if let Some(resource) = context.get("resource") {
+                if resource.get("type").and_then(serde_json::Value::as_str) != Some("verification")
+                    || !matches!(request.connector_transaction_id, ResponseId::NoResponseId)
+                {
+                    return Err(invalid_context().into());
+                }
+                let id = resource
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(invalid_context)?;
+                if !(4..=40).contains(&id.len()) || id.trim() != id {
+                    return Err(invalid_context().into());
+                }
+                return Ok(Self::Verification(id.to_owned()));
+            }
+            if context.contains_key("stored_credential") {
+                JpmorganStoredContext::from_value(&serde_json::Value::Object(context.clone()))?;
+            }
+        }
+        let id = request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Supply the payment ID or the original verification resource context."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        Ok(Self::Payment(id))
+    }
+
+    pub(super) fn url(&self, base: &str) -> String {
+        match self {
+            Self::Payment(id) => format!("{base}/payments/{}", urlencoding::encode(id)),
+            Self::Verification(id) => format!("{base}/verifications/{}", urlencoding::encode(id)),
+        }
+    }
+
+    pub(super) fn response_error(http_code: u16) -> ResponseError {
+        ConnectorError::ResponseHandlingFailed {
+            context: domain_types::errors::ResponseTransformationErrorContext {
+                http_status_code: Some(http_code),
+                additional_context: Some(
+                    "The response does not match the requested JPMorgan resource.".to_owned(),
+                ),
+            },
+        }
+        .into()
+    }
 }

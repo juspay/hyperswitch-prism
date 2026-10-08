@@ -153,7 +153,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &PaymentsSyncData,
         _payment_flow_data: &PaymentFlowData,
     ) -> CustomResult<(), IntegrationError> {
-        jpmorgan::JpmorganSyncResource::from_request(data).map(|_| ())
+        JpmorganSyncResource::from_request(data).map(|_| ())
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -607,7 +607,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(jpmorgan::JpmorganSyncResource::from_request(&req.request)?
+            Ok(JpmorganSyncResource::from_request(&req.request)?
                 .url(self.connector_base_url(req)))
         }
     }
