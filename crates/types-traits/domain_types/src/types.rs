@@ -116,33 +116,6 @@ impl payment_method_data::GooglePayDecryptedData {
     }
 }
 
-/// Extract vault-related headers from gRPC metadata
-fn extract_headers_from_metadata(
-    metadata: &MaskedMetadata,
-) -> Option<HashMap<String, Secret<String>>> {
-    let mut vault_headers = HashMap::new();
-
-    if let Some(vault_creds) = metadata.get(X_EXTERNAL_VAULT_METADATA) {
-        vault_headers.insert(X_EXTERNAL_VAULT_METADATA.to_string(), vault_creds);
-    }
-
-    if vault_headers.is_empty() {
-        None
-    } else {
-        Some(vault_headers)
-    }
-}
-
-fn convert_optional_country_alpha2(
-    value: grpc_api_types::payments::CountryAlpha2,
-) -> Result<Option<CountryAlpha2>, error_stack::Report<IntegrationError>> {
-    if matches!(value, grpc_api_types::payments::CountryAlpha2::Unspecified) {
-        Ok(None)
-    } else {
-        CountryAlpha2::foreign_try_from(value).map(Some)
-    }
-}
-
 impl ForeignTryFrom<grpc_api_types::payments::PazeDecryptedData>
     for router_data::PazeDecryptedData
 {
