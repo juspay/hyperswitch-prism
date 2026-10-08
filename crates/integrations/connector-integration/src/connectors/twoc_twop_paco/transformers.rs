@@ -904,7 +904,7 @@ where
         .unwrap_or_else(|| order_no.clone());
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
-    let amount = PacoTransactionAmount::new(item.request.minor_amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(item.request.amount.amount, item.request.currency)?;
     let notification_urls = PacoNotificationUrls {
         confirmation_url: item.request.router_return_url.clone(),
         failed_url: item.request.router_return_url.clone(),
@@ -1114,7 +1114,7 @@ pub fn build_capture_request(
     let office_id = auth.office_id.clone();
     let invoice_no = item.request.get_connector_transaction_id()?;
     let amount =
-        PacoTransactionAmount::new(item.request.minor_amount_to_capture, item.request.currency)?;
+        PacoTransactionAmount::new(item.request.amount_to_capture.amount, item.request.currency)?;
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
     Ok(TwocTwopPacoCaptureRequest {
@@ -1217,7 +1217,7 @@ pub fn build_refund_request(
 ) -> Result<TwocTwopPacoRefundRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
     let amount =
-        PacoTransactionAmount::new(item.request.minor_refund_amount, item.request.currency)?;
+        PacoTransactionAmount::new(item.request.refund_amount.amount, item.request.currency)?;
     let original_order_no = item.request.get_connector_order_id().change_context(
         errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",

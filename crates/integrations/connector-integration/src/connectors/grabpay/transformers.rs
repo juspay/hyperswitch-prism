@@ -961,7 +961,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             partner_group_tx_id: router_data.request.connector_transaction_id,
             partner_tx_id,
-            amount: router_data.request.minor_refund_amount,
+            amount: router_data.request.refund_amount.amount,
             currency: router_data.request.currency,
             merchant_id: auth.merchant_id.peek().to_string(),
             origin_tx_id,
@@ -1120,7 +1120,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_group_tx_id: partner_tx_id.clone(),
             partner_tx_id,
             currency,
-            amount: router_data.request.amount,
+            amount: router_data.request.amount.amount,
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
             shipping_details,

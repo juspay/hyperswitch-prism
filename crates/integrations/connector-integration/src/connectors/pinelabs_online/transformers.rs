@@ -490,7 +490,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.amount.get_amount_as_i64();
+        let amount = item.router_data.request.amount.amount.get_amount_as_i64();
         let currency = item.router_data.request.currency.to_string();
 
         // `capture_method` is not part of `PaymentCreateOrderData` or `PaymentFlowData` —
@@ -745,7 +745,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.minor_amount.0;
+        let amount = item.router_data.request.amount.amount.0;
         let currency = item.router_data.request.currency.to_string();
 
         let payment_method_data = &item.router_data.request.payment_method_data;
@@ -794,7 +794,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.minor_amount_to_capture.0;
+        let amount = item.router_data.request.amount_to_capture.amount.0;
         let currency = item.router_data.request.currency.to_string();
 
         Ok(Self {
@@ -829,7 +829,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.minor_refund_amount.0;
+        let amount = item.router_data.request.refund_amount.amount.0;
         let currency = item.router_data.request.currency.to_string();
 
         Ok(Self {

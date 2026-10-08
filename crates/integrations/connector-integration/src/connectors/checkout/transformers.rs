@@ -1447,7 +1447,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -1909,7 +1909,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2681,27 +2681,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|source| source.payment_account_reference.clone()),
         };
 
-        let (amount_captured, minor_amount_capturable) =
-            match item.router_data.request.capture_method {
-                Some(common_enums::CaptureMethod::Manual)
-                | Some(common_enums::CaptureMethod::ManualMultiple) => (None, item.response.amount),
-                _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
-            };
+        let currency = item.router_data.request.currency;
+        let to_money = |amount| common_utils::types::Money { amount, currency };
+        let (amount_captured, amount_capturable) = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual)
+            | Some(common_enums::CaptureMethod::ManualMultiple) => {
+                (None, item.response.amount.map(to_money))
+            }
+            _ => (item.response.amount.map(to_money), None),
+        };
 
-        let minor_amount_authorized = item
+        let amount_authorized = item
             .router_data
             .request
             .enable_partial_authorization
             .filter(|flag| *flag)
-            .and(item.response.amount);
+            .and(item.response.amount)
+            .map(to_money);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response: additional_information,
-                minor_amount_authorized,
+                amount_authorized,
                 amount_captured,
-                minor_amount_capturable,
+                amount_capturable,
                 ..item.router_data.resource_common_data
             },
             response: Ok(payments_response_data),
@@ -2812,29 +2816,32 @@ impl<
                         .and_then(|source| source.payment_account_reference.clone()),
                 };
 
-                let (amount_captured, minor_amount_capturable) =
+                let currency = item.router_data.request.currency;
+                let to_money = |amount| common_utils::types::Money { amount, currency };
+                let (amount_captured, amount_capturable) =
                     match item.router_data.request.capture_method {
                         Some(common_enums::CaptureMethod::Manual)
                         | Some(common_enums::CaptureMethod::ManualMultiple) => {
-                            (None, item.response.amount)
+                            (None, item.response.amount.map(to_money))
                         }
-                        _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+                        _ => (item.response.amount.map(to_money), None),
                     };
 
-                let minor_amount_authorized = item
+                let amount_authorized = item
                     .router_data
                     .request
                     .enable_partial_authorization
                     .filter(|flag| *flag)
-                    .and(item.response.amount);
+                    .and(item.response.amount)
+                    .map(to_money);
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
                         connector_response: additional_information,
-                        minor_amount_authorized,
+                        amount_authorized,
                         amount_captured,
-                        minor_amount_capturable,
+                        amount_capturable,
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(payments_response_data),
@@ -3217,7 +3224,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
-            amount: Some(item.router_data.request.minor_amount_to_capture.to_owned()),
+            amount: Some(item.router_data.request.amount_to_capture.amount.to_owned()),
             capture_type: Some(capture_type),
             processing_channel_id,
             reference, // hyperswitch's reference for this capture
@@ -3245,7 +3252,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 common_enums::AttemptStatus::Charged,
-                Some(item.router_data.request.amount_to_capture),
+                Some(common_utils::types::Money {
+                    amount: item.router_data.request.amount_to_capture.amount,
+                    currency: item.router_data.request.currency,
+                }),
             )
         } else {
             (common_enums::AttemptStatus::Pending, None)
@@ -3312,7 +3322,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let reference = item.router_data.request.refund_id.clone();
         Ok(Self {
-            amount: Some(item.router_data.request.minor_refund_amount.to_owned()),
+            amount: Some(item.router_data.request.refund_amount.amount.to_owned()),
             reference,
         })
     }

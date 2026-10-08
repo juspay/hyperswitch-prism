@@ -459,7 +459,7 @@ impl<T: PaymentMethodDataTypes>
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -785,7 +785,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount_to_capture,
+            amount: item.request.amount_to_capture.amount,
             currency: item.request.currency,
         })
     }
@@ -1129,7 +1129,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
-            amount: item.request.minor_refund_amount,
+            amount: item.request.refund_amount.amount,
             currency: item.request.currency,
         })
     }

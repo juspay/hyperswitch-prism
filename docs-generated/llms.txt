@@ -779,7 +779,7 @@ connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
 payment_methods: Afterpay, AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, Trustly, UpiIntent, UpiQr, WeChatPayQr, Wero
-flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
+flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect
 examples_python: none
 
 ## Qwikcilver

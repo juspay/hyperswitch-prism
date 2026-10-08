@@ -239,7 +239,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // Convert amount using the connector's amount_converter
         let amount = utils::convert_amount(
             wrapper.connector.amount_converter,
-            router_data.request.amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -301,7 +301,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

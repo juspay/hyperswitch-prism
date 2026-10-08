@@ -429,7 +429,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .ok();
             netcetera_types::Purchase {
-                purchase_amount: Some(request.amount),
+                purchase_amount: Some(request.amount.amount),
                 purchase_currency: currency.iso_4217().to_string(),
                 purchase_exponent,
                 purchase_date,

@@ -666,7 +666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -959,7 +959,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &value.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -1017,6 +1017,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data
                 .request
                 .amount
+                .as_ref()
+                .map(|money| money.amount)
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: Default::default(),
@@ -1073,7 +1075,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1613,7 +1615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -2283,7 +2285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_AUTHENTICATE))?;
         let total_amount =
-            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+            BarclaycardAmountConvertor::convert(router_data.request.amount.amount, currency)?;
 
         let email = router_data
             .resource_common_data
@@ -2513,7 +2515,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_POST_AUTHENTICATE))?;
         let total_amount =
-            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+            BarclaycardAmountConvertor::convert(router_data.request.amount.amount, currency)?;
         let order_information = requests::OrderInformation {
             amount_details: requests::Amount {
                 total_amount,
