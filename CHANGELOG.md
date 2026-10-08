@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.08.1
+
+### Features
+
+- **framework:** Add subscription type if mit category ([#2461](https://github.com/juspay/connector-service/pull/2461)) ([`16ef7ab`](https://github.com/juspay/connector-service/commit/16ef7abb7efc7b042ce4299a7848e2f5064b37a9))
+- **twoc_twop_paco:** Send billing state in authorize requests ([#2448](https://github.com/juspay/connector-service/pull/2448)) ([`67e851c`](https://github.com/juspay/connector-service/commit/67e851c497ac43c72f01fac89a8e9b94b958ffa0))
+- MTI change transforms for Travelhub ([#2468](https://github.com/juspay/connector-service/pull/2468)) ([`7fd50fc`](https://github.com/juspay/connector-service/commit/7fd50fce2cb74eb5797b1e94d34de369ab20046f))
+
+### Bug Fixes
+
+- **connector:** [Stripe] accept a split refund with no charge id and keep the split options ([#2442](https://github.com/juspay/connector-service/pull/2442)) ([`f99223d`](https://github.com/juspay/connector-service/commit/f99223d25f620c380c2b2c644bca443ec49ebe17))
+
+**Full Changelog:** [`2026.10.08.0...2026.10.08.1`](https://github.com/juspay/connector-service/compare/2026.10.08.0...2026.10.08.1)
+
+- - -
+
 ## 2026.10.08.0
 
 ### Features
