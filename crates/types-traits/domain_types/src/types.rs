@@ -61,7 +61,7 @@ use tracing::info;
 use utoipa::ToSchema;
 
 /// Extract vault-related headers from gRPC metadata
-fn extract_headers_from_metadata(
+pub(crate) fn extract_headers_from_metadata(
     metadata: &MaskedMetadata,
 ) -> Option<HashMap<String, Secret<String>>> {
     let mut vault_headers = HashMap::new();
@@ -882,6 +882,7 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
+            PayoutConnectorEnum::Nuvei => patched.nuvei.apply(params_patch),
             PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
             PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),

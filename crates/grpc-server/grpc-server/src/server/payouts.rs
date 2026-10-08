@@ -42,8 +42,9 @@ use crate::{
 
 pub struct Payouts;
 
+pub(crate) mod proxy;
+
 impl Payouts {
-    /// Extract common request metadata (config and service_name) from gRPC request
     fn extract_request_metadata<T>(
         &self,
         request: &tonic::Request<T>,
@@ -473,7 +474,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -489,7 +491,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_transfer_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -537,7 +540,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_stage_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -553,7 +557,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_link_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -569,7 +574,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_recipient_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -585,7 +591,8 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_enroll_disburse_account_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 
     implement_connector_operation!(
@@ -601,6 +608,7 @@ impl PayoutOperationsInternal for Payouts {
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_eligibility_response,
         connector_data_types: [PayoutConnectorData],
-        all_keys_required: None
+        all_keys_required: None,
+        has_payout_method_data: option
     );
 }

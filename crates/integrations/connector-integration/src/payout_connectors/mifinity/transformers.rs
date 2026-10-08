@@ -87,12 +87,12 @@ pub struct MifinityMoney {
     pub currency: Currency,
 }
 
-type MifinityPayoutRouterData =
-    RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>;
+type MifinityPayoutRouterData<T> =
+    RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>;
 
 /// MiFinity requires a 1-25 character description. Resolve it from the request,
 /// falling back to a default, and truncate to stay within the limit.
-fn resolve_description(req: &MifinityPayoutRouterData) -> String {
+fn resolve_description<T: PaymentMethodDataTypes>(req: &MifinityPayoutRouterData<T>) -> String {
     let mut description = req
         .resource_common_data
         .description
@@ -112,10 +112,10 @@ pub enum MifinityPayoutRequest {
     Pab(MifinityPabRequest),
 }
 
-impl TryFrom<&MifinityPayoutRouterData> for MifinityPayoutRequest {
+impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for MifinityPayoutRequest {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(req: &MifinityPayoutRouterData<T>) -> Result<Self, Self::Error> {
         match req.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Wallet(Wallet::Mifinity(_))) => {
                 Ok(Self::Acct2Acct(MifinityAcct2AcctRequest::try_from(req)?))
@@ -134,12 +134,12 @@ impl TryFrom<&MifinityPayoutRouterData> for MifinityPayoutRequest {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<MifinityPayoutsRouterData<MifinityPayoutRouterData, T>> for MifinityPayoutRequest
+    TryFrom<MifinityPayoutsRouterData<MifinityPayoutRouterData<T>, T>> for MifinityPayoutRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: MifinityPayoutsRouterData<MifinityPayoutRouterData, T>,
+        item: MifinityPayoutsRouterData<MifinityPayoutRouterData<T>, T>,
     ) -> Result<Self, Self::Error> {
         Self::try_from(&item.router_data)
     }
@@ -161,10 +161,10 @@ pub struct MifinityAcct2AcctRequest {
     pub trace_id: String,
 }
 
-impl TryFrom<&MifinityPayoutRouterData> for MifinityAcct2AcctRequest {
+impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for MifinityAcct2AcctRequest {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(req: &MifinityPayoutRouterData<T>) -> Result<Self, Self::Error> {
         let auth = MifinityAuthType::try_from(&req.connector_config)?;
         let source_account = auth.get_source_account()?;
 
@@ -249,10 +249,10 @@ pub struct MifinityBankFields {
     pub customer_zip: Secret<String>,
 }
 
-impl TryFrom<&MifinityPayoutRouterData> for MifinityPabRequest {
+impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for MifinityPabRequest {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(req: &MifinityPayoutRouterData<T>) -> Result<Self, Self::Error> {
         let auth = MifinityAuthType::try_from(&req.connector_config)?;
         let source_account = auth.get_source_account()?;
 
@@ -393,8 +393,13 @@ pub struct MifinityPayoutResponse {
     pub payload: Vec<MifinityPayoutPayload>,
 }
 
-impl TryFrom<ResponseRouterData<MifinityPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MifinityPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

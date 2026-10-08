@@ -39,6 +39,54 @@ struct ProxyCardTokenData {
 /// injector substitutes into the connector request template when `token_data` is `Some`.
 pub struct InjectorTokenData(pub injector::TokenData);
 
+#[derive(serde::Serialize)]
+struct PayoutProxyCardTokenData {
+    card_number: Secret<String>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+}
+
+impl ForeignTryFrom<&grpc_api_types::payouts::CardProxyPayout> for InjectorTokenData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        card: &grpc_api_types::payouts::CardProxyPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use domain_types::payouts::types::required_proxy_card_field;
+
+        let card_data = PayoutProxyCardTokenData {
+            card_number: required_proxy_card_field(
+                card.card_number.clone(),
+                "payout_method_data.card_proxy.card_number",
+            )?,
+            card_exp_month: required_proxy_card_field(
+                card.card_exp_month.clone(),
+                "payout_method_data.card_proxy.card_exp_month",
+            )?,
+            card_exp_year: required_proxy_card_field(
+                card.card_exp_year.clone(),
+                "payout_method_data.card_proxy.card_exp_year",
+            )?,
+        };
+        let card_json = serde_json::to_value(card_data).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize CardProxy aliases for vault injection".to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Verify that all CardProxy alias fields contain valid strings".to_owned(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )?;
+        Ok(Self(injector::TokenData {
+            specific_token_data: common_utils::SecretSerdeValue::new(card_json),
+        }))
+    }
+}
+
 impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTokenData {
     type Error = IntegrationError;
 

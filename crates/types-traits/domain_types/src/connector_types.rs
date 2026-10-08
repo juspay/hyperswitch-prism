@@ -254,6 +254,7 @@ pub enum AuthenticatorConnectorEnum {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectorEnum {
+    Nuvei,
     Loonio,
     Paypal,
     Itaubank,
@@ -274,6 +275,7 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
 
     fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
         match value {
+            ConnectorEnum::Nuvei => Ok(Self::Nuvei),
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
@@ -318,6 +320,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
 
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
+            AuthType::Nuvei(_) => Ok(Self::Nuvei),
             AuthType::Paypal(_) => Ok(Self::Paypal),
             AuthType::Loonio(_) => Ok(Self::Loonio),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
