@@ -17,7 +17,10 @@ use domain_types::{
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        ApplePayDecryptedData, ApplePayPaymentData, BankDebitData, GooglePayDecryptedData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
@@ -234,6 +237,246 @@ fn extract_account_holder_names<
     Ok((first_name, last_name))
 }
 
+impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
+    fn wallet_field_context(field_name: &'static str) -> IntegrationErrorContext {
+        IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "Supply a valid {field_name} from the decrypted wallet payload."
+            )),
+            ..Default::default()
+        }
+    }
+
+    fn invalid_wallet_field(field_name: &'static str) -> IntegrationError {
+        IntegrationError::InvalidDataFormat {
+            field_name,
+            context: Self::wallet_field_context(field_name),
+        }
+    }
+
+    fn wallet_expiry(
+        month: &Secret<String>,
+        year: &Secret<String>,
+    ) -> Result<requests::Expiry, Error> {
+        let month_str = month.peek();
+        if !(1..=2).contains(&month_str.len()) || !month_str.bytes().all(|c| c.is_ascii_digit()) {
+            return Err(Self::invalid_wallet_field("wallet.expiry.month").into());
+        }
+        let month = month_str
+            .parse::<i32>()
+            .map_err(|_| Self::invalid_wallet_field("wallet.expiry.month"))?;
+        if !(1..=12).contains(&month) {
+            return Err(Self::invalid_wallet_field("wallet.expiry.month").into());
+        }
+
+        let year_str = year.peek();
+        if !matches!(year_str.len(), 2 | 4) || !year_str.bytes().all(|c| c.is_ascii_digit()) {
+            return Err(Self::invalid_wallet_field("wallet.expiry.year").into());
+        }
+        let year = domain_types::utils::expand_expiry_year_to_four_digits(year)
+            .peek()
+            .parse::<i32>()
+            .map_err(|_| Self::invalid_wallet_field("wallet.expiry.year"))?;
+        if !(2018..=2999).contains(&year) {
+            return Err(Self::invalid_wallet_field("wallet.expiry.year").into());
+        }
+
+        Ok(requests::Expiry {
+            month: Secret::new(month),
+            year: Secret::new(year),
+        })
+    }
+
+    fn wallet_authentication(
+        cryptogram: &Secret<String>,
+        eci: &Option<String>,
+    ) -> Result<requests::JpmorganWalletAuthentication, Error> {
+        if cryptogram.peek().trim().is_empty() || cryptogram.peek().len() > 80 {
+            return Err(Self::invalid_wallet_field("wallet.cryptogram").into());
+        }
+        if let Some(eci) = eci {
+            if !(1..=2).contains(&eci.len()) || !eci.bytes().all(|c| c.is_ascii_digit()) {
+                return Err(Self::invalid_wallet_field("wallet.eci_indicator").into());
+            }
+        }
+        Ok(requests::JpmorganWalletAuthentication {
+            token_authentication_value: cryptogram.clone(),
+            electronic_commerce_indicator: eci.clone(),
+        })
+    }
+
+    fn from_apple_pay(data: &ApplePayDecryptedData) -> Result<Self, Error> {
+        let account_number_type = match &data.merchant_token_identifier {
+            Some(identifier) if identifier.peek().trim().is_empty() => {
+                return Err(
+                    Self::invalid_wallet_field("apple_pay.merchant_token_identifier").into(),
+                );
+            }
+            Some(_) => requests::JpmorganAccountNumberType::NetworkToken,
+            None => requests::JpmorganAccountNumberType::DeviceToken,
+        };
+        Ok(Self {
+            account_number: RawCardNumber(T::inner_from_card_number(
+                data.application_primary_account_number.clone(),
+            )),
+            expiry: Self::wallet_expiry(
+                &data.application_expiration_month,
+                &data.application_expiration_year,
+            )?,
+            account_number_type: Some(account_number_type),
+            wallet_provider: Some(requests::JpmorganWalletProvider::ApplePay),
+            authentication: Some(Self::wallet_authentication(
+                &data.payment_data.online_payment_cryptogram,
+                &data.payment_data.eci_indicator,
+            )?),
+        })
+    }
+
+    fn from_google_pay(data: &GooglePayDecryptedData) -> Result<Self, Error> {
+        let method = data
+            .auth_method
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "google_pay.auth_method",
+                context: Self::wallet_field_context("google_pay.auth_method"),
+            })?;
+        let (account_number_type, authentication) = match method {
+            common_enums::GooglePayAuthMethod::PanOnly => {
+                if data.cryptogram.is_some() || data.eci_indicator.is_some() {
+                    return Err(Self::invalid_wallet_field("google_pay.auth_method").into());
+                }
+                (requests::JpmorganAccountNumberType::Pan, None)
+            }
+            common_enums::GooglePayAuthMethod::Cryptogram => {
+                let cryptogram = data.cryptogram.as_ref().ok_or_else(|| {
+                    IntegrationError::MissingRequiredField {
+                        field_name: "google_pay.cryptogram",
+                        context: Self::wallet_field_context("google_pay.cryptogram"),
+                    }
+                })?;
+                (
+                    requests::JpmorganAccountNumberType::DeviceToken,
+                    Some(Self::wallet_authentication(
+                        cryptogram,
+                        &data.eci_indicator,
+                    )?),
+                )
+            }
+        };
+        Ok(Self {
+            account_number: RawCardNumber(T::inner_from_card_number(
+                data.application_primary_account_number.clone(),
+            )),
+            expiry: Self::wallet_expiry(&data.card_exp_month, &data.card_exp_year)?,
+            account_number_type: Some(account_number_type),
+            wallet_provider: Some(requests::JpmorganWalletProvider::GooglePay),
+            authentication,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
+    fn validate_wallet_context(request: &PaymentsAuthorizeData<T>) -> Result<(), Error> {
+        if request.off_session == Some(true)
+            || request.mandate_id.is_some()
+            || request.setup_mandate_details.is_some()
+            || request.mit_category.is_some()
+            || request.setup_future_usage.is_some()
+            || request.tokenization == Some(common_enums::Tokenization::TokenizeAtPsp)
+            || request.request_incremental_authorization == Some(true)
+            || request.enable_overcapture == Some(true)
+            || request.request_extended_authorization == Some(true)
+        {
+            return Err(IntegrationError::NotSupported {
+                message: "Decrypted wallet payments with storage, merchant initiation, incremental or extended authorization, or overcapture".to_owned(),
+                connector: "jpmorgan",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Submit a one-off, non-storing, fixed-amount cardholder-initiated wallet payment.".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        Ok(())
+    }
+
+    fn wallet_order_number(order_id: Option<&String>) -> Result<Option<String>, Error> {
+        if let Some(value) = order_id {
+            if value.trim().is_empty()
+                || value.len() > 40
+                || !value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b' ' | b'.' | b'-'))
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "merchant_order_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Supply a nonblank order identifier of at most 40 ASCII letters, digits, spaces, periods, or hyphens.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+        }
+        Ok(order_id.cloned())
+    }
+
+    fn from_decrypted_wallet(
+        router_data: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+        card: requests::JpmorganCard<T>,
+    ) -> Result<Self, Error> {
+        if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
+            || router_data.request.authentication_data.is_some()
+        {
+            return Err(IntegrationError::NotSupported {
+                message: "Separate 3DS authentication for decrypted wallet payments".to_owned(),
+                connector: "jpmorgan",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Supply wallet authentication proof without a separate 3DS flow."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        Self::validate_wallet_context(&router_data.request)?;
+        let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+        Ok(Self {
+            capture_method: map_capture_method(router_data.request.capture_method)?,
+            amount: JpmorganAmountConvertor::convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )?,
+            currency: router_data.request.currency,
+            merchant: requests::JpmorganMerchant::try_from(&auth)?,
+            payment_method_type: requests::JpmorganPaymentMethodType {
+                card: Some(card),
+                ach: None,
+                googlepay: None,
+                token: None,
+            },
+            account_holder: None,
+            statement_descriptor: None,
+            merchant_order_number: Self::wallet_order_number(
+                router_data.request.merchant_order_id.as_ref(),
+            )?,
+            initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
+            account_on_file: Some(requests::JpmorganAccountOnFile::NotStored),
+            is_amount_final: Some(true),
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         JpmorganRouterData<
@@ -311,6 +554,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let card = requests::JpmorganCard {
                     account_number: card_data.card_number.clone(),
                     expiry,
+                    account_number_type: None,
+                    wallet_provider: None,
+                    authentication: None,
                 };
 
                 let payment_method_type = requests::JpmorganPaymentMethodType {
@@ -333,6 +579,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
+                    merchant_order_number: None,
+                    initiator_type: None,
+                    account_on_file: None,
+                    is_amount_final: None,
                 })
             }
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
@@ -394,6 +644,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: Some(account_holder),
                     statement_descriptor: Some(statement_descriptor),
+                    merchant_order_number: None,
+                    initiator_type: None,
+                    account_on_file: None,
+                    is_amount_final: None,
                 })
             }
             PaymentMethodData::PaymentMethodToken(token_data) => {
@@ -433,6 +687,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: Some(account_holder),
                     statement_descriptor: Some(statement_descriptor),
+                    merchant_order_number: None,
+                    initiator_type: None,
+                    account_on_file: None,
+                    is_amount_final: None,
                 })
             }
             PaymentMethodData::BankDebit(_) => {
@@ -443,7 +701,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }))
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
+                    ApplePayPaymentData::Decrypted(data) => Self::from_decrypted_wallet(
+                        router_data,
+                        requests::JpmorganCard::from_apple_pay(data)?,
+                    ),
+                    ApplePayPaymentData::Encrypted(_) => Err(IntegrationError::NotImplemented(
+                        "Encrypted Apple Pay payments".to_owned(),
+                        IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Supply merchant-decrypted Apple Pay data.".to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    )
+                    .into()),
+                },
+                WalletData::GooglePay(google_pay_data) => {
                     match &google_pay_data.tokenization_data {
                         domain_types::payment_method_data::GpayTokenizationData::Encrypted(
                             encrypted_data,
@@ -463,52 +737,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             // Parse the Google Pay token string into its component fields.
                             // The token is a JSON string containing protocolVersion, signature,
                             // optionally intermediateSigningKey, and signedMessage.
-                            let gpay_token: requests::GooglePayToken =
-                                serde_json::from_str(&encrypted_data.token).change_context(
-                                    IntegrationError::RequestEncodingFailed {
-                                        context: Default::default(),
-                                    },
-                                )?;
+                            let gpay_token: requests::GooglePayToken = serde_json::from_str(
+                                &encrypted_data.token,
+                            )
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })?;
 
                             // Parse signedMessage to extract ephemeralPublicKey.
                             // signedMessage is itself a JSON string.
                             let signed_message: requests::GooglePaySignedMessage =
                                 serde_json::from_str(gpay_token.signed_message.peek())
-                                    .change_context(
-                                        IntegrationError::RequestEncodingFailed {
-                                            context: Default::default(),
-                                        },
-                                    )?;
+                                    .change_context(IntegrationError::RequestEncodingFailed {
+                                        context: Default::default(),
+                                    })?;
 
                             // For ECv2, signature comes from intermediateSigningKey.signatures[0].
                             // For ECv1, signature comes from the top-level signature field.
-                            let signature =
-                                if let Some(isk) = &gpay_token.intermediate_signing_key {
-                                    isk.signatures
-                                        .first()
-                                        .cloned()
-                                        .ok_or(IntegrationError::MissingRequiredField {
-                                            field_name: "intermediateSigningKey.signatures[0]",
-                                            context: Default::default(),
-                                        })?
-                                } else {
-                                    gpay_token.signature.clone()
-                                };
+                            let signature = if let Some(isk) = &gpay_token.intermediate_signing_key
+                            {
+                                isk.signatures.first().cloned().ok_or(
+                                    IntegrationError::MissingRequiredField {
+                                        field_name: "intermediateSigningKey.signatures[0]",
+                                        context: Default::default(),
+                                    },
+                                )?
+                            } else {
+                                gpay_token.signature.clone()
+                            };
 
                             let googlepay = requests::JpmorganGooglePay {
                                 // latLong is required by JPMorgan; use "0,0" when not available
                                 lat_long: "0,0".to_string(),
-                                encrypted_payment_bundle: requests::JpmorganEncryptedPaymentBundle {
-                                    // encryptedPayload is the raw signedMessage JSON string
-                                    encrypted_payload: gpay_token.signed_message.clone(),
-                                    encrypted_payment_header:
-                                        requests::JpmorganEncryptedPaymentHeader {
-                                            ephemeral_public_key: signed_message
-                                                .ephemeral_public_key,
-                                        },
-                                    signature,
-                                    protocol_version: gpay_token.protocol_version,
-                                },
+                                encrypted_payment_bundle:
+                                    requests::JpmorganEncryptedPaymentBundle {
+                                        // encryptedPayload is the raw signedMessage JSON string
+                                        encrypted_payload: gpay_token.signed_message.clone(),
+                                        encrypted_payment_header:
+                                            requests::JpmorganEncryptedPaymentHeader {
+                                                ephemeral_public_key: signed_message
+                                                    .ephemeral_public_key,
+                                            },
+                                        signature,
+                                        protocol_version: gpay_token.protocol_version,
+                                    },
                             };
 
                             let payment_method_type = requests::JpmorganPaymentMethodType {
@@ -528,16 +800,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 // for Google Pay encrypted flow
                                 account_holder: None,
                                 statement_descriptor: None,
+                                merchant_order_number: None,
+                                initiator_type: None,
+                                account_on_file: None,
+                                is_amount_final: None,
                             })
                         }
-                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(_) => {
-                            Err(IntegrationError::NotSupported {
-                                message: "Decrypted Google Pay token is not supported for JPMorgan; use encrypted flow".to_string(),
-                                connector: "jpmorgan",
-                                context: Default::default(),
-                            }
-                            .into())
-                        }
+                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(
+                            data,
+                        ) => Self::from_decrypted_wallet(
+                            router_data,
+                            requests::JpmorganCard::from_google_pay(data)?,
+                        ),
                     }
                 }
                 _ => Err(IntegrationError::NotImplemented(

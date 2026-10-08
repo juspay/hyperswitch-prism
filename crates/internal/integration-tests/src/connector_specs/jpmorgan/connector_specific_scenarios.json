@@ -1,0 +1,497 @@
+{
+  "PaymentService/Authorize": {
+    "jpm_wallet_apple_sequential_capture_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "SEQUENTIAL_AUTOMATIC",
+        "payment_method": { "apple_pay_sdk": {
+          "payment_method": { "display_name": "Boundary fixture", "network": "Visa", "type": "debit" },
+          "transaction_identifier": "wallet-boundary",
+          "payment_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "application_expiration_month": { "value": "05" },
+            "application_expiration_year": { "value": "2027" },
+            "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_sequential_capture_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "SEQUENTIAL_AUTOMATIC",
+        "payment_method": { "google_pay_sdk": {
+          "type": "CARD", "description": "Boundary fixture",
+          "info": { "card_network": "VISA", "card_details": "1111" },
+          "tokenization_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+            "auth_method": "PAN_ONLY"
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_storage_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "setup_future_usage": "OFF_SESSION",
+        "payment_method": { "apple_pay_sdk": {
+          "payment_method": { "display_name": "Boundary fixture", "network": "Visa", "type": "debit" },
+          "transaction_identifier": "wallet-boundary",
+          "payment_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "application_expiration_month": { "value": "05" },
+            "application_expiration_year": { "value": "2027" },
+            "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_incremental_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "request_incremental_authorization": true,
+        "payment_method": { "google_pay_sdk": {
+          "type": "CARD", "description": "Boundary fixture",
+          "info": { "card_network": "VISA", "card_details": "1111" },
+          "tokenization_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+            "auth_method": "PAN_ONLY"
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_order_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "merchant_order_id": "order/123",
+        "payment_method": { "apple_pay_sdk": {
+          "payment_method": { "display_name": "Boundary fixture", "network": "Visa", "type": "debit" },
+          "transaction_identifier": "wallet-boundary",
+          "payment_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "application_expiration_month": { "value": "05" },
+            "application_expiration_year": { "value": "2027" },
+            "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_order_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "merchant_order_id": "",
+        "payment_method": { "google_pay_sdk": {
+          "type": "CARD", "description": "Boundary fixture",
+          "info": { "card_network": "VISA", "card_details": "1111" },
+          "tokenization_data": { "decrypted_data": {
+            "application_primary_account_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+            "auth_method": "PAN_ONLY"
+          } }
+        } }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_capture_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS",
+        "capture_method": "SCHEDULED",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "2027" },
+              "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_capture_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS",
+        "capture_method": "SCHEDULED",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "PAN_ONLY"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_threeds_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "2027" },
+              "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_threeds_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "PAN_ONLY"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "NOT_SUPPORTED" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_month_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "13" },
+              "application_expiration_year": { "value": "2027" },
+              "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_month_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "13" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "PAN_ONLY"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_year_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "3000" },
+              "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_year_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "3000" },
+              "auth_method": "PAN_ONLY"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_eci_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "2027" },
+              "payment_data": {
+                "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" },
+                "eci_indicator": "abc"
+              }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_eci_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "CRYPTOGRAM_3DS",
+              "cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" },
+              "eci_indicator": "abc"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_empty_merchant_id": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "2027" },
+              "merchant_token_identifier": "",
+              "payment_data": { "online_payment_cryptogram": { "value": "BwAQADQFcAEAABNZIAVwEMO4oio=" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_apple_blank_cryptogram": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "application_expiration_month": { "value": "05" },
+              "application_expiration_year": { "value": "2027" },
+              "payment_data": { "online_payment_cryptogram": { "value": "" } }
+            } },
+            "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "credit" },
+            "transaction_identifier": "wallet-boundary"
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_missing_method": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" }
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "MISSING_REQUIRED_FIELD" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_invalid_method": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": 99
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_missing_cryptogram": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "CRYPTOGRAM_3DS"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "MISSING_REQUIRED_FIELD" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    },
+    "jpm_wallet_google_pan_only_eci": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": { "minor_amount": 1000, "currency": "USD" },
+        "auth_type": "NO_THREE_DS", "capture_method": "AUTOMATIC",
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD", "description": "Boundary fixture",
+            "info": { "card_network": "VISA", "card_details": "1111" },
+            "tokenization_data": { "decrypted_data": {
+              "application_primary_account_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "05" }, "card_exp_year": { "value": "2027" },
+              "auth_method": "PAN_ONLY", "eci_indicator": "05"
+            } }
+          }
+        }
+      },
+      "assert": {
+        "error.error_code": { "equals": "INVALID_DATA_FORMAT" },
+        "connector_transaction_id": { "must_not_exist": true }
+      }
+    }
+  }
+}

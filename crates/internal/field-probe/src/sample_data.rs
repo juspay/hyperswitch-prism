@@ -128,6 +128,9 @@ pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
                     ),
                     cryptogram: Some(Secret::new("AAAAAA==".to_string())),
                     eci_indicator: Some("05".to_string()),
+                    auth_method: Some(
+                        proto::google_pay_decrypted_data::AuthMethod::Cryptogram3ds.into(),
+                    ),
                 })),
             }),
         })),

@@ -107,7 +107,7 @@ pub struct ExpiryResponse {
 pub struct CardTypeIndicators {
     pub issuance_country_code: Option<Secret<String>>,
     pub is_durbin_regulated: Option<bool>,
-    pub card_product_types: Secret<Vec<String>>,
+    pub card_product_types: Option<Secret<Vec<String>>>,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
