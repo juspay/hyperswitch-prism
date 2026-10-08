@@ -444,10 +444,15 @@ mod tests {
                 name: Secret::new(format!("Account {id}")),
                 subtype: subtype.map(str::to_owned),
                 holder_category,
+                mask: None,
+                official_name: None,
+                account_type: None,
                 balances: PlaidBalances {
                     current: current.map(common_utils::types::FloatMajorUnit),
                     available: None,
+                    limit: None,
                     iso_currency_code: currency,
+                    unofficial_currency_code: None,
                 },
             }
         }
@@ -616,6 +621,261 @@ mod tests {
                 .expect("expected at least one account")
                 .bank_type
                 .is_none());
+        }
+    }
+
+    pub mod balance_get {
+        use std::marker::PhantomData;
+
+        use common_utils::request::RequestContent;
+        use domain_types::{
+            connector_flow::PaymentMethodEligibility,
+            connector_types::{
+                PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+            },
+            payment_method_data::PaymentMethodDetails,
+            router_data::{ConnectorSpecificConfig, ErrorResponse},
+            router_data_v2::RouterDataV2,
+            types::Connectors,
+        };
+        use hyperswitch_masking::Secret;
+        use interfaces::connector_integration_v2::{
+            BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2,
+        };
+        use serde_json::json;
+
+        use domain_types::payment_method_data::DefaultPCIHolder;
+
+        use crate::{
+            authenticator_connectors::{
+                plaid::transformers::{
+                    PlaidAccount, PlaidBalanceGetResponse, PlaidBalances, PlaidItem,
+                },
+                Plaid,
+            },
+            types::ResponseRouterData,
+        };
+
+        type BalanceRouterData = RouterDataV2<
+            PaymentMethodEligibility,
+            PaymentFlowData,
+            PaymentMethodEligibilityData,
+            PaymentMethodEligibilityResponse,
+        >;
+
+        fn make_router_data(connector_payment_method_id: Option<&str>) -> BalanceRouterData {
+            RouterDataV2 {
+                flow: PhantomData,
+                resource_common_data: PaymentFlowData {
+                    merchant_id: common_utils::id_type::MerchantId::default(),
+                    customer_id: None,
+                    connector_customer: None,
+                    payment_id: "pay_test".to_owned(),
+                    attempt_id: "attempt_test".to_owned(),
+                    status: common_enums::AttemptStatus::Pending,
+                    payment_method: common_enums::PaymentMethod::BankDebit,
+                    payment_method_type: None,
+                    description: None,
+                    return_url: None,
+                    order_details: None,
+                    address: domain_types::payment_address::PaymentAddress::new(
+                        None, None, None, None,
+                    ),
+                    auth_type: common_enums::AuthenticationType::NoThreeDs,
+                    connector_feature_data: None,
+                    amount_captured: None,
+                    minor_amount_captured: None,
+                    minor_amount_authorized: None,
+                    access_token: None,
+                    session_token: None,
+                    reference_id: None,
+                    connector_order_id: None,
+                    preprocessing_id: None,
+                    connector_api_version: None,
+                    connector_request_reference_id: "ref_test".to_owned(),
+                    test_mode: None,
+                    connector_http_status_code: None,
+                    connectors: Connectors::default().into(),
+                    external_latency: None,
+                    connector_response_headers: None,
+                    raw_connector_response: None,
+                    vault_headers: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                    minor_amount_capturable: None,
+                    amount: None,
+                    connector_response: None,
+                    recurring_mandate_payment_data: None,
+                    l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
+                    settlement_status: None,
+                    raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
+                },
+                connector_config: ConnectorSpecificConfig::Plaid {
+                    client_id: Secret::new("test_client_id".to_owned()),
+                    secret: Secret::new("test_secret".to_owned()),
+                    client_name: Some("My App".to_owned()),
+                    base_url: None,
+                },
+                request: PaymentMethodEligibilityData {
+                    amount: common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(0),
+                        currency: common_enums::Currency::USD,
+                    },
+                    customer: None,
+                    connector_payment_method_id: connector_payment_method_id.map(str::to_owned),
+                    country_code: Some(common_enums::CountryAlpha2::US),
+                    payment_method_types: vec![grpc_api_types::payments::PaymentMethodType::Ach],
+                    description: None,
+                    metadata: None,
+                    connector_feature_data: None,
+                    test_mode: None,
+                },
+                response: Err(ErrorResponse::default()),
+            }
+        }
+
+        fn plaid_account(id: &str, available: Option<f64>, current: Option<f64>) -> PlaidAccount {
+            PlaidAccount {
+                account_id: Secret::new(id.to_owned()),
+                name: Secret::new(format!("Account {id}")),
+                subtype: Some("checking".to_owned()),
+                holder_category: None,
+                mask: Some(Secret::new("0000".to_owned())),
+                official_name: None,
+                account_type: Some("depository".to_owned()),
+                balances: PlaidBalances {
+                    available: available.map(common_utils::types::FloatMajorUnit),
+                    current: current.map(common_utils::types::FloatMajorUnit),
+                    limit: None,
+                    iso_currency_code: Some(common_enums::Currency::USD),
+                    unofficial_currency_code: None,
+                },
+            }
+        }
+
+        fn plaid_response(
+            accounts: Vec<PlaidAccount>,
+        ) -> ResponseRouterData<PlaidBalanceGetResponse, BalanceRouterData> {
+            ResponseRouterData {
+                response: PlaidBalanceGetResponse {
+                    accounts,
+                    item: PlaidItem {
+                        item_id: "item_001".to_owned(),
+                        institution_name: Some("Test Bank".to_owned()),
+                    },
+                    request_id: "req_001".to_owned(),
+                },
+                router_data: make_router_data(Some("access-sandbox-xxx")),
+                http_code: 200,
+            }
+        }
+
+        #[test]
+        fn test_build_request_serializes_in_body_auth() {
+            let req = make_router_data(Some("access-sandbox-xxx"));
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(&req).unwrap();
+            assert!(request.as_ref().is_some(), "expected a built request");
+            let body = request.as_ref().map(|r| match r.body.as_ref() {
+                Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                _ => json!({}),
+            });
+            println!("balance_get request body: {body:?}");
+            let body = body.as_ref().expect("request body");
+            // client_id/secret/access_token are Secret — masked in serialize, but the keys exist
+            assert!(body.get("client_id").is_some());
+            assert!(body.get("secret").is_some());
+            assert!(body.get("access_token").is_some());
+            // options is None and skipped
+            assert!(body.get("options").is_none());
+        }
+
+        #[test]
+        fn test_build_request_missing_connector_payment_method_id() {
+            let req = make_router_data(None);
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            > = connector.get_connector_integration_v2();
+
+            let result = integration.build_request_v2(&req);
+            assert!(
+                result.is_err(),
+                "expected error for missing connector_payment_method_id"
+            );
+        }
+
+        fn parse_response(
+            wrapped: ResponseRouterData<PlaidBalanceGetResponse, BalanceRouterData>,
+        ) -> PaymentMethodEligibilityResponse {
+            let result = BalanceRouterData::try_from(wrapped).expect("try_from failed");
+            result.response.expect("response Ok")
+        }
+
+        #[test]
+        fn test_response_with_accounts_is_eligible() {
+            let wrapped = plaid_response(vec![plaid_account("acct_1", Some(100.0), Some(110.0))]);
+            let res = parse_response(wrapped);
+
+            assert_eq!(res.status_code, 200);
+            assert_eq!(res.results.len(), 1);
+            let result = res.results.first().expect("one result");
+            assert_eq!(result.eligibility, common_enums::EligibilityStatus::Eligible);
+            assert!(result.error_info.is_none());
+            assert_eq!(
+                result.payment_method_type,
+                grpc_api_types::payments::PaymentMethodType::Ach
+            );
+            match &result.payment_method_details {
+                Some(PaymentMethodDetails::BankAccount(details)) => {
+                    assert_eq!(details.accounts.len(), 1);
+                    let acct = details.accounts.first().expect("one account");
+                    assert_eq!(
+                        acct.balance.as_ref().map(|m| m.amount),
+                        Some(common_utils::types::MinorUnit::new(110_00))
+                    );
+                    assert_eq!(
+                        acct.available_balance.as_ref().map(|m| m.amount),
+                        Some(common_utils::types::MinorUnit::new(100_00))
+                    );
+                    assert!(acct.account_details.is_none());
+                }
+                other => panic!("expected bank account details, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn test_response_with_no_accounts_is_ineligible() {
+            let wrapped = plaid_response(vec![]);
+            let res = parse_response(wrapped);
+
+            assert_eq!(res.results.len(), 1);
+            let result = res.results.first().expect("one result");
+            assert_eq!(
+                result.eligibility,
+                common_enums::EligibilityStatus::Ineligible
+            );
+            assert!(result.payment_method_details.is_none());
+            let error_info = result.error_info.as_ref().expect("error_info present");
+            assert_eq!(error_info.code, "NO_ACCOUNTS");
         }
     }
 

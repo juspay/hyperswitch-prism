@@ -3,8 +3,9 @@ use common_utils::{pii::Email, types::FloatMajorUnit};
 
 use domain_types::{
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodTokenResponse,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, EligibilityErrorInfo,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility, PaymentFlowData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentsResponseData, PlaidClientAuthenticationResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -463,33 +464,47 @@ pub struct PlaidAuthGetResponse {
     pub request_id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PlaidItem {
     pub item_id: String,
     pub institution_name: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlaidHolderCategory {
     Personal,
     Business,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PlaidAccount {
     pub account_id: Secret<String>,
     pub name: Secret<String>,
     pub subtype: Option<String>,
     pub holder_category: Option<PlaidHolderCategory>,
+    #[serde(default)]
+    pub mask: Option<Secret<String>>,
+    #[serde(default)]
+    pub official_name: Option<Secret<String>>,
+    #[serde(rename = "type")]
+    #[serde(default)]
+    pub account_type: Option<String>,
     pub balances: PlaidBalances,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PlaidBalances {
+    #[serde(default)]
     pub current: Option<FloatMajorUnit>,
+    #[serde(default)]
     pub available: Option<FloatMajorUnit>,
+    #[serde(default)]
+    pub limit: Option<FloatMajorUnit>,
+    #[serde(default)]
     pub iso_currency_code: Option<common_enums::Currency>,
+    #[serde(default)]
+    pub unofficial_currency_code: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -546,41 +561,17 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
 
         let institution_name = res.item.institution_name.clone();
         let (numbers, accounts_info) = (res.numbers, res.accounts);
-        let id_to_account: std::collections::HashMap<String, _> = accounts_info
-            .into_iter()
+        // The domain BankAccount captures identity (id/name), typology and
+        // balances; routing details are attached per number-kind below.
+        let id_to_account: std::collections::HashMap<String, BankAccount> = accounts_info
+            .iter()
             .map(|acct| {
-                let currency = acct.balances.iso_currency_code.or(request_currency);
-                let balance = acct.balances.current.zip(currency).and_then(|(amt, c)| {
-                    super::PlaidAmountConvertor::convert_back(amt, c)
-                        .ok()
-                        .map(|amount| common_utils::types::Money {
-                            amount,
-                            currency: c,
-                        })
-                });
-                let available_balance =
-                    acct.balances.available.zip(currency).and_then(|(amt, c)| {
-                        super::PlaidAmountConvertor::convert_back(amt, c)
-                            .ok()
-                            .map(|amount| common_utils::types::Money {
-                                amount,
-                                currency: c,
-                            })
-                    });
-                let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
-                let bank_holder_type = acct.holder_category.as_ref().map(|hc| match hc {
-                    PlaidHolderCategory::Personal => BankHolderType::Personal,
-                    PlaidHolderCategory::Business => BankHolderType::Business,
-                });
                 (
                     acct.account_id.peek().to_owned(),
-                    (
-                        acct.account_id,
-                        acct.name,
-                        bank_type,
-                        bank_holder_type,
-                        balance,
-                        available_balance,
+                    plaid_account_to_bank_account(
+                        acct,
+                        request_currency,
+                        institution_name.clone(),
                     ),
                 )
             })
@@ -589,83 +580,41 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
         let mut accounts: Vec<BankAccount> = Vec::new();
 
         numbers.ach.into_iter().for_each(|ach| {
-            if let Some((
-                account_id,
-                name,
-                bank_type,
-                bank_holder_type,
-                balance,
-                available_balance,
-            )) = id_to_account.get(ach.account_id.peek())
-            {
+            if let Some(account) = id_to_account.get(ach.account_id.peek()) {
                 accounts.push(BankAccount {
-                    account_id: account_id.clone(),
-                    account_name: name.clone(),
-                    bank_type: *bank_type,
-                    bank_holder_type: *bank_holder_type,
-                    balance: balance.clone(),
-                    available_balance: available_balance.clone(),
                     account_details: Some(BankAccountRoutingDetails::Ach(BankAccountAchDetails {
                         account_number: ach.account,
                         routing_number: ach.routing,
                     })),
-                    bank_name: institution_name.clone(),
+                    ..account.clone()
                 });
             }
         });
 
         numbers.bacs.into_iter().for_each(|bacs| {
-            if let Some((
-                account_id,
-                name,
-                bank_type,
-                bank_holder_type,
-                balance,
-                available_balance,
-            )) = id_to_account.get(bacs.account_id.peek())
-            {
+            if let Some(account) = id_to_account.get(bacs.account_id.peek()) {
                 accounts.push(BankAccount {
-                    account_id: account_id.clone(),
-                    account_name: name.clone(),
-                    bank_type: *bank_type,
-                    bank_holder_type: *bank_holder_type,
-                    balance: balance.clone(),
-                    available_balance: available_balance.clone(),
                     account_details: Some(BankAccountRoutingDetails::Bacs(
                         BankAccountBacsDetails {
                             account_number: bacs.account,
                             sort_code: bacs.sort_code,
                         },
                     )),
-                    bank_name: institution_name.clone(),
+                    ..account.clone()
                 });
             }
         });
 
         numbers.international.into_iter().for_each(|sepa| {
-            if let Some((
-                account_id,
-                name,
-                bank_type,
-                bank_holder_type,
-                balance,
-                available_balance,
-            )) = id_to_account.get(sepa.account_id.peek())
-            {
+            if let Some(account) = id_to_account.get(sepa.account_id.peek()) {
                 accounts.push(BankAccount {
-                    account_id: account_id.clone(),
-                    account_name: name.clone(),
-                    bank_type: *bank_type,
-                    bank_holder_type: *bank_holder_type,
-                    balance: balance.clone(),
-                    available_balance: available_balance.clone(),
                     account_details: Some(BankAccountRoutingDetails::Sepa(
                         BankAccountSepaDetails {
                             iban: sepa.iban,
                             bic: sepa.bic,
                         },
                     )),
-                    bank_name: institution_name.clone(),
+                    ..account.clone()
                 });
             }
         });
@@ -691,6 +640,277 @@ fn plaid_subtype_to_bank_type(subtype: &str) -> Option<BankType> {
         PLAID_SUBTYPE_CHECKING => Some(BankType::Checking),
         PLAID_SUBTYPE_SAVINGS => Some(BankType::Savings),
         _ => None,
+    }
+}
+
+/// Map a Plaid account (no routing numbers) to the domain `BankAccount`.
+///
+/// Conversion failures for balance amounts degrade to `None` (both `current`
+/// and `available` are nullable on the wire) rather than failing the whole
+/// flow.
+fn plaid_account_to_bank_account(
+    acct: &PlaidAccount,
+    request_currency: Option<common_enums::Currency>,
+    institution_name: Option<String>,
+) -> BankAccount {
+    let currency = acct.balances.iso_currency_code.or(request_currency);
+    let convert = |amount: Option<FloatMajorUnit>| {
+        amount.zip(currency).and_then(|(amt, c)| {
+            super::PlaidAmountConvertor::convert_back(amt, c)
+                .ok()
+                .map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: c,
+                })
+        })
+    };
+    BankAccount {
+        account_id: acct.account_id.clone(),
+        account_name: acct.name.clone(),
+        bank_type: acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type),
+        bank_holder_type: acct.holder_category.as_ref().map(|hc| match hc {
+            PlaidHolderCategory::Personal => BankHolderType::Personal,
+            PlaidHolderCategory::Business => BankHolderType::Business,
+        }),
+        balance: convert(acct.balances.current),
+        available_balance: convert(acct.balances.available),
+        account_details: None,
+        bank_name: institution_name,
+    }
+}
+
+// =============================================================================
+// FLOW 4: /accounts/balance/get (PaymentMethodEligibility)
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct PlaidBalanceGetRequest {
+    pub client_id: Secret<String>,
+    pub secret: Secret<String>,
+    pub access_token: Secret<String>,
+    /// Account filter. `PaymentMethodEligibilityData.connector_payment_method_id`
+    /// is the Plaid account_id, so a set value narrows the balance lookup to
+    /// that single account; when absent the whole item's accounts are returned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<PlaidBalanceGetRequestOptions>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlaidBalanceGetRequestOptions {
+    pub account_ids: Vec<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PlaidRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
+            T,
+        >,
+    > for PlaidBalanceGetRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PlaidRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
+
+        // Plaid maps: access_token ← payment_method_token, account_ids ←
+        // connector_payment_method_id.
+        let access_token = item
+            .router_data
+            .request
+            .payment_method_token
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token (access_token)",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Plaid /accounts/balance/get requires the access_token as payment_method_token"
+                                .to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Pass the Plaid access_token (obtained from token exchange) as payment_method_token"
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://plaid.com/docs/api/products/balance/#accountsbalanceget"
+                                .to_owned(),
+                        ),
+                    },
+                })
+            })?;
+
+        // connector_payment_method_id carries the Plaid account_id: scope the
+        // balance lookup to that account when present, else return all of the
+        // item's accounts.
+        let options = item
+            .router_data
+            .request
+            .connector_payment_method_id
+            .map(|account_id| PlaidBalanceGetRequestOptions {
+                account_ids: vec![account_id],
+            });
+
+        Ok(Self {
+            client_id: auth.client_id,
+            secret: auth.secret,
+            access_token: Secret::new(access_token),
+            options,
+        })
+    }
+}
+
+/// `/accounts/balance/get` returns `AccountsGetResponse`: the same account
+/// array as `/auth/get`, but no `numbers` (no routing data) — eligibility
+/// results therefore carry balances only (via `payment_method_details`).
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaidBalanceGetResponse {
+    pub accounts: Vec<PlaidAccount>,
+    pub item: PlaidItem,
+    pub request_id: String,
+}
+
+impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::PaymentMethodEligibility,
+        PaymentFlowData,
+        PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PlaidBalanceGetResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let res = &item.response;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(res).ok().map(Secret::new);
+
+        let request_currency = Some(data.request.amount.currency);
+        let institution_name = res.item.institution_name.clone();
+
+        // Plaid signals failure via HTTP status (the connector error path);
+        // a 200 with zero accounts means the item resolved but exposes no
+        // accounts — Ineligible, with the reason in error_info. When accounts
+        // exist, eligibility is gated on a balance check: at least one account
+        // must cover the request amount. The spendable figure is `available`,
+        // falling back to `current` when `available` is null (e.g. some
+        // depository accounts only report `current`). Derive the verdict from
+        // the payload, never from a constant.
+        let (eligibility, error_info) = if res.accounts.is_empty() {
+            (
+                common_enums::EligibilityStatus::Ineligible,
+                Some(EligibilityErrorInfo {
+                    code: "NO_ACCOUNTS".to_owned(),
+                    message: "No accounts returned for access token".to_owned(),
+                    reason: None,
+                }),
+            )
+        } else {
+            let request_amount = data.request.amount.amount;
+            let currency = data.request.amount.currency;
+
+            // An account covers the request when its comparable balance
+            // (available, else current) converts to more than the request
+            // amount; equality is not sufficient for this eligibility check.
+            // A null/unparseable balance cannot verify sufficiency, so it is not eligible.
+            let covers = |acct: &PlaidAccount| {
+                let comparable = acct.balances.available.or(acct.balances.current);
+                comparable
+                    .and_then(|bal| super::PlaidAmountConvertor::convert_back(bal, currency).ok())
+                    .is_some_and(|balance_minor| balance_minor > request_amount)
+            };
+
+            // When the request pins a specific account (connector_payment_method_id
+            // carries the Plaid account_id), the verdict is that account alone;
+            // otherwise any account covering the amount suffices.
+            let sufficient = match &data.request.connector_payment_method_id {
+                Some(account_id) => res
+                    .accounts
+                    .iter()
+                    .find(|acct| acct.account_id.peek() == account_id)
+                    .map(|acct| (covers(acct), true))
+                    .unwrap_or((false, false)),
+                None => (res.accounts.iter().any(covers), true),
+            };
+
+            match sufficient {
+                (true, _) => (common_enums::EligibilityStatus::Eligible, None),
+                (false, true) => (
+                    common_enums::EligibilityStatus::Ineligible,
+                    Some(EligibilityErrorInfo {
+                        code: "INSUFFICIENT_BALANCE".to_owned(),
+                        message: "Account balance is below the request amount".to_owned(),
+                        reason: None,
+                    }),
+                ),
+                (false, false) => (
+                    common_enums::EligibilityStatus::Ineligible,
+                    Some(EligibilityErrorInfo {
+                        code: "ACCOUNT_NOT_FOUND".to_owned(),
+                        message: "Requested account_id not present for this access token"
+                            .to_owned(),
+                        reason: None,
+                    }),
+                ),
+            }
+        };
+
+        // Balance details are surfaced regardless of verdict — an ineligible
+        // result still tells the caller what the accounts hold.
+        let payment_method_details = if res.accounts.is_empty() {
+            None
+        } else {
+            Some(PaymentMethodDetails::BankAccount(BankAccountDetails {
+                accounts: res
+                    .accounts
+                    .iter()
+                    .map(|acct| {
+                        plaid_account_to_bank_account(
+                            acct,
+                            request_currency,
+                            institution_name.clone(),
+                        )
+                    })
+                    .collect(),
+            }))
+        };
+
+        // One verdict per requested payment method — the balance endpoint is
+        // PM-agnostic, so the same result fans out (mirrors Qwikcilver).
+        let results = data
+            .request
+            .payment_method_types
+            .iter()
+            .map(|payment_method_type| PMEligibility {
+                payment_method_type: *payment_method_type,
+                eligibility,
+                error_info: error_info.clone(),
+                payment_method_details: payment_method_details.clone(),
+            })
+            .collect();
+
+        data.response = Ok(PaymentMethodEligibilityResponse {
+            results,
+            status_code: u32::from(item.http_code),
+        });
+        Ok(data)
     }
 }
 

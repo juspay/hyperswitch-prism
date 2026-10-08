@@ -1001,13 +1001,15 @@ impl
     ForeignFrom<(
         &CompositePaymentMethodEligibilityRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&PaymentMethodServiceTokenizeResponse>,
     )> for PaymentMethodServiceEligibilityRequest
 {
     #[allow(deprecated)] // mirrors the deprecated scalar payment_method_type for back-compat
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, payment_method_tokenize_response): (
             &CompositePaymentMethodEligibilityRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&PaymentMethodServiceTokenizeResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -1024,8 +1026,15 @@ impl
             connector_customer_id,
         });
 
+        // Caller-held token wins; else fall back to the token minted by the
+        // Tokenize pre-call this composite invocation just ran.
+        let payment_method_token = get_payment_method_token(
+            item.payment_method_token.clone(),
+            payment_method_tokenize_response,
+        );
+
         Self {
-            amount: item.amount,
+            amount: item.amount.clone(),
             customer: item.customer.clone(),
             address: item.address.clone(),
             order_details: item.order_details.clone(),
@@ -1037,6 +1046,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
             connector_payment_method_id: item.connector_payment_method_id.clone(),
+            payment_method_token,
             state: resolved_state,
         }
     }
@@ -1045,6 +1055,29 @@ impl
 impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceTokenizeRequest {
     #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodGetRequest) -> Self {
+        Self {
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            test_mode: item.test_mode,
+            state: item.state.clone(),
+            split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
+            browser_info: item.browser_info.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&CompositePaymentMethodEligibilityRequest> for PaymentMethodServiceTokenizeRequest {
+    #[allow(deprecated)]
+    fn foreign_from(item: &CompositePaymentMethodEligibilityRequest) -> Self {
         Self {
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             amount: item.amount,

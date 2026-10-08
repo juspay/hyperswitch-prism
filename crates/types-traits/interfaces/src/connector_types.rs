@@ -206,7 +206,12 @@ pub trait PaymentMethodEligibilityV2:
 }
 
 pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
-    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
+    ConnectorCommon
+    + ValidationTrait
+    + ClientAuthentication
+    + PaymentTokenV2<T>
+    + GetPaymentMethodV2
+    + PaymentMethodEligibilityV2
 {
 }
 

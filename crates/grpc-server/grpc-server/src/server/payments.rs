@@ -2522,7 +2522,7 @@ impl PaymentMethod {
         request_data_constructor: PaymentMethodEligibilityData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_method_eligibility_response,
-        connector_data_types: [ConnectorData<DefaultPCIHolder>],
+        connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
         all_keys_required: None
     );
 

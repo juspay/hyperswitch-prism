@@ -10401,6 +10401,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             amount,
             customer,
             connector_payment_method_id: value.connector_payment_method_id,
+            payment_method_token: value.payment_method_token,
             country_code: country,
             payment_method_types,
             description: value.description,
