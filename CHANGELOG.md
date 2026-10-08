@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.08.0
+
+### Features
+
+- **framework:** Log reference_id on every request, unmask PM headers ([#2459](https://github.com/juspay/connector-service/pull/2459)) ([`5f12e86`](https://github.com/juspay/connector-service/commit/5f12e869c680ed9f4993d93a48a15b902d2b90ec))
+- **payouts:** Support Nuvei external vault proxy transfers ([#2452](https://github.com/juspay/connector-service/pull/2452)) ([`b6af9c8`](https://github.com/juspay/connector-service/commit/b6af9c8269f7bdf4855f15ba106cd89fa84378ee))
+
+### Refactors
+
+- **domain:** Remove legacy amount mirrors ([#2450](https://github.com/juspay/connector-service/pull/2450)) ([`ccb4dcd`](https://github.com/juspay/connector-service/commit/ccb4dcd96dde1b39b79d661cfc64c77dd203ed27))
+
+**Full Changelog:** [`2026.10.07.2...2026.10.08.0`](https://github.com/juspay/connector-service/compare/2026.10.07.2...2026.10.08.0)
+
+- - -
+
 ## 2026.10.07.2
 
 ### Features

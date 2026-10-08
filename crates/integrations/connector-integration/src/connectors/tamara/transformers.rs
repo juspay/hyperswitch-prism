@@ -236,7 +236,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .into())
             }
         }
-        let amount = router_data.request.amount;
+        let amount = router_data.request.amount.amount;
         let currency = router_data.request.currency;
         let order_ref = router_data
             .resource_common_data
@@ -261,7 +261,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
         let shipping_amount = converter
             .convert(
-                router_data.request.shipping_cost.unwrap_or(MinorUnit(0)),
+                router_data
+                    .request
+                    .shipping_cost
+                    .as_ref()
+                    .map(|money| money.amount)
+                    .unwrap_or(MinorUnit(0)),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -274,7 +279,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let tax_amount = converter
             .convert(
-                router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)),
+                router_data
+                    .request
+                    .order_tax_amount
+                    .as_ref()
+                    .map(|money| money.amount)
+                    .unwrap_or(MinorUnit(0)),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -561,7 +571,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -654,15 +664,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.amount.ok_or(error_stack::report!(
-            errors::IntegrationError::MissingRequiredField {
-                field_name: "amount",
-                context: errors::IntegrationErrorContext {
-                    additional_context: Some("Missing void amount".to_string()),
-                    ..Default::default()
+        let amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some("Missing void amount".to_string()),
+                        ..Default::default()
+                    }
                 }
-            }
-        ))?;
+            ))?;
         let currency = router_data.request.currency.ok_or(error_stack::report!(
             errors::IntegrationError::MissingRequiredField {
                 field_name: "currency",
@@ -673,7 +687,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter.convert(amount, currency).change_context(
+        let amount = converter.convert(amount.amount, currency).change_context(
             errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -767,7 +781,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {

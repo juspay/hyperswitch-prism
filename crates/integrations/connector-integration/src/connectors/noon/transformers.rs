@@ -275,7 +275,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                data.router_data.request.minor_amount,
+                data.router_data.request.amount.amount,
                 data.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -730,7 +730,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
         let amount = data.connector.amount_converter.convert(
-            data.router_data.request.minor_amount_to_capture,
+            data.router_data.request.amount_to_capture.amount,
             data.router_data.request.currency,
         );
         let order = NoonActionOrder {
@@ -845,7 +845,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
         let refund_amount = data.connector.amount_converter.convert(
-            data.router_data.request.minor_refund_amount,
+            data.router_data.request.refund_amount.amount,
             data.router_data.request.currency,
         );
         let order = NoonActionOrder {
@@ -1565,7 +1565,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

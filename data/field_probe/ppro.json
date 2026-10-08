@@ -1120,27 +1120,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001/voids",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "merchant-id": "probe_merchant",
-            "request-idempotency-key": "probe_void_001",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000}"
-        }
+        "status": "error",
+        "error": "Stuck on field: amount or amount_authorized.amount — Missing required field: amount or amount_authorized.amount"
       }
     }
   }
