@@ -254,28 +254,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
         }
     }
 
-    fn wallet_expiry(
-        month: &Secret<String>,
-        year: &Secret<String>,
-    ) -> Result<requests::Expiry, Error> {
-        let exp_month = month
-            .peek()
-            .parse::<u8>()
-            .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?;
-        cards::validate::CardExpirationMonth::try_from(exp_month)
-            .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?;
-        let exp_year = utils::pad_expiry_year_to_four_digits(year)
-            .peek()
-            .parse::<u16>()
-            .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?;
-        let exp_year = cards::validate::CardExpirationYear::try_from(exp_year)
-            .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?;
-        Ok(requests::Expiry {
-            month: Secret::new(i32::from(exp_month)),
-            year: Secret::new(i32::from(exp_year.get_year())),
-        })
-    }
-
     fn wallet_authentication(
         cryptogram: &Secret<String>,
         eci: &Option<String>,
@@ -301,10 +279,20 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             account_number: RawCardNumber(T::inner_from_card_number(
                 data.application_primary_account_number.clone(),
             )),
-            expiry: Self::wallet_expiry(
-                &data.application_expiration_month,
-                &data.application_expiration_year,
-            )?,
+            expiry: requests::Expiry {
+                month: Secret::new(
+                    data.get_expiry_month()
+                        .peek()
+                        .parse::<i32>()
+                        .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?,
+                ),
+                year: Secret::new(
+                    data.get_four_digit_expiry_year()
+                        .peek()
+                        .parse::<i32>()
+                        .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?,
+                ),
+            },
             account_number_type: Some(account_number_type),
             wallet_provider: Some(requests::JpmorganWalletProvider::ApplePay),
             authentication: Some(Self::wallet_authentication(
@@ -344,11 +332,31 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
                 )
             }
         };
+        let exp_month = data
+            .get_expiry_month()
+            .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?;
+        let exp_year = data
+            .get_four_digit_expiry_year()
+            .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?;
+
         Ok(Self {
             account_number: RawCardNumber(T::inner_from_card_number(
                 data.application_primary_account_number.clone(),
             )),
-            expiry: Self::wallet_expiry(&data.card_exp_month, &data.card_exp_year)?,
+            expiry: requests::Expiry {
+                month: Secret::new(
+                    exp_month
+                        .peek()
+                        .parse::<i32>()
+                        .change_context(Self::invalid_wallet_field("wallet.expiry.month"))?,
+                ),
+                year: Secret::new(
+                    exp_year
+                        .peek()
+                        .parse::<i32>()
+                        .change_context(Self::invalid_wallet_field("wallet.expiry.year"))?,
+                ),
+            },
             account_number_type: Some(account_number_type),
             wallet_provider: Some(requests::JpmorganWalletProvider::GooglePay),
             authentication,
@@ -580,10 +588,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 )
                             })?,
                     )),
-                    expiry: requests::JpmorganCard::<T>::wallet_expiry(
-                        &token_data.token_exp_month,
-                        &token_data.token_exp_year,
-                    )?,
+                    expiry: requests::Expiry {
+                        month: Secret::new(
+                            token_data
+                                .get_network_token_expiry_month()
+                                .peek()
+                                .parse::<i32>()
+                                .change_context(
+                                    requests::JpmorganCard::<T>::invalid_wallet_field(
+                                        "wallet.expiry.month",
+                                    ),
+                                )?,
+                        ),
+                        year: Secret::new(
+                            token_data
+                                .get_expiry_year_4_digit()
+                                .peek()
+                                .parse::<i32>()
+                                .change_context(
+                                    requests::JpmorganCard::<T>::invalid_wallet_field(
+                                        "wallet.expiry.year",
+                                    ),
+                                )?,
+                        ),
+                    },
                     account_number_type: Some(requests::JpmorganAccountNumberType::NetworkToken),
                     wallet_provider: None,
                     authentication,
