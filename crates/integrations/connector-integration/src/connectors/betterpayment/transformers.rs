@@ -32,7 +32,10 @@ fn sanitize_order_id(reference: &str) -> String {
         .map(|c| if c == '_' { '-' } else { c })
         .filter(|c| {
             c.is_ascii_alphanumeric()
-                || matches!(c, '/' | '-' | '?' | '(' | ')' | ':' | '.' | ',' | '\'' | '+' | ' ')
+                || matches!(
+                    c,
+                    '/' | '-' | '?' | '(' | ')' | ':' | '.' | ',' | '\'' | '+' | ' '
+                )
         })
         .take(35)
         .collect()
@@ -307,7 +310,9 @@ impl<T: PaymentMethodDataTypes>
                     .clone()
                     .or_else(|| connector_response.error_message.clone())
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: connector_response.message.or(connector_response.error_message),
+                reason: connector_response
+                    .message
+                    .or(connector_response.error_message),
                 status_code: http_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: connector_response.transaction_id,

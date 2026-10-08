@@ -482,7 +482,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment_type\":\"wero\",\"order_id\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"merchant_reference\":\"probe_txn_001\",\"postback_url\":\"https://example.com/webhook\",\"success_url\":\"https://example.com/return\",\"error_url\":\"https://example.com/return\",\"wero_checkout_url\":\"https://example.com/return\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"postal_code\":\"98101\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}"
+          "body": "{\"payment_type\":\"wero\",\"order_id\":\"probe-txn-001\",\"amount\":10.0,\"currency\":\"USD\",\"merchant_reference\":\"probe-txn-001\",\"postback_url\":\"https://example.com/webhook\",\"success_url\":\"https://example.com/return\",\"error_url\":\"https://example.com/return\",\"wero_checkout_url\":\"https://example.com/return\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"postal_code\":\"98101\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}"
         }
       }
     },
