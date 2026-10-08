@@ -759,7 +759,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"CHARGE_SUCCEEDED\",\"data\":{\"id\":\"char_ORVCrwOrTkGsDwM3H50OIW7Q\",\"objectType\":\"charge\",\"status\":\"successful\",\"captured\":true,\"refunded\":false,\"refunds\":[]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"CHARGE_SUCCEEDED\",\"data\":{\"id\":\"char_ORVCrwOrTkGsDwM3H50OIW7Q\",\"objectType\":\"charge\",\"status\":\"successful\",\"captured\":true,\"refunded\":false,\"refunds\":[]}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -788,7 +803,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"CHARGE_SUCCEEDED\",\"data\":{\"id\":\"char_ORVCrwOrTkGsDwM3H50OIW7Q\",\"objectType\":\"charge\",\"status\":\"successful\",\"captured\":true,\"refunded\":false,\"refunds\":[]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"CHARGE_SUCCEEDED\",\"data\":{\"id\":\"char_ORVCrwOrTkGsDwM3H50OIW7Q\",\"objectType\":\"charge\",\"status\":\"successful\",\"captured\":true,\"refunded\":false,\"refunds\":[]}}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -804,8 +833,39 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for shift4"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-continue"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/3d-secure",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&captured=true&card%5Bnumber%5D=4111111111111111&card%5BexpMonth%5D=03&card%5BexpYear%5D=2030&returnUrl=https%3A%2F%2Fexample.com%2F3ds-continue"
+        }
       }
     },
     "proxy_authorize": {

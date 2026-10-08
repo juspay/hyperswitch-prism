@@ -126,7 +126,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L103) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L101) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L127)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L127) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L102) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L157)
 
 ### Card Payment (Authorize + Capture)
 
@@ -140,19 +140,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L122) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L117) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L143)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L146) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L118) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L173)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L147) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L139) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L166)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L171) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L140) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L196)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L169) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L158) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L185)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py#L193) · [JavaScript](../../examples/globalpayments_realex/globalpayments_realex.js) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L159) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs#L215)
 
 ## API Reference
 
@@ -161,6 +161,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
@@ -297,7 +298,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L200) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L176) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L225) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L177) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
 
 #### PaymentService.Capture
 
@@ -308,7 +309,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L209) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L188) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L234) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L189) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
 
 #### PaymentService.Get
 
@@ -319,7 +320,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L218) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L198) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L243) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L199) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -330,7 +331,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L227) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L206) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L261) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L236) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
 
 #### PaymentService.Void
 
@@ -341,4 +342,17 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L235) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L265) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)
+
+### Authentication
+
+#### PaymentMethodAuthenticationService.PreAuthenticate
+
+Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
+| **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
+
+**Examples:** [Python](../../examples/globalpayments_realex/globalpayments_realex.py) · [TypeScript](../../examples/globalpayments_realex/globalpayments_realex.ts#L252) · [Kotlin](../../examples/globalpayments_realex/globalpayments_realex.kt#L207) · [Rust](../../examples/globalpayments_realex/globalpayments_realex.rs)

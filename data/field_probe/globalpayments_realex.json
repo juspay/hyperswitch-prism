@@ -621,8 +621,39 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: continue_redirection_url — Missing required field: continue_redirection_url"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-continue"
+        },
+        "sample": {
+          "url": "https://api.sandbox.globalpay-ecommerce.com/3ds2/protocol-versions",
+          "method": "Post",
+          "headers": {
+            "authorization": "securehash a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2.2.0"
+          },
+          "body": "{\"request_timestamp\":\"2020-01-01T00:00:00+00:00\",\"merchant_id\":\"probe_merchant\",\"account_id\":\"internet\",\"number\":\"4111111111111111\",\"scheme\":\"VISA\",\"method_notification_url\":\"https://example.com/3ds-continue?gp3ds=method\"}"
+        }
       }
     },
     "proxy_authorize": {
