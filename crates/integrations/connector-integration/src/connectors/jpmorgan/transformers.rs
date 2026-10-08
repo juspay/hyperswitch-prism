@@ -945,6 +945,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     account_number_type: Some(requests::JpmorganAccountNumberType::NetworkToken),
                     wallet_provider: None,
                     authentication,
+                    payment_authentication_request: None,
                 };
 
                 let payment_method_type = requests::JpmorganPaymentMethodType {
