@@ -3913,7 +3913,6 @@
         "must_not_exist": true
       }
     },
-    "is_default": true,
-    "display_name": "Credit Card | No 3DS | Manual Capture"
+    "display_name": "Credit Card (Incremental Auth) | No 3DS | Manual Capture"
   }
 }
