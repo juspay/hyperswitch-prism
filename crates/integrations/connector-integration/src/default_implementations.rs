@@ -306,6 +306,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayraft,
         Travelhub,
         D24,
+        Betterpayment,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -382,6 +383,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Betterpayment,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -622,6 +624,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Betterpayment,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -740,6 +743,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Betterpayment,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -971,6 +975,7 @@ default_impl_payment_method_eligibility_v2!(
         Affirm,
         Maya,
         Travelhub,
+        Betterpayment,
     ],
 );
 
@@ -1038,6 +1043,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Betterpayment,
     Citigate,
     JpmorganOrbital,
     Paynearme,
