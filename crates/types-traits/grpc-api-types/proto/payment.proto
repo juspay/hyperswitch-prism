@@ -394,11 +394,12 @@ enum MitCategory {
   // Merchant-initiated transaction using stored credentials, but not tied to a
   // fixed schedule
   UNSCHEDULED_MIT = 2;
-  // Merchant-initiated payments that happen at regular intervals (usually the
-  // same amount each time).
+  // Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
   RECURRING_MIT = 3;
   // A retried MIT after a previous transaction failed or was declined.
   RESUBMISSION_MIT = 4;
+  // Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+  SUBSCRIPTION_MIT = 5;
 }
 
 // Indicates the type of payment sync request
@@ -462,6 +463,10 @@ enum TransactionStatus {
 
   // Informational Only; 3DS Requestor challenge preference acknowledged
   TRANSACTION_STATUS_INFORMATION_ONLY = 8; // "I"
+
+  // Challenge using Secure Payment Confirmation (SPC); available for EMV 3DS
+  // 2.3.1 and later versions
+  TRANSACTION_STATUS_SECURE_PAYMENT_CONFIRMATION_REQUIRED = 9; // "S"
 }
 
 // SCA (Strong Customer Authentication) exemption indicators.

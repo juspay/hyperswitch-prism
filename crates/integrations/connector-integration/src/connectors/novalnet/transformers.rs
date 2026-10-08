@@ -311,7 +311,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1202,7 +1202,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1264,7 +1264,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2352,7 +2352,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2407,7 +2407,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         let novalnet_card =
                             NovalNetPaymentData::RawCardForNTI(NovalnetRawCardDetails {
-                                card_number: raw_card_details.card_number.clone(),
+                                card_number: raw_card_details
+                                    .card_number
+                                    .try_card_number("Novalnet")?,
                                 card_expiry_month: raw_card_details.card_exp_month.clone(),
                                 card_expiry_year: raw_card_details.card_exp_year.clone(),
                                 scheme_tid: network_transaction_id.network_transaction_id.into(),
@@ -2528,7 +2530,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                             error_message: None,
                             raw_connector_response: None,
                             response_headers: None,
-                            minor_amount_captured: None,
                             amount_captured: None,
                             error_reason: None,
                             network_txn_id: response.payment_data.and_then(|payment_data| {
@@ -2560,7 +2561,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         error_message: Some(notif.result.status_text),
                         raw_connector_response: None,
                         response_headers: None,
-                        minor_amount_captured: None,
                         amount_captured: None,
                         error_reason: None,
                         network_txn_id: None,
@@ -2684,7 +2684,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

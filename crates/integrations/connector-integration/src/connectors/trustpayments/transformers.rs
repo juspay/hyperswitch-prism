@@ -446,7 +446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .map_err(|_| IntegrationError::RequestEncodingFailed {
@@ -1221,13 +1221,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Check if this is a partial refund
         // For partial refunds, include baseamount; for full refunds, omit it
-        let base_amount = if router_data.request.minor_refund_amount.get_amount_as_i64() > 0 {
+        let base_amount = if router_data.request.refund_amount.amount.get_amount_as_i64() > 0 {
             // Partial refund - include the amount
             let amount = item
                 .connector
                 .amount_converter
                 .convert(
-                    router_data.request.minor_refund_amount,
+                    router_data.request.refund_amount.amount,
                     router_data.request.currency,
                 )
                 .map_err(|_| IntegrationError::RequestEncodingFailed {
@@ -1577,7 +1577,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .map_err(|_| IntegrationError::RequestEncodingFailed {
@@ -1760,7 +1760,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // For SetupMandate, use 0 amount if no amount provided (zero dollar auth)
         let minor_amount = router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .unwrap_or(common_utils::types::MinorUnit::zero());
         let amount = item
             .connector
@@ -1983,7 +1985,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .map_err(|_| IntegrationError::RequestEncodingFailed {

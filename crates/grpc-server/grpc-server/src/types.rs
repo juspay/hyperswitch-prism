@@ -4,6 +4,20 @@ use domain_types::{errors::IntegrationError, utils::ForeignTryFrom};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
+/// The CVC-free counterpart of [`ProxyCardTokenData`], for an MIT against a card held in an
+/// external vault.
+///
+/// A merchant initiated transaction has no cardholder present, so no CVC is collected and none
+/// is templated into the connector request; the transaction authorizes on the network
+/// transaction ID instead. Including a `card_cvc` key here would leave a `{{$card_cvc}}`
+/// placeholder with nothing to substitute.
+#[derive(Debug, serde::Serialize)]
+struct ProxyCardNtiTokenData {
+    card_number: Secret<String>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+}
+
 /// Structured card payload serialized into the injector [`injector::TokenData`].
 ///
 /// This mirrors the `CardTokenData` helper used by the payment Authorize flow so the
@@ -24,6 +38,54 @@ struct ProxyCardTokenData {
 /// the vault token values (card number alias, cvc, expiry) that the external-services
 /// injector substitutes into the connector request template when `token_data` is `Some`.
 pub struct InjectorTokenData(pub injector::TokenData);
+
+#[derive(serde::Serialize)]
+struct PayoutProxyCardTokenData {
+    card_number: Secret<String>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+}
+
+impl ForeignTryFrom<&grpc_api_types::payouts::CardProxyPayout> for InjectorTokenData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        card: &grpc_api_types::payouts::CardProxyPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use domain_types::payouts::types::required_proxy_card_field;
+
+        let card_data = PayoutProxyCardTokenData {
+            card_number: required_proxy_card_field(
+                card.card_number.clone(),
+                "payout_method_data.card_proxy.card_number",
+            )?,
+            card_exp_month: required_proxy_card_field(
+                card.card_exp_month.clone(),
+                "payout_method_data.card_proxy.card_exp_month",
+            )?,
+            card_exp_year: required_proxy_card_field(
+                card.card_exp_year.clone(),
+                "payout_method_data.card_proxy.card_exp_year",
+            )?,
+        };
+        let card_json = serde_json::to_value(card_data).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize CardProxy aliases for vault injection".to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Verify that all CardProxy alias fields contain valid strings".to_owned(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )?;
+        Ok(Self(injector::TokenData {
+            specific_token_data: common_utils::SecretSerdeValue::new(card_json),
+        }))
+    }
+}
 
 impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTokenData {
     type Error = IntegrationError;
@@ -84,6 +146,67 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
                         })
                     })?,
             ),
+        };
+
+        let card_json = serde_json::to_value(card_data).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?;
+
+        Ok(Self(injector::TokenData {
+            specific_token_data: common_utils::SecretSerdeValue::new(card_json),
+        }))
+    }
+}
+
+impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId>
+    for InjectorTokenData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        proxy_card_details: &grpc_api_types::payments::ProxyCardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let required = |value: Option<String>, field_name: &'static str| {
+            value
+                .filter(|value| !value.is_empty())
+                .map(Secret::new)
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name,
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some(format!(
+                                "{field_name} is required for a vault-aliased card MIT with a network transaction id"
+                            )),
+                            ..Default::default()
+                        },
+                    })
+                })
+        };
+
+        let card_data = ProxyCardNtiTokenData {
+            card_number: required(
+                proxy_card_details
+                    .card_number
+                    .as_ref()
+                    .map(|card_number| card_number.peek().to_owned()),
+                "payment_method.proxy_card_details_for_network_transaction_id.card_number",
+            )?,
+            card_exp_month: required(
+                proxy_card_details
+                    .card_exp_month
+                    .as_ref()
+                    .map(|exp_month| exp_month.clone().expose().to_string()),
+                "payment_method.proxy_card_details_for_network_transaction_id.card_exp_month",
+            )?,
+            card_exp_year: required(
+                proxy_card_details
+                    .card_exp_year
+                    .as_ref()
+                    .map(|exp_year| exp_year.clone().expose().to_string()),
+                "payment_method.proxy_card_details_for_network_transaction_id.card_exp_year",
+            )?,
         };
 
         let card_json = serde_json::to_value(card_data).change_context(

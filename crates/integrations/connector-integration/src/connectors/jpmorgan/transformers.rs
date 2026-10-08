@@ -321,7 +321,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let amount = JpmorganAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -374,7 +374,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let amount = JpmorganAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -415,7 +415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let amount = JpmorganAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -456,7 +456,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                             let amount = JpmorganAmountConvertor::convert(
-                                router_data.request.minor_amount,
+                                router_data.request.amount.amount,
                                 router_data.request.currency,
                             )?;
 
@@ -571,7 +571,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let capture_method = requests::CapMethod::Now;
-        let amount_to_capture = item.router_data.request.minor_amount_to_capture;
+        let amount_to_capture = item.router_data.request.amount_to_capture.amount;
 
         let amount =
             JpmorganAmountConvertor::convert(amount_to_capture, item.router_data.request.currency)?;
@@ -738,7 +738,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = JpmorganAmountConvertor::convert(
-            item.router_data.request.minor_refund_amount,
+            item.router_data.request.refund_amount.amount,
             item.router_data.request.currency,
         )?;
 
@@ -1181,7 +1181,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let amount = router_data
                     .request
-                    .minor_amount
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
                     .map(|a| {
                         item.connector
                             .amount_converter
@@ -1288,7 +1290,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

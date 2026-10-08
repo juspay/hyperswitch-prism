@@ -245,11 +245,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(request.amount.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "authorize",
-                    &request.minor_amount,
+                    &request.amount.amount,
                     &request.currency,
                 ),
             })?;
@@ -346,16 +346,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount_to_capture, request.currency)
+            .convert(request.amount_to_capture.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "capture",
-                    &request.minor_amount_to_capture,
+                    &request.amount_to_capture.amount,
                     &request.currency,
                 ),
             })?;
 
-        // `minor_amount_capturable` is None on this path (domain_types hardcodes it);
+        // `amount_capturable` is None on this path (domain_types hardcodes it);
         // derive partial vs full from the authorized amount in resource_common_data.amount.
         // Partial captures keep the residual balance (RVS:N). Full captures release it (RVS:Y).
         let authorized = item
@@ -365,7 +365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|m| m.amount);
         let is_partial = match authorized {
-            Some(auth_amount) => request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => request.amount_to_capture.amount < auth_amount,
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -490,11 +490,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_refund_amount, request.currency)
+            .convert(request.refund_amount.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "refund",
-                    &request.minor_refund_amount,
+                    &request.refund_amount.amount,
                     &request.currency,
                 ),
             })?;
@@ -619,11 +619,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(request.amount.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "repeat_payment",
-                    &request.minor_amount,
+                    &request.amount.amount,
                     &request.currency,
                 ),
             })?;
@@ -847,7 +847,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
     fn try_from(item: ResponseRouterData<EtisalatResponse, Self>) -> Result<Self, Self::Error> {
         let body = item.response.transaction;
 
-        // `minor_amount_capturable` is None on the Capture path; derive partial/full
+        // `amount_capturable` is None on the Capture path; derive partial/full
         // from the authorized amount in resource_common_data.amount instead.
         let authorized = item
             .router_data
@@ -856,7 +856,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
             .as_ref()
             .map(|m| m.amount);
         let is_partial = match authorized {
-            Some(auth_amount) => item.router_data.request.minor_amount_to_capture < auth_amount,
+            Some(auth_amount) => item.router_data.request.amount_to_capture.amount < auth_amount,
             None => false,
         };
         let success_status = if is_partial {

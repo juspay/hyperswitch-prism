@@ -55,7 +55,7 @@ macros::create_all_prerequisites!(
             flow: PayoutTransfer,
             request_body: MifinityPayoutRequest,
             response_body: MifinityPayoutResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ),
         (
             flow: PayoutGet,
@@ -157,7 +157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait<T>
     for MifinityPayouts<T>
 {
 }
@@ -173,7 +173,7 @@ macros::macro_connector_flow_status_impls!(
 // MiFinity wallet -> POST /api/payments/acct2acct
 // SEPA bank transfer -> POST /api/payments/pab
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for MifinityPayouts<T>
 {
 }
@@ -185,7 +185,7 @@ macros::macro_connector_implementation!(
     curl_response: MifinityPayoutResponse,
     flow_name: PayoutTransfer,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
+    flow_request: PayoutTransferRequest<T>,
     flow_response: PayoutTransferResponse,
     http_method: Post,
     generic_type: T,
@@ -193,7 +193,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_url(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self
                 .base_url(&req.resource_common_data.connectors)
@@ -215,7 +215,7 @@ macros::macro_connector_implementation!(
 
         fn get_headers(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(&req.connector_config)
         }

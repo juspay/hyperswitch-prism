@@ -6,12 +6,13 @@ use crate::{
     },
     errors::{IntegrationError, IntegrationErrorContext},
     payment_address::Address,
+    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
     types::Connectors,
     utils::{missing_field_err, Error},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
@@ -28,6 +29,7 @@ pub struct PayoutFlowData {
     pub test_mode: Option<bool>,
     pub description: Option<String>,
     pub merchant_request_id: Option<String>,
+    pub vault_headers: Option<HashMap<String, Secret<String>>>,
 }
 
 impl RawConnectorRequestResponse for PayoutFlowData {
@@ -98,7 +100,7 @@ impl PayoutFlowData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutCreateRequest {
+pub struct PayoutCreateRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -108,7 +110,7 @@ pub struct PayoutCreateRequest {
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
@@ -129,7 +131,7 @@ pub struct PayoutAddress {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutTransferRequest {
+pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -139,7 +141,7 @@ pub struct PayoutTransferRequest {
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
@@ -148,7 +150,7 @@ pub struct PayoutTransferRequest {
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
 }
 
-impl PayoutTransferRequest {
+impl<T: PaymentMethodDataTypes> PayoutTransferRequest<T> {
     pub fn get_billing(&self) -> Result<&Address, Error> {
         self.address
             .as_ref()
@@ -371,18 +373,18 @@ pub struct PayoutGetResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutStageRequest {
+pub struct PayoutStageRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_quote_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
-    pub payout_method_data: Option<crate::payouts::payout_method_data::PayoutMethodData>,
+    pub payout_method_data: Option<crate::payouts::payout_method_data::PayoutMethodData<T>>,
     pub customer: Option<PayoutCustomer>,
     pub browser_info: Option<crate::router_request_types::BrowserInformation>,
     pub address: Option<PayoutAddress>,
 }
 
-impl PayoutStageRequest {
+impl<T: PaymentMethodDataTypes> PayoutStageRequest<T> {
     pub fn get_customer(&self) -> Result<&PayoutCustomer, Error> {
         self.customer
             .as_ref()
@@ -422,7 +424,7 @@ pub struct PayoutVoidResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutCreateLinkRequest {
+pub struct PayoutCreateLinkRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -432,7 +434,7 @@ pub struct PayoutCreateLinkRequest {
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
 }
 
 #[derive(Debug, Clone)]
@@ -444,11 +446,11 @@ pub struct PayoutCreateLinkResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutCreateRecipientRequest {
+pub struct PayoutCreateRecipientRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub recipient_type: common_enums::PayoutRecipientType,
     pub address: Option<PayoutAddress>,
     pub customer: Option<PayoutCustomer>,
@@ -499,7 +501,7 @@ pub struct PayoutIndividualDetails {
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
 
-impl PayoutCreateRecipientRequest {
+impl<T: PaymentMethodDataTypes> PayoutCreateRecipientRequest<T> {
     /// Navigate to the billing `AddressDetails`; per-field accessors live on
     /// [`crate::payment_address::AddressDetails`] and are reused from there.
     pub fn get_optional_billing_address(&self) -> Option<&crate::payment_address::AddressDetails> {
@@ -661,8 +663,8 @@ impl PayoutCreateRecipientRequest {
     }
 }
 
-impl PayoutEnrollDisburseAccountRequest {
-    pub fn get_payout_method_data(&self) -> Result<&PayoutMethodData, Error> {
+impl<T: PaymentMethodDataTypes> PayoutEnrollDisburseAccountRequest<T> {
+    pub fn get_payout_method_data(&self) -> Result<&PayoutMethodData<T>, Error> {
         self.payout_method_data
             .as_ref()
             .ok_or_else(missing_field_err("payout_method_data"))
@@ -696,14 +698,14 @@ pub struct PayoutCreateRecipientResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutEnrollDisburseAccountRequest {
+pub struct PayoutEnrollDisburseAccountRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     /// Currency in which the payout will be received. Optional because callers
     /// may only send the amount currency.
     pub destination_currency: Option<common_enums::Currency>,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub customer: Option<PayoutCustomer>,
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
@@ -717,11 +719,11 @@ pub struct PayoutEnrollDisburseAccountResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PayoutEligibilityRequest {
+pub struct PayoutEligibilityRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub amount: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
-    pub payout_method_data: Option<PayoutMethodData>,
+    pub payout_method_data: Option<PayoutMethodData<T>>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
     pub address: Option<PayoutAddress>,
