@@ -1939,26 +1939,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             .into());
         }
-        // A replacement mandate needs a fresh setup because JPMorgan exposes
-        // no mandate-update path.
-        if request.off_session == Some(true)
-            || request.mandate_id.is_some()
-            || request.request_incremental_authorization
-            || request.authentication_data.is_some()
-            || router_data.resource_common_data.auth_type
-                == common_enums::AuthenticationType::ThreeDs
-            || request
-                .setup_mandate_details
-                .as_ref()
-                .is_some_and(|details| details.update_mandate_id.is_some())
-        {
-            return Err(IntegrationError::NotSupported {
-                message: "Off-session, authenticated, incremental, or replacement setup".to_owned(),
-                connector: "jpmorgan",
-                context,
-            }
-            .into());
-        }
         map_capture_method(request.capture_method)?;
         let recurring = requests::JpmorganRecurring::from_initial_mandate(
             request.mit_category.as_ref(),
