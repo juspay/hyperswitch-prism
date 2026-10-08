@@ -405,9 +405,9 @@ impl TryFrom<&DecryptedWalletTokenDetailsForNetworkTransactionId>
             application_primary_account_number: Secret::new(token.decrypted_token.get_card_no()),
             application_expiration_date: token
                 .get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
-            electronic_commerce_indicator: None,
+            electronic_commerce_indicator: token.eci.clone(),
             online_payment_cryptogram: None,
-            device_manufacturer_identifier: None,
+            device_manufacturer_identifier: token.device_manufacturer_identifier.clone(),
             card_brand: token
                 .card_network
                 .as_ref()
@@ -1524,13 +1524,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                 ref wallet_token,
             ) => {
-                if item.router_data.resource_common_data.is_three_ds() {
-                    Err(IntegrationError::NotSupported {
-                        message: "Wallet 3DS".to_string(),
-                        connector: "revolv3",
-                        context: Default::default(),
-                    })?
-                };
                 Some(Revolv3PaymentMethodData::set_wallet_token_data_for_ntid(
                     wallet_token,
                     &item.router_data.resource_common_data,

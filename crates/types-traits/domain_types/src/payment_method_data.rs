@@ -1669,6 +1669,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
     pub card_network: Option<CardNetwork>,
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
