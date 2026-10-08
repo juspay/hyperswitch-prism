@@ -2218,28 +2218,49 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
         {
             PaymentMethodData::Card(card) => (
                 card.card_number.clone(),
-                requests::JpmorganCard::<T>::wallet_expiry(
-                    &card.card_exp_month,
-                    &card.card_exp_year,
-                )?,
+                requests::Expiry {
+                    month: Secret::new(i32::from(card.get_expiry_month_as_u8()?)),
+                    year: Secret::new(i32::from(card.get_expiry_year_4_digit_as_u16()?)),
+                },
                 Some(requests::JpmorganAccountNumberType::Pan),
                 None,
             ),
             PaymentMethodData::CardWithNoCvc(card) => (
                 RawCardNumber(T::inner_from_card_number(card.card_number.clone())),
-                requests::JpmorganCard::<T>::wallet_expiry(
-                    &card.card_exp_month,
-                    &card.card_exp_year,
-                )?,
+                requests::Expiry {
+                    month: Secret::new(
+                        card.get_card_expiry_month_2_digit()?
+                            .peek()
+                            .parse::<i32>()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Self::mit_context(),
+                            })?,
+                    ),
+                    year: Secret::new(
+                        card.get_expiry_year_4_digit()
+                            .peek()
+                            .parse::<i32>()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Self::mit_context(),
+                            })?,
+                    ),
+                },
                 Some(requests::JpmorganAccountNumberType::Pan),
                 None,
             ),
             PaymentMethodData::CardDetailsForNetworkTransactionId(card) => (
                 card.card_number.clone(),
-                requests::JpmorganCard::<T>::wallet_expiry(
-                    &card.card_exp_month,
-                    &card.card_exp_year,
-                )?,
+                requests::Expiry {
+                    month: Secret::new(i32::from(*card.get_expiry_month_as_i8()?.peek())),
+                    year: Secret::new(
+                        card.get_expiry_year_4_digit()
+                            .peek()
+                            .parse::<i32>()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Self::mit_context(),
+                            })?,
+                    ),
+                },
                 Some(requests::JpmorganAccountNumberType::Pan),
                 None,
             ),
@@ -2271,10 +2292,18 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                                 context: Self::mit_context(),
                             })?,
                     )),
-                    requests::JpmorganCard::<T>::wallet_expiry(
-                        &token.token_exp_month,
-                        &token.token_exp_year,
-                    )?,
+                    requests::Expiry {
+                        month: Secret::new(i32::from(*token.get_expiry_month_as_i8()?.peek())),
+                        year: Secret::new(
+                            token
+                                .get_expiry_year_4_digit()
+                                .peek()
+                                .parse::<i32>()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Self::mit_context(),
+                                })?,
+                        ),
+                    },
                     Some(requests::JpmorganAccountNumberType::DeviceToken),
                     Some(wallet_provider),
                 )
@@ -2298,10 +2327,24 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                         RawCardNumber(T::inner_from_card_number(
                             data.application_primary_account_number.clone(),
                         )),
-                        requests::JpmorganCard::<T>::wallet_expiry(
-                            &data.application_expiration_month,
-                            &data.application_expiration_year,
-                        )?,
+                        requests::Expiry {
+                            month: Secret::new(
+                                data.get_expiry_month()
+                                    .peek()
+                                    .parse::<i32>()
+                                    .change_context(IntegrationError::RequestEncodingFailed {
+                                        context: Self::mit_context(),
+                                    })?,
+                            ),
+                            year: Secret::new(
+                                data.get_four_digit_expiry_year()
+                                    .peek()
+                                    .parse::<i32>()
+                                    .change_context(IntegrationError::RequestEncodingFailed {
+                                        context: Self::mit_context(),
+                                    })?,
+                            ),
+                        },
                         Some(account_number_type),
                         Some(requests::JpmorganWalletProvider::ApplePay),
                     )
@@ -2332,10 +2375,36 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                             RawCardNumber(T::inner_from_card_number(
                                 data.application_primary_account_number.clone(),
                             )),
-                            requests::JpmorganCard::<T>::wallet_expiry(
-                                &data.card_exp_month,
-                                &data.card_exp_year,
-                            )?,
+                            requests::Expiry {
+                                month: Secret::new(
+                                    data.get_expiry_month()
+                                        .change_context(IntegrationError::InvalidDataFormat {
+                                            field_name: "google_pay.card_exp_month",
+                                            context: Self::mit_context(),
+                                        })?
+                                        .peek()
+                                        .parse::<i32>()
+                                        .change_context(
+                                            IntegrationError::RequestEncodingFailed {
+                                                context: Self::mit_context(),
+                                            },
+                                        )?,
+                                ),
+                                year: Secret::new(
+                                    data.get_four_digit_expiry_year()
+                                        .change_context(IntegrationError::InvalidDataFormat {
+                                            field_name: "google_pay.card_exp_year",
+                                            context: Self::mit_context(),
+                                        })?
+                                        .peek()
+                                        .parse::<i32>()
+                                        .change_context(
+                                            IntegrationError::RequestEncodingFailed {
+                                                context: Self::mit_context(),
+                                            },
+                                        )?,
+                                ),
+                            },
                             Some(account_number_type),
                             Some(requests::JpmorganWalletProvider::GooglePay),
                         )
@@ -2356,10 +2425,26 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                             context: Self::mit_context(),
                         })?,
                 )),
-                requests::JpmorganCard::<T>::wallet_expiry(
-                    &token.token_exp_month,
-                    &token.token_exp_year,
-                )?,
+                requests::Expiry {
+                    month: Secret::new(
+                        token
+                            .get_network_token_expiry_month()
+                            .peek()
+                            .parse::<i32>()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Self::mit_context(),
+                            })?,
+                    ),
+                    year: Secret::new(
+                        token
+                            .get_expiry_year_4_digit()
+                            .peek()
+                            .parse::<i32>()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Self::mit_context(),
+                            })?,
+                    ),
+                },
                 Some(requests::JpmorganAccountNumberType::NetworkToken),
                 None,
             ),
