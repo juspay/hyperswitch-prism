@@ -161,20 +161,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Calida<T>,
-    flow:      Authorize,
-    source:    CalidaPaymentStatus,
-    success:   Completed        => Charged,
-    failure:   Failed           => Failure,
-    extractors: {
+    connector_name: "calida",
+    flow: Authorize,
+    source: CalidaPaymentStatus,
+    mapping: |status| {
+        match status {
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: CalidaPaymentsResponse,
-        source:   |_resource_common_data, _request, response| Ok(response.status),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending          => AuthenticationPending,
-        PaymentInitiated => AuthenticationPending,
-        ManualProcessing => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -184,20 +186,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Calida<T>,
-    flow:      PSync,
-    source:    CalidaPaymentStatus,
-    success:   Completed        => Charged,
-    failure:   Failed           => Failure,
-    extractors: {
+    connector_name: "calida",
+    flow: PSync,
+    source: CalidaPaymentStatus,
+    mapping: |status| {
+        match status {
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: CalidaSyncResponse,
-        source:   |_resource_common_data, _request, response| Ok(response.status),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending          => AuthenticationPending,
-        PaymentInitiated => AuthenticationPending,
-        ManualProcessing => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

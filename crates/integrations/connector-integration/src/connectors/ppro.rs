@@ -135,29 +135,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      Authorize,
-    source:    PproPaymentStatus,
-    success:   Success              => Charged,
-    failure:   Failed               => Failure,
-    extractors: {
+    connector_name: "ppro",
+    flow: Authorize,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Success => success!(Charged),
+            PproPaymentStatus::AuthorizationAsync => success!(Authorized),
+            PproPaymentStatus::CapturePending => success!(Authorized),
+            PproPaymentStatus::Captured => success!(Charged),
+            PproPaymentStatus::RefundSettled => success!(Charged),
+            PproPaymentStatus::Refunded => success!(Charged),
+            PproPaymentStatus::Failed => failure!(Failure),
+            PproPaymentStatus::Discarded => failure!(Failure),
+            PproPaymentStatus::Rejected => failure!(Failure),
+            PproPaymentStatus::Declined => failure!(Failure),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            PproPaymentStatus::Voided => non_terminal!(Voided),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PproAuthorizeResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response| (),
-    },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => AuthenticationPending,
-        AuthorizationAsync      => Authorized,
-        CapturePending          => Authorized,
-        Captured                => Charged,
-        Discarded               => Failure,
-        Voided                  => Voided,
-        RefundSettled           => Charged,
-        Refunded                => Charged,
-        Rejected                => Failure,
-        Declined                => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -171,24 +173,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      PSync,
-    source:    PproPaymentStatus,
-    success:   Success              => Charged,
-    failure:   Failed               => Failure,
-    extractors: { request: PaymentsSyncData, response: PproPSyncResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => AuthenticationPending,
-        AuthorizationAsync      => Authorized,
-        CapturePending          => Authorized,
-        Captured                => Charged,
-        Discarded               => Failure,
-        Voided                  => Voided,
-        RefundSettled           => Charged,
-        Refunded                => Charged,
-        Rejected                => Failure,
-        Declined                => Failure,
+    connector_name: "ppro",
+    flow: PSync,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Success => success!(Charged),
+            PproPaymentStatus::AuthorizationAsync => success!(Authorized),
+            PproPaymentStatus::CapturePending => success!(Authorized),
+            PproPaymentStatus::Captured => success!(Charged),
+            PproPaymentStatus::Voided => success!(Voided),
+            PproPaymentStatus::RefundSettled => success!(Charged),
+            PproPaymentStatus::Refunded => success!(Charged),
+            PproPaymentStatus::Failed => failure!(Failure),
+            PproPaymentStatus::Discarded => failure!(Failure),
+            PproPaymentStatus::Rejected => failure!(Failure),
+            PproPaymentStatus::Declined => failure!(Failure),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PproPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -198,24 +207,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      Void,
-    source:    PproPaymentStatus,
-    success:   Voided               => Voided,
-    failure:   Failed               => Failure,
-    extractors: { request: PaymentVoidData, response: PproVoidResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => Pending,
-        AuthorizationAsync      => Pending,
-        CapturePending          => Pending,
-        Captured                => VoidFailed,
-        Success                 => VoidFailed,
-        Discarded               => Failure,
-        RefundSettled           => VoidFailed,
-        Refunded                => VoidFailed,
-        Rejected                => Failure,
-        Declined                => Failure,
+    connector_name: "ppro",
+    flow: Void,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Voided => success!(Voided),
+            PproPaymentStatus::Failed => failure!(Failure),
+            PproPaymentStatus::Captured => failure!(VoidFailed),
+            PproPaymentStatus::Success => failure!(VoidFailed),
+            PproPaymentStatus::Discarded => failure!(Failure),
+            PproPaymentStatus::RefundSettled => failure!(VoidFailed),
+            PproPaymentStatus::Refunded => failure!(VoidFailed),
+            PproPaymentStatus::Rejected => failure!(Failure),
+            PproPaymentStatus::Declined => failure!(Failure),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(Pending),
+            PproPaymentStatus::AuthorizationAsync => non_terminal!(Pending),
+            PproPaymentStatus::CapturePending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: PproVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -225,24 +241,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      Capture,
-    source:    PproPaymentStatus,
-    success:   Captured             => Charged,
-    failure:   Failed               => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: PproCaptureResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => Pending,
-        AuthorizationAsync      => Pending,
-        CapturePending          => Pending,
-        Success                 => Charged,
-        Discarded               => CaptureFailed,
-        Voided                  => CaptureFailed,
-        RefundSettled           => Charged,
-        Refunded                => Charged,
-        Rejected                => CaptureFailed,
-        Declined                => CaptureFailed,
+    connector_name: "ppro",
+    flow: Capture,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Captured => success!(Charged),
+            PproPaymentStatus::Success => success!(Charged),
+            PproPaymentStatus::RefundSettled => success!(Charged),
+            PproPaymentStatus::Refunded => success!(Charged),
+            PproPaymentStatus::Failed => failure!(CaptureFailed),
+            PproPaymentStatus::Discarded => failure!(CaptureFailed),
+            PproPaymentStatus::Voided => failure!(CaptureFailed),
+            PproPaymentStatus::Rejected => failure!(CaptureFailed),
+            PproPaymentStatus::Declined => failure!(CaptureFailed),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(Pending),
+            PproPaymentStatus::AuthorizationAsync => non_terminal!(Pending),
+            PproPaymentStatus::CapturePending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PproCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -252,17 +275,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      Refund,
-    source:    PproRefundStatus,
-    success:   RefundSettled => Success,
-    failure:   Failed        => Failure,
-    extractors: { request: RefundsData, response: PproRefundResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Refunded  => Success,
-        Pending   => Pending,
-        Rejected  => Failure,
-        Declined  => Failure,
-        Unknown   => Pending,
+    connector_name: "ppro",
+    flow: Refund,
+    source: PproRefundStatus,
+    mapping: |status| {
+        match status {
+            PproRefundStatus::RefundSettled => success!(Success),
+            PproRefundStatus::Refunded => success!(Success),
+            PproRefundStatus::Failed => failure!(Failure),
+            PproRefundStatus::Rejected => failure!(Failure),
+            PproRefundStatus::Declined => failure!(Failure),
+            PproRefundStatus::Pending => non_terminal!(Pending),
+            PproRefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: PproRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -272,17 +302,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      RSync,
-    source:    PproRefundStatus,
-    success:   RefundSettled => Success,
-    failure:   Failed        => Failure,
-    extractors: { request: RefundSyncData, response: PproRSyncResponse, source: |_resource_common_data, _request, response| Ok(match response.status { PproPaymentStatus::RefundSettled | PproPaymentStatus::Refunded => PproRefundStatus::RefundSettled, PproPaymentStatus::Failed => PproRefundStatus::Failed, _ => PproRefundStatus::Pending }), context: |_resource_common_data, _request, _response | (), },
-    {
-        Refunded  => Success,
-        Pending   => Pending,
-        Rejected  => Failure,
-        Declined  => Failure,
-        Unknown   => Pending,
+    connector_name: "ppro",
+    flow: RSync,
+    source: PproRefundStatus,
+    mapping: |status| {
+        match status {
+            PproRefundStatus::RefundSettled => success!(Success),
+            PproRefundStatus::Refunded => success!(Success),
+            PproRefundStatus::Failed => failure!(Failure),
+            PproRefundStatus::Rejected => failure!(Failure),
+            PproRefundStatus::Declined => failure!(Failure),
+            PproRefundStatus::Pending => non_terminal!(Pending),
+            PproRefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: PproRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response.status { PproPaymentStatus::RefundSettled | PproPaymentStatus::Refunded => PproRefundStatus::RefundSettled, PproPaymentStatus::Failed => PproRefundStatus::Failed, _ => PproRefundStatus::Pending }),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -292,24 +329,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      SetupMandate,
-    source:    PproPaymentStatus,
-    success:   Success              => Charged,
-    failure:   Failed               => Failure,
-    extractors: { request: SetupMandateRequestData<T>, response: PproAgreementResponse, source: |_resource_common_data, _request, response| Ok(match response.status { PproAgreementStatus::Active => PproPaymentStatus::Success, PproAgreementStatus::AuthenticationPending => PproPaymentStatus::AuthenticationPending, PproAgreementStatus::Initializing => PproPaymentStatus::AuthorizationProcessing, PproAgreementStatus::Failed => PproPaymentStatus::Failed, PproAgreementStatus::Revoked => PproPaymentStatus::Voided }), context: |_resource_common_data, _request, _response | (), },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => AuthenticationPending,
-        AuthorizationAsync      => Pending,
-        CapturePending          => Pending,
-        Captured                => Charged,
-        Discarded               => Failure,
-        Voided                  => Failure,
-        RefundSettled           => Charged,
-        Refunded                => Charged,
-        Rejected                => Failure,
-        Declined                => Failure,
+    connector_name: "ppro",
+    flow: SetupMandate,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Success => success!(Charged),
+            PproPaymentStatus::Captured => success!(Charged),
+            PproPaymentStatus::RefundSettled => success!(Charged),
+            PproPaymentStatus::Refunded => success!(Charged),
+            PproPaymentStatus::Failed => failure!(Failure),
+            PproPaymentStatus::Discarded => failure!(Failure),
+            PproPaymentStatus::Voided => failure!(Failure),
+            PproPaymentStatus::Rejected => failure!(Failure),
+            PproPaymentStatus::Declined => failure!(Failure),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            PproPaymentStatus::AuthorizationAsync => non_terminal!(Pending),
+            PproPaymentStatus::CapturePending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: PproAgreementResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response.status { PproAgreementStatus::Active => PproPaymentStatus::Success, PproAgreementStatus::AuthenticationPending => PproPaymentStatus::AuthenticationPending, PproAgreementStatus::Initializing => PproPaymentStatus::AuthorizationProcessing, PproAgreementStatus::Failed => PproPaymentStatus::Failed, PproAgreementStatus::Revoked => PproPaymentStatus::Voided }),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -319,24 +363,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    flow:      RepeatPayment,
-    source:    PproPaymentStatus,
-    success:   Success              => Charged,
-    failure:   Failed               => Failure,
-    extractors: { request: RepeatPaymentData<T>, response: PproPaymentsResponse, source: |_resource_common_data, _request, response| Ok(response.status.clone()), context: |_resource_common_data, _request, _response | (), },
-    {
-        AuthorizationProcessing => Pending,
-        CaptureProcessing       => Pending,
-        AuthenticationPending   => AuthenticationPending,
-        AuthorizationAsync      => Authorized,
-        CapturePending          => Authorized,
-        Captured                => Charged,
-        Discarded               => Failure,
-        Voided                  => Failure,
-        RefundSettled           => Charged,
-        Refunded                => Charged,
-        Rejected                => Failure,
-        Declined                => Failure,
+    connector_name: "ppro",
+    flow: RepeatPayment,
+    source: PproPaymentStatus,
+    mapping: |status| {
+        match status {
+            PproPaymentStatus::Success => success!(Charged),
+            PproPaymentStatus::Captured => success!(Charged),
+            PproPaymentStatus::RefundSettled => success!(Charged),
+            PproPaymentStatus::Refunded => success!(Charged),
+            PproPaymentStatus::Failed => failure!(Failure),
+            PproPaymentStatus::Discarded => failure!(Failure),
+            PproPaymentStatus::Voided => failure!(Failure),
+            PproPaymentStatus::Rejected => failure!(Failure),
+            PproPaymentStatus::Declined => failure!(Failure),
+            PproPaymentStatus::AuthorizationProcessing => non_terminal!(Pending),
+            PproPaymentStatus::CaptureProcessing => non_terminal!(Pending),
+            PproPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            PproPaymentStatus::AuthorizationAsync => non_terminal!(Authorized),
+            PproPaymentStatus::CapturePending => non_terminal!(Authorized),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: PproPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

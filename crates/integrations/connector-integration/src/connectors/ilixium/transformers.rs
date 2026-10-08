@@ -2977,27 +2977,6 @@ impl IlixiumHistoryResponse {
             })
             .map(|(_, operation)| operation)
     }
-
-    pub fn payment_sync_flow_status(
-        &self,
-        merchant_ref: &str,
-        current_status: AttemptStatus,
-        requested_auto_capture: bool,
-    ) -> AttemptStatus {
-        if self.status.code != IlixiumHistoryStatusCode::Success {
-            return current_status;
-        }
-
-        let Some(operation) = self.latest_payment_operation(merchant_ref) else {
-            return current_status;
-        };
-
-        let Some(operation_status) = operation.status.as_ref() else {
-            return current_status;
-        };
-
-        map_history_sync_status(operation, operation_status, requested_auto_capture)
-    }
 }
 
 /// Maps one history `operation[]` entry onto a UCS attempt status.
@@ -3530,7 +3509,7 @@ impl IlixiumHistoryResponse {
 /// enums to make it would lose the distinction between "the operation failed" and "the query was
 /// malformed".
 ///
-/// The nearest neighbour in the *other* direction, [`map_history_sync_status`], shares this enum
+/// The payment-sync history mapping shares this enum
 /// but targets `AttemptStatus` and branches on the operation type; here the operation type is
 /// already known to be `REFUND`, so only the status code matters.
 fn map_history_refund_status(status: &IlixiumHistoryStatus) -> RefundStatus {

@@ -133,18 +133,25 @@ macros::create_all_prerequisites!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      Authorize,
-    source:    placetopay::PlacetopayTransactionStatus,
-    success:   Ok               => Charged,
-    failure:   Failed           => Failure,
-    extractors: { request: PaymentsAuthorizeData<T>, response: PlacetopayPaymentsResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Charged,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: Authorize,
+    source: placetopay::PlacetopayTransactionStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PlacetopayPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -161,18 +168,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      PSync,
-    source:    placetopay::PlacetopayTransactionStatus,
-    success:   Ok               => Charged,
-    failure:   Failed           => Failure,
-    extractors: { request: PaymentsSyncData, response: PlacetopayPSyncResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Charged,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: PSync,
+    source: placetopay::PlacetopayTransactionStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PlacetopayPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -183,18 +197,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      Void,
-    source:    placetopay::PlacetopayTransactionStatus,
-    success:   Ok               => Voided,
-    failure:   Failed           => Failure,
-    extractors: { request: PaymentVoidData, response: PlacetopayVoidResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Voided,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: Void,
+    source: placetopay::PlacetopayTransactionStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Voided),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Voided),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: PlacetopayVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -225,19 +246,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      Refund,
-    source:    placetopay::PlacetopayRefundStatus,
-    success:   Ok               => Success,
-    failure:   Failed           => Failure,
-    extractors: { request: RefundsData, response: PlacetopayRefundResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Success,
-        Refunded         => Success,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: Refund,
+    source: placetopay::PlacetopayRefundStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayRefundStatus::Ok => success!(Success),
+            placetopay::PlacetopayRefundStatus::Approved => success!(Success),
+            placetopay::PlacetopayRefundStatus::Refunded => success!(Success),
+            placetopay::PlacetopayRefundStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Error => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: PlacetopayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -248,18 +276,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      Capture,
-    source:    placetopay::PlacetopayTransactionStatus,
-    success:   Ok               => Charged,
-    failure:   Failed           => CaptureFailed,
-    extractors: { request: PaymentsCaptureData, response: PlacetopayCaptureResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Charged,
-        Rejected         => CaptureFailed,
-        Error            => CaptureFailed,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: Capture,
+    source: placetopay::PlacetopayTransactionStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PlacetopayCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -270,19 +305,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      RSync,
-    source:    placetopay::PlacetopayRefundStatus,
-    success:   Ok               => Success,
-    failure:   Failed           => Failure,
-    extractors: { request: RefundSyncData, response: PlacetopayRSyncResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => Success,
-        Refunded         => Success,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: RSync,
+    source: placetopay::PlacetopayRefundStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayRefundStatus::Ok => success!(Success),
+            placetopay::PlacetopayRefundStatus::Approved => success!(Success),
+            placetopay::PlacetopayRefundStatus::Refunded => success!(Success),
+            placetopay::PlacetopayRefundStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Error => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: PlacetopayRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -293,18 +335,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    flow:      VoidPC,
-    source:    placetopay::PlacetopayTransactionStatus,
-    success:   Ok               => VoidedPostCapture,
-    failure:   Failed           => Failure,
-    extractors: { request: PaymentsCancelPostCaptureData, response: PlacetopayVoidPcResponse, source: |_resource_common_data, _request, response| Ok(response.flow_status()), context: |_resource_common_data, _request, _response | (), },
-    {
-        Approved         => VoidedPostCapture,
-        Rejected         => Failure,
-        Error            => Failure,
-        Pending          => Pending,
-        PendingValidation => Pending,
-        PendingProcess   => Pending,
+    connector_name: "placetopay",
+    flow: VoidPC,
+    source: placetopay::PlacetopayTransactionStatus,
+    mapping: |status| {
+        match status {
+            placetopay::PlacetopayTransactionStatus::Ok => success!(VoidedPostCapture),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(VoidedPostCapture),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCancelPostCaptureData,
+        response: PlacetopayVoidPcResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

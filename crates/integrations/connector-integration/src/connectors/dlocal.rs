@@ -64,22 +64,24 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      Authorize,
-    source:    DlocalPaymentStatus,
-    success:   Authorized => Authorized,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: Authorize,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Authorized => success!(Authorized),
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => non_terminal!(Voided),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: DlocalPaymentsResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Paid     => Charged,
-        Verified => Charged,
-        Pending  => Pending,
-        Active   => Pending,
-        Cancelled => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -89,22 +91,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      PSync,
-    source:    DlocalPaymentStatus,
-    success:   Paid       => Charged,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: PSync,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Authorized => success!(Authorized),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Cancelled => success!(Voided),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: DlocalPaymentsSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => Authorized,
-        Verified   => Charged,
-        Pending    => Pending,
-        Active     => Pending,
-        Cancelled  => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -114,22 +118,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      Void,
-    source:    DlocalPaymentStatus,
-    success:   Cancelled  => Voided,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: Void,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Cancelled => success!(Voided),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Paid => failure!(VoidFailed),
+            DlocalPaymentStatus::Verified => failure!(VoidFailed),
+            DlocalPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: DlocalPaymentsVoidResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => VoidInitiated,
-        Paid       => VoidFailed,
-        Verified   => VoidFailed,
-        Pending    => Pending,
-        Active     => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -139,19 +145,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      RSync,
-    source:    transformers::RefundStatus,
-    success:   Success    => Success,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: RSync,
+    source: transformers::RefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::RefundStatus::Success => success!(Success),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: RefundSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending   => Pending,
-        Cancelled => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -161,19 +169,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      Refund,
-    source:    transformers::RefundStatus,
-    success:   Success    => Success,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: Refund,
+    source: transformers::RefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::RefundStatus::Success => success!(Success),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: RefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending   => Pending,
-        Cancelled => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -183,22 +193,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      Capture,
-    source:    DlocalPaymentStatus,
-    success:   Paid       => Charged,
-    failure:   Rejected   => CaptureFailed,
-    extractors: {
+    connector_name: "dlocal",
+    flow: Capture,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(CaptureFailed),
+            DlocalPaymentStatus::Cancelled => failure!(CaptureFailed),
+            DlocalPaymentStatus::Authorized => non_terminal!(Pending),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: DlocalPaymentsCaptureResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => Pending,
-        Verified   => Charged,
-        Pending    => Pending,
-        Active     => Pending,
-        Cancelled  => CaptureFailed,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -212,22 +224,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      SetupMandate,
-    source:    DlocalPaymentStatus,
-    success:   Paid       => Charged,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: SetupMandate,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Authorized => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Cancelled => failure!(Failure),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: SetupMandateRequestData<T>,
         response: DlocalSetupMandateResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => Charged,
-        Verified   => Charged,
-        Pending    => Pending,
-        Active     => Pending,
-        Cancelled  => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -237,22 +251,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    flow:      RepeatPayment,
-    source:    DlocalPaymentStatus,
-    success:   Paid       => Charged,
-    failure:   Rejected   => Failure,
-    extractors: {
+    connector_name: "dlocal",
+    flow: RepeatPayment,
+    source: DlocalPaymentStatus,
+    mapping: |status| {
+        match status {
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Cancelled => failure!(Failure),
+            DlocalPaymentStatus::Authorized => non_terminal!(Authorized),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RepeatPaymentData<T>,
         response: DlocalRepeatPaymentResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => Authorized,
-        Verified   => Charged,
-        Pending    => Pending,
-        Active     => Pending,
-        Cancelled  => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

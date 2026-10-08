@@ -69,23 +69,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      Authorize,
-    source:    transformers::FiservPaymentStatus,
-    success:   Authorized  => Authorized,
-    failure:   Failed      => Failure,
-    extractors: {
+    connector_name: "fiserv",
+    flow: Authorize,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Authorized => success!(Authorized),
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Voided),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Authorizing),
+            transformers::FiservPaymentStatus::Created => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FiservPaymentsResponse,
-        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Succeeded   => Charged,
-        Captured    => Charged,
-        Declined    => Failure,
-        Voided      => Voided,
-        Processing  => Authorizing,
-        Created     => AuthenticationPending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.gateway_response.transaction_state.clone())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -96,23 +100,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      PSync,
-    source:    transformers::FiservPaymentStatus,
-    success:   Succeeded   => Charged,
-    failure:   Failed      => Failure,
-    extractors: {
+    connector_name: "fiserv",
+    flow: PSync,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Authorized => success!(Authorized),
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Voided => success!(Voided),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Authorizing),
+            transformers::FiservPaymentStatus::Created => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: FiservSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized  => Authorized,
-        Captured    => Charged,
-        Declined    => Failure,
-        Voided      => Voided,
-        Processing  => Authorizing,
-        Created     => AuthenticationPending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.sync_responses.first()
+                .map(|item| item.gateway_response.transaction_state.clone())
+                .unwrap_or_default())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -122,23 +132,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      Void,
-    source:    transformers::FiservPaymentStatus,
-    success:   Voided      => Voided,
-    failure:   Failed      => VoidFailed,
-    extractors: {
+    connector_name: "fiserv",
+    flow: Void,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Voided => success!(Voided),
+            transformers::FiservPaymentStatus::Failed => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Succeeded => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Captured => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: FiservVoidResponse,
-        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized  => VoidInitiated,
-        Succeeded   => VoidFailed,
-        Captured    => VoidFailed,
-        Declined    => Failure,
-        Processing  => Pending,
-        Created     => Pending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.gateway_response.transaction_state.clone())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -148,23 +162,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      RSync,
-    source:    transformers::FiservPaymentStatus,
-    success:   Succeeded   => Success,
-    failure:   Failed      => Failure,
-    extractors: {
+    connector_name: "fiserv",
+    flow: RSync,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Succeeded => success!(Success),
+            transformers::FiservPaymentStatus::Captured => success!(Success),
+            transformers::FiservPaymentStatus::Authorized => success!(Success),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: FiservRefundSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.sync_responses.first().map(|item| item.gateway_response.transaction_state.clone()).unwrap_or_default()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Captured    => Success,
-        Authorized  => Success,
-        Declined    => Failure,
-        Voided      => Pending,
-        Processing  => Pending,
-        Created     => Pending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.sync_responses.first()
+                .map(|item| item.gateway_response.transaction_state.clone())
+                .unwrap_or_default())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -174,23 +194,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      Refund,
-    source:    transformers::FiservPaymentStatus,
-    success:   Succeeded   => Success,
-    failure:   Failed      => Failure,
-    extractors: {
+    connector_name: "fiserv",
+    flow: Refund,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Succeeded => success!(Success),
+            transformers::FiservPaymentStatus::Captured => success!(Success),
+            transformers::FiservPaymentStatus::Authorized => success!(Success),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: FiservRefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Captured    => Success,
-        Authorized  => Success,
-        Declined    => Failure,
-        Voided      => Pending,
-        Processing  => Pending,
-        Created     => Pending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.gateway_response.transaction_state.clone())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -200,23 +224,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    flow:      Capture,
-    source:    transformers::FiservPaymentStatus,
-    success:   Captured    => Charged,
-    failure:   Failed      => CaptureFailed,
-    extractors: {
+    connector_name: "fiserv",
+    flow: Capture,
+    source: transformers::FiservPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Failed => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Declined => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Voided => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: FiservCaptureResponse,
-        source: |_resource_common_data, _request, response| Ok(response.gateway_response.transaction_state.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized  => Pending,
-        Succeeded   => Charged,
-        Declined    => CaptureFailed,
-        Voided      => CaptureFailed,
-        Processing  => Pending,
-        Created     => Pending,
+        source: |_common, _request, response, _http_status_code| {
+            Ok(response.gateway_response.transaction_state.clone())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

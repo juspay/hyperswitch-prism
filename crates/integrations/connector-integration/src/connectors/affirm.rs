@@ -69,38 +69,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
+    connector_name: "affirm",
     flow:            Authorize,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,
-    params:          [status, is_checkout_initiate],
-    success: Captured => [Charged],
-    failure: Declined => Failure,
-    extractors: {
-        request:  PaymentsAuthorizeData<T>,
-        response: AffirmPaymentsResponse,
-        source:   |_resource_common_data, _request, response| Ok(match response {
-            AffirmPaymentsResponse::Checkout(_) => transformers::AffirmTransactionStatus::Unknown,
-            AffirmPaymentsResponse::Transaction(transaction) => transaction.status.clone(),
-        }),
-        context: |_resource_common_data, _request, response | matches!(response, AffirmPaymentsResponse::Checkout(_)),
-    },
-    {
+    mapping: |status, is_checkout_initiate| {
         if is_checkout_initiate {
-            common_enums::AttemptStatus::AuthenticationPending
+            non_terminal!(AuthenticationPending)
         } else {
             match status {
-                transformers::AffirmTransactionStatus::Captured => common_enums::AttemptStatus::Charged,
-                transformers::AffirmTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-                transformers::AffirmTransactionStatus::Authorized => common_enums::AttemptStatus::Authorized,
-                transformers::AffirmTransactionStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-                transformers::AffirmTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
+                transformers::AffirmTransactionStatus::Captured => success!(Charged),
+                transformers::AffirmTransactionStatus::Authorized => success!(Authorized),
+                transformers::AffirmTransactionStatus::PartiallyCaptured => {
+                    success!(PartialCharged)
+                }
+                transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+                transformers::AffirmTransactionStatus::Voided => non_terminal!(Voided),
                 transformers::AffirmTransactionStatus::Refunded
                 | transformers::AffirmTransactionStatus::PartiallyRefunded
                 | transformers::AffirmTransactionStatus::Disputed
-                | transformers::AffirmTransactionStatus::DisputeRefunded => common_enums::AttemptStatus::Unresolved,
-                transformers::AffirmTransactionStatus::Unknown => common_enums::AttemptStatus::Unknown,
+                | transformers::AffirmTransactionStatus::DisputeRefunded => {
+                    non_terminal!(Unresolved)
+                }
+                transformers::AffirmTransactionStatus::Unknown => non_terminal!(Unknown),
             }
         }
+    },
+    runtime: {
+        request:  PaymentsAuthorizeData<T>,
+        response: AffirmPaymentsResponse,
+        source: |_common, _request, response, _http_status_code| Ok(match response {
+            AffirmPaymentsResponse::Checkout(_) => transformers::AffirmTransactionStatus::Unknown,
+            AffirmPaymentsResponse::Transaction(transaction) => transaction.status.clone(),
+        }),
+        context: |_common, _request, response, _http_status_code| {
+            Ok(matches!(response, AffirmPaymentsResponse::Checkout(_)))
+        },
     }
 }
 
@@ -112,25 +116,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    flow:      PSync,
-    source:    transformers::AffirmTransactionStatus,
-    success:   Captured          => Charged,
-    failure:   Declined          => Failure,
-    extractors: {
-        request:  PaymentsSyncData,
-        response: AffirmSyncResponse,
-        source:   |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
+    connector_name: "affirm",
+    flow: PSync,
+    source: transformers::AffirmTransactionStatus,
+    mapping: |status| {
+        match status {
+            transformers::AffirmTransactionStatus::Captured => success!(Charged),
+            transformers::AffirmTransactionStatus::Authorized => success!(Authorized),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::AffirmTransactionStatus::Voided => success!(Voided),
+            transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+            transformers::AffirmTransactionStatus::Refunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::DisputeRefunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Unknown),
+        }
     },
-    {
-        Authorized        => Authorized,
-        PartiallyCaptured => PartialCharged,
-        Voided            => Voided,
-        Refunded          => Unresolved,
-        PartiallyRefunded => Unresolved,
-        Disputed          => Unresolved,
-        DisputeRefunded   => Unresolved,
-        Unknown           => Unknown,
+    runtime: {
+        request: PaymentsSyncData,
+        response: AffirmSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -141,25 +147,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    flow:      Capture,
-    source:    transformers::AffirmTransactionStatus,
-    success:   Captured          => Charged,
-    failure:   Declined          => CaptureFailed,
-    extractors: {
-        request:  PaymentsCaptureData,
-        response: AffirmCaptureResponse,
-        source:   |_resource_common_data, _request, _response| Ok(transformers::AffirmTransactionStatus::Captured),
-        context: |_resource_common_data, _request, _response | (),
+    connector_name: "affirm",
+    flow: Capture,
+    source: transformers::AffirmTransactionStatus,
+    mapping: |status| {
+        match status {
+            transformers::AffirmTransactionStatus::Captured => success!(Charged),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::AffirmTransactionStatus::Declined => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Voided => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Refunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::DisputeRefunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Authorized => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Pending),
+        }
     },
-    {
-        Authorized        => Pending,
-        PartiallyCaptured => PartialCharged,
-        Voided            => CaptureFailed,
-        Refunded          => CaptureFailed,
-        PartiallyRefunded => CaptureFailed,
-        Disputed          => Pending,
-        DisputeRefunded   => CaptureFailed,
-        Unknown           => Pending,
+    runtime: {
+        request: PaymentsCaptureData,
+        response: AffirmCaptureResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| Ok(transformers::AffirmTransactionStatus::Captured),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -170,25 +178,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    flow:      Void,
-    source:    transformers::AffirmTransactionStatus,
-    success:   Voided            => Voided,
-    failure:   Declined          => Failure,
-    extractors: {
-        request:  PaymentVoidData,
-        response: AffirmVoidResponse,
-        source:   |_resource_common_data, _request, _response| Ok(transformers::AffirmTransactionStatus::Voided),
-        context: |_resource_common_data, _request, _response | (),
+    connector_name: "affirm",
+    flow: Void,
+    source: transformers::AffirmTransactionStatus,
+    mapping: |status| {
+        match status {
+            transformers::AffirmTransactionStatus::Voided => success!(Voided),
+            transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+            transformers::AffirmTransactionStatus::Captured => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::Refunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::DisputeRefunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Pending),
+        }
     },
-    {
-        Authorized        => VoidInitiated,
-        Captured          => VoidFailed,
-        PartiallyCaptured => VoidFailed,
-        Refunded          => VoidFailed,
-        PartiallyRefunded => VoidFailed,
-        Disputed          => Pending,
-        DisputeRefunded   => VoidFailed,
-        Unknown           => Pending,
+    runtime: {
+        request: PaymentVoidData,
+        response: AffirmVoidResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| Ok(transformers::AffirmTransactionStatus::Voided),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -199,17 +209,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    flow:      Refund,
-    source:    transformers::AffirmRefundStatus,
-    success:   Refunded => Success,
-    failure:   Failed   => Failure,
-    extractors: {
+    connector_name: "affirm",
+    flow: Refund,
+    source: transformers::AffirmRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::AffirmRefundStatus::Refunded => success!(Success),
+            transformers::AffirmRefundStatus::Failed => failure!(Failure),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: AffirmRefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    { Pending => Pending, }
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Affirm<T>
@@ -219,24 +232,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
+    connector_name: "affirm",
     flow:            RSync,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,
-    params:          [status, refund_event_found],
-    success: Refunded => Success,
-    failure: Declined => Failure,
-    extractors: {
+    mapping: |status, context| {
+        match (status, context) {
+            (transformers::AffirmTransactionStatus::Captured, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Declined, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Authorized, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::PartiallyCaptured, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Voided, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Refunded, _) => success!(Success),
+            (transformers::AffirmTransactionStatus::PartiallyRefunded, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Disputed, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::DisputeRefunded, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Unknown, true) => success!(Success),
+            (transformers::AffirmTransactionStatus::Declined, false) => failure!(Failure),
+            (transformers::AffirmTransactionStatus::Voided, false) => failure!(Failure),
+            (transformers::AffirmTransactionStatus::Captured, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::Authorized, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::PartiallyCaptured, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::PartiallyRefunded, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::Disputed, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::DisputeRefunded, false) => non_terminal!(Pending),
+            (transformers::AffirmTransactionStatus::Unknown, false) => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: AffirmRSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, request, response | response.has_refund_event(&request.connector_refund_id),
-    },
-    {
-        match (refund_event_found, status) {
-            (true, _) | (_, transformers::AffirmTransactionStatus::Refunded) => common_enums::RefundStatus::Success,
-            (_, transformers::AffirmTransactionStatus::Declined | transformers::AffirmTransactionStatus::Voided) => common_enums::RefundStatus::Failure,
-            _ => common_enums::RefundStatus::Pending,
-        }
+        source: |_common, _request, response, _http_status_code| Ok(response.status.clone()),
+        context: |_common, request, response, _http_status_code| {
+            Ok(response.has_refund_event(&request.connector_refund_id))
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

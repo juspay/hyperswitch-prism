@@ -4979,6 +4979,17 @@ pub enum PaymentSyncResponse {
     SetupMandateResponse(SetupMandateResponse),
 }
 
+impl PaymentSyncResponse {
+    pub fn payment_status(&self) -> StripePaymentStatus {
+        match self {
+            Self::PaymentIntentSyncResponse(response) => {
+                response.payment_intent_fields.status.clone()
+            }
+            Self::SetupMandateResponse(response) => response.status.clone(),
+        }
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -5006,6 +5017,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsAuthorizeResponse(PaymentIntentResponse);
+
+impl PaymentsAuthorizeResponse {
+    pub fn payment_status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
@@ -5054,6 +5071,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsCaptureResponse(PaymentIntentResponse);
+
+impl PaymentsCaptureResponse {
+    pub fn payment_status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
@@ -5106,6 +5129,12 @@ impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsVoidResponse(PaymentIntentResponse);
+
+impl PaymentsVoidResponse {
+    pub fn payment_status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl TryFrom<ResponseRouterData<PaymentsVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>

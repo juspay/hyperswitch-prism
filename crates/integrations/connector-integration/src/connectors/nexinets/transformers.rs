@@ -357,6 +357,19 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
+impl NexinetsPreAuthOrDebitResponse {
+    pub(crate) fn runtime_status(
+        &self,
+    ) -> Result<(NexinetsPaymentStatus, NexinetsTransactionType), ConnectorError> {
+        let status = self
+            .transactions
+            .first()
+            .map(|transaction| transaction.status.clone())
+            .ok_or_else(ConnectorError::unexpected_response_error_http_status_unknown)?;
+        Ok((status, self.transaction_type.clone()))
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {

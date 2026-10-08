@@ -65,32 +65,34 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      Authorize,
-    source:    payme::SaleStatus,
-    success:   Authorized   => Authorized,
-    failure:   Failed       => Failure,
-    extractors: {
+    connector_name: "payme",
+    flow: Authorize,
+    source: payme::SaleStatus,
+    mapping: |status| {
+        match status {
+            payme::SaleStatus::Authorized => success!(Authorized),
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Refunded => non_terminal!(AutoRefunded),
+            payme::SaleStatus::PartialRefund => non_terminal!(AutoRefunded),
+            payme::SaleStatus::Voided => non_terminal!(Voided),
+            payme::SaleStatus::PartialVoid => non_terminal!(Voided),
+            payme::SaleStatus::Chargeback => non_terminal!(AutoRefunded),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PaymePaymentResponse,
-        source: |_resource_common_data, _request, response| Ok({
-            if response.status_code != 0
-                && (response.payme_status != "success" || response.status_error_code.is_some())
-            {
-                payme::SaleStatus::Failed
-            } else {
-                response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
-            }
-        }),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Initial      => Pending,
-        Completed    => Charged,
-        Refunded     => AutoRefunded,
-        PartialRefund => AutoRefunded,
-        Voided       => Voided,
-        PartialVoid  => Voided,
-        Chargeback   => AutoRefunded,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok({
+                    if response.status_code != 0
+                        && (response.payme_status != "success" || response.status_error_code.is_some())
+                    {
+                        payme::SaleStatus::Failed
+                    } else {
+                        response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
+                    }
+                }),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -101,34 +103,36 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      PSync,
-    source:    payme::SaleStatus,
-    success:   Completed    => Charged,
-    failure:   Failed       => Failure,
-    extractors: {
+    connector_name: "payme",
+    flow: PSync,
+    source: payme::SaleStatus,
+    mapping: |status| {
+        match status {
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Authorized => success!(Authorized),
+            payme::SaleStatus::Refunded => success!(AutoRefunded),
+            payme::SaleStatus::PartialRefund => success!(AutoRefunded),
+            payme::SaleStatus::Voided => success!(Voided),
+            payme::SaleStatus::PartialVoid => success!(Voided),
+            payme::SaleStatus::Chargeback => success!(AutoRefunded),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: PaymeSyncResponse,
-        source: |_resource_common_data, _request, response| Ok({
-            if response.status_code != 0 {
-                payme::SaleStatus::Failed
-            } else {
-                response
-                    .items
-                    .first()
-                    .and_then(|item| item.sale_status.clone())
-                    .unwrap_or(payme::SaleStatus::Initial)
-            }
-        }),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Initial      => Pending,
-        Authorized   => Authorized,
-        Refunded     => AutoRefunded,
-        PartialRefund => AutoRefunded,
-        Voided       => Voided,
-        PartialVoid  => Voided,
-        Chargeback   => AutoRefunded,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok({
+                    if response.status_code != 0 {
+                        payme::SaleStatus::Failed
+                    } else {
+                        response
+                            .items
+                            .first()
+                            .and_then(|item| item.sale_status.clone())
+                            .unwrap_or(payme::SaleStatus::Initial)
+                    }
+                }),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -139,19 +143,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      Void,
-    source:    payme::PaymeVoidFlowStatus,
-    success:   Voided       => Voided,
-    failure:   Failed       => VoidFailed,
-    extractors: {
+    connector_name: "payme",
+    flow: Void,
+    source: payme::PaymeVoidFlowStatus,
+    mapping: |status| {
+        match status {
+            payme::PaymeVoidFlowStatus::Voided => success!(Voided),
+            payme::PaymeVoidFlowStatus::DefaultVoided => success!(Voided),
+            payme::PaymeVoidFlowStatus::Failed => failure!(VoidFailed),
+            payme::PaymeVoidFlowStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: PaymePaymentResponse,
-        source: |_resource_common_data, _request, response| Ok(response.void_flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending       => Pending,
-        DefaultVoided => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.void_flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -162,32 +168,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      Capture,
-    source:    payme::SaleStatus,
-    success:   Completed    => Charged,
-    failure:   Failed       => CaptureFailed,
-    extractors: {
+    connector_name: "payme",
+    flow: Capture,
+    source: payme::SaleStatus,
+    mapping: |status| {
+        match status {
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Failed => failure!(CaptureFailed),
+            payme::SaleStatus::Refunded => failure!(CaptureFailed),
+            payme::SaleStatus::PartialRefund => failure!(CaptureFailed),
+            payme::SaleStatus::Voided => failure!(CaptureFailed),
+            payme::SaleStatus::PartialVoid => failure!(CaptureFailed),
+            payme::SaleStatus::Chargeback => failure!(CaptureFailed),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: PaymePaymentResponse,
-        source: |_resource_common_data, _request, response| Ok({
-            if response.status_code != 0
-                && (response.payme_status != "success" || response.status_error_code.is_some())
-            {
-                payme::SaleStatus::Failed
-            } else {
-                response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
-            }
-        }),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Initial      => Pending,
-        Authorized   => Pending,
-        Refunded     => CaptureFailed,
-        PartialRefund => CaptureFailed,
-        Voided       => CaptureFailed,
-        PartialVoid  => CaptureFailed,
-        Chargeback   => CaptureFailed,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok({
+                    if response.status_code != 0
+                        && (response.payme_status != "success" || response.status_error_code.is_some())
+                    {
+                        payme::SaleStatus::Failed
+                    } else {
+                        response.sale_status.clone().unwrap_or(payme::SaleStatus::Initial)
+                    }
+                }),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -199,24 +207,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      Refund,
-    source:    payme::SaleStatus,
-    success:   Refunded      => Success,
-    failure:   Failed        => Failure,
-    extractors: {
+    connector_name: "payme",
+    flow: Refund,
+    source: payme::SaleStatus,
+    mapping: |status| {
+        match status {
+            payme::SaleStatus::Refunded => success!(Success),
+            payme::SaleStatus::PartialRefund => success!(Success),
+            payme::SaleStatus::Completed => success!(Success),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+            payme::SaleStatus::Voided => non_terminal!(Pending),
+            payme::SaleStatus::PartialVoid => non_terminal!(Pending),
+            payme::SaleStatus::Chargeback => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: PaymeRefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.refund_status.clone().unwrap_or(payme::SaleStatus::Initial)),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        PartialRefund  => Success,
-        Completed      => Success,
-        Initial        => Pending,
-        Authorized     => Pending,
-        Voided         => Pending,
-        PartialVoid    => Pending,
-        Chargeback     => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.refund_status.clone().unwrap_or(payme::SaleStatus::Initial)),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -227,24 +237,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      RSync,
-    source:    payme::SaleStatus,
-    success:   Refunded      => Success,
-    failure:   Failed        => Failure,
-    extractors: {
+    connector_name: "payme",
+    flow: RSync,
+    source: payme::SaleStatus,
+    mapping: |status| {
+        match status {
+            payme::SaleStatus::Refunded => success!(Success),
+            payme::SaleStatus::PartialRefund => success!(Success),
+            payme::SaleStatus::Completed => success!(Success),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+            payme::SaleStatus::Voided => non_terminal!(Pending),
+            payme::SaleStatus::PartialVoid => non_terminal!(Pending),
+            payme::SaleStatus::Chargeback => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: PaymeRSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.items.first().and_then(|item| item.sale_status.clone()).unwrap_or(payme::SaleStatus::Initial)),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        PartialRefund  => Success,
-        Completed      => Success,
-        Initial        => Pending,
-        Authorized     => Pending,
-        Voided         => Pending,
-        PartialVoid    => Pending,
-        Chargeback     => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.items.first().and_then(|item| item.sale_status.clone()).unwrap_or(payme::SaleStatus::Initial)),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

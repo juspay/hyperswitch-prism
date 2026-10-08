@@ -57,21 +57,23 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      Authorize,
-    source:    transformers::FortePaymentStatus,
-    success:   Authorized => Authorized,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "forte",
+    flow: Authorize,
+    source: transformers::FortePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FortePaymentStatus::Authorized => success!(Authorized),
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Settled => success!(Charged),
+            transformers::FortePaymentStatus::Failed => failure!(Failure),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Voided => non_terminal!(Voided),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FortePaymentsResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Complete  => Charged,
-        Ready     => Pending,
-        Voided    => Voided,
-        Settled   => Charged,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -81,21 +83,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      PSync,
-    source:    transformers::FortePaymentStatus,
-    success:   Settled    => Charged,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "forte",
+    flow: PSync,
+    source: transformers::FortePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FortePaymentStatus::Settled => success!(Charged),
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Authorized => success!(Authorized),
+            transformers::FortePaymentStatus::Voided => success!(Voided),
+            transformers::FortePaymentStatus::Failed => failure!(Failure),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: FortePaymentsSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Complete   => Charged,
-        Authorized => Authorized,
-        Ready      => Pending,
-        Voided     => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -105,21 +109,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      Void,
-    source:    transformers::FortePaymentStatus,
-    success:   Voided     => Voided,
-    failure:   Failed     => VoidFailed,
-    extractors: {
+    connector_name: "forte",
+    flow: Void,
+    source: transformers::FortePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FortePaymentStatus::Voided => success!(Voided),
+            transformers::FortePaymentStatus::Failed => failure!(VoidFailed),
+            transformers::FortePaymentStatus::Complete => failure!(VoidFailed),
+            transformers::FortePaymentStatus::Settled => failure!(VoidFailed),
+            transformers::FortePaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: ForteCancelResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Complete   => VoidFailed,
-        Authorized => VoidInitiated,
-        Ready      => Pending,
-        Settled    => VoidFailed,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -129,18 +135,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      RSync,
-    source:    transformers::RefundStatus,
-    success:   Complete   => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "forte",
+    flow: RSync,
+    source: transformers::RefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::RefundStatus::Complete => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Ready => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: RefundSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Ready => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -150,18 +158,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      Refund,
-    source:    transformers::RefundStatus,
-    success:   Complete   => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "forte",
+    flow: Refund,
+    source: transformers::RefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::RefundStatus::Complete => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Ready => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: RefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Ready => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -171,21 +181,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    flow:      Capture,
-    source:    transformers::FortePaymentStatus,
-    success:   Complete   => Charged,
-    failure:   Failed     => CaptureFailed,
-    extractors: {
+    connector_name: "forte",
+    flow: Capture,
+    source: transformers::FortePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Settled => success!(Charged),
+            transformers::FortePaymentStatus::Failed => failure!(CaptureFailed),
+            transformers::FortePaymentStatus::Voided => failure!(CaptureFailed),
+            transformers::FortePaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: ForteCaptureResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Authorized => Pending,
-        Ready      => Pending,
-        Voided     => CaptureFailed,
-        Settled    => Charged,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

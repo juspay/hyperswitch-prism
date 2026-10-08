@@ -61,22 +61,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    flow:      Authorize,
-    source:    transformers::IatapayPaymentStatus,
-    success:   Authorized         => Charged,
-    failure:   Failed             => Failure,
-    extractors: {
+    connector_name: "iatapay",
+    flow: Authorize,
+    source: transformers::IatapayPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::IatapayPaymentStatus::Authorized => success!(Charged),
+            transformers::IatapayPaymentStatus::Settled => success!(Charged),
+            transformers::IatapayPaymentStatus::Cleared => success!(Charged),
+            transformers::IatapayPaymentStatus::Failed => failure!(Failure),
+            transformers::IatapayPaymentStatus::UnexpectedSettled => failure!(Failure),
+            transformers::IatapayPaymentStatus::Created => non_terminal!(AuthenticationPending),
+            transformers::IatapayPaymentStatus::Initiated => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: IatapayPaymentsResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created                   => AuthenticationPending,
-        Initiated                 => Pending,
-        Settled                   => Charged,
-        Cleared                   => Charged,
-        UnexpectedSettled         => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -87,22 +89,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    flow:      PSync,
-    source:    transformers::IatapayPaymentStatus,
-    success:   Authorized         => Charged,
-    failure:   Failed             => Failure,
-    extractors: {
+    connector_name: "iatapay",
+    flow: PSync,
+    source: transformers::IatapayPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::IatapayPaymentStatus::Authorized => success!(Charged),
+            transformers::IatapayPaymentStatus::Settled => success!(Charged),
+            transformers::IatapayPaymentStatus::Cleared => success!(Charged),
+            transformers::IatapayPaymentStatus::Failed => failure!(Failure),
+            transformers::IatapayPaymentStatus::UnexpectedSettled => failure!(Failure),
+            transformers::IatapayPaymentStatus::Created => non_terminal!(AuthenticationPending),
+            transformers::IatapayPaymentStatus::Initiated => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: IatapaySyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created                   => AuthenticationPending,
-        Initiated                 => Pending,
-        Settled                   => Charged,
-        Cleared                   => Charged,
-        UnexpectedSettled         => Failure,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -114,22 +118,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    flow:      Refund,
-    source:    transformers::IatapayRefundStatus,
-    success:   Settled    => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "iatapay",
+    flow: Refund,
+    source: transformers::IatapayRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::IatapayRefundStatus::Settled => success!(Success),
+            transformers::IatapayRefundStatus::Cleared => success!(Success),
+            transformers::IatapayRefundStatus::Failed => failure!(Failure),
+            transformers::IatapayRefundStatus::Created => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Locked => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Authorized => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: IatapayRefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Locked     => Pending,
-        Initiated  => Pending,
-        Authorized => Pending,
-        Cleared    => Success,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -140,22 +146,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    flow:      RSync,
-    source:    transformers::IatapayRefundStatus,
-    success:   Settled    => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "iatapay",
+    flow: RSync,
+    source: transformers::IatapayRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::IatapayRefundStatus::Settled => success!(Success),
+            transformers::IatapayRefundStatus::Cleared => success!(Success),
+            transformers::IatapayRefundStatus::Failed => failure!(Failure),
+            transformers::IatapayRefundStatus::Created => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Locked => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Authorized => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: IatapayRefundSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.status.clone()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Locked     => Pending,
-        Initiated  => Pending,
-        Authorized => Pending,
-        Cleared    => Success,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

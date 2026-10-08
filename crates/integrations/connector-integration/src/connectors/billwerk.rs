@@ -75,21 +75,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      Authorize,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Settled    => Charged,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: Authorize,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Authorized => success!(Authorized),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Cancelled => non_terminal!(Voided),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: BillwerkPaymentsResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Cancelled  => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -100,21 +102,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      PSync,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Settled    => Charged,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: PSync,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Authorized => success!(Authorized),
+            billwerk::BillwerkPaymentState::Cancelled => success!(Voided),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: BillwerkPaymentsSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Cancelled  => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -125,21 +129,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      Void,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Cancelled  => Voided,
-    failure:   Failed     => VoidFailed,
-    extractors: {
+    connector_name: "billwerk",
+    flow: Void,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Cancelled => success!(Voided),
+            billwerk::BillwerkPaymentState::Failed => failure!(VoidFailed),
+            billwerk::BillwerkPaymentState::Settled => failure!(VoidFailed),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(VoidInitiated),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: BillwerkPaymentsVoidResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Settled    => VoidFailed,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -150,21 +156,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      Capture,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Settled    => Charged,
-    failure:   Failed     => CaptureFailed,
-    extractors: {
+    connector_name: "billwerk",
+    flow: Capture,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(CaptureFailed),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(CaptureFailed),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: BillwerkCaptureResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Cancelled  => CaptureFailed,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -175,18 +183,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      Refund,
-    source:    billwerk::RefundState,
-    success:   Refunded   => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: Refund,
+    source: billwerk::RefundState,
+    mapping: |status| {
+        match status {
+            billwerk::RefundState::Refunded => success!(Success),
+            billwerk::RefundState::Failed => failure!(Failure),
+            billwerk::RefundState::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: BillwerkRefundResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Processing => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -197,18 +207,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      RSync,
-    source:    billwerk::RefundState,
-    success:   Refunded   => Success,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: RSync,
+    source: billwerk::RefundState,
+    mapping: |status| {
+        match status {
+            billwerk::RefundState::Refunded => success!(Success),
+            billwerk::RefundState::Failed => failure!(Failure),
+            billwerk::RefundState::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundSyncData,
         response: BillwerkRSyncResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Processing => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -219,21 +231,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      SetupMandate,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Settled    => Charged,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: SetupMandate,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: SetupMandateRequestData<T>,
         response: BillwerkSetupMandateResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Cancelled  => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -244,21 +258,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    flow:      RepeatPayment,
-    source:    billwerk::BillwerkPaymentState,
-    success:   Settled    => Charged,
-    failure:   Failed     => Failure,
-    extractors: {
+    connector_name: "billwerk",
+    flow: RepeatPayment,
+    source: billwerk::BillwerkPaymentState,
+    mapping: |status| {
+        match status {
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(Authorized),
+        }
+    },
+    runtime: {
         request: RepeatPaymentData<T>,
         response: BillwerkRepeatPaymentResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Created    => Pending,
-        Pending    => Pending,
-        Authorized => Authorized,
-        Cancelled  => Voided,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

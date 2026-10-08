@@ -57,28 +57,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
+    connector_name: "aci",
     flow:           Authorize,
     source:         aci::AciPaymentStatus,
     context:        bool,
-    params:         [status, auto_capture],
-    success: Succeeded => [Authorized, Charged],
-    failure: Failed => Failure,
-    extractors: {
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
         request: PaymentsAuthorizeData<T>,
         response: AciPaymentsResponse,
-        source: |_resource_common_data, _request, response| {
+        source: |_resource_common_data, _request, response, _http_status_code| {
             response.flow_status().map_err(aci_runtime_status_error)
         },
-        context: |_resource_common_data, request, _response| request.is_auto_capture(),
-    },
-    {
-        match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Authorizing,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
-        }
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -90,28 +90,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
+    connector_name: "aci",
     flow:           PSync,
     source:         aci::AciPaymentStatus,
     context:        bool,
-    params:         [status, auto_capture],
-    success: Succeeded => [Authorized, Charged],
-    failure: Failed => Failure,
-    extractors: {
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
         request: PaymentsSyncData,
         response: AciPaymentsSyncResponse,
-        source: |_resource_common_data, _request, response| {
+        source: |_resource_common_data, _request, response, _http_status_code| {
             response.flow_status().map_err(aci_runtime_status_error)
         },
-        context: |_resource_common_data, request, _response| request.is_auto_capture(),
-    },
-    {
-        match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Authorizing,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
-        }
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -122,20 +122,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    flow:      Void,
-    source:    aci::AciStatus,
-    success:   Succeeded        => Voided,
-    failure:   Failed           => VoidFailed,
-    extractors: {
+    connector_name: "aci",
+    flow: Void,
+    source: aci::AciStatus,
+    mapping: |status| {
+        match status {
+            aci::AciStatus::Succeeded => success!(Voided),
+            aci::AciStatus::Failed => failure!(VoidFailed),
+            aci::AciStatus::Pending => non_terminal!(VoidInitiated),
+        }
+    },
+    runtime: {
         request: PaymentVoidData,
         response: AciVoidResponse,
-        source: |_resource_common_data, _request, response| {
-            response.flow_status().map_err(aci_runtime_status_error)
-        },
-        context: |_resource_common_data, _request, _response| (),
-    },
-    {
-        Pending         => VoidInitiated,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -146,20 +148,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    flow:      Refund,
-    source:    aci::AciRefundStatus,
-    success:   Succeeded        => Success,
-    failure:   Failed           => Failure,
-    extractors: {
+    connector_name: "aci",
+    flow: Refund,
+    source: aci::AciRefundStatus,
+    mapping: |status| {
+        match status {
+            aci::AciRefundStatus::Succeeded => success!(Success),
+            aci::AciRefundStatus::Failed => failure!(Failure),
+            aci::AciRefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: RefundsData,
         response: AciRefundResponse,
-        source: |_resource_common_data, _request, response| {
-            response.flow_status().map_err(aci_runtime_status_error)
-        },
-        context: |_resource_common_data, _request, _response| (),
-    },
-    {
-        Pending         => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -170,20 +174,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    flow:      Capture,
-    source:    aci::AciStatus,
-    success:   Succeeded        => Charged,
-    failure:   Failed           => Failure,
-    extractors: {
+    connector_name: "aci",
+    flow: Capture,
+    source: aci::AciStatus,
+    mapping: |status| {
+        match status {
+            aci::AciStatus::Succeeded => success!(Charged),
+            aci::AciStatus::Failed => failure!(Failure),
+            aci::AciStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: PaymentsCaptureData,
         response: AciCaptureResponse,
-        source: |_resource_common_data, _request, response| {
-            response.flow_status().map_err(aci_runtime_status_error)
-        },
-        context: |_resource_common_data, _request, _response| (),
-    },
-    {
-        Pending         => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -198,18 +204,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    flow:      SetupMandate,
-    source:    aci::AciMandateStatus,
-    success:   Succeeded        => Charged,
-    failure:   Failed           => Failure,
-    extractors: {
+    connector_name: "aci",
+    flow: SetupMandate,
+    source: aci::AciMandateStatus,
+    mapping: |status| {
+        match status {
+            aci::AciMandateStatus::Succeeded => success!(Charged),
+            aci::AciMandateStatus::Failed => failure!(Failure),
+            aci::AciMandateStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
         request: SetupMandateRequestData<T>,
         response: AciMandateResponse,
-        source: |_resource_common_data, _request, response| Ok(response.flow_status()),
-        context: |_resource_common_data, _request, _response | (),
-    },
-    {
-        Pending         => Pending,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -220,28 +228,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
+    connector_name: "aci",
     flow:           RepeatPayment,
     source:         aci::AciPaymentStatus,
     context:        bool,
-    params:         [status, auto_capture],
-    success: Succeeded => [Charged],
-    failure: Failed => Failure,
-    extractors: {
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Succeeded, false) => non_terminal!(Authorized),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Pending),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
         request: RepeatPaymentData<T>,
         response: AciRepeatPaymentResponse,
-        source: |_resource_common_data, _request, response| {
+        source: |_resource_common_data, _request, response, _http_status_code| {
             response.flow_status().map_err(aci_runtime_status_error)
         },
-        context: |_resource_common_data, request, _response| request.is_auto_capture(),
-    },
-    {
-        match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Pending,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
-        }
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

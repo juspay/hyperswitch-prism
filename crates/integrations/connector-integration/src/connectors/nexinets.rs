@@ -649,43 +649,47 @@ macros::macro_connector_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Nexinets<T>,
+    connector_name: "nexinets",
     flow:            Authorize,
     source:          nexinets::NexinetsPaymentStatus,
     context:         NexinetsTransactionType,
-
-    params:          [status, ctx],
-
-    success: Success => [Authorized, Charged],
-    failure: Declined => AuthorizationFailed,
-
-    {
-        use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
         match (status, ctx) {
             // Success — transaction type determines the terminal
             (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Preauth) => {
-                AttemptStatus::Authorized
+                success!(Authorized)
             }
             (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Debit) => {
-                AttemptStatus::Charged
+                success!(Charged)
             }
             // Capture and Cancel are unreachable here — authorize endpoints only return Preauth or Debit.
-            (nexinets::NexinetsPaymentStatus::Success, _) => AttemptStatus::Pending,
+            (nexinets::NexinetsPaymentStatus::Success, _) => non_terminal!(Pending),
 
             // Failure statuses — all map to AuthorizationFailed in the Authorize flow
             (nexinets::NexinetsPaymentStatus::Declined, _)
             | (nexinets::NexinetsPaymentStatus::Failure, _)
             | (nexinets::NexinetsPaymentStatus::Expired, _)
-            | (nexinets::NexinetsPaymentStatus::Aborted, _) => AttemptStatus::AuthorizationFailed,
+            | (nexinets::NexinetsPaymentStatus::Aborted, _) => failure!(AuthorizationFailed),
 
             // Ok with Preauth = still authorized; otherwise still processing
             (nexinets::NexinetsPaymentStatus::Ok, NexinetsTransactionType::Preauth) => {
-                AttemptStatus::Authorized
+                success!(Authorized)
             }
-            (nexinets::NexinetsPaymentStatus::Ok, _) => AttemptStatus::Pending,
+            (nexinets::NexinetsPaymentStatus::Ok, _) => non_terminal!(Pending),
 
-            (nexinets::NexinetsPaymentStatus::Pending, _) => AttemptStatus::AuthenticationPending,
-            (nexinets::NexinetsPaymentStatus::InProgress, _) => AttemptStatus::Pending,
+            (nexinets::NexinetsPaymentStatus::Pending, _) => non_terminal!(AuthenticationPending),
+            (nexinets::NexinetsPaymentStatus::InProgress, _) => non_terminal!(Pending),
         }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: NexinetsPreAuthOrDebitResponse,
+        source: |_common, _request, response, _http_code| {
+            response.runtime_status().map(|(status, _)| status)
+        },
+        context: |_common, _request, response, _http_code| {
+            response.runtime_status().map(|(_, transaction_type)| transaction_type)
+        },
     }
 }
 
