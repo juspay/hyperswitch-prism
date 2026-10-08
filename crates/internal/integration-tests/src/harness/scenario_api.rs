@@ -3332,6 +3332,7 @@ fn normalize_proto_oneof_shapes(value: &mut Value) {
             normalize_payment_method_oneof(map);
             normalize_mandate_reference_oneofs(map);
             normalize_google_pay_tokenization_data_oneof(map);
+            normalize_apple_pay_payment_data_oneof(map);
         }
         Value::Array(items) => {
             for item in items {
@@ -3433,6 +3434,47 @@ fn normalize_google_pay_tokenization_data_oneof(map: &mut serde_json::Map<String
     oneof_map.insert(variant_snake, payload);
 
     tokenization_data_obj.insert("tokenization_data".to_string(), Value::Object(oneof_map));
+}
+
+/// Normalizes the `apple_pay_sdk.payment_data` oneof so that the flat
+/// scenario JSON shape (`{"encrypted_data": "..."}` or `{"decrypted_data": {...}}`)
+/// is rewritten into the nested shape the proto struct expects:
+/// `{"payment_data": {"encrypted_data": "..."}}`.
+///
+/// Mirrors `normalize_google_pay_tokenization_data_oneof` for the
+/// `AppleWallet.PaymentData` message, which has a field `payment_data` holding
+/// the oneof. Scenario JSON omits that extra wrapper level and uses the variant
+/// name in snake_case directly.
+fn normalize_apple_pay_payment_data_oneof(map: &mut serde_json::Map<String, Value>) {
+    let Some(Value::Object(payment_data_obj)) = map.get_mut("payment_data") else {
+        return;
+    };
+
+    // Already normalized (has the inner "payment_data" oneof wrapper).
+    if payment_data_obj.contains_key("payment_data") {
+        return;
+    }
+
+    // Must have exactly one key — the variant name in snake_case.
+    if payment_data_obj.len() != 1 {
+        return;
+    }
+
+    let original = std::mem::take(payment_data_obj);
+    let Some((variant_snake, payload)) = original.into_iter().next() else {
+        return;
+    };
+
+    // Only rewrite known AppleWallet PaymentData variants.
+    if variant_snake != "encrypted_data" && variant_snake != "decrypted_data" {
+        payment_data_obj.insert(variant_snake, payload);
+        return;
+    }
+
+    let mut oneof_map = serde_json::Map::new();
+    oneof_map.insert(variant_snake, payload);
+
+    payment_data_obj.insert("payment_data".to_string(), Value::Object(oneof_map));
 }
 
 fn to_pascal_case(value: &str) -> String {

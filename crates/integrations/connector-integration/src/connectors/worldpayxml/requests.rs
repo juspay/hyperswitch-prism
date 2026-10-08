@@ -188,6 +188,8 @@ pub enum WorldpayxmlTransactionStatus {
     ChallengeRequiredDecoupledAuthentication,
     #[serde(rename = "I")]
     InformationOnly,
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 /// Flags the authorisation as part of a stored-credential agreement.

@@ -522,6 +522,9 @@ impl From<common_enums::TransactionStatus> for CybersourceParesStatus {
             common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                 Self::CardChallenged
             }
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::CardChallenged
+            }
             common_enums::TransactionStatus::InformationOnly => Self::AuthenticationNotCompleted,
         }
     }
@@ -2413,7 +2416,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_decrypted_apple_pay_payment_data_optional()
                 {
                     Some(decrypt_data) => {
-                        Self::try_from((&item, Box::new(decrypt_data.clone()), apple_pay_data))
+                        Self::try_from((&item, Box::new(decrypt_data.clone()), *apple_pay_data))
                     }
                     None => {
                         let transaction_type = if item.router_data.request.off_session == Some(true)
@@ -2509,10 +2512,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 WalletData::GooglePay(google_pay_data) => {
                     match &google_pay_data.tokenization_data {
                         payment_method_data::GpayTokenizationData::Decrypted(decrypt_data) => {
-                            Self::try_from((&item, Box::new(decrypt_data.clone()), google_pay_data))
+                            Self::try_from((
+                                &item,
+                                Box::new(decrypt_data.clone()),
+                                *google_pay_data,
+                            ))
                         }
                         payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Self::try_from((&item, google_pay_data))
+                            Self::try_from((&item, *google_pay_data))
                         }
                     }
                 }
@@ -5303,7 +5310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-        &CardDetailsForNetworkTransactionId,
+        &CardDetailsForNetworkTransactionId<T>,
     )> for CybersourceRepeatPaymentRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -5318,7 +5325,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 >,
                 T,
             >,
-            &CardDetailsForNetworkTransactionId,
+            &CardDetailsForNetworkTransactionId<T>,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item
@@ -5341,7 +5348,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_information =
             RepeatPaymentInformation::Cards(Box::new(CardWithNtiPaymentInformation {
                 card: CardWithNti {
-                    number: ccard.card_number.clone(),
+                    number: ccard.card_number.try_card_number("Cybersource")?,
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: None,

@@ -1425,7 +1425,7 @@ pub struct Revolv3RepeatAuthorizeRequest<T: PaymentMethodDataTypes> {
 
 impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
     pub fn set_credit_card_data_for_ntid(
-        card: CardDetailsForNetworkTransactionId,
+        card: CardDetailsForNetworkTransactionId<T>,
         common_data: &PaymentFlowData,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
@@ -1433,7 +1433,7 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
                 .with_required_full_name(card.card_holder_name.clone())?,
             method: Revolv3PaymentMethodDetails::Ntid(NtidCreditCardPaymentMethodData {
                 credit_card: Revolv3NtidCreditCardData {
-                    payment_account_number: card.card_number.clone(),
+                    payment_account_number: card.card_number.try_card_number("revolv3")?,
                     expiration_date: card.get_expiry_date_as_mmyy()?,
                 },
             }),
@@ -1681,7 +1681,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Revolv3PaymentMethodDetails::ApplePay(ApplePayPaymentMethodData {
                             apple_pay: Revolv3ApplePayData {
                                 apple_pay_decrypted_package:
-                                    Revolv3ApplePayDecryptedPackage::try_from(&apple_pay_data)?,
+                                    Revolv3ApplePayDecryptedPackage::try_from(
+                                        apple_pay_data.as_ref(),
+                                    )?,
                             },
                         })
                     }
@@ -1689,7 +1691,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
                             google_pay: Revolv3GooglePayData {
                                 google_pay_decrypted_package:
-                                    Revolv3GooglePayDecryptedPackage::try_from(&google_pay_data)?,
+                                    Revolv3GooglePayDecryptedPackage::try_from(
+                                        google_pay_data.as_ref(),
+                                    )?,
                             },
                         })
                     }
