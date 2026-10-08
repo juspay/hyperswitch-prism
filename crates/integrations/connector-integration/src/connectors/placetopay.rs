@@ -133,7 +133,6 @@ macros::create_all_prerequisites!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: Authorize,
     source: placetopay::PlacetopayTransactionStatus,
     mapping: |status| {
@@ -168,7 +167,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: PSync,
     source: placetopay::PlacetopayTransactionStatus,
     mapping: |status| {
@@ -197,7 +195,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: Void,
     source: placetopay::PlacetopayTransactionStatus,
     mapping: |status| {
@@ -246,7 +243,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: Refund,
     source: placetopay::PlacetopayRefundStatus,
     mapping: |status| {
@@ -276,7 +272,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: Capture,
     source: placetopay::PlacetopayTransactionStatus,
     mapping: |status| {
@@ -305,7 +300,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: RSync,
     source: placetopay::PlacetopayRefundStatus,
     mapping: |status| {
@@ -335,7 +329,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Placetopay<T>,
-    connector_name: "placetopay",
     flow: VoidPC,
     source: placetopay::PlacetopayTransactionStatus,
     mapping: |status| {

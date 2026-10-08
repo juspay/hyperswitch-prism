@@ -60,7 +60,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
-    connector_name: "hyperpg",
     flow: Authorize,
     source: transformers::HyperpgPaymentStatus,
     mapping: |status| {
@@ -90,7 +89,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
-    connector_name: "hyperpg",
     flow: PSync,
     source: transformers::HyperpgPaymentStatus,
     mapping: |status| {
@@ -120,7 +118,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
-    connector_name: "hyperpg",
     flow: Refund,
     source: transformers::HyperpgRefundStatus,
     mapping: |status| {
@@ -144,7 +141,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperpg<T>,
-    connector_name: "hyperpg",
     flow: RSync,
     source: Option<transformers::HyperpgRefundStatus>,
     context: common_enums::RefundStatus,

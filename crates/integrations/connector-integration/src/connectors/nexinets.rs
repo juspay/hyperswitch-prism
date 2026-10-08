@@ -649,7 +649,6 @@ macros::macro_connector_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Nexinets<T>,
-    connector_name: "nexinets",
     flow:            Authorize,
     source:          nexinets::NexinetsPaymentStatus,
     context:         NexinetsTransactionType,

@@ -128,6 +128,17 @@ impl<Connector, Flow, Request, Response>
     pub(crate) const fn new(connector_name: &'static str) -> Self {
         Self(PhantomData, connector_name)
     }
+
+    /// Shadow-mode opt-in, keyed on the connector *type* rather than a
+    /// hand-maintained string name, so module/enum rename mismatches are
+    /// impossible. `Connector` here is the concrete struct (e.g. `TsysTransit<T>`),
+    /// which always exists; the `T`-generic wrapper normalizes away the
+    /// payment-method type parameter before lookup.
+    pub(crate) fn is_live_status_transformer(&self) -> bool {
+        domain_types::flow_status::is_live_status_transformer_connector(std::any::type_name::<
+            Connector,
+        >())
+    }
 }
 
 pub(crate) trait ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse> {
@@ -181,11 +192,11 @@ where
                 "macros",
             ))?;
 
-        if domain_types::flow_status::is_live_status_transformer_connector(self.1) {
+        if self.is_live_status_transformer() {
             let transformer_status = result.resource_common_data.current_mapped_flow_status();
             if transformer_status != framework_status {
                 tracing::warn!(
-                    connector = self.1,
+                    connector = ?self.1,
                     flow = std::any::type_name::<Flow>(),
                     transformer_status = ?transformer_status,
                     framework_status = ?framework_status,

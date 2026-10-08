@@ -64,7 +64,6 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: Authorize,
     source: DlocalPaymentStatus,
     mapping: |status| {
@@ -91,7 +90,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: PSync,
     source: DlocalPaymentStatus,
     mapping: |status| {
@@ -118,7 +116,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: Void,
     source: DlocalPaymentStatus,
     mapping: |status| {
@@ -145,7 +142,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: RSync,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -169,7 +165,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: Refund,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -193,7 +188,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: Capture,
     source: DlocalPaymentStatus,
     mapping: |status| {
@@ -224,7 +218,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: SetupMandate,
     source: DlocalPaymentStatus,
     mapping: |status| {
@@ -251,7 +244,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
-    connector_name: "dlocal",
     flow: RepeatPayment,
     source: DlocalPaymentStatus,
     mapping: |status| {

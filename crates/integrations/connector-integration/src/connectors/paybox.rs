@@ -279,7 +279,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: Authorize,
     source: PayboxPaymentVerdict,
     context: bool,
@@ -310,7 +309,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: PSync,
     source: PayboxStatus,
     mapping: |status| {
@@ -338,7 +336,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: Capture,
     source: PayboxPaymentVerdict,
     mapping: |status| {
@@ -363,7 +360,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: Void,
     source: PayboxPaymentVerdict,
     mapping: |status| {
@@ -388,7 +384,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: Refund,
     source: PayboxPaymentVerdict,
     mapping: |status| {
@@ -413,7 +408,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: RSync,
     source: PayboxStatus,
     mapping: |status| {
@@ -443,7 +437,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: RepeatPayment,
     source: PayboxPaymentVerdict,
     context: bool,
@@ -472,7 +465,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paybox<T>,
-    connector_name: "paybox",
     flow: SetupMandate,
     source: PayboxPaymentVerdict,
     mapping: |status| {

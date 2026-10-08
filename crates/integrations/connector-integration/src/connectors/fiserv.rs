@@ -69,7 +69,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: Authorize,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {
@@ -100,7 +99,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: PSync,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {
@@ -132,7 +130,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: Void,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {
@@ -162,7 +159,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: RSync,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {
@@ -194,7 +190,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: Refund,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {
@@ -224,7 +219,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiserv<T>,
-    connector_name: "fiserv",
     flow: Capture,
     source: transformers::FiservPaymentStatus,
     mapping: |status| {

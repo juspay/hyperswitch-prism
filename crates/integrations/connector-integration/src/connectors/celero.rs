@@ -55,7 +55,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: Authorize,
     source: celero::CeleroTransactionStatus,
     mapping: |status| {
@@ -92,7 +91,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: PSync,
     source: celero::CeleroTransactionStatus,
     mapping: |status| {
@@ -129,7 +127,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: Void,
     source: celero::CeleroResponseStatus,
     mapping: |status| {
@@ -152,7 +149,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: Capture,
     source: celero::CeleroResponseStatus,
     mapping: |status| {
@@ -182,7 +178,6 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: Refund,
     source: celero::CeleroResponseStatus,
     mapping: |status| {
@@ -205,7 +200,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Celero<T>,
-    connector_name: "celero",
     flow: RSync,
     source: celero::CeleroResponseStatus,
     mapping: |status| {

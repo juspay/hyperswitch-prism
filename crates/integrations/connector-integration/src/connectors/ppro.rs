@@ -135,7 +135,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: Authorize,
     source: PproPaymentStatus,
     mapping: |status| {
@@ -173,7 +172,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: PSync,
     source: PproPaymentStatus,
     mapping: |status| {
@@ -207,7 +205,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: Void,
     source: PproPaymentStatus,
     mapping: |status| {
@@ -241,7 +238,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: Capture,
     source: PproPaymentStatus,
     mapping: |status| {
@@ -275,7 +271,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: Refund,
     source: PproRefundStatus,
     mapping: |status| {
@@ -302,7 +297,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: RSync,
     source: PproRefundStatus,
     mapping: |status| {
@@ -329,7 +323,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: SetupMandate,
     source: PproPaymentStatus,
     mapping: |status| {
@@ -363,7 +356,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ppro<T>,
-    connector_name: "ppro",
     flow: RepeatPayment,
     source: PproPaymentStatus,
     mapping: |status| {

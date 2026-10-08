@@ -196,7 +196,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: Authorize,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -239,7 +238,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: PSync,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -283,7 +281,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: Void,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -322,7 +319,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: VoidPC,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -361,7 +357,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: RSync,
     source: braintree::BraintreeRefundStatus,
     mapping: |status| {
@@ -397,7 +392,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: Refund,
     source: braintree::BraintreeRefundStatus,
     mapping: |status| {
@@ -428,7 +422,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: Capture,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -478,7 +471,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: RepeatPayment,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {
@@ -517,7 +509,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Braintree<T>,
-    connector_name: "braintree",
     flow: SetupMandate,
     source: braintree::BraintreePaymentStatus,
     mapping: |status| {

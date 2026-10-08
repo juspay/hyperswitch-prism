@@ -110,7 +110,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Loonio<T>,
-    connector_name: "loonio",
     flow: Authorize,
     source: (),
     mapping: |_status| { non_terminal!(AuthenticationPending) },
@@ -129,7 +128,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Loonio<T>,
-    connector_name: "loonio",
     flow: PSync,
     source: transformers::LoonioTransactionStatus,
     mapping: |status| {

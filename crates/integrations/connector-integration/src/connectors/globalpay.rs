@@ -222,7 +222,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: PostAuthenticate,
     source: AttemptStatus,
     mapping: |status| {
@@ -245,7 +244,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: Authorize,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {
@@ -276,7 +274,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: PSync,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {
@@ -312,7 +309,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: Void,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {
@@ -343,7 +339,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: Capture,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {
@@ -375,7 +370,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: Refund,
     source: globalpay::GlobalpayRefundStatus,
     mapping: |status| {
@@ -406,7 +400,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: RSync,
     source: globalpay::GlobalpayRefundStatus,
     mapping: |status| {
@@ -438,7 +431,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: SetupMandate,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {
@@ -469,7 +461,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Globalpay<T>,
-    connector_name: "globalpay",
     flow: RepeatPayment,
     source: globalpay::GlobalpayPaymentStatus,
     mapping: |status| {

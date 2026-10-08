@@ -145,7 +145,6 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cryptopay<T>,
-    connector_name: "cryptopay",
     flow: Authorize,
     source: transformers::CryptopayPaymentStatus,
     mapping: |status| {
@@ -170,7 +169,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cryptopay<T>,
-    connector_name: "cryptopay",
     flow: PSync,
     source: transformers::CryptopayPaymentStatus,
     mapping: |status| {

@@ -77,7 +77,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: CreateOrder,
     source: (),
     mapping: |_status| { non_terminal!(AuthenticationPending) },
@@ -91,7 +90,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: Authorize,
     source: transformers::TrustpayAuthorizeStatus,
     context: common_enums::AttemptStatus,
@@ -141,7 +139,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: PSync,
     source: transformers::TrustpayAuthorizeStatus,
     context: common_enums::AttemptStatus,
@@ -202,7 +199,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: RSync,
     source: common_enums::RefundStatus,
     mapping: |status| {
@@ -234,7 +230,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: Refund,
     source: common_enums::RefundStatus,
     mapping: |status| {
@@ -282,7 +277,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: SetupMandate,
     source: transformers::TrustpayCardPaymentStatus,
     mapping: |status| {
@@ -311,7 +305,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Trustpay<T>,
-    connector_name: "trustpay",
     flow: RepeatPayment,
     source: transformers::TrustpayCardPaymentStatus,
     mapping: |status| {

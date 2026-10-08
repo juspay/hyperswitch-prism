@@ -90,7 +90,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: Authorize,
     source: cybersource::CybersourcePaymentStatus,
     context: bool,
@@ -120,7 +119,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: PreAuthenticate,
     source: bool,
     mapping: |has_client_auth_setup_info| {
@@ -142,7 +140,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: Authenticate,
     source: common_enums::AttemptStatus,
     mapping: |status| {
@@ -162,7 +159,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: PostAuthenticate,
     source: common_enums::AttemptStatus,
     mapping: |status| {
@@ -183,7 +179,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: PSync,
     source: cybersource::CybersourcePaymentStatus,
     context: bool,
@@ -212,7 +207,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: Void,
     source: cybersource::CybersourcePaymentStatus,
     mapping: |status| {
@@ -251,7 +245,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: VoidPC,
     source: cybersource::CybersourcePaymentStatus,
     mapping: |status| {
@@ -290,7 +283,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: RSync,
     source: cybersource::CybersourceRefundStatus,
     mapping: |status| {
@@ -316,7 +308,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: Refund,
     source: cybersource::CybersourceRefundStatus,
     mapping: |status| {
@@ -342,7 +333,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: Capture,
     source: cybersource::CybersourcePaymentStatus,
     mapping: |status| {
@@ -420,7 +410,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: SetupMandate,
     source: cybersource::CybersourcePaymentStatus,
     mapping: |status| {
@@ -459,7 +448,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: RepeatPayment,
     source: cybersource::CybersourcePaymentStatus,
     context: bool,
@@ -488,7 +476,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    connector_name: "cybersource",
     flow: IncrementalAuthorization,
     source: cybersource::CybersourceIncrementalAuthorizationStatus,
     mapping: |status| {

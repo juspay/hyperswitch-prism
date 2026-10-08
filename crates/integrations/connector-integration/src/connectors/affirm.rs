@@ -69,7 +69,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
-    connector_name: "affirm",
     flow:            Authorize,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,
@@ -116,7 +115,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    connector_name: "affirm",
     flow: PSync,
     source: transformers::AffirmTransactionStatus,
     mapping: |status| {
@@ -147,7 +145,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    connector_name: "affirm",
     flow: Capture,
     source: transformers::AffirmTransactionStatus,
     mapping: |status| {
@@ -178,7 +175,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    connector_name: "affirm",
     flow: Void,
     source: transformers::AffirmTransactionStatus,
     mapping: |status| {
@@ -209,7 +205,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Affirm<T>,
-    connector_name: "affirm",
     flow: Refund,
     source: transformers::AffirmRefundStatus,
     mapping: |status| {
@@ -233,7 +228,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Affirm<T>,
-    connector_name: "affirm",
     flow:            RSync,
     source:          transformers::AffirmTransactionStatus,
     context:         bool,

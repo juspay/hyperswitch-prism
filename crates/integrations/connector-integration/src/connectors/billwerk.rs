@@ -75,7 +75,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: Authorize,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {
@@ -102,7 +101,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: PSync,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {
@@ -129,7 +127,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: Void,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {
@@ -156,7 +153,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: Capture,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {
@@ -183,7 +179,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: Refund,
     source: billwerk::RefundState,
     mapping: |status| {
@@ -207,7 +202,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: RSync,
     source: billwerk::RefundState,
     mapping: |status| {
@@ -231,7 +225,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: SetupMandate,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {
@@ -258,7 +251,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Billwerk<T>,
-    connector_name: "billwerk",
     flow: RepeatPayment,
     source: billwerk::BillwerkPaymentState,
     mapping: |status| {

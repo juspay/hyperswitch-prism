@@ -63,7 +63,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
-    connector_name: "xendit",
     flow:      Authorize,
     source:    transformers::PaymentStatus,
     context:   bool,
@@ -95,7 +94,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
-    connector_name: "xendit",
     flow: PSync,
     source: transformers::PaymentStatus,
     mapping: |status| {
@@ -121,7 +119,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
-    connector_name: "xendit",
     flow: RSync,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -146,7 +143,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
-    connector_name: "xendit",
     flow: Refund,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -171,7 +167,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Xendit<T>,
-    connector_name: "xendit",
     flow: Capture,
     source: transformers::PaymentStatus,
     mapping: |status| {

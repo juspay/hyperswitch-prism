@@ -57,7 +57,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: Authorize,
     source: hipay::HipayPaymentStatus,
     mapping: |status| {
@@ -109,7 +108,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: PSync,
     source: hipay::HipayPaymentStatus,
     mapping: |status| {
@@ -162,7 +160,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: Void,
     source: hipay::HipayPaymentStatus,
     mapping: |status| {
@@ -214,7 +211,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: RSync,
     source: hipay::HipayRefundStatus,
     mapping: |status| {
@@ -243,7 +239,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: Refund,
     source: hipay::HipayRefundStatus,
     mapping: |status| {
@@ -267,7 +262,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hipay<T>,
-    connector_name: "hipay",
     flow: Capture,
     source: hipay::HipayPaymentStatus,
     mapping: |status| {

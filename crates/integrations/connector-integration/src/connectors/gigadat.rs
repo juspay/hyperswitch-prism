@@ -111,7 +111,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Gigadat<T>,
-    connector_name: "gigadat",
     flow: Authorize,
     source: (),
     mapping: |_status| { non_terminal!(AuthenticationPending) },
@@ -129,7 +128,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Gigadat<T>,
-    connector_name: "gigadat",
     flow: PSync,
     source: transformers::GigadatTransactionStatus,
     mapping: |status| {
@@ -159,7 +157,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Gigadat<T>,
-    connector_name: "gigadat",
     flow: Refund,
     source: gigadat::GigadatRefundStatus,
     mapping: |status| {

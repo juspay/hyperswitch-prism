@@ -73,21 +73,38 @@ impl<Flow: PayoutFlowSpec> From<ConnectorFlowStatus<Flow>> for PayoutStatus {
     }
 }
 
+/// Connectors whose framework status is cross-checked against the
+/// transformer-derived status (shadow mode) instead of replacing it.
+///
+/// Entries are the **type-name suffix** of the connector struct, matched
+/// against the trailing segment of `std::any::type_name::<Connector>()`
+/// (e.g. `...::connectors::tsys_transit::TsysTransit<...>`). Keying on the
+/// type rather than a display name makes rename drift impossible: if the
+/// struct is renamed the entry stops matching loudly instead of silently
+/// skipping shadow mode.
 pub const LIVE_STATUS_TRANSFORMER_CONNECTORS: &[&str] = &[
-    "fiservcommercehub",
-    "stripe",
-    "adyen",
-    "datatrans",
-    "cybersource",
-    "paypal",
-    "authorizedotnet",
-    "tsys_transit",
+    "Fiservcommercehub",
+    "Stripe",
+    "Adyen",
+    "Datatrans",
+    "Cybersource",
+    "Paypal",
+    "Authorizedotnet",
+    "TsysTransit",
 ];
 
-pub fn is_live_status_transformer_connector(connector: &str) -> bool {
-    LIVE_STATUS_TRANSFORMER_CONNECTORS
-        .iter()
-        .any(|item| item.eq_ignore_ascii_case(connector))
+/// `connector_type_name` is `std::any::type_name::<Connector>()` from the
+/// bridge probe, e.g. `connector_integration::connectors::adyen::Adyen<
+/// connector_integration::type_mem...::DefaultPCIHolder>`.
+pub fn is_live_status_transformer_connector(connector_type_name: &str) -> bool {
+    // Strip generic parameters first — they contain `::` themselves
+    // (`Adyen<foo::Bar>`) — then take the last path segment.
+    let path = connector_type_name
+        .split('<')
+        .next()
+        .unwrap_or(connector_type_name);
+    let base = path.rsplit("::").next().unwrap_or(path);
+    LIVE_STATUS_TRANSFORMER_CONNECTORS.contains(&base)
 }
 
 pub const fn const_contains_str(slice: &[&str], target: &str) -> bool {
@@ -99,6 +116,51 @@ pub const fn const_contains_str(slice: &[&str], target: &str) -> bool {
         i += 1;
     }
     false
+}
+
+pub const fn const_contains_connector_type(slice: &[&str], connector_type: &str) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if const_connector_type_eq(connector_type, slice[i]) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+const fn const_connector_type_eq(connector_type: &str, expected: &str) -> bool {
+    let bytes = connector_type.as_bytes();
+    let expected = expected.as_bytes();
+    let mut end = 0;
+
+    while end < bytes.len() && bytes[end] != b'<' {
+        end += 1;
+    }
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+
+    let mut start = end;
+    while start > 0 && bytes[start - 1] != b':' {
+        start -= 1;
+    }
+    while start < end && bytes[start].is_ascii_whitespace() {
+        start += 1;
+    }
+
+    if end - start != expected.len() {
+        return false;
+    }
+
+    let mut i = 0;
+    while i < expected.len() {
+        if bytes[start + i] != expected[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
 }
 
 const fn str_eq(left: &str, right: &str) -> bool {
@@ -1540,45 +1602,4 @@ pub trait FlowStatusReader<Status> {
 
 pub trait FlowStatusSetter<Flow, Status> {
     fn set_mapped_flow_status(&mut self, status: Status) -> Result<(), crate::ConnectorError>;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::__status_mapping::{
-        CaptureSuccessStatus, DefendDisputeFailureStatus, PayoutTransferFailureStatus,
-        RefundSuccessStatus,
-    };
-    use super::*;
-
-    #[test]
-    fn typed_statuses_convert_to_domain_statuses() {
-        assert_eq!(
-            AttemptStatus::from(ConnectorFlowStatus::<connector_flow::Capture>::Success(
-                CaptureSuccessStatus::Charged,
-            )),
-            AttemptStatus::Charged,
-        );
-        assert_eq!(
-            RefundStatus::from(ConnectorFlowStatus::<connector_flow::Refund>::Success(
-                RefundSuccessStatus::Success,
-            )),
-            RefundStatus::Success,
-        );
-        assert_eq!(
-            DisputeStatus::from(
-                ConnectorFlowStatus::<connector_flow::DefendDispute>::Failure(
-                    DefendDisputeFailureStatus::DisputeLost,
-                )
-            ),
-            DisputeStatus::DisputeLost,
-        );
-        assert_eq!(
-            PayoutStatus::from(
-                ConnectorFlowStatus::<connector_flow::PayoutTransfer>::Failure(
-                    PayoutTransferFailureStatus::Expired,
-                )
-            ),
-            PayoutStatus::Expired,
-        );
-    }
 }

@@ -348,7 +348,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    connector_name: "maya",
     flow: Authorize,
     source: (),
     mapping: |_status| { non_terminal!(AuthenticationPending) },
@@ -604,7 +603,6 @@ macros::macro_connector_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    connector_name: "maya",
     flow: PSync,
     source: transformers::MayaPaymentStatus,
     mapping: |status| {
@@ -644,7 +642,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    connector_name: "maya",
     flow: Void,
     source: transformers::MayaVoidStatus,
     mapping: |status| {
@@ -668,7 +665,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    connector_name: "maya",
     flow: RSync,
     source: transformers::MayaRefundStatus,
     mapping: |status| {
@@ -692,7 +688,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    connector_name: "maya",
     flow: Refund,
     source: transformers::MayaRefundStatus,
     mapping: |status| {

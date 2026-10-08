@@ -54,7 +54,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Givepayments<T>,
-    connector_name: "givepayments",
     flow: Authorize,
     source: transformers::GivepaymentsPaymentProcessingState,
     mapping: |status| {
@@ -81,7 +80,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Givepayments<T>,
-    connector_name: "givepayments",
     flow: PSync,
     source: transformers::GivepaymentsPaymentProcessingState,
     mapping: |status| {
@@ -108,7 +106,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Givepayments<T>,
-    connector_name: "givepayments",
     flow: RSync,
     source: transformers::GivepaymentsRefundProcessingState,
     mapping: |status| {
@@ -135,7 +132,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Givepayments<T>,
-    connector_name: "givepayments",
     flow: Refund,
     source: transformers::GivepaymentsRefundProcessingState,
     mapping: |status| {
@@ -162,7 +158,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Givepayments<T>,
-    connector_name: "givepayments",
     flow: RepeatPayment,
     source: transformers::GivepaymentsPaymentProcessingState,
     mapping: |status| {

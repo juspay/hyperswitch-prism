@@ -580,7 +580,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: PreAuthenticate,
     source: IlixiumPreAuthenticateResponse,
     context: bool,
@@ -619,7 +618,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: Authorize,
     source: transformers::IlixiumStatusCode,
     context: transformers::IlixiumAuthorizeCtx,
@@ -670,7 +668,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: Capture,
     source: transformers::IlixiumStatusCode,
     mapping: |status| {
@@ -699,7 +696,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: Void,
     source: transformers::IlixiumStatusCode,
     mapping: |status| {
@@ -739,7 +735,6 @@ struct IlixiumPSyncContext {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow:      PSync,
     source:    IlixiumHistoryResponse,
     context:   IlixiumPSyncContext,
@@ -901,7 +896,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: Refund,
     source: transformers::IlixiumStatusCode,
     mapping: |status| {
@@ -930,7 +924,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    connector_name: "ilixium",
     flow: RSync,
     source: transformers::IlixiumHistoryStatusCode,
     mapping: |status| {

@@ -61,7 +61,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    connector_name: "iatapay",
     flow: Authorize,
     source: transformers::IatapayPaymentStatus,
     mapping: |status| {
@@ -89,7 +88,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    connector_name: "iatapay",
     flow: PSync,
     source: transformers::IatapayPaymentStatus,
     mapping: |status| {
@@ -118,7 +116,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    connector_name: "iatapay",
     flow: Refund,
     source: transformers::IatapayRefundStatus,
     mapping: |status| {
@@ -146,7 +143,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Iatapay<T>,
-    connector_name: "iatapay",
     flow: RSync,
     source: transformers::IatapayRefundStatus,
     mapping: |status| {

@@ -47,7 +47,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: CreateOrder,
     source: i32,
     mapping: |status_code| {
@@ -67,7 +66,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: Authorize,
     source: payme::SaleStatus,
     mapping: |status| {
@@ -105,7 +103,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: PSync,
     source: payme::SaleStatus,
     mapping: |status| {
@@ -145,7 +142,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: Void,
     source: payme::PaymeVoidFlowStatus,
     mapping: |status| {
@@ -170,7 +166,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: Capture,
     source: payme::SaleStatus,
     mapping: |status| {
@@ -209,7 +204,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: Refund,
     source: payme::SaleStatus,
     mapping: |status| {
@@ -239,7 +233,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    connector_name: "payme",
     flow: RSync,
     source: payme::SaleStatus,
     mapping: |status| {

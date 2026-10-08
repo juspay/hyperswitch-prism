@@ -57,7 +57,6 @@ macros::macro_connector_payout_implementation!(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: Authorize,
     source: transformers::FortePaymentStatus,
     mapping: |status| {
@@ -83,7 +82,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: PSync,
     source: transformers::FortePaymentStatus,
     mapping: |status| {
@@ -109,7 +107,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: Void,
     source: transformers::FortePaymentStatus,
     mapping: |status| {
@@ -135,7 +132,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: RSync,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -158,7 +154,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: Refund,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -181,7 +176,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Forte<T>,
-    connector_name: "forte",
     flow: Capture,
     source: transformers::FortePaymentStatus,
     mapping: |status| {

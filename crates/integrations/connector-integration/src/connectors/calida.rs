@@ -161,7 +161,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Calida<T>,
-    connector_name: "calida",
     flow: Authorize,
     source: CalidaPaymentStatus,
     mapping: |status| {
@@ -186,7 +185,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Calida<T>,
-    connector_name: "calida",
     flow: PSync,
     source: CalidaPaymentStatus,
     mapping: |status| {

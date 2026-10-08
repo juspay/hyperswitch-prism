@@ -69,7 +69,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: CreateOrder,
     source: common_enums::AttemptStatus,
     mapping: |status| {
@@ -93,7 +92,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: Authorize,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
@@ -123,7 +121,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: PSync,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
@@ -153,7 +150,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: Void,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
@@ -183,7 +179,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: RSync,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -207,7 +202,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: Refund,
     source: transformers::RefundStatus,
     mapping: |status| {
@@ -231,7 +225,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: Capture,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
@@ -269,7 +262,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: SetupMandate,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
@@ -299,7 +291,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    connector_name: "rapyd",
     flow: RepeatPayment,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,

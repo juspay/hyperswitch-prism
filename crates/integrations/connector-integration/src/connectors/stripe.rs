@@ -80,7 +80,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: Authorize,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {
@@ -111,7 +110,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: PSync,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {
@@ -139,7 +137,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: Void,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {
@@ -170,7 +167,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: Capture,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {
@@ -198,7 +194,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: IncrementalAuthorization,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {
@@ -227,7 +222,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    connector_name: "stripe",
     flow: RepeatPayment,
     source: stripe::StripePaymentStatus,
     mapping: |status| { match status {

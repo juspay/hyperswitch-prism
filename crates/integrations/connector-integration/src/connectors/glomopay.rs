@@ -676,7 +676,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    connector_name: "glomopay",
     flow: CreateOrder,
     source: Option<String>,
     mapping: |status| {
@@ -695,7 +694,6 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    connector_name: "glomopay",
     flow: Authorize,
     source: transformers::GlomopayPaymentStatus,
     mapping: |status| {
@@ -721,7 +719,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    connector_name: "glomopay",
     flow: PSync,
     source: transformers::GlomopayPaymentStatus,
     mapping: |status| {
@@ -747,7 +744,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    connector_name: "glomopay",
     flow: Refund,
     source: transformers::GlomopayRefundStatus,
     mapping: |status| {
@@ -773,7 +769,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    connector_name: "glomopay",
     flow: RSync,
     source: transformers::GlomopayRefundStatus,
     context: Option<transformers::GlomopayRefundStatus>,

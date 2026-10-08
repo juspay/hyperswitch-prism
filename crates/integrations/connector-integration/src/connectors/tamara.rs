@@ -180,7 +180,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: Authorize,
     source: transformers::TamaraPaymentStatus,
     mapping: |status| {
@@ -424,7 +423,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: Capture,
     source: transformers::TamaraPaymentStatus,
     mapping: |status| {
@@ -454,7 +452,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: PSync,
     source: transformers::TamaraPaymentStatus,
     mapping: |status| {
@@ -484,7 +481,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: Void,
     source: transformers::TamaraPaymentStatus,
     mapping: |status| {
@@ -514,7 +510,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: Refund,
     source: transformers::TamaraRefundStatus,
     mapping: |status| {
@@ -546,7 +541,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Tamara<T>,
-    connector_name: "tamara",
     flow: RSync,
     source: transformers::TamaraRefundStatus,
     mapping: |status| {

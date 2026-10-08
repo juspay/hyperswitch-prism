@@ -57,7 +57,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
-    connector_name: "aci",
     flow:           Authorize,
     source:         aci::AciPaymentStatus,
     context:        bool,
@@ -90,7 +89,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
-    connector_name: "aci",
     flow:           PSync,
     source:         aci::AciPaymentStatus,
     context:        bool,
@@ -122,7 +120,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    connector_name: "aci",
     flow: Void,
     source: aci::AciStatus,
     mapping: |status| {
@@ -148,7 +145,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    connector_name: "aci",
     flow: Refund,
     source: aci::AciRefundStatus,
     mapping: |status| {
@@ -174,7 +170,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    connector_name: "aci",
     flow: Capture,
     source: aci::AciStatus,
     mapping: |status| {
@@ -204,7 +199,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Aci<T>,
-    connector_name: "aci",
     flow: SetupMandate,
     source: aci::AciMandateStatus,
     mapping: |status| {
@@ -228,7 +222,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Aci<T>,
-    connector_name: "aci",
     flow:           RepeatPayment,
     source:         aci::AciPaymentStatus,
     context:        bool,
