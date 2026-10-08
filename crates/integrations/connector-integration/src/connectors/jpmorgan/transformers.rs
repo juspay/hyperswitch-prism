@@ -605,12 +605,12 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             is_amount_final: Some(true),
             recurring: None,
         };
-        Ok(request.with_initial_storage(
+        request.with_initial_storage(
             &router_data.request,
             &router_data
                 .resource_common_data
                 .connector_request_reference_id,
-        )?)
+        )
     }
 }
 
