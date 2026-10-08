@@ -509,6 +509,13 @@ impl CountryAlpha2 {
             Self::ZW => 716,
         }
     }
+
+    /// Returns the country for an ISO 3166-1 numeric code, or `None` for unknown codes.
+    pub fn from_numeric(code: u16) -> Option<Self> {
+        use strum::IntoEnumIterator;
+
+        Self::iter().find(|country| Self::to_numeric(*country) == code)
+    }
 }
 
 impl Country {

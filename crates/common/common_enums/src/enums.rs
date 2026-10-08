@@ -2134,6 +2134,16 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "AIRPLUS")]
+    AirPlus,
+    #[serde(alias = "AURORE")]
+    Aurore,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "GECAPITAL")]
+    GeCapital,
+    #[serde(alias = "UATP")]
+    Uatp,
 }
 
 impl CardNetwork {
@@ -2151,6 +2161,10 @@ impl CardNetwork {
                 | Self::Prop
                 | Self::PrivateLabel
                 | Self::Dinacard
+                | Self::AirPlus
+                | Self::Aurore
+                | Self::GeCapital
+                | Self::Uatp
         )
     }
 

@@ -1998,6 +1998,13 @@ message CardConnectorResponse {
   optional string domestic_network = 4; // Domestic (co-branded) card network
   optional string auth_code =
       5; // Unique authorisation code generated for the payment
+  optional CardNetwork processor_card_network = 6; // Normalized network returned by the processor
+  optional string card_subtype = 7; // The card's product/subtype
+  optional CardSegmentType card_segment_type = 8; // Consumer or commercial segment
+  optional FundingSource funding_source = 9; // The card's funding source
+  optional CardType card_type = 10; // Credit, debit, prepaid, or charge
+  optional string issuer_name = 11; // The name of the card issuer
+  optional CountryAlpha2 issuer_country = 12; // The issuer's ISO alpha-2 country
 }
 
 // Additional card information for payment processing.
