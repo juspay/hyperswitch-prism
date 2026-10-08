@@ -206,8 +206,7 @@ partition_key_field = "request_id"
 [lineage]
 enabled = true
 header_name = "x-lineage-ids"
-# Empty prefix: lineage ids (merchant_id, profile_id, ...) land as top-level event fields,
-# which the connector-event normaliser and HS analytics read as `merchant_id`.
+# Empty prefix: lineage ids are added to events as top-level fields (e.g. `merchant_id`).
 field_prefix = ""
 
 [connector_request_kafka]
