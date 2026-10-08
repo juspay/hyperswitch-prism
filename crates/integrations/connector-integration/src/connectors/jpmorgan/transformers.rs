@@ -1969,10 +1969,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => requests::JpmorganSetupMandateCard {
                 card: requests::JpmorganCard {
                     account_number: card.card_number.clone(),
-                    expiry: requests::JpmorganCard::<T>::wallet_expiry(
-                        &card.card_exp_month,
-                        &card.card_exp_year,
-                    )?,
+                    expiry: requests::Expiry {
+                        month: Secret::new(i32::from(card.get_expiry_month_as_u8()?)),
+                        year: Secret::new(i32::from(card.get_expiry_year_4_digit_as_u16()?)),
+                    },
                     account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
                     wallet_provider: None,
                     authentication: None,
