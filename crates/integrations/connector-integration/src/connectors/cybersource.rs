@@ -109,7 +109,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsAuthorizeData<T>,
         response: CybersourcePaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
-        context: |_resource_common_data, request, _response, _http_status_code| Ok({ request.is_auto_capture() }),
+        context: |_resource_common_data, request, _response, _http_status_code| Ok(request.is_auto_capture()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -117,44 +117,66 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    flow:      PreAuthenticate,
-    statuses:  [AuthenticationPending, Failure],
+    connector_name: "cybersource",
+    flow: PreAuthenticate,
+    source: bool,
+    mapping: |has_client_auth_setup_info| {
+        if has_client_auth_setup_info {
+            non_terminal!(AuthenticationPending)
+        } else {
+            failure!(Failure)
+        }
+    },
     runtime: {
-        request:  PaymentsPreAuthenticateData<T>,
+        request: PaymentsPreAuthenticateData<T>,
         response: CybersourceAuthSetupResponse,
-        status:   |_request, response| match response {
-            CybersourceAuthSetupResponse::ClientAuthSetupInfo(_) => {
-                common_enums::AttemptStatus::AuthenticationPending
-            }
-            CybersourceAuthSetupResponse::ErrorInformation(_) => {
-                common_enums::AttemptStatus::Failure
-            }
-        },
+        source: |_common, _request, response, _http_status_code| Ok(matches!(
+            response,
+            CybersourceAuthSetupResponse::ClientAuthSetupInfo(_)
+        )),
     },
 }
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    flow:      Authenticate,
-    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    connector_name: "cybersource",
+    flow: Authenticate,
+    source: common_enums::AttemptStatus,
+    mapping: |status| {
+        match status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            _ => non_terminal!(AuthenticationPending),
+        }
+    },
     runtime: {
-        request:  PaymentsAuthenticateData<T>,
+        request: PaymentsAuthenticateData<T>,
         response: CybersourceAuthenticateResponse,
-        status:   |_request, response| cybersource::authenticate_status(response),
+        source: |_common, _request, response, _http_status_code| Ok(cybersource::authenticate_status(response)),
     },
 }
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cybersource<T>,
-    flow:      PostAuthenticate,
-    statuses:  [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Failure],
+    connector_name: "cybersource",
+    flow: PostAuthenticate,
+    source: common_enums::AttemptStatus,
+    mapping: |status| {
+        match status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            _ => non_terminal!(AuthenticationPending),
+        }
+    },
     runtime: {
-        request:  PaymentsPostAuthenticateData<T>,
+        request: PaymentsPostAuthenticateData<T>,
         response: CybersourcePostAuthenticateResponse,
-        status:   |_request, response| cybersource::authenticate_status(response),
+        source: |_common, _request, response, _http_status_code| Ok(cybersource::authenticate_status(response)),
     },
 }
 
@@ -180,7 +202,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsSyncData,
         response: CybersourceTransactionResponse,
         source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
-        context: |_resource_common_data, request, _response, _http_status_code| Ok({ request.is_auto_capture() }),
+        context: |_resource_common_data, request, _response, _http_status_code| Ok(request.is_auto_capture()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -456,7 +478,7 @@ domain_types::impl_flow_status_mapping! {
         request: RepeatPaymentData<T>,
         response: CybersourceRepeatPaymentResponse,
         source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
-        context: |_resource_common_data, request, _response, _http_status_code| Ok({ request.is_auto_capture() }),
+        context: |_resource_common_data, request, _response, _http_status_code| Ok(request.is_auto_capture()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

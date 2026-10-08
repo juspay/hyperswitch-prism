@@ -577,15 +577,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    flow:      PreAuthenticate,
-    statuses:  [AuthenticationPending, Authorized, Charged, Pending, Failure],
+    connector_name: "ilixium",
+    flow: PreAuthenticate,
+    source: IlixiumPreAuthenticateResponse,
+    context: bool,
+    mapping: |response, requested_auto_capture| {
+        match response.status.code {
+            transformers::IlixiumStatusCode::Success => match response.operation_type {
+                Some(transformers::IlixiumOperationType::AuthCap) => non_terminal!(Charged),
+                Some(transformers::IlixiumOperationType::Auth) => non_terminal!(Authorized),
+                _ if requested_auto_capture => non_terminal!(Charged),
+                _ => non_terminal!(Authorized),
+            },
+            transformers::IlixiumStatusCode::Pending if response.three_ds_acs_url().is_some() => {
+                non_terminal!(AuthenticationPending)
+            }
+            transformers::IlixiumStatusCode::Pending
+            | transformers::IlixiumStatusCode::Resubmission
+            | transformers::IlixiumStatusCode::Unknown => non_terminal!(Pending),
+            transformers::IlixiumStatusCode::Declined
+            | transformers::IlixiumStatusCode::Rejected
+            | transformers::IlixiumStatusCode::Error => failure!(Failure),
+            transformers::IlixiumStatusCode::Cancelled => Err(
+                errors::ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
+        }
+    },
     runtime: {
-        request:  PaymentsPreAuthenticateData<T>,
+        request: PaymentsPreAuthenticateData<T>,
         response: IlixiumPreAuthenticateResponse,
-        status:   |request, response| transformers::pre_authenticate_status(request, response),
+        source: |_common, _request, response, _http_status_code| Ok(response.clone()),
+        context: |_common, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture().unwrap_or(true))
+        },
     },
 }
 
@@ -597,7 +624,6 @@ domain_types::impl_flow_status_mapping! {
     source: transformers::IlixiumStatusCode,
     context: transformers::IlixiumAuthorizeCtx,
     mapping: |status, ctx| {
-        use common_enums::AttemptStatus;
                 use transformers::{IlixiumStatusCode, IlixiumOperationType};
                 match status {
                     IlixiumStatusCode::Success => match ctx.operation_type {

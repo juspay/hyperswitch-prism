@@ -351,11 +351,7 @@ domain_types::impl_flow_status_mapping! {
     connector_name: "maya",
     flow: Authorize,
     source: (),
-    mapping: |status| {
-        match status {
-            _ => non_terminal!(AuthenticationPending),
-        }
-    },
+    mapping: |_status| { non_terminal!(AuthenticationPending) },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: MayaPaymentsResponse,

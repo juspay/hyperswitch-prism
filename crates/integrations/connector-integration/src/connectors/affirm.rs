@@ -216,6 +216,7 @@ domain_types::impl_refund_flow_status_mapping! {
         match status {
             transformers::AffirmRefundStatus::Refunded => success!(Success),
             transformers::AffirmRefundStatus::Failed => failure!(Failure),
+            transformers::AffirmRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {

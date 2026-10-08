@@ -80,11 +80,7 @@ domain_types::impl_flow_status_mapping! {
     connector_name: "trustpay",
     flow: CreateOrder,
     source: (),
-    mapping: |status| {
-        match status {
-            _ => non_terminal!(AuthenticationPending),
-        }
-    },
+    mapping: |_status| { non_terminal!(AuthenticationPending) },
     runtime: {
         request: PaymentCreateOrderData,
         response: TrustpayCreateIntentResponse,
@@ -213,9 +209,12 @@ domain_types::impl_refund_flow_status_mapping! {
         match status {
             common_enums::RefundStatus::Success => success!(Success),
             common_enums::RefundStatus::Failure => failure!(Failure),
-            common_enums::RefundStatus::TransactionFailure => failure!(TransactionFailure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
             common_enums::RefundStatus::Pending => non_terminal!(Pending),
             common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => Err(
+                ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
         }
     },
     runtime: {
@@ -242,9 +241,12 @@ domain_types::impl_refund_flow_status_mapping! {
         match status {
             common_enums::RefundStatus::Success => success!(Success),
             common_enums::RefundStatus::Failure => failure!(Failure),
-            common_enums::RefundStatus::TransactionFailure => failure!(TransactionFailure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
             common_enums::RefundStatus::Pending => non_terminal!(Pending),
             common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => Err(
+                ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
         }
     },
     runtime: {

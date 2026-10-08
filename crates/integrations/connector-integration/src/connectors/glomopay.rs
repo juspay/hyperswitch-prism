@@ -673,18 +673,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    flow:      CreateOrder,
-    statuses:  [Pending, Failure],
+    connector_name: "glomopay",
+    flow: CreateOrder,
+    source: Option<String>,
+    mapping: |status| {
+        match status.as_deref() {
+            Some("action_required" | "failed" | "expired") => failure!(Failure),
+            _ => non_terminal!(Pending),
+        }
+    },
     runtime: {
-        request:  PaymentCreateOrderData,
+        request: PaymentCreateOrderData,
         response: GlomopayCreateOrderResponse,
-        status:   |_request, response| match response.status.as_deref() {
-            Some("action_required" | "failed" | "expired") => common_enums::AttemptStatus::Failure,
-            _ => common_enums::AttemptStatus::Pending,
-        },
+        source: |_common, _request, response, _http_status_code| Ok(response.status.clone()),
     },
 }
 

@@ -284,7 +284,6 @@ domain_types::impl_flow_status_mapping! {
     source: PayboxPaymentVerdict,
     context: bool,
     mapping: |status, is_auto_capture| {
-        use common_enums::AttemptStatus;
                 match status {
                     PayboxPaymentVerdict::Approved => {
                         if is_auto_capture {
@@ -300,7 +299,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
         source: |_resource_common_data, _request, response, _http_status_code| Ok(response.payment_verdict()),
-        context: |_resource_common_data, request, _response, _http_status_code| Ok({ request.is_auto_capture() }),
+        context: |_resource_common_data, request, _response, _http_status_code| Ok(request.is_auto_capture()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -460,7 +459,7 @@ domain_types::impl_flow_status_mapping! {
         request: RepeatPaymentData<T>,
         response: PayboxRepeatPaymentResponse,
         source: |_resource_common_data, _request, response, _http_status_code| Ok(response.payment_verdict()),
-        context: |_resource_common_data, request, _response, _http_status_code| Ok({ request.is_auto_capture() }),
+        context: |_resource_common_data, request, _response, _http_status_code| Ok(request.is_auto_capture()),
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
