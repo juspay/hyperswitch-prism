@@ -67,6 +67,8 @@ pub struct JpmorganCard<T: PaymentMethodDataTypes> {
     pub wallet_provider: Option<JpmorganWalletProvider>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<JpmorganWalletAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_authentication_request: Option<JpmorganPaymentAuthenticationRequest>,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,9 +92,53 @@ pub enum JpmorganWalletProvider {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganWalletAuthentication {
-    pub token_authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_authentication_value: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<String>,
+    /// Pass-through 3DS data supplied by the merchant's MPI or directory server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "threeDS")]
+    pub three_ds: Option<JpmorganThreeDs>,
+}
+
+/// Pass-through 3DS authentication details from the merchant's MPI or scheme
+/// directory server.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_value: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "threeDSProgramProtocol")]
+    pub three_ds_program_protocol: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version2: Option<JpmorganThreeDsVersion2>,
+}
+
+/// 3DS 2.x transaction status from the directory server.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDsVersion2 {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "threeDSTransactionStatus")]
+    pub three_ds_transaction_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "threeDSTransactionStatusReasonCode")]
+    pub three_ds_transaction_status_reason_code: Option<String>,
+}
+
+/// Orchestrated (native) 3DS request details. JPMorgan requires the
+/// authentication return URL to initiate an authentication.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganPaymentAuthenticationRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_return_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_support_url: Option<String>,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
