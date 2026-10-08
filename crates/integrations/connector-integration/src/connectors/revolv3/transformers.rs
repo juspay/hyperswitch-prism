@@ -1523,12 +1523,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                 ref wallet_token,
-            ) => {
-                Some(Revolv3PaymentMethodData::set_wallet_token_data_for_ntid(
-                    wallet_token,
-                    &item.router_data.resource_common_data,
-                )?)
-            }
+            ) => Some(Revolv3PaymentMethodData::set_wallet_token_data_for_ntid(
+                wallet_token,
+                &item.router_data.resource_common_data,
+            )?),
             // The stored payment method is addressed by the id in the URL path.
             PaymentMethodData::MandatePayment => None,
             _ => Err(IntegrationError::NotImplemented(
