@@ -13169,6 +13169,7 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
+        // Keep caller-supplied mandate details; without this the SetupRecurring terms are dropped.
         let setup_mandate_details = match value.setup_mandate_details.clone() {
             Some(details) => MandateData::foreign_try_from(details)?,
             None => MandateData {
