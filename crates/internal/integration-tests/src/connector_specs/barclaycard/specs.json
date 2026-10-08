@@ -12,5 +12,18 @@
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentMethodAuthenticationService/Authenticate",
     "PaymentMethodAuthenticationService/PostAuthenticate"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "Barclaycard 3DS is handled via the PaymentMethodAuthenticationService suites (PreAuthenticate/Authenticate/PostAuthenticate); the standalone threeds scenario which expects browser-based redirect is not applicable",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Barclaycard",
+      "no3ds_fail_payment": "Barclaycard sandbox decline card is not the global 4000000000000002; a Barclaycard-specific decline card number must be configured in override.json once verified against the CI sandbox credentials"
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "PostAuthenticate requires a live 3DS flow (PreAuthenticate → Authenticate → PostAuthenticate) that depends on a prior redirect from the ACS; cannot be tested in isolation without browser automation"
+    }
+  }
 }

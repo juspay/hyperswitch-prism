@@ -1,6 +1,9 @@
 pub mod itaubank;
 pub use self::itaubank::ItaubankPayouts;
 
+pub mod nuvei;
+pub use self::nuvei::NuveiPayouts;
+
 pub mod loonio;
 pub use self::loonio::LoonioPayouts;
 
@@ -33,3 +36,6 @@ pub use self::trustly::TrustlyPayouts;
 
 pub mod gotyme_sanlam;
 pub use self::gotyme_sanlam::GotymeSanlamPayouts;
+
+pub mod mifinity;
+pub use self::mifinity::MifinityPayouts;

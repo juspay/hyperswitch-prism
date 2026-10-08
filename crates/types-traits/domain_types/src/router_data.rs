@@ -4401,6 +4401,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Nuvei => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Nuvei {
+                        merchant_id: api_key.clone(),
+                        merchant_site_id: key1.clone(),
+                        merchant_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                         merchant_id: api_key.clone(),
@@ -4527,6 +4540,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Mifinity => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        base_url: None,
+                        brand_id: None,
+                        destination_account_number: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Trustly => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,

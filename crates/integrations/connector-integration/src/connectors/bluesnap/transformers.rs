@@ -293,7 +293,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         });
 
                 let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -388,7 +388,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         });
 
                 let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -437,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
                     let amount = super::BluesnapAmountConvertor::convert(
-                        router_data.request.minor_amount,
+                        router_data.request.amount.amount,
                         router_data.request.currency,
                     )?;
 
@@ -482,7 +482,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .unwrap_or_else(|| "de".to_string()); // Default to DE for SEPA
 
                     let amount = super::BluesnapAmountConvertor::convert(
-                        router_data.request.minor_amount,
+                        router_data.request.amount.amount,
                         router_data.request.currency,
                     )?;
 
@@ -547,7 +547,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         });
 
                 let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.minor_amount,
+                    router_data.request.amount.amount,
                     router_data.request.currency,
                 )?;
 
@@ -610,7 +610,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = super::BluesnapAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -676,7 +676,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         let amount = super::BluesnapAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 

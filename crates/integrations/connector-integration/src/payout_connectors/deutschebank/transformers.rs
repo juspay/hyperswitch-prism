@@ -193,7 +193,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
             T,
@@ -207,7 +207,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
             T,
@@ -318,11 +318,12 @@ pub fn build_eligibility_response(
     }
 }
 
-impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
     for RouterDataV2<
         PayoutEligibility,
         PayoutFlowData,
-        PayoutEligibilityRequest,
+        PayoutEligibilityRequest<T>,
         PayoutEligibilityResponse,
     >
 {
@@ -534,12 +535,12 @@ pub struct DeutschebankInstructedAmount {
     pub value: FloatMajorUnit,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for DeutschebankSepaPaymentRequest
@@ -550,7 +551,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -707,7 +708,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -721,7 +722,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -856,8 +857,14 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
     }
 }
 
-impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -922,8 +929,8 @@ impl TryFrom<ResponseRouterData<DeutschebankStatusResponse, Self>>
 
 // ===== Helpers =====
 
-fn extract_payee_iban(
-    payout_method_data: Option<&PayoutMethodData>,
+fn extract_payee_iban<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>(
+    payout_method_data: Option<&PayoutMethodData<T>>,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
         Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { iban, .. }))) => Ok(iban.clone()),
@@ -941,8 +948,8 @@ fn extract_payee_iban(
     }
 }
 
-fn extract_payee_bic(
-    payout_method_data: Option<&PayoutMethodData>,
+fn extract_payee_bic<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>(
+    payout_method_data: Option<&PayoutMethodData<T>>,
 ) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
         Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic, .. }))) => Ok(bic.clone()),
@@ -1207,8 +1214,10 @@ pub(super) fn split_pem_bundle(
     Ok((cert_chain, Secret::new(key_pem)))
 }
 
-fn extract_payee_account_holder_name(
-    payout_method_data: Option<&PayoutMethodData>,
+fn extract_payee_account_holder_name<
+    T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize,
+>(
+    payout_method_data: Option<&PayoutMethodData<T>>,
     purpose_description: &'static str,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
     match payout_method_data {

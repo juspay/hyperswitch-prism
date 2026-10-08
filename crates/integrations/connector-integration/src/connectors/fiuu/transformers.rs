@@ -283,7 +283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -527,7 +527,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -617,7 +617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
-                    FiuuPaymentMethodData::try_from(google_pay_data)
+                    FiuuPaymentMethodData::try_from(google_pay_data.as_ref())
                 }
                 WalletData::ApplePay(_apple_pay_data) => {
                     match _apple_pay_data
@@ -748,7 +748,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -874,7 +874,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let minor_amount = item
             .router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .unwrap_or(common_utils::types::MinorUnit::new(0));
         let amount = item
             .connector
@@ -992,7 +994,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
-                    FiuuPaymentMethodData::try_from(google_pay_data)
+                    FiuuPaymentMethodData::try_from(google_pay_data.as_ref())
                 }
                 WalletData::ApplePay(_apple_pay_data) => match _apple_pay_data
                     .payment_data
@@ -1137,15 +1139,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(&CardDetailsForNetworkTransactionId, String)> for FiuuPaymentMethodData<T>
+    TryFrom<(&CardDetailsForNetworkTransactionId<T>, String)> for FiuuPaymentMethodData<T>
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        (raw_card_data, network_transaction_id): (&CardDetailsForNetworkTransactionId, String),
+        (raw_card_data, network_transaction_id): (&CardDetailsForNetworkTransactionId<T>, String),
     ) -> Result<Self, Self::Error> {
         Ok(Self::FiuuCardWithNTI(Box::new(FiuuCardWithNTI {
             txn_channel: TxnChannel::Creditan,
-            cc_pan: raw_card_data.card_number.clone(),
+            cc_pan: raw_card_data.card_number.try_card_number("Fiuu")?,
             cc_month: raw_card_data.card_exp_month.clone(),
             cc_year: raw_card_data.card_exp_year.clone(),
             original_scheme_id: Secret::new(network_transaction_id),
@@ -1653,7 +1655,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1887,7 +1889,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2207,7 +2209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

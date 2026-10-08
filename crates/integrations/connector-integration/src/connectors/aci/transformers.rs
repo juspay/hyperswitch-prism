@@ -1065,7 +1065,7 @@ fn get_transaction_details<
         .connector
         .amount_converter
         .convert(
-            item.router_data.request.minor_amount,
+            item.router_data.request.amount.amount,
             item.router_data.request.currency,
         )
         .change_context(IntegrationError::AmountConversionFailed {
@@ -1475,7 +1475,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1715,7 +1715,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2044,7 +2044,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

@@ -639,7 +639,7 @@ certification tooling reads these lists.
 
 ## Appendix A — `TransactionStatus` discriminator
 
-The `trans_status` field threaded through all three flows is a `common_enums::TransactionStatus` — `pub enum TransactionStatus` in `crates/common/common_enums/src/enums.rs`, eight variants, each carrying its EMV 3DS letter as a `#[serde(rename = ..)]`. Read the variant list there, never from a markdown copy. The mapping onto UCS status handling (cross-checked against `impl From<CybersourceParesStatus> for common_enums::TransactionStatus` in `connectors/cybersource/transformers.rs`):
+The `trans_status` field threaded through all three flows is a `common_enums::TransactionStatus` — `pub enum TransactionStatus` in `crates/common/common_enums/src/enums.rs`, nine variants, each carrying its EMV 3DS letter as a `#[serde(rename = ..)]`. Read the variant list there, never from a markdown copy. The mapping onto UCS status handling (cross-checked against `impl From<CybersourceParesStatus> for common_enums::TransactionStatus` in `connectors/cybersource/transformers.rs`):
 
 | `trans_status` | Meaning | `AttemptStatus` after Authenticate |
 | --- | --- | --- |
@@ -649,6 +649,7 @@ The `trans_status` field threaded through all three flows is a `common_enums::Tr
 | `VerificationNotPerformed` (`U`) | ACS unavailable. | `AuthenticationPending`, caller decides whether to fallback. |
 | `ChallengeRequired` (`C`) | Issuer demands a challenge. | `AuthenticationPending` with `redirection_data = Some(..)`. |
 | `ChallengeRequiredDecoupledAuthentication` (`D`) | Decoupled auth. | `AuthenticationPending` with decoupled redirect form. |
+| `SecurePaymentConfirmationRequired` (`S`) | Challenge via Secure Payment Confirmation (EMV 3DS 2.3.1+). | `AuthenticationPending` — challenge-type and non-terminal, like `C`. |
 | `InformationOnly` (`I`) | Info-only, no liability shift. | `AuthenticationSuccessful` (no CAVV). |
 | `Rejected` (`R`) | Issuer rejected the authentication. | `AuthenticationFailed`. |
 

@@ -153,7 +153,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             "transaction_id",
         )?;
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
 
         // Extract report group from metadata or use default
         let report_group = extract_report_group(&item.router_data.connector_config)
@@ -1864,7 +1864,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
             enhanced_data: None,
         };
 
@@ -1994,7 +1994,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Refund, merchant_txn_id),
             customer_id,
             cnp_txn_id,
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
         };
 
         let cnp_request = CnpOnlineRequest {
@@ -2220,7 +2220,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
             enhanced_data: None,
         };
 
@@ -2692,7 +2692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer_id: None,
             cnp_txn_id: Some(connector_transaction_id),
             order_id: None,
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
             order_source: None,
             bill_to_address: None,
             ship_to_address: None,

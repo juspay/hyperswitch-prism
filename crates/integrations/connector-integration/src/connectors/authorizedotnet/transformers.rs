@@ -844,7 +844,7 @@ fn create_regular_transaction_request<
             item.connector
                 .amount_converter
                 .convert(
-                    item.router_data.request.minor_amount,
+                    item.router_data.request.amount.amount,
                     item.router_data.request.currency,
                 )
                 .change_context(IntegrationError::AmountConversionFailed {
@@ -1068,7 +1068,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector
                 .amount_converter
                 .convert(
-                    item.router_data.request.minor_amount,
+                    item.router_data.request.amount.amount,
                     item.router_data.request.currency,
                 )
                 .change_context(IntegrationError::AmountConversionFailed {
@@ -1168,7 +1168,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector
                 .amount_converter
                 .convert(
-                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.amount_to_capture.amount,
                     item.router_data.request.currency,
                 )
                 .change_context(IntegrationError::AmountConversionFailed {
@@ -1730,7 +1730,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector
                 .amount_converter
                 .convert(
-                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.refund_amount.amount,
                     item.router_data.request.currency,
                 )
                 .change_context(IntegrationError::AmountConversionFailed {
@@ -2334,16 +2334,36 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
 /// Build an `ErrorResponse` from Authorize.Net's `ResponseMessages`, mirroring
 /// hyperswitch's `get_err_response`: use the first message's code/text and leave
 /// `attempt_status: None` so the caller preserves the prior attempt status.
+/// Parity with hyperswitch's direct Authorize.net flow: `resultCode` is the error *message*
+/// (`"Error"`), and the reason carries every `messages.message[].text`, joined. Reading
+/// `message[0].text` into both fields diverges on `message` and silently drops every message
+/// after the first.
+fn error_code_message_and_reason(messages: &ResponseMessages) -> (String, String, String) {
+    let code = messages
+        .message
+        .first()
+        .map(|m| m.code.clone())
+        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+    let joined_reason = messages
+        .message
+        .iter()
+        .map(|m| m.text.clone())
+        .collect::<Vec<String>>()
+        .join(" ");
+    let reason = if joined_reason.is_empty() {
+        consts::NO_ERROR_MESSAGE.to_string()
+    } else {
+        joined_reason
+    };
+    (code, messages.result_code.to_string(), reason)
+}
+
 fn get_err_response(status_code: u16, messages: ResponseMessages) -> ErrorResponse {
-    let first = messages.message.first();
+    let (code, message, reason) = error_code_message_and_reason(&messages);
     ErrorResponse {
-        code: first
-            .map(|m| m.code.clone())
-            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-        message: first
-            .map(|m| m.text.clone())
-            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: first.map(|m| m.text.clone()),
+        code,
+        message,
+        reason: Some(reason),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
@@ -2583,7 +2603,7 @@ pub struct ResponseMessage {
     pub text: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize, strum::Display)]
 #[serde(rename_all = "PascalCase")]
 pub enum ResultCode {
     #[default]
@@ -3033,28 +3053,12 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
             }
             None => {
                 // Handle error response
+                let (code, message, reason) = error_code_message_and_reason(&response.messages);
                 let error_response = ErrorResponse {
                     status_code: http_code,
-                    code: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.code.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(
-                        response
-                            .messages
-                            .message
-                            .first()
-                            .map(|m| m.text.clone())
-                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    ),
+                    code,
+                    message,
+                    reason: Some(reason),
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
@@ -3274,28 +3278,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_account_reference: None,
             });
         } else {
+            let (code, message, reason) = error_code_message_and_reason(&response.messages);
             let error_response = ErrorResponse {
                 status_code: http_code,
-                code: response
-                    .messages
-                    .message
-                    .first()
-                    .map(|m| m.code.clone())
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .messages
-                    .message
-                    .first()
-                    .map(|m| m.text.clone())
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: Some(
-                    response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                ),
+                code,
+                message,
+                reason: Some(reason),
                 attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
@@ -3587,7 +3575,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     vec![ShipToList {
                         first_name: address.first_name.clone(),
                         last_name: address.last_name.clone(),
-                        address: get_address_line(&address.line1, &address.line2, &address.line3),
+                        // hyperswitch direct sends line1 only for shipTo (unlike billTo, which
+                        // does join the lines) -- joining here emitted a trailing space whenever
+                        // line2 was present-but-empty.
+                        address: address.line1.clone(),
                         city: address.city.clone(),
                         state: address.state.clone(),
                         zip: address.zip.clone(),
@@ -3663,6 +3654,10 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             let first_error = response.messages.message.first();
             let error_code = first_error.map(|m| m.code.as_str()).unwrap_or("");
             let error_text = first_error.map(|m| m.text.as_str()).unwrap_or("");
+            // Same hyperswitch-parity mapping as every other error path in this file:
+            // message is the resultCode, reason joins every message text.
+            let (parity_code, parity_message, parity_reason) =
+                error_code_message_and_reason(&response.messages);
 
             if error_code == "E00039" {
                 // Extract customer profile ID from error message
@@ -3680,9 +3675,9 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     // Couldn't extract ID, return error
                     new_router_data.response = Err(ErrorResponse {
                         status_code: http_code,
-                        code: error_code.to_string(),
-                        message: error_text.to_string(),
-                        reason: Some(error_text.to_string()),
+                        code: parity_code,
+                        message: parity_message,
+                        reason: Some(parity_reason),
                         attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
                         network_decline_code: None,
@@ -3698,9 +3693,9 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                 // Other error - return error response
                 new_router_data.response = Err(ErrorResponse {
                     status_code: http_code,
-                    code: error_code.to_string(),
-                    message: error_text.to_string(),
-                    reason: Some(error_text.to_string()),
+                    code: parity_code,
+                    message: parity_message,
+                    reason: Some(parity_reason),
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
                     network_decline_code: None,

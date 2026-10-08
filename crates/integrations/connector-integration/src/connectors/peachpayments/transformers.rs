@@ -3,7 +3,7 @@ use super::{requests, responses, PeachpaymentsRouterData};
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::ext_traits::StringExt;
-use common_utils::{consts, errors::CustomResult, types::MinorUnit, SecretSerdeValue};
+use common_utils::{consts, errors::CustomResult, SecretSerdeValue};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -295,7 +295,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         eci: None,
                     },
                     amount: requests::PeachpaymentsAmount {
-                        amount: item.router_data.request.minor_amount,
+                        amount: item.router_data.request.amount.amount,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -351,7 +351,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 })?,
                         },
                         amount: requests::PeachpaymentsAmount {
-                            amount: item.router_data.request.minor_amount,
+                            amount: item.router_data.request.amount.amount,
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },
@@ -507,7 +507,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: requests::PeachpaymentsAmount {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount: item.router_data.request.amount_to_capture.amount,
                 currency_code: item.router_data.request.currency,
                 display_amount: None,
             },
@@ -583,7 +583,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             amount: requests::PeachpaymentsAmount {
-                amount,
+                amount: amount.amount,
                 currency_code: currency,
                 display_amount: None,
             },
@@ -649,7 +649,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ecommerce_card_payment_only_transaction_data:
                 requests::PeachpaymentsRefundTransactionData {
                     amount: requests::PeachpaymentsAmount {
-                        amount: MinorUnit::new(item.router_data.request.refund_amount),
+                        amount: item.router_data.request.refund_amount.amount,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -808,12 +808,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let transaction_data = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_info) => {
-                let minor_amount = item.router_data.request.minor_amount.ok_or(
-                    IntegrationError::MissingRequiredField {
+                let minor_amount = item
+                    .router_data
+                    .request
+                    .amount
+                    .as_ref()
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "amount",
                         context: Default::default(),
-                    },
-                )?;
+                    })?
+                    .amount;
                 let (routing_reference, routing) =
                     build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
@@ -1044,7 +1048,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         eci: None,
                     },
                     amount: requests::PeachpaymentsAmount {
-                        amount: item.router_data.request.minor_amount,
+                        amount: item.router_data.request.amount.amount,
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -1093,7 +1097,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 })?,
                         },
                         amount: requests::PeachpaymentsAmount {
-                            amount: item.router_data.request.minor_amount,
+                            amount: item.router_data.request.amount.amount,
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },
