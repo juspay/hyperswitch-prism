@@ -1083,16 +1083,15 @@ fn compute_recurring_context(
     payment_meta: Option<&TsysTransitPaymentRequestMetadata>,
 ) -> Result<RecurringContext, Report<IntegrationError>> {
     let (is_recurring_flag, billing_type) = match mit_category.as_ref() {
-        Some(MitCategory::Recurring | MitCategory::Subscription) => {
-            (Some(TsysTransitIsRecurring::Y), None)
-        }
+        Some(MitCategory::Recurring) => (Some(TsysTransitIsRecurring::Y), None),
         Some(MitCategory::Installment) => (
             Some(TsysTransitIsRecurring::Y),
             Some(TsysTransitBillingType::Installment),
         ),
-        Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
-            return Ok(RecurringContext::default())
-        }
+        Some(MitCategory::Unscheduled)
+        | Some(MitCategory::Subscription)
+        | Some(MitCategory::Resubmission)
+        | None => return Ok(RecurringContext::default()),
     };
     // The installment schedule (paymentCount / currentPaymentCount), MC
     // recurring subtype and Discover installment variant come from the payment
@@ -1121,7 +1120,7 @@ fn compute_recurring_context(
 
     let discover_family_mit_indicator = match (mit_category.as_ref(), card_network) {
         (
-            Some(MitCategory::Recurring | MitCategory::Subscription),
+            Some(MitCategory::Recurring),
             Some(CardNetwork::Discover)
             | Some(CardNetwork::JCB)
             | Some(CardNetwork::DinersClub)
@@ -1141,10 +1140,6 @@ fn compute_recurring_context(
             (Some(MitCategory::Recurring), Some(CardNetwork::Mastercard)) => (
                 Some(TsysTransitMcCitStatusIndicator::C102),
                 Some(TsysTransitMitIndicator::M102),
-            ),
-            (Some(MitCategory::Subscription), Some(CardNetwork::Mastercard)) => (
-                Some(TsysTransitMcCitStatusIndicator::C103),
-                Some(TsysTransitMitIndicator::M103),
             ),
             (Some(MitCategory::Installment), Some(CardNetwork::Mastercard)) => (
                 Some(TsysTransitMcCitStatusIndicator::C104),

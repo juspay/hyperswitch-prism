@@ -54,10 +54,11 @@ pub fn card_on_file(profile: &TxProfile) -> Option<TsysTransitCardOnFile> {
         (CardFamily::Visa, CofPhase::CitSetup { .. } | CofPhase::Mit(..)) => {
             Some(TsysTransitCardOnFile::Y)
         }
-        (
-            family,
-            CofPhase::Mit(MitKind::Recurring | MitKind::Subscription | MitKind::Installment),
-        ) if is_discover_family(family) => Some(TsysTransitCardOnFile::Y),
+        (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment))
+            if is_discover_family(family) =>
+        {
+            Some(TsysTransitCardOnFile::Y)
+        }
         _ => None,
     }
 }
@@ -81,7 +82,6 @@ pub fn cit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMcCitStatu
         CofPhase::CitSetup { intended_kind } => Some(match intended_kind {
             MitIntent::Unscheduled => C101,
             MitIntent::Recurring => C102,
-            MitIntent::Subscription => C103,
             MitIntent::Installment => C104,
         }),
         CofPhase::NoCof | CofPhase::Mit(_) => None,
@@ -98,7 +98,6 @@ pub fn mit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMitIndicat
         // Mastercard
         (CardFamily::Mastercard, MitKind::Unscheduled | MitKind::Resubmission) => Some(M101),
         (CardFamily::Mastercard, MitKind::Recurring) => Some(M102),
-        (CardFamily::Mastercard, MitKind::Subscription) => Some(M103),
         (CardFamily::Mastercard, MitKind::Installment) => Some(M104),
         // Discover family unscheduled / resubmission
         (
@@ -108,7 +107,7 @@ pub fn mit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMitIndicat
         // Discover-family recurring → R, installment → S/T
         (
             CardFamily::Discover | CardFamily::Jcb | CardFamily::Diners | CardFamily::UnionPay,
-            MitKind::Recurring | MitKind::Subscription,
+            MitKind::Recurring,
         ) => Some(R),
         (
             CardFamily::Discover | CardFamily::Jcb | CardFamily::Diners | CardFamily::UnionPay,
@@ -131,10 +130,9 @@ pub fn mit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMitIndicat
 pub fn should_send_card_on_file_transaction_identifier(profile: &TxProfile) -> bool {
     match (profile.card_family, profile.cof_phase) {
         (CardFamily::Visa, phase) => phase.is_mit(),
-        (
-            family,
-            CofPhase::Mit(MitKind::Recurring | MitKind::Subscription | MitKind::Installment),
-        ) => is_discover_family(family),
+        (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment)) => {
+            is_discover_family(family)
+        }
         _ => false,
     }
 }

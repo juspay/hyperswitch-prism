@@ -15,7 +15,6 @@ use domain_types::connector_types::{MandateIds, MandateReferenceId};
 pub enum MitIntent {
     Unscheduled,
     Recurring,
-    Subscription,
     Installment,
 }
 
@@ -24,7 +23,6 @@ pub enum MitIntent {
 pub enum MitKind {
     Unscheduled,
     Recurring,
-    Subscription,
     Installment,
     Resubmission,
 }
@@ -64,10 +62,11 @@ impl CofPhase {
         if has_mandate {
             let kind = match mit_category {
                 Some(MitCategory::Recurring) => MitKind::Recurring,
-                Some(MitCategory::Subscription) => MitKind::Subscription,
                 Some(MitCategory::Installment) => MitKind::Installment,
                 Some(MitCategory::Resubmission) => MitKind::Resubmission,
-                Some(MitCategory::Unscheduled) | None => MitKind::Unscheduled,
+                Some(MitCategory::Unscheduled | MitCategory::Subscription) | None => {
+                    MitKind::Unscheduled
+                }
             };
             return Self::Mit(kind);
         }
@@ -77,11 +76,8 @@ impl CofPhase {
         if is_setup {
             let intended_kind = match mit_category {
                 Some(MitCategory::Recurring) => MitIntent::Recurring,
-                Some(MitCategory::Subscription) => MitIntent::Subscription,
                 Some(MitCategory::Installment) => MitIntent::Installment,
-                Some(MitCategory::Unscheduled | MitCategory::Resubmission) | None => {
-                    MitIntent::Unscheduled
-                }
+                _ => MitIntent::Unscheduled,
             };
             return Self::CitSetup { intended_kind };
         }
