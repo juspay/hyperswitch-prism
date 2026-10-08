@@ -11396,7 +11396,10 @@ impl ForeignTryFrom<grpc_api_types::payments::StripeSplitRefundData>
         value: grpc_api_types::payments::StripeSplitRefundData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            charge_id: value.charge_id,
+            // `charge_id` stays a plain proto3 string, so an unresolved charge id arrives as the
+            // empty default - prost elides it on the wire - rather than as an absent field. An
+            // empty charge id is never a real Stripe id, so treat it as "not known".
+            charge_id: Some(value.charge_id).filter(|charge_id| !charge_id.is_empty()),
             transfer_account_id: value.transfer_account_id,
             charge_type: common_enums::PaymentChargeType::foreign_try_from(
                 grpc_api_types::payments::PaymentChargeType::try_from(value.charge_type)
