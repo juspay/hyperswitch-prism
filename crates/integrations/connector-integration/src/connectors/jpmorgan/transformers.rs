@@ -2178,9 +2178,13 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 let recurring = request
                     .connector_feature_data
                     .as_ref()
-                    .and_then(|data| data.peek().get("jpmorgan"))
-                    .and_then(|jpmorgan| jpmorgan.get("recurring"))
-                    .cloned()
+                    .and_then(|data| {
+                        serde_json::from_value::<requests::JpmorganPreservedFeatureData>(
+                            data.peek().clone(),
+                        )
+                        .ok()
+                    })
+                    .and_then(|feature| feature.jpmorgan.recurring)
                     .ok_or_else(|| IntegrationError::MissingRequiredField {
                         field_name: "connector_feature_data.jpmorgan.recurring",
                         context: Self::mit_context(),
@@ -2576,6 +2580,7 @@ impl<T: PaymentMethodDataTypes>
                 })
                 .filter(|preserved| !preserved.is_empty())
             {
+                // The stored context rides the metadata channel that later requests read back.
                 *connector_metadata = Some(serde_json::json!({ "jpmorgan": preserved }));
             }
         }

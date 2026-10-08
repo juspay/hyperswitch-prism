@@ -386,6 +386,20 @@ pub(super) struct JpmorganStoredContext {
     pub(super) recurring: Option<JpmorganRecurring>,
 }
 
+/// Connector feature data preserved across JPMorgan flows.
+#[derive(Debug, serde::Deserialize)]
+pub(super) struct JpmorganPreservedFeatureData {
+    #[serde(default)]
+    pub(super) jpmorgan: JpmorganPreservedContext,
+}
+
+/// The connector-owned keys of the preserved feature data.
+#[derive(Debug, Default, serde::Deserialize)]
+pub(super) struct JpmorganPreservedContext {
+    #[serde(default)]
+    pub(super) recurring: Option<serde_json::Value>,
+}
+
 pub(super) enum JpmorganSyncResource {
     Payment(String),
     Verification(String),
