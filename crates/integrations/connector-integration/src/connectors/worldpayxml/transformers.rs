@@ -521,7 +521,9 @@ impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateTyp
     fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
         match mit_category {
             Some(common_enums::MitCategory::Installment) => Self::Instalment,
-            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => Self::Recurring,
             Some(common_enums::MitCategory::Unscheduled)
             | Some(common_enums::MitCategory::Resubmission)
             | None => Self::Unscheduled,
