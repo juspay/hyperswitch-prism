@@ -1,0 +1,753 @@
+{
+  "connector": "betterpayment",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for betterpayment"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      },
+      "Wero": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://testapi.betterpayment.de/rest/payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"payment_type\":\"wero\",\"order_id\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"merchant_reference\":\"probe_txn_001\",\"postback_url\":\"https://example.com/webhook\",\"success_url\":\"https://example.com/return\",\"error_url\":\"https://example.com/return\",\"wero_checkout_url\":\"https://example.com/return\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"postal_code\":\"98101\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for betterpayment"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for betterpayment"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for betterpayment"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for betterpayment"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for betterpayment"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for betterpayment"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for betterpayment"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for betterpayment"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for betterpayment"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for betterpayment"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by betterpayment connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testapi.betterpayment.de/rest/transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"transaction_id\":\"bp_test123\",\"payment_type\":\"wero\",\"status_code\":0,\"status\":\"completed\",\"order_id\":\"order_abc\",\"amount\":10.00,\"currency\":\"EUR\",\"checksum\":\"dummy_checksum\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"transaction_id\":\"bp_test123\",\"payment_type\":\"wero\",\"status_code\":0,\"status\":\"completed\",\"order_id\":\"order_abc\",\"amount\":10.00,\"currency\":\"EUR\",\"checksum\":\"dummy_checksum\"}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for betterpayment"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"transaction_id\":\"bp_test123\",\"payment_type\":\"wero\",\"status_code\":0,\"status\":\"completed\",\"order_id\":\"order_abc\",\"amount\":10.00,\"currency\":\"EUR\",\"checksum\":\"dummy_checksum\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"transaction_id\":\"bp_test123\",\"payment_type\":\"wero\",\"status_code\":0,\"status\":\"completed\",\"order_id\":\"order_abc\",\"amount\":10.00,\"currency\":\"EUR\",\"checksum\":\"dummy_checksum\"}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for betterpayment"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for betterpayment"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for betterpayment"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for betterpayment"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for betterpayment"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://testapi.betterpayment.de/rest/refund",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"transaction_id\":\"probe_connector_txn_001\",\"amount\":10.0}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://testapi.betterpayment.de/rest/transactions/probe_connector_txn_001/refunds",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for betterpayment"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for betterpayment"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Betterpayment"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for betterpayment"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for betterpayment"
+      }
+    }
+  }
+}

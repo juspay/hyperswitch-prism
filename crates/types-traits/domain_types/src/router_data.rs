@@ -1584,7 +1584,11 @@ impl ConnectorSpecificConfig {
                 merchant_secret,
                 base_url
             },
-            Betterpayment { api_key, key1, api_secret },
+            Betterpayment {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
@@ -2122,7 +2126,11 @@ impl ConnectorSpecificConfig {
                     merchant_secret,
                     base_url
                 },
-                Betterpayment { api_key, key1, api_secret },
+                Betterpayment {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
