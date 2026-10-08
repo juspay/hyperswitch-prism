@@ -1615,10 +1615,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftVoidInner {
     pub misc_amounts_balances: WorldpayraftAmounts,
-    #[serde(rename = "AuthorizationType")]
     pub authorization_type: WorldpayraftAuthorizationType,
-    #[serde(rename = "ReversalAdviceReasonCd")]
-    pub reversal_reason: WorldpayraftReversalAdviceReasonCode,
+    pub reversal_advice_reason_cd: WorldpayraftReversalAdviceReasonCode,
     pub reference_trace_numbers: WorldpayraftCaptureTraceNumbers,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
@@ -1668,7 +1666,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = router_data.request.amount.ok_or_else(|| {
+        let amount = router_data.request.amount.as_ref().ok_or_else(|| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: errors::IntegrationErrorContext {
@@ -1694,7 +1692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(amount.amount, currency)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1723,7 +1721,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ));
         }
 
-        let reversal_reason = if router_data.request.cancellation_reason.is_some() {
+        let reversal_advice_reason_cd = if router_data.request.cancellation_reason.is_some() {
             WorldpayraftReversalAdviceReasonCode::CustomerCancel
         } else {
             WorldpayraftReversalAdviceReasonCode::NormalReversal
@@ -1740,7 +1738,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             creditauth: WorldpayraftVoidInner {
                 misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
                 authorization_type: WorldpayraftAuthorizationType::Reversal,
-                reversal_reason,
+                reversal_advice_reason_cd,
                 reference_trace_numbers: WorldpayraftCaptureTraceNumbers {
                     authorization_number: auth_num.to_string(),
                     retrieval_ref_number: retrieval_ref.to_string(),
