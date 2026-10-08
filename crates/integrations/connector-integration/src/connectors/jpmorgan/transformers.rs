@@ -38,6 +38,7 @@ type ResponseError = error_stack::Report<ConnectorError>;
 
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
+const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
 
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
     type Error = error_stack::Report<IntegrationError>;
@@ -258,9 +259,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
         cryptogram: &Secret<String>,
         eci: &Option<String>,
     ) -> Result<requests::JpmorganWalletAuthentication, Error> {
-        if cryptogram.peek().trim().is_empty() || cryptogram.peek().len() > 80 {
-            return Err(Self::invalid_wallet_field("wallet.cryptogram").into());
-        }
         Ok(requests::JpmorganWalletAuthentication {
             token_authentication_value: cryptogram.clone(),
             electronic_commerce_indicator: eci.clone(),
@@ -303,12 +301,13 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
     }
 
     fn from_google_pay(data: &GooglePayDecryptedData) -> Result<Self, Error> {
-        let method = data
-            .auth_method
-            .ok_or_else(|| IntegrationError::MissingRequiredField {
-                field_name: "google_pay.auth_method",
-                context: Self::wallet_field_context("google_pay.auth_method"),
-            })?;
+        let method = data.auth_method.unwrap_or_else(|| {
+            if data.cryptogram.is_some() || data.eci_indicator.is_some() {
+                common_enums::GooglePayAuthMethod::Cryptogram
+            } else {
+                common_enums::GooglePayAuthMethod::PanOnly
+            }
+        });
         let (account_number_type, authentication) = match method {
             common_enums::GooglePayAuthMethod::PanOnly => {
                 if data.cryptogram.is_some() || data.eci_indicator.is_some() {
@@ -365,31 +364,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
 }
 
 impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
-    fn validate_wallet_context(request: &PaymentsAuthorizeData<T>) -> Result<(), Error> {
-        if request.off_session == Some(true)
-            || request.mandate_id.is_some()
-            || request.setup_mandate_details.is_some()
-            || request.mit_category.is_some()
-            || request.setup_future_usage.is_some()
-            || request.tokenization == Some(common_enums::Tokenization::TokenizeAtPsp)
-            || request.request_incremental_authorization == Some(true)
-            || request.enable_overcapture == Some(true)
-        {
-            return Err(IntegrationError::NotSupported {
-                message: "Decrypted wallet payments with storage, merchant initiation, incremental authorization, or overcapture".to_owned(),
-                connector: "jpmorgan",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Submit a one-off, non-storing, fixed-amount cardholder-initiated wallet payment.".to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            }
-            .into());
-        }
-        Ok(())
-    }
-
     fn from_decrypted_wallet(
         router_data: &RouterDataV2<
             Authorize,
@@ -397,11 +371,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-        card: requests::JpmorganCard<T>,
+        wallet_card: requests::JpmorganCard<T>,
     ) -> Result<Self, Error> {
-        if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
-            || router_data.request.authentication_data.is_some()
-        {
+        if router_data.request.authentication_data.is_some() {
             return Err(IntegrationError::NotSupported {
                 message: "Separate 3DS authentication for decrypted wallet payments".to_owned(),
                 connector: "jpmorgan",
@@ -415,7 +387,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             }
             .into());
         }
-        Self::validate_wallet_context(&router_data.request)?;
         let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
             capture_method: map_capture_method(router_data.request.capture_method)?,
@@ -426,7 +397,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             currency: router_data.request.currency,
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganPaymentMethodType {
-                card: Some(card),
+                card: Some(wallet_card),
                 ach: None,
                 googlepay: None,
                 token: None,
@@ -475,7 +446,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     == common_enums::AuthenticationType::ThreeDs
                 {
                     return Err(IntegrationError::NotImplemented(
-                        "3DS payments".to_string(),
+                        JPMORGAN_THREE_DS_NOT_IMPLEMENTED.to_string(),
                         Default::default(),
                     )
                     .into());
@@ -554,7 +525,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     == common_enums::AuthenticationType::ThreeDs
                 {
                     return Err(IntegrationError::NotImplemented(
-                        "3DS payments".to_string(),
+                        JPMORGAN_THREE_DS_NOT_IMPLEMENTED.to_string(),
                         Default::default(),
                     )
                     .into());
