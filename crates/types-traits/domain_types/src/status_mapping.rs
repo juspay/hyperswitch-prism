@@ -90,10 +90,23 @@ macro_rules! __validate_flow_mapping_outcomes {
     ($connector:ty, Authorize, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
     };
-    ($connector:ty, $flow:ident, $($mapping:tt)*) => {
+    ($connector:ty, Capture, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(
-            @require_success $connector, $($mapping)*
+            @require_success_or_async_ack $connector, $($mapping)*
         );
+    };
+    ($connector:ty, Void, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(
+            @require_success_or_async_ack $connector, $($mapping)*
+        );
+    };
+    ($connector:ty, Refund, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(
+            @require_success_or_async_ack $connector, $($mapping)*
+        );
+    };
+    ($connector:ty, $flow:ident, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@require_success $($mapping)*);
     };
     (@allow_without_success $($mapping:tt)*) => {
         const _: () = {
@@ -108,7 +121,24 @@ macro_rules! __validate_flow_mapping_outcomes {
             );
         };
     };
-    (@require_success $connector:ty, $($mapping:tt)*) => {
+    (@require_success $($mapping:tt)*) => {
+        const _: () = {
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
+            const NON_TERMINAL_COUNT: usize =
+                $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+
+            assert!(
+                SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
+                "flow status mapping must declare at least one outcome"
+            );
+            assert!(
+                SUCCESS_COUNT > 0,
+                "success mapping is mandatory for this flow"
+            );
+        };
+    };
+    (@require_success_or_async_ack $connector:ty, $($mapping:tt)*) => {
         const _: () = {
             const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
             const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
