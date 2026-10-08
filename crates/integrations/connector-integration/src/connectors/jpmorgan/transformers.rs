@@ -2146,46 +2146,20 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
         Ok(())
     }
 
-    fn validate_network_reference(value: &str, field_name: &'static str) -> Result<String, Error> {
-        if value.trim().is_empty()
-            || value.trim() != value
-            || !(4..=40).contains(&value.chars().count())
-        {
-            return Err(IntegrationError::InvalidDataFormat {
-                field_name,
-                context: Self::mit_context(),
-            }
-            .into());
-        }
-        Ok(value.to_owned())
-    }
-
     fn network_references(
         reference: &MandateReferenceId,
     ) -> Result<(String, Option<String>), Error> {
         match reference {
-            MandateReferenceId::NetworkMandateId(network) => {
-                let network_transaction_id = Self::validate_network_reference(
-                    &network.network_transaction_id,
-                    "connector_recurring_payment_id.network_mandate_id.network_transaction_id",
-                )?;
-                let transaction_link_id = network
-                    .transaction_link_id
-                    .as_deref()
-                    .map(|value| {
-                        Self::validate_network_reference(
-                            value,
-                            "connector_recurring_payment_id.network_mandate_id.transaction_link_id",
-                        )
-                    })
-                    .transpose()?;
-                Ok((network_transaction_id, transaction_link_id))
-            }
+            MandateReferenceId::NetworkMandateId(network) => Ok((
+                network.network_transaction_id.clone(),
+                network.transaction_link_id.clone(),
+            )),
             MandateReferenceId::ConnectorMandateId(_) => Err(Self::unsupported(
                 "Connector-scoped mandate identifiers on a charge",
             )),
-            MandateReferenceId::NetworkTokenWithNTI(_) => Err(Self::unsupported(
-                "Directory server network tokens on a charge",
+            MandateReferenceId::NetworkTokenWithNTI(network) => Ok((
+                network.network_transaction_id.clone(),
+                network.transaction_link_id.clone(),
             )),
         }
     }
@@ -2371,6 +2345,24 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                     }
                 }
             }
+            PaymentMethodData::NetworkToken(token) => (
+                RawCardNumber(T::inner_from_card_number(
+                    token
+                        .token_number
+                        .get_card_no()
+                        .parse::<cards::CardNumber>()
+                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method_data.network_token.token_number",
+                            context: Self::mit_context(),
+                        })?,
+                )),
+                requests::JpmorganCard::<T>::wallet_expiry(
+                    &token.token_exp_month,
+                    &token.token_exp_year,
+                )?,
+                Some(requests::JpmorganAccountNumberType::NetworkToken),
+                None,
+            ),
             _ => {
                 return Err(Self::unsupported(
                     "Charges without a card or decrypted wallet credential",
@@ -2449,9 +2441,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant,
             payment_method_type,
             recurring: Self::mit_recurring(&router_data.request)?,
-            merchant_order_number: requests::JpmorganPaymentsRequest::<T>::wallet_order_number(
-                router_data.request.merchant_order_id.as_ref(),
-            )?,
+            merchant_order_number: router_data.request.merchant_order_id.clone(),
             initiator_type: requests::JpmorganInitiatorType::Merchant,
             account_on_file: requests::JpmorganAccountOnFile::Stored,
             is_amount_final: true,
