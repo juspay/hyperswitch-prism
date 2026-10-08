@@ -104,7 +104,21 @@ fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     payment_channel: &Option<common_enums::PaymentChannel>,
 ) -> Option<bool> {
-    if matches!(payment_method_data, PaymentMethodData::Card(_))
+    // hyperswitch tests `payment_method_data.is_card_payment()` while still holding the raw card.
+    // By the time prism sees a split-payment Authorize the router has swapped the card for a
+    // connector token, so matching only `Card` dropped `moto` on every tokenised MOTO payment.
+    // `token_payment_method_type: None` is the card arm of that token -- Apple Pay / Google Pay
+    // are wallets, which `is_card_payment()` excludes too. Same reading as the Authorize
+    // transformer below.
+    let is_card_payment = match payment_method_data {
+        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::PaymentMethodToken(token_data) => {
+            token_data.token_payment_method_type.is_none()
+        }
+        _ => false,
+    };
+
+    if is_card_payment
         && matches!(
             payment_channel,
             Some(
@@ -1629,7 +1643,9 @@ fn create_stripe_payment_method<
         PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok((
             StripePaymentMethodData::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
                 payment_method_data_type: StripePaymentMethodType::Card,
-                payment_method_data_card_number: card_details.card_number.clone(),
+                payment_method_data_card_number: card_details
+                    .card_number
+                    .try_card_number("Stripe")?,
                 payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
                 payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
                 payment_method_data_card_cvc: None,
@@ -5606,7 +5622,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok(
                 Self::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
                     payment_method_data_type: StripePaymentMethodType::Card,
-                    payment_method_data_card_number: card_details.card_number.clone(),
+                    payment_method_data_card_number: card_details
+                        .card_number
+                        .try_card_number("Stripe")?,
                     payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
                     payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
                     payment_method_data_card_cvc: None,
@@ -6096,7 +6114,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             StripeCardNetworkTransactionIdData {
                                 payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number:
-                                    card_details_for_network_transaction_id.card_number.clone(),
+                                    card_details_for_network_transaction_id
+                                        .card_number
+                                        .try_card_number("Stripe")?,
                                 payment_method_data_card_exp_month:
                                     card_details_for_network_transaction_id
                                         .card_exp_month
@@ -6427,7 +6447,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
                 StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
                     payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: card_details.card_number.clone(),
+                    token_card_number: card_details.card_number.try_card_number("Stripe")?,
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
                     billing: billing_address,

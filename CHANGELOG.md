@@ -19,6 +19,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.07.2
+
+### Features
+
+- **payments:** Support a vault-aliased card with a network transaction ID on the repeat payment flow ([#2434](https://github.com/juspay/connector-service/pull/2434)) ([`0cccbfc`](https://github.com/juspay/connector-service/commit/0cccbfca76cb349dff3790b09858592f25c115cc))
+
+### Bug Fixes
+
+- **connector:** [dLocal] Populate connector_mandate_id for setup mandate flow ([#2458](https://github.com/juspay/connector-service/pull/2458)) ([`78ef96c`](https://github.com/juspay/connector-service/commit/78ef96c5d4f091b8c0a7902e78813e552cc9dc4e))
+
+**Full Changelog:** [`2026.10.07.1...2026.10.07.2`](https://github.com/juspay/connector-service/compare/2026.10.07.1...2026.10.07.2)
+
+- - -
+
+## 2026.10.07.1
+
+### Features
+
+- **ci:** Add connectors in regression coverage ([#2371](https://github.com/juspay/connector-service/pull/2371)) ([`bf69926`](https://github.com/juspay/connector-service/commit/bf699265881d6a6fec0a62eb97e5f8fd98c6a8a6))
+- **framework:** Support 3DS 2.3.1 SPC trans_status `S` ([#2438](https://github.com/juspay/connector-service/pull/2438)) ([`02e84b8`](https://github.com/juspay/connector-service/commit/02e84b8bd7544cacad3486cc927d1bb4cece1eda))
+
+### Bug Fixes
+
+- **connector:** [Stripe] match hyperswitch's moto flag on telephone orders ([#2455](https://github.com/juspay/connector-service/pull/2455)) ([`942b9b9`](https://github.com/juspay/connector-service/commit/942b9b9964db3552081a6afe7900745dcb6fd8c5))
+
+**Full Changelog:** [`2026.10.07.0...2026.10.07.1`](https://github.com/juspay/connector-service/compare/2026.10.07.0...2026.10.07.1)
+
+- - -
+
+## 2026.10.07.0
+
+### Features
+
+- **connector:** [Mifinity] implement PayoutTransfer for mifinity ([#2231](https://github.com/juspay/connector-service/pull/2231)) ([`8e1fee7`](https://github.com/juspay/connector-service/commit/8e1fee7e3a240b1d28aebdc9815c9d802b1468bf))
+
+### Bug Fixes
+
+- **connector:**
+  - Close five UCS shadow-parity gaps found in prod ([#2447](https://github.com/juspay/connector-service/pull/2447)) ([`22c3e5e`](https://github.com/juspay/connector-service/commit/22c3e5ed73a78f68c2b7324a2fb4633a71d90bac))
+  - [Zift] Handle void transactions in Zift payment sync ([#2453](https://github.com/juspay/connector-service/pull/2453)) ([`a4fe72e`](https://github.com/juspay/connector-service/commit/a4fe72efd1be05311e404a6c1eabb827e5c7a34b))
+
+**Full Changelog:** [`2026.10.06.0...2026.10.07.0`](https://github.com/juspay/connector-service/compare/2026.10.06.0...2026.10.07.0)
+
+- - -
+
 ## 2026.10.06.0
 
 ### Features

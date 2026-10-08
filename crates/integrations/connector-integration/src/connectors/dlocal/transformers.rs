@@ -1004,7 +1004,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let mandate_reference = if is_gcash_enrollment {
-            matches!(&item.response.status, DlocalPaymentStatus::Active).then(|| MandateReference {
+            Some(MandateReference {
                 connector_mandate_id: Some(item.response.id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

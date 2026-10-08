@@ -293,7 +293,7 @@ pub struct ElavonPgThreeDSecure {
 }
 
 /// EPG accepts only `Y`, `N`, `U` or `A` for `threeDSecure.transactionStatus`
-/// (pattern `[YNUA]`). `C`/`D` mean the challenge is still outstanding and `R`
+/// (pattern `[YNUA]`). `C`/`D`/`S` mean the challenge is still outstanding and `R`
 /// means the issuer refused authorization outright — none of them may be presented
 /// as a finished authentication (spec §5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -316,6 +316,7 @@ impl TryFrom<common_enums::TransactionStatus> for ElavonPgThreeDsTransactionStat
             common_enums::TransactionStatus::Rejected
             | common_enums::TransactionStatus::ChallengeRequired
             | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::SecurePaymentConfirmationRequired
             | common_enums::TransactionStatus::InformationOnly => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: format!(

@@ -86,7 +86,8 @@ impl From<TransactionStatus> for BarclaycardParesStatus {
             TransactionStatus::NotVerified => Self::AuthenticationAttempted,
             TransactionStatus::Rejected => Self::AuthenticationRejected,
             TransactionStatus::ChallengeRequired
-            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::CardChallenged,
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | TransactionStatus::SecurePaymentConfirmationRequired => Self::CardChallenged,
             TransactionStatus::InformationOnly => Self::AuthenticationNotCompleted,
         }
     }
