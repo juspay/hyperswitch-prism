@@ -206,8 +206,16 @@ def postauth_request_impls(text):
 # ------------------------------------------------------------------ declared markers
 
 def declared_markers(sources):
-    """Markers wired up in create_all_prerequisites! minus those parked as
-    not_implemented/not_supported."""
+    """Markers the connector wires up, minus those parked as not_implemented/not_supported.
+
+    Two shapes declare a leg. A leg the connector calls out for appears as a `flow:` entry
+    in create_all_prerequisites!. A leg answered locally -- no outbound call -- is declared
+    by macro_connector_local_flow_implementation!, which replaces both the prerequisite and
+    the ConnectorIntegrationV2 impl, so it has no create_all_prerequisites! entry at all
+    (worldpayxml PreAuthenticate). Both must be read: a connector whose only authentication
+    leg is local would otherwise come back with declared == set(), which takes the TDS-00
+    not_applicable exit and skips all three checks -- TDS-01 included.
+    """
     declared, parked = set(), set()
     for path, (_raw, text) in sources.items():
         for m in re.finditer(r"create_all_prerequisites!\s*\(", text):
@@ -217,6 +225,14 @@ def declared_markers(sources):
             for fm in re.finditer(r"\bflow\s*:\s*(\w+)\s*,", text[m.start():end]):
                 if fm.group(1) in MARKERS:
                     declared.add(fm.group(1))
+        for m in re.finditer(r"macro_connector_local_flow_implementation!\s*\(", text):
+            end = _match_delim(text, m.start(), "(", ")")
+            if end < 0:
+                continue
+            # one flow_name per invocation; payhere declares Authorize this way, not a marker
+            fm = re.search(r"\bflow_name\s*:\s*(\w+)\s*,", text[m.start():end])
+            if fm and fm.group(1) in MARKERS:
+                declared.add(fm.group(1))
         for m in re.finditer(r"macro_connector_flow_status_impls!\s*\(", text):
             end = _match_delim(text, m.start(), "(", ")")
             if end < 0:
@@ -679,6 +695,33 @@ def _replay():
     assert parked == {"PostAuthenticate"}, parked
     assert "PostAuthenticate" not in declared
 
+    # a leg answered locally has no create_all_prerequisites! entry (worldpayxml shape)
+    rs = """
+    macros::macro_connector_local_flow_implementation!(
+        connector: Worldpayxml,
+        flow_name: PreAuthenticate,
+        flow_request: PaymentsPreAuthenticateData<T>,
+    );
+    macros::macro_connector_local_flow_implementation!(
+        connector: Payhere,
+        flow_name: Authorize,
+        flow_request: PaymentsAuthorizeData<T>,
+    );
+    macro_connector_flow_status_impls!(
+        connector: Worldpayxml,
+        not_implemented: [PostAuthenticate, Authenticate],
+    );
+    """
+    declared, parked = declared_markers(src(rs))
+    # without this the connector reads as having no markers at all, takes the TDS-00
+    # not_applicable exit, and every check including TDS-01 is skipped
+    assert declared == {"PreAuthenticate"}, declared
+    assert parked == {"PostAuthenticate", "Authenticate"}, parked
+    # an unclosed invocation contributes nothing rather than its truncated body
+    declared, _ = declared_markers(src(
+        "macro_connector_local_flow_implementation!(\n  flow_name: PreAuthenticate,\n"))
+    assert declared == set(), declared
+
     # -- resolve: first-match-wins, then the trait default --------------------------------
     arms = [({"InitialRequest"}, {None}, "PreAuthenticate", 1),
             ({"InitialRequest"}, {"PreAuthenticate"}, "Authenticate", 2)]
@@ -741,7 +784,7 @@ def _replay():
 
     print("replay OK: comment stripping preserves offsets so line numbers stay true, "
           "_match_delim reports -1 on an unbalanced delimiter, declared_markers subtracts "
-          "parked legs, resolve is first-match-wins with the Authorize default, TDS-02 catches "
+          "parked legs and reads a locally-answered leg, resolve is first-match-wins with the Authorize default, TDS-02 catches "
           "a dead leg / a parked return / plan disagreement, TDS-03 passes with no hook and "
           "flags a PostAuthenticate cycle, and TDS-01 flags a PostAuthenticate builder that "
           "reads capture_method while skipping the response-direction impl")
