@@ -2880,6 +2880,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankHolderType> for common_enums::
     }
 }
 
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMethodType {
     type Error = IntegrationError;
 
@@ -9444,6 +9445,7 @@ impl
     }
 }
 
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMethod {
     type Error = IntegrationError;
 
