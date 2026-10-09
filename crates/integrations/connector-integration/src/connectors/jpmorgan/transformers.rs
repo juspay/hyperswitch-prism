@@ -366,7 +366,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
                 three_ds_program_protocol: protocol,
                 version2: transaction_status.map(|status| requests::JpmorganThreeDsVersion2 {
                     three_ds_transaction_status: Some(status),
-                    three_ds_transaction_status_reason_code: None,
+                    three_ds_transaction_status_reason_code: authentication_data
+                        .challenge_code_reason
+                        .clone(),
                 }),
             }),
         })
@@ -1660,17 +1662,6 @@ impl<T: PaymentMethodDataTypes, F>
                 && requests::JpmorganPaymentsRequest::<T>::supports_initial_storage(
                     &item.router_data.request.payment_method_data,
                 );
-        let mut status = if initial_storage {
-            match item.response.response_status {
-                responses::JpmorganTransactionStatus::Success => {
-                    AttemptStatus::try_from(&item.response)?
-                }
-                responses::JpmorganTransactionStatus::Denied
-                | responses::JpmorganTransactionStatus::Error => AttemptStatus::Failure,
-            }
-        } else {
-            AttemptStatus::try_from(&item.response)?
-        };
         let challenge_uri = item
             .response
             .payment_authentication_result
@@ -1689,9 +1680,19 @@ impl<T: PaymentMethodDataTypes, F>
                     })
             })
             .map(ToOwned::to_owned);
-        if challenge_uri.is_some() {
-            status = AttemptStatus::AuthenticationPending;
-        }
+        let status = if challenge_uri.is_some() {
+            AttemptStatus::AuthenticationPending
+        } else if initial_storage {
+            match item.response.response_status {
+                responses::JpmorganTransactionStatus::Success => {
+                    AttemptStatus::try_from(&item.response)?
+                }
+                responses::JpmorganTransactionStatus::Denied
+                | responses::JpmorganTransactionStatus::Error => AttemptStatus::Failure,
+            }
+        } else {
+            AttemptStatus::try_from(&item.response)?
+        };
         let mut response = build_payments_response_result(&item.response, item.http_code, status)?;
         if let (
             Some(uri),
