@@ -123,19 +123,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L166) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L105) · [Rust](../../examples/givepayments/givepayments.rs#L221)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L166) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L105) · [Rust](../../examples/givepayments/givepayments.rs#L225)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L185) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L121) · [Rust](../../examples/givepayments/givepayments.rs#L237)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L185) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L121) · [Rust](../../examples/givepayments/givepayments.rs#L241)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L210) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L143) · [Rust](../../examples/givepayments/givepayments.rs#L260)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L210) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L143) · [Rust](../../examples/givepayments/givepayments.rs#L264)
 
 ## API Reference
 
@@ -283,7 +283,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L251) · [Kotlin](../../examples/givepayments/givepayments.kt#L161) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L254) · [Kotlin](../../examples/givepayments/givepayments.kt#L161) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.Get
 
@@ -294,7 +294,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L260) · [Kotlin](../../examples/givepayments/givepayments.kt#L173) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L263) · [Kotlin](../../examples/givepayments/givepayments.kt#L173) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -305,7 +305,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L287) · [Kotlin](../../examples/givepayments/givepayments.kt#L212) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L290) · [Kotlin](../../examples/givepayments/givepayments.kt#L212) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.Refund
 
@@ -316,7 +316,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L305) · [Kotlin](../../examples/givepayments/givepayments.kt#L293) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L308) · [Kotlin](../../examples/givepayments/givepayments.kt#L291) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Refunds
 
@@ -329,7 +329,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L314) · [Kotlin](../../examples/givepayments/givepayments.kt#L303) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L317) · [Kotlin](../../examples/givepayments/givepayments.kt#L301) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Mandates
 
@@ -342,4 +342,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L296) · [Kotlin](../../examples/givepayments/givepayments.kt#L248) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L299) · [Kotlin](../../examples/givepayments/givepayments.kt#L248) · [Rust](../../examples/givepayments/givepayments.rs)

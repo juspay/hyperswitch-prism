@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L195) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L111) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L246)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L195) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L111) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L250)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +145,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L214) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L127) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L262)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L214) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L127) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L266)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L239) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L149) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L285)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L239) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L149) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L289)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L264) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L171) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L308)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py#L264) · [JavaScript](../../examples/bamboraapac/bamboraapac.js) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L171) · [Rust](../../examples/bamboraapac/bamboraapac.rs#L312)
 
 ## API Reference
 
@@ -306,7 +306,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L297) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L189) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L300) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L189) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.Capture
 
@@ -317,7 +317,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L306) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L201) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L309) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L201) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.Get
 
@@ -328,7 +328,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L315) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L211) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L318) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L211) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -339,7 +339,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L324) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L219) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L327) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L219) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -350,7 +350,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L333) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L248) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L336) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L248) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.Refund
 
@@ -361,7 +361,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L351) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L311) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L354) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L309) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -372,7 +372,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L369) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L333) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L372) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L331) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 ### Refunds
 
@@ -385,7 +385,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L360) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L321) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L363) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L319) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
 
 ### Mandates
 
@@ -398,4 +398,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L342) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L280) · [Rust](../../examples/bamboraapac/bamboraapac.rs)
+**Examples:** [Python](../../examples/bamboraapac/bamboraapac.py) · [TypeScript](../../examples/bamboraapac/bamboraapac.ts#L345) · [Kotlin](../../examples/bamboraapac/bamboraapac.kt#L280) · [Rust](../../examples/bamboraapac/bamboraapac.rs)

@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/merchante/merchante.py#L200) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L117) · [Rust](../../examples/merchante/merchante.rs#L253)
+**Examples:** [Python](../../examples/merchante/merchante.py#L200) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L117) · [Rust](../../examples/merchante/merchante.rs#L257)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/merchante/merchante.py#L219) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L133) · [Rust](../../examples/merchante/merchante.rs#L269)
+**Examples:** [Python](../../examples/merchante/merchante.py#L219) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L133) · [Rust](../../examples/merchante/merchante.rs#L273)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/merchante/merchante.py#L244) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L155) · [Rust](../../examples/merchante/merchante.rs#L292)
+**Examples:** [Python](../../examples/merchante/merchante.py#L244) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L155) · [Rust](../../examples/merchante/merchante.rs#L296)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/merchante/merchante.py#L269) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L177) · [Rust](../../examples/merchante/merchante.rs#L315)
+**Examples:** [Python](../../examples/merchante/merchante.py#L269) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L177) · [Rust](../../examples/merchante/merchante.rs#L319)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/merchante/merchante.py#L291) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L196) · [Rust](../../examples/merchante/merchante.rs#L334)
+**Examples:** [Python](../../examples/merchante/merchante.py#L291) · [JavaScript](../../examples/merchante/merchante.js) · [Kotlin](../../examples/merchante/merchante.kt#L196) · [Rust](../../examples/merchante/merchante.rs#L338)
 
 ## API Reference
 
@@ -309,7 +309,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L325) · [Kotlin](../../examples/merchante/merchante.kt#L214) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L328) · [Kotlin](../../examples/merchante/merchante.kt#L214) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.Capture
 
@@ -320,7 +320,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L334) · [Kotlin](../../examples/merchante/merchante.kt#L226) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L337) · [Kotlin](../../examples/merchante/merchante.kt#L226) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.Get
 
@@ -331,7 +331,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L343) · [Kotlin](../../examples/merchante/merchante.kt#L236) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L346) · [Kotlin](../../examples/merchante/merchante.kt#L236) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -342,7 +342,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L352) · [Kotlin](../../examples/merchante/merchante.kt#L244) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L355) · [Kotlin](../../examples/merchante/merchante.kt#L244) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -353,7 +353,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L361) · [Kotlin](../../examples/merchante/merchante.kt#L273) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L364) · [Kotlin](../../examples/merchante/merchante.kt#L273) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.Refund
 
@@ -364,7 +364,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L379) · [Kotlin](../../examples/merchante/merchante.kt#L336) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L382) · [Kotlin](../../examples/merchante/merchante.kt#L334) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -375,7 +375,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L397) · [Kotlin](../../examples/merchante/merchante.kt#L358) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L400) · [Kotlin](../../examples/merchante/merchante.kt#L356) · [Rust](../../examples/merchante/merchante.rs)
 
 #### PaymentService.Void
 
@@ -386,7 +386,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts) · [Kotlin](../../examples/merchante/merchante.kt#L397) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts) · [Kotlin](../../examples/merchante/merchante.kt#L395) · [Rust](../../examples/merchante/merchante.rs)
 
 ### Refunds
 
@@ -399,7 +399,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L388) · [Kotlin](../../examples/merchante/merchante.kt#L346) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L391) · [Kotlin](../../examples/merchante/merchante.kt#L344) · [Rust](../../examples/merchante/merchante.rs)
 
 ### Mandates
 
@@ -412,4 +412,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L370) · [Kotlin](../../examples/merchante/merchante.kt#L305) · [Rust](../../examples/merchante/merchante.rs)
+**Examples:** [Python](../../examples/merchante/merchante.py) · [TypeScript](../../examples/merchante/merchante.ts#L373) · [Kotlin](../../examples/merchante/merchante.kt#L305) · [Rust](../../examples/merchante/merchante.rs)
