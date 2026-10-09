@@ -199,6 +199,7 @@ message PaymentMethod {
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
     DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
+    ProxyCardDetailsForNetworkTransactionId proxy_card_details_for_network_transaction_id = 123; // Vault-aliased card details with network transaction ID (MIT against a card held in an external vault)
     
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
@@ -2122,6 +2123,30 @@ enum BankNames {
 // NETWORK TRANSACTION PAYMENT METHODS
 // ============================================================================
 
+// The vault-aliased counterpart of `CardDetailsForNetworkTransactionId`.
+//
+// `card_number` is an external vault's alias for the card, not a PAN, so it is a plain
+// SecretString rather than a validated CardNumberType and is substituted at the proxy by the
+// injector. Like the PAN variant it carries no CVC: a merchant initiated transaction has no
+// cardholder present and authorizes on the network transaction ID instead.
+message ProxyCardDetailsForNetworkTransactionId {
+    // Card Identification
+    SecretString card_number = 1;     // Required. External vault alias for the card, not a PAN; the injector substitutes the real number at the vault proxy
+    SecretString card_exp_month = 2;  // Required. Sent in plaintext, not aliased: connectors derive expiry formats from it before the injector runs
+    SecretString card_exp_year = 3;   // Required. Sent in plaintext, not aliased: connectors derive expiry formats from it before the injector runs
+
+    // Card Metadata
+    optional string card_issuer = 4;
+    optional CardNetwork card_network = 5;  // Cannot be derived from an alias (no BIN); populate it when the connector needs the network
+    optional string card_type = 6;
+    optional string card_issuing_country_alpha2 = 7;
+    optional string bank_code = 8;
+    optional SecretString nick_name = 9;
+
+    // Cardholder Information
+    optional SecretString card_holder_name = 10;
+}
+
 // Card details with network transaction ID for recurring payments
 message CardDetailsForNetworkTransactionId {
     CardNumberType card_number = 1;
@@ -2145,6 +2170,7 @@ message DecryptedWalletTokenDetailsForNetworkTransactionId {
     optional string eci = 5;
     optional TokenSource token_source = 6;
     optional CardNetwork card_network = 7;
+    optional SecretString device_manufacturer_identifier = 8;
 }
 
 /// Source of the token

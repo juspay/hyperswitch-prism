@@ -512,6 +512,7 @@ pub enum TransactionStatus {
     ChallengeRequiredDecoupledAuthentication, // D
     InformationOnly,                // I - Information only
     Rejected,                       // R - Rejected
+    SecurePaymentConfirmationRequired, // S - SPC challenge (EMV 3DS 2.3.1+)
 }
 ```
 

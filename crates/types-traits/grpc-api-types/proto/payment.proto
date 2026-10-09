@@ -394,11 +394,12 @@ enum MitCategory {
   // Merchant-initiated transaction using stored credentials, but not tied to a
   // fixed schedule
   UNSCHEDULED_MIT = 2;
-  // Merchant-initiated payments that happen at regular intervals (usually the
-  // same amount each time).
+  // Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
   RECURRING_MIT = 3;
   // A retried MIT after a previous transaction failed or was declined.
   RESUBMISSION_MIT = 4;
+  // Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+  SUBSCRIPTION_MIT = 5;
 }
 
 // Indicates the type of payment sync request
@@ -462,6 +463,10 @@ enum TransactionStatus {
 
   // Informational Only; 3DS Requestor challenge preference acknowledged
   TRANSACTION_STATUS_INFORMATION_ONLY = 8; // "I"
+
+  // Challenge using Secure Payment Confirmation (SPC); available for EMV 3DS
+  // 2.3.1 and later versions
+  TRANSACTION_STATUS_SECURE_PAYMENT_CONFIRMATION_REQUIRED = 9; // "S"
 }
 
 // SCA (Strong Customer Authentication) exemption indicators.
@@ -2837,6 +2842,10 @@ message PaymentServiceAuthorizeRequest {
 
   // Merchant business country, ISO 3166-1 alpha-2
   optional string business_country = 56;
+
+  // Opt in to address verification using billing details when supported by the
+  // connector. Only true requests AVS; omitted or false leaves it disabled.
+  optional bool enable_avs_check = 57;
 }
 
 // Partner / external-platform application details.
@@ -6514,6 +6523,9 @@ message PaymentServiceTokenAuthorizeRequest {
   // authorize
   optional string connector_order_id = 22;
   optional int64 shipping_cost = 23;    // Cost of shipping for the order
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 24;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6573,6 +6585,9 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 28;
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 29;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

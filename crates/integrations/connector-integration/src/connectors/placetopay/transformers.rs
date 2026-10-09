@@ -169,7 +169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: item.router_data.resource_common_data.get_description()?,
             amount: PlacetopayAmount {
                 currency: item.router_data.request.currency,
-                total: item.router_data.request.minor_amount,
+                total: item.router_data.request.amount.amount,
             },
         };
 
@@ -560,8 +560,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.minor_refund_amount
-            == item.router_data.request.minor_payment_amount
+        if item.router_data.request.refund_amount.amount
+            == item.router_data.request.payment_amount.amount
         {
             let auth = PlacetopayAuth::try_from(&item.router_data.connector_config)?;
 

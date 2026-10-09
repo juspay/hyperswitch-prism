@@ -171,7 +171,7 @@ pub trait BridgeRequestResponse: Send + Sync {
 pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
 
 macro_rules! expand_fn_get_request_body {
-    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ident, $response: ty) => {
+    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty) => {
         paste::paste! {
             #[cfg_attr(feature = "deja", tracing::instrument(
                 name = "connector::request_body",
@@ -889,7 +889,7 @@ macro_rules! macro_connector_implementation {
         curl_response: $curl_res:ty,
         flow_name: $flow:ident,
         resource_common_data:$resource_common_data:ty,
-        flow_request: $request:ident,
+        flow_request: $request:ty,
         flow_response: $response:ty,
         http_method: $http_method_type:ident,
         generic_type: $generic_type:tt,
@@ -1572,12 +1572,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreate,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateResponse,
             > for $connector<$generic_type>
         {
@@ -1586,7 +1586,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreate,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1605,12 +1605,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutTransferV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutTransferV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutTransfer,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                ::domain_types::payouts::payouts_types::PayoutTransferRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutTransferResponse,
             > for $connector<$generic_type>
         {
@@ -1619,7 +1619,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutTransfer,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                    ::domain_types::payouts::payouts_types::PayoutTransferRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutTransferResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1704,12 +1704,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutStageV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutStageV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutStage,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                ::domain_types::payouts::payouts_types::PayoutStageRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutStageResponse,
             > for $connector<$generic_type>
         {
@@ -1718,7 +1718,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutStage,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                    ::domain_types::payouts::payouts_types::PayoutStageRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutStageResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1737,12 +1737,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateLinkV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateLinkV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreateLink,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
             > for $connector<$generic_type>
         {
@@ -1751,7 +1751,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreateLink,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1770,12 +1770,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateRecipientV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateRecipientV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreateRecipient,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
             > for $connector<$generic_type>
         {
@@ -1784,7 +1784,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreateRecipient,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1803,12 +1803,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEnrollDisburseAccountV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEnrollDisburseAccountV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
             > for $connector<$generic_type>
         {
@@ -1817,7 +1817,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1836,12 +1836,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutEligibility,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
             > for $connector<$generic_type>
         {
@@ -1850,7 +1850,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutEligibility,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
