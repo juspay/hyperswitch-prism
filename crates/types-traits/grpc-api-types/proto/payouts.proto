@@ -90,6 +90,15 @@ message CardPayout {
   optional CardNetwork card_network = 5;
 }
 
+message CardProxyPayout {
+  // Opaque external-vault reference, never a PAN.
+  SecretString card_number = 1;
+  SecretString card_exp_month = 2;
+  SecretString card_exp_year = 3;
+  optional SecretString card_holder_name = 4;
+  optional CardNetwork card_network = 5;
+}
+
 message AchBankTransferPayout {
   // The name of the bank
   optional BankNames bank_name = 1;
@@ -281,9 +290,13 @@ message PayoutMethod {
     CardPayout card = 1;
 
     // BANK TRANSFER METHODS
+    // Populated by the payout caller with ACH account details.
     AchBankTransferPayout ach = 2;
+    // Populated by the payout caller with BACS account details.
     BacsBankTransferPayout bacs = 3;
+    // Populated by the payout caller with SEPA account details.
     SepaBankTransferPayout sepa = 4;
+    // Populated by the payout caller with Pix account details.
     PixBankTransferPayout pix = 5;
 
     // DIGITAL WALLETS
@@ -310,6 +323,8 @@ message PayoutMethod {
     // DIGITAL WALLETS
     TedBankTransferPayout ted = 18;
     Mifinity mifinity = 19;
+    // Populated by the orchestrator with opaque external-vault aliases; UCS injects the resolved card data.
+    CardProxyPayout card_proxy = 20;
   }
 }
 

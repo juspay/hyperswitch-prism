@@ -521,7 +521,9 @@ impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateTyp
     fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
         match mit_category {
             Some(common_enums::MitCategory::Installment) => Self::Instalment,
-            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => Self::Recurring,
             Some(common_enums::MitCategory::Unscheduled)
             | Some(common_enums::MitCategory::Resubmission)
             | None => Self::Unscheduled,
@@ -1248,7 +1250,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1359,7 +1361,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // would authorise funds that nothing subsequently captures.
         if router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1423,7 +1427,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
             router_data
                 .request
-                .minor_amount
+                .amount
+                .as_ref()
+                .map(|money| money.amount)
                 .unwrap_or_else(common_utils::types::MinorUnit::zero),
             router_data.request.currency,
         )?;
@@ -1594,7 +1600,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1698,7 +1704,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -1780,7 +1786,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert refund amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 

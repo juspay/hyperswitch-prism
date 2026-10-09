@@ -3,6 +3,7 @@ use common_utils::{
     errors::CustomResult,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
@@ -56,8 +57,10 @@ pub(super) fn santander_doc_url_from_method_type(
     }
 }
 
-pub(super) fn santander_doc_url(
-    payout_method_data: &Option<PayoutMethodData>,
+pub(super) fn santander_doc_url<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize,
+>(
+    payout_method_data: &Option<PayoutMethodData<T>>,
 ) -> CustomResult<&'static str, IntegrationError> {
     match payout_method_data {
         Some(PayoutMethodData::Bank(Bank::Ted(_))) => Ok(SANTANDER_TED_DOCS_URL),
@@ -389,13 +392,20 @@ pub struct SantanderPixPayoutCreateRequest {
     pub beneficiary: Option<SantanderBeneficiary>,
 }
 
-impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for SantanderPixPayoutCreateRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderPixPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
@@ -607,13 +617,20 @@ pub enum SantanderPayoutCreateRequest {
     Ted(Box<SantanderTedPayoutCreateRequest>),
 }
 
-impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for SantanderPayoutCreateRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> Result<Self, Self::Error> {
         match &req.request.payout_method_data {
             Some(PayoutMethodData::Bank(Bank::Ted(_))) => {
@@ -669,13 +686,20 @@ pub struct SantanderTedPayoutCreateRequest {
     pub purpose: Option<String>,
 }
 
-impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for SantanderTedPayoutCreateRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderTedPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
@@ -851,12 +875,12 @@ pub struct SantanderTransferRequest {
     pub status: SantanderTransferStatus,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for SantanderTransferRequest
@@ -867,7 +891,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1009,11 +1033,11 @@ pub struct SantanderStatusResponse {
 
 // ===== RESPONSE TRANSFORMER IMPLS =====
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, Self>,
         >,
     > for PayoutCreateResponse
 {
@@ -1022,7 +1046,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -1034,11 +1058,11 @@ impl
     }
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, Self>,
         >,
     > for PayoutTransferResponse
 {
@@ -1047,7 +1071,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -1084,8 +1108,9 @@ impl
     }
 }
 
-impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
-    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -1101,8 +1126,14 @@ impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
     }
 }
 
-impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

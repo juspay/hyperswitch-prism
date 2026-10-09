@@ -371,7 +371,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -488,7 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector
                     .amount_converter
                     .convert(
-                        item.router_data.request.minor_amount,
+                        item.router_data.request.amount.amount,
                         item.router_data.request.currency,
                     )
                     .change_context(IntegrationError::AmountConversionFailed {
@@ -1254,7 +1254,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1793,7 +1793,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2105,7 +2105,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                     total: AmountInfo {
                                         label: payment_request_data.label,
                                         total_type: None,
-                                        amount: item.router_data.request.amount,
+                                        amount: item.router_data.request.amount.amount,
                                     },
                                     merchant_capabilities: Some(
                                         payment_request_data.merchant_capabilities,
@@ -2172,7 +2172,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                         ))?,
                                         currency_code: item.router_data.request.currency,
                                         total_price_status: GooglePayPriceStatus::Final.to_string(),
-                                        total_price: item.router_data.request.amount,
+                                        total_price: item.router_data.request.amount.amount,
                                     },
                                     secrets: Some(SecretInfoToInitiateSdk {
                                         display: res.data.create_client_token.client_token.clone(),
@@ -2216,7 +2216,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                 transaction_info: Some(PaypalTransactionInfo {
                                     flow: PaypalFlow::Checkout.into(),
                                     currency_code: item.router_data.request.currency,
-                                    total_price: item.router_data.request.amount,
+                                    total_price: item.router_data.request.amount.amount,
                                 }),
                             },
                         ))
@@ -2577,7 +2577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

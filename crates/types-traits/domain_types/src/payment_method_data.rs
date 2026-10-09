@@ -143,6 +143,21 @@ pub trait PaymentMethodDataTypes: Clone {
 
     fn peek_inner(inner: &Self::Inner) -> &str;
     fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError>;
+
+    /// Builds the holder's inner representation from a validated card number, so conversions
+    /// that are generic over the holder can populate a [`RawCardNumber`].
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner;
+
+    /// The raw PAN behind this value, for connectors that can only send real card numbers.
+    ///
+    /// Errors for a vault-aliased holder: those connectors have no injector wiring, so an alias
+    /// would reach them unsubstituted. Connectors that do support vault aliases should hold a
+    /// [`RawCardNumber`] instead of calling this. `connector` names the connector in the
+    /// rejection.
+    fn try_card_number(
+        inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError>;
 }
 
 /// PCI holder implementation for handling raw PCI data
@@ -164,6 +179,14 @@ impl<T: PaymentMethodDataTypes> RawCardNumber<T> {
     pub fn is_cobadged_card(&self) -> Result<bool, IntegrationError> {
         T::is_cobadged_inner(&self.0)
     }
+
+    /// See [`PaymentMethodDataTypes::try_card_number`].
+    pub fn try_card_number(
+        &self,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        T::try_card_number(&self.0, connector)
+    }
 }
 
 impl PaymentMethodDataTypes for DefaultPCIHolder {
@@ -171,6 +194,17 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
+    }
+
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner {
+        card_number
+    }
+
+    fn try_card_number(
+        inner: &Self::Inner,
+        _connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        Ok(inner.clone())
     }
 
     fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -191,6 +225,30 @@ impl PaymentMethodDataTypes for VaultTokenHolder {
 
     fn peek_inner(inner: &Self::Inner) -> &str {
         inner.peek()
+    }
+
+    /// A vault token is an opaque string, so a card number narrows to its string form. Reached
+    /// only by holder-generic conversions; the vault-aliased paths build their inner value from
+    /// the alias (or the injector placeholder) directly.
+    fn inner_from_card_number(card_number: cards::CardNumber) -> Self::Inner {
+        Secret::new(card_number.peek().to_string())
+    }
+
+    fn try_card_number(
+        _inner: &Self::Inner,
+        connector: &'static str,
+    ) -> Result<cards::CardNumber, IntegrationError> {
+        Err(IntegrationError::NotSupported {
+            message: "A vault-aliased card number".to_string(),
+            connector,
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use a connector with external vault proxy support for vault-aliased cards"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -432,7 +490,7 @@ impl Card<DefaultPCIHolder> {
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
     CardWithNoCvc(CardWithNoCvc),
-    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId<T>),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
         DecryptedWalletTokenDetailsForNetworkTransactionId,
     ),
@@ -1669,6 +1727,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub eci: Option<String>,
     pub token_source: Option<TokenSource>,
     pub card_network: Option<CardNetwork>,
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -1756,8 +1815,11 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
-pub struct CardDetailsForNetworkTransactionId {
-    pub card_number: cards::CardNumber,
+pub struct CardDetailsForNetworkTransactionId<T: PaymentMethodDataTypes> {
+    /// Either a PAN (`DefaultPCIHolder`) or an external vault's alias for the card
+    /// (`VaultTokenHolder`); in the latter case this carries the injector's substitution
+    /// placeholder and the real alias travels in the token data.
+    pub card_number: RawCardNumber<T>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub card_issuer: Option<String>,
@@ -1769,7 +1831,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-impl CardDetailsForNetworkTransactionId {
+impl<T: PaymentMethodDataTypes> CardDetailsForNetworkTransactionId<T> {
     pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.card_exp_year.peek();
         // If the value is a vault template token (e.g. {{$card_exp_year}}), pass it through as-is

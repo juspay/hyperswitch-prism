@@ -599,7 +599,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // claimed connector_transaction_id and amount against an authenticated
         // PSync call (GET /v1/payments/refs/{referenceId}) before acting on
         // it. NOT declaring Currency here: WebhookDetailsResponse has no
-        // currency field to expose (only amount_captured/minor_amount_captured),
+        // currency field to expose (only amount_captured),
         // so there is nothing for a caller to actually compare — declaring the
         // check without backing data would be misleading.
         vec![

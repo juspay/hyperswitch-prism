@@ -609,7 +609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            request.minor_amount,
+            request.amount.amount,
             request.currency,
         )?;
 
@@ -932,7 +932,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -1180,7 +1180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 

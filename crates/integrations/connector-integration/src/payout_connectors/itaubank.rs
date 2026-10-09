@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 pub mod transformers;
 
 use common_enums::CurrencyUnit;
@@ -331,17 +332,23 @@ impl
 
 // ===== PAYOUT SERVICE TRAIT =====
 
-impl PayoutServiceTrait for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutServiceTrait<T> for ItaubankPayouts
+{
+}
 
 // ===== PAYOUT TRANSFER (REAL) =====
 
-impl PayoutTransferV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutTransferV2<T> for ItaubankPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutTransfer,
         PayoutFlowData,
-        PayoutTransferRequest,
+        PayoutTransferRequest<T>,
         PayoutTransferResponse,
     > for ItaubankPayouts
 {
@@ -358,7 +365,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
@@ -371,7 +378,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
@@ -384,7 +391,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -400,7 +407,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
@@ -437,7 +444,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
@@ -457,13 +464,18 @@ impl
         data: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest<T>,
+            PayoutTransferResponse,
+        >,
         ConnectorError,
     > {
         let response: ItaubankTransferResponse = res
@@ -599,17 +611,25 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 
 // ===== PAYOUT STUB FLOWS =====
 
-impl PayoutCreateV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateV2<T> for ItaubankPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
-    for ItaubankPayouts
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<
+        PayoutCreate,
+        PayoutFlowData,
+        PayoutCreateRequest<T>,
+        PayoutCreateResponse,
+    > for ItaubankPayouts
 {
     fn get_url(
         &self,
         _req: &RouterDataV2<
             PayoutCreate,
             PayoutFlowData,
-            PayoutCreateRequest,
+            PayoutCreateRequest<T>,
             PayoutCreateResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -640,14 +660,23 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     }
 }
 
-impl PayoutStageV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutStageV2<T> for ItaubankPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>
     for ItaubankPayouts
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+        _req: &RouterDataV2<
+            PayoutStage,
+            PayoutFlowData,
+            PayoutStageRequest<T>,
+            PayoutStageResponse,
+        >,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
@@ -658,13 +687,16 @@ impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, Pay
     }
 }
 
-impl PayoutCreateLinkV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateLinkV2<T> for ItaubankPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateLink,
         PayoutFlowData,
-        PayoutCreateLinkRequest,
+        PayoutCreateLinkRequest<T>,
         PayoutCreateLinkResponse,
     > for ItaubankPayouts
 {
@@ -673,7 +705,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateLink,
             PayoutFlowData,
-            PayoutCreateLinkRequest,
+            PayoutCreateLinkRequest<T>,
             PayoutCreateLinkResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -686,13 +718,16 @@ impl
     }
 }
 
-impl PayoutCreateRecipientV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateRecipientV2<T> for ItaubankPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateRecipient,
         PayoutFlowData,
-        PayoutCreateRecipientRequest,
+        PayoutCreateRecipientRequest<T>,
         PayoutCreateRecipientResponse,
     > for ItaubankPayouts
 {
@@ -701,7 +736,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateRecipient,
             PayoutFlowData,
-            PayoutCreateRecipientRequest,
+            PayoutCreateRecipientRequest<T>,
             PayoutCreateRecipientResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -714,13 +749,16 @@ impl
     }
 }
 
-impl PayoutEnrollDisburseAccountV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEnrollDisburseAccountV2<T> for ItaubankPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEnrollDisburseAccount,
         PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountRequest<T>,
         PayoutEnrollDisburseAccountResponse,
     > for ItaubankPayouts
 {
@@ -729,7 +767,7 @@ impl
         _req: &RouterDataV2<
             PayoutEnrollDisburseAccount,
             PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
+            PayoutEnrollDisburseAccountRequest<T>,
             PayoutEnrollDisburseAccountResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -742,13 +780,16 @@ impl
     }
 }
 
-impl PayoutEligibilityV2 for ItaubankPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEligibilityV2<T> for ItaubankPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEligibility,
         PayoutFlowData,
-        PayoutEligibilityRequest,
+        PayoutEligibilityRequest<T>,
         PayoutEligibilityResponse,
     > for ItaubankPayouts
 {
@@ -757,7 +798,7 @@ impl
         _req: &RouterDataV2<
             PayoutEligibility,
             PayoutFlowData,
-            PayoutEligibilityRequest,
+            PayoutEligibilityRequest<T>,
             PayoutEligibilityResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {

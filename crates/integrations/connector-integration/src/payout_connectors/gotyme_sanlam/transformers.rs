@@ -222,7 +222,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -236,7 +236,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -256,12 +256,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
     TryFrom<(
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         StringMajorUnit,
@@ -274,7 +274,7 @@ impl
             &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             StringMajorUnit,
@@ -492,8 +492,14 @@ fn get_error_response_from_reason(
     }
 }
 
-impl TryFrom<ResponseRouterData<GotymeSanlamPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<GotymeSanlamPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

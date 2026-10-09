@@ -258,8 +258,8 @@ pub struct RegisterAccountAttributes {
 
 /// Derive the payee's first and last name from the customer name or, failing that,
 /// from the billing address.
-fn get_recipient_names(
-    req: &PayoutCreateRecipientRequest,
+fn get_recipient_names<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>(
+    req: &PayoutCreateRecipientRequest<T>,
 ) -> Result<(Secret<String>, Secret<String>), Report<IntegrationError>> {
     let customer_name = req
         .customer
@@ -290,7 +290,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutCreateRecipient,
                 PayoutFlowData,
-                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientRequest<T>,
                 PayoutCreateRecipientResponse,
             >,
             T,
@@ -304,7 +304,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutCreateRecipient,
                 PayoutFlowData,
-                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientRequest<T>,
                 PayoutCreateRecipientResponse,
             >,
             T,
@@ -429,11 +429,12 @@ pub struct RegisterAccountResponseResultData {
     bank: String,
 }
 
-impl TryFrom<ResponseRouterData<RegisterAccountResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<RegisterAccountResponse, Self>>
     for RouterDataV2<
         PayoutCreateRecipient,
         PayoutFlowData,
-        PayoutCreateRecipientRequest,
+        PayoutCreateRecipientRequest<T>,
         PayoutCreateRecipientResponse,
     >
 {
@@ -512,7 +513,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -526,7 +527,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -652,8 +653,14 @@ pub struct AccountPayoutResponseData {
     result: PayoutResult,
 }
 
-impl TryFrom<ResponseRouterData<AccountPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<AccountPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = Report<ConnectorError>;
 
