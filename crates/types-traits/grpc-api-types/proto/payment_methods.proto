@@ -460,8 +460,6 @@ message GooglePayDecryptedData {
   
   // Electronic Commerce Indicator
   optional string eci_indicator = 5;
-
-  reserved 6;
 }
 
 // Google Pay encrypted tokenization data structure
