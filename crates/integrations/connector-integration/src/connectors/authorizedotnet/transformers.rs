@@ -17,13 +17,13 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VaultTokenHolder,
+        VaultTokenHolder, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils::get_unimplemented_payment_method_error_message};
 // Alias to make the transition easier
 type HsInterfacesConnectorRequestError = IntegrationError;
 use std::str::FromStr;
@@ -370,6 +370,103 @@ pub struct BankAccountDetails {
 pub enum PaymentDetails<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardDetails<T>),
     BankAccount(BankAccountDetails),
+    OpaqueData(WalletDetails),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletDetails {
+    pub data_descriptor: WalletMethod,
+    pub data_value: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum WalletMethod {
+    #[serde(rename = "COMMON.GOOGLE.INAPP.PAYMENT")]
+    Googlepay,
+    #[serde(rename = "COMMON.APPLE.INAPP.PAYMENT")]
+    Applepay,
+}
+
+/// The only wallets Authorize.Net accepts are Google Pay and Apple Pay, both as
+/// PSP-decryption `opaqueData` passthrough: Authorize.Net decrypts the token
+/// itself, so the encrypted blob is forwarded untouched. PayPal is a redirect
+/// wallet and stays unimplemented -- the response side cannot surface the
+/// approval URL yet (`SecureAcceptance` is an empty stub and `redirection_data`
+/// is always `None`), so accepting the request would strand the payment.
+impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
+        match wallet_data {
+            WalletData::GooglePay(_) => Ok(Self::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Googlepay,
+                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
+            })),
+            WalletData::ApplePay(applepay_token) => {
+                let apple_pay_encrypted_data = applepay_token
+                    .payment_data
+                    .get_encrypted_apple_pay_payment_data_mandatory()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "Apple pay encrypted data",
+                        context: Default::default(),
+                    })?;
+                Ok(Self::OpaqueData(WalletDetails {
+                    data_descriptor: WalletMethod::Applepay,
+                    data_value: Secret::new(apple_pay_encrypted_data.clone()),
+                }))
+            }
+            WalletData::PaypalRedirect(_)
+            | WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPayRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect {}
+            | WalletData::VippsRedirect {}
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_)
+            | WalletData::MbWay(_)
+            | WalletData::Satispay(_)
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => {
+                Err(error_stack::report!(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("authorizedotnet"),
+                    Default::default(),
+                )))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -725,6 +822,7 @@ fn create_regular_transaction_request<
                 }
             }
         }
+        PaymentMethodData::Wallet(wallet_data) => PaymentDetails::try_from(wallet_data),
         pm => Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!("Payment method {:?}", pm),
             connector: "authorizedotnet",
@@ -3109,16 +3207,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let ccard = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => card,
-            pm => {
-                return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    format!("Payment method {:?}", pm),
-                    Default::default()
-                )))
-            }
-        };
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_config)?;
 
@@ -3153,20 +3241,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 country: address.country,
             });
 
-        // Create expiry date manually since we can't use the trait method generically
-        let expiry_month = ccard.card_exp_month.peek().clone();
-        let expiry_year =
-            domain_types::utils::expand_expiry_year_to_four_digits(&ccard.card_exp_year);
-        let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
+        let payment = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                // Create expiry date manually since we can't use the trait method generically
+                let expiry_month = ccard.card_exp_month.peek().clone();
+                let expiry_year =
+                    domain_types::utils::expand_expiry_year_to_four_digits(&ccard.card_exp_year);
+                let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
-        let payment_profile = PaymentProfile {
-            bill_to,
-            payment: PaymentDetails::CreditCard(CreditCardDetails {
-                card_number: ccard.card_number.clone(),
-                expiration_date: Secret::new(expiration_date),
-                card_code: Some(ccard.card_cvc.clone()),
-            }),
+                PaymentDetails::CreditCard(CreditCardDetails {
+                    card_number: ccard.card_number.clone(),
+                    expiration_date: Secret::new(expiration_date),
+                    card_code: Some(ccard.card_cvc.clone()),
+                })
+            }
+            PaymentMethodData::Wallet(wallet_data) => PaymentDetails::try_from(wallet_data)?,
+            pm => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    format!("Payment method {:?}", pm),
+                    Default::default()
+                )))
+            }
         };
+
+        let payment_profile = PaymentProfile { bill_to, payment };
 
         Ok(Self {
             create_customer_payment_profile_request: AuthorizedotnetPaymentProfileRequest {

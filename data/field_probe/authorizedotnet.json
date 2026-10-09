@@ -57,24 +57,58 @@
         "error": "Payment method Voucher(Alfamart(AlfamartVoucherData)) is not supported by authorizedotnet"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(AliPayRedirect(AliPayRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(AmazonPayRedirect(AmazonPayRedirectData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by authorizedotnet"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.APPLE.INAPP.PAYMENT\",\"dataValue\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") }, device_manufacturer_identifier: Some(*** alloc::string::String ***), merchant_token_identifier: Some(*** alloc::string::String ***) }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by authorizedotnet"
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Bacs": {
         "status": "not_supported",
@@ -97,8 +131,8 @@
         "error": "SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet is not supported by authorizedotnet"
       },
       "BillDeskRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(BillDeskRedirect(BillDeskRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Bizum": {
         "status": "not_supported",
@@ -109,8 +143,8 @@
         "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by authorizedotnet"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(BluecodeRedirect) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -159,12 +193,12 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(CashappQr(CashappQr)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "CashfreeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(CashfreeRedirect(CashfreeRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -179,8 +213,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(DanaRedirect) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -195,8 +229,8 @@
         "error": "Payment method Reward is not supported by authorizedotnet"
       },
       "EaseBuzzRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(EaseBuzzRedirect(EaseBuzzRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Efecty": {
         "status": "not_supported",
@@ -215,8 +249,8 @@
         "error": "Payment method Voucher(FamilyMart(JCSVoucherData)) is not supported by authorizedotnet"
       },
       "GCash": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GcashRedirect(GcashRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Giropay": {
         "status": "not_supported",
@@ -227,20 +261,57 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GoPayRedirect(GoPayRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) })) is not supported by authorizedotnet"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.GOOGLE.INAPP.PAYMENT\",\"dataValue\":\"eyJpZCI6InRva19wcm9iZV9ncGF5Iiwib2JqZWN0IjoidG9rZW4iLCJ0eXBlIjoiY2FyZCJ9\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by authorizedotnet"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Ideal": {
         "status": "not_supported",
@@ -271,8 +342,8 @@
         "error": "Payment method BankRedirect(Interac { country: None, email: None }) is not supported by authorizedotnet"
       },
       "KakaoPay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(KakaoPayRedirect(KakaoPayRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Klarna": {
         "status": "not_supported",
@@ -283,8 +354,8 @@
         "error": "Payment method Voucher(Lawson(JCSVoucherData)) is not supported by authorizedotnet"
       },
       "LazyPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(LazyPayRedirect(LazyPayRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -299,12 +370,12 @@
         "error": "Payment method BankTransfer(MandiriVaBankTransfer) is not supported by authorizedotnet"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(MbWay(MbWayData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "MiniStop": {
         "status": "not_supported",
@@ -315,8 +386,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(MomoRedirect(MomoRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -379,16 +450,16 @@
         "error": "Payment method GiftCard(PaySafeCard) is not supported by authorizedotnet"
       },
       "PayURedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(PayURedirect(PayURedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -403,8 +474,8 @@
         "error": "Payment method BankTransfer(PermataBankTransfer) is not supported by authorizedotnet"
       },
       "PhonePeRedirect": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(PhonePeRedirect(PhonePeRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Pix": {
         "status": "not_supported",
@@ -427,16 +498,16 @@
         "error": "Payment method Voucher(RedPagos) is not supported by authorizedotnet"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(RevolutPay(RevolutPayData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(Satispay(SatispayData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Seicomart": {
         "status": "not_supported",
@@ -459,28 +530,28 @@
         "error": "Payment method Voucher(SevenEleven(JCSVoucherData)) is not supported by authorizedotnet"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(Skrill(SkrillData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Sofort": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(Sofort { country: None, preferred_language: None }) is not supported by authorizedotnet"
       },
       "Swish": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(SwishQr(SwishQrData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "TouchNGo": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(TouchNGoRedirect(TouchNGoRedirection)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Trustly": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None }) is not supported by authorizedotnet"
       },
       "Twint": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(TwintRedirect) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -495,20 +566,20 @@
         "error": "Payment method Upi(UpiQr(UpiQrData { upi_source: None })) is not supported by authorizedotnet"
       },
       "Vipps": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(VippsRedirect) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(WeChatPayQr(WeChatPayQr)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       },
       "Webpay": {
         "status": "not_supported",
         "error": "Payment method CardRedirect(Webpay) is not supported by authorizedotnet"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(Wero(WeroData)) is not supported by authorizedotnet"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through authorizedotnet"
       }
     },
     "capture": {
@@ -951,8 +1022,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None })"
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id is missing — Missing required field: connector_customer_id is missing"
       }
     },
     "verify_redirect": {
