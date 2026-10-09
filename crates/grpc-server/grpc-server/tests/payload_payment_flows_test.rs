@@ -158,6 +158,9 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 
 fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        allow_amount_mismatch: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -525,6 +528,9 @@ async fn test_authorize_capture_refund_rsync() {
 
         // Step 4: RSync (Refund Sync)
         let rsync_request = PaymentServiceGetRequest {
+            enable_partial_authorization: None,
+            allow_amount_mismatch: None,
+            is_overcapture_enabled: None,
             connector_transaction_id: refund_id,
             encoded_data: None,
             capture_method: None,
