@@ -1133,12 +1133,66 @@ where
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         error!("Error in Deserializing Response Data: {:?}", e);
+        log_unparsable_plain_text_response::<T>(&response_str);
         error_stack::Report::from(
             crate::utils::response_deserialization_fail(http_status, "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
         )
     })?;
 
     Ok(response)
+}
+
+fn log_unparsable_plain_text_response<T>(response_str: &str) {
+    const LOGGABLE_KEYS: [&str; 8] = [
+        "StatCode",
+        "StatName",
+        "TranID",
+        "Amount",
+        "Currency",
+        "Channel",
+        "ErrorCode",
+        "ErrorDesc",
+    ];
+    // Both apply only to lines without `=` (e.g. a bare error message or an HTML page).
+    // Cap on how much of such a line is logged.
+    const MAX_UNSTRUCTURED_LINE_LEN: usize = 200;
+    // Purely alphanumeric tokens at least this long are redacted: catches 32-char hex
+    // hashes like `skey`/`VrfKey` echoed in an error, while keeping a 10-digit `TranID`.
+    const MIN_REDACTED_TOKEN_LEN: usize = 16;
+
+    let redact_tokens = |line: &str| {
+        line.chars()
+            .take(MAX_UNSTRUCTURED_LINE_LEN)
+            .collect::<String>()
+            .split(' ')
+            .map(|token| {
+                if token.len() >= MIN_REDACTED_TOKEN_LEN
+                    && token.chars().all(|c| c.is_ascii_alphanumeric())
+                {
+                    "<redacted>"
+                } else {
+                    token
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+
+    let lines: Vec<String> = response_str
+        .lines()
+        .map(|line| match line.split_once('=') {
+            Some((key, value)) if LOGGABLE_KEYS.contains(&key) => format!("{key:?}={value:?}"),
+            Some((key, _)) => format!("{key:?}=SECRET"),
+            None => format!("<no '='> {:?}", redact_tokens(line)),
+        })
+        .collect();
+    error!(
+        "Unparsable {} response: {} bytes, {} lines\n{:?}",
+        type_name::<T>(),
+        response_str.len(),
+        lines.len(),
+        lines
+    );
 }
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
