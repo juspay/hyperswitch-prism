@@ -2378,7 +2378,9 @@ impl<T: PaymentMethodDataTypes>
         // `subsequent_recurring`; every unscheduled use of the stored credential
         // is `merchant_initiated`.
         let transaction_type = match item.request.mit_category {
-            Some(common_enums::MitCategory::Recurring)
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            )
             | Some(common_enums::MitCategory::Installment) => {
                 Shift4TransactionType::SubsequentRecurring
             }

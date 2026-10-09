@@ -126,6 +126,9 @@
     "wellsfargo": {},
     "worldpay": {},
     "worldpayvantiv": {},
+    "worldpayraft": {
+      "reason": "Only temporary sandbox credentials are available for WorldpayRaft in CI; these credentials do not support all flows (e.g. refunds, captures, and void require a settled transaction that cannot be produced with the temporary access). Remove this entry once full sandbox credentials are provisioned so CI can certify all flows."
+    },
     "worldpayxml": {},
     "xendit": {},
     "zift": {}

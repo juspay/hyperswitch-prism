@@ -1607,8 +1607,15 @@ where
         Ok(Self {
             amount,
             schedule_type: Some(match router_data.request.mit_category {
-                Some(common_enums::MitCategory::Recurring) => PproScheduleType::Recurring,
-                _ => PproScheduleType::Unscheduled,
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+                ) => PproScheduleType::Recurring,
+                Some(
+                    common_enums::MitCategory::Installment
+                    | common_enums::MitCategory::Unscheduled
+                    | common_enums::MitCategory::Resubmission,
+                )
+                | None => PproScheduleType::Unscheduled,
             }),
             auto_capture: matches!(
                 router_data.request.capture_method,
