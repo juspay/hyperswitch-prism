@@ -41,21 +41,6 @@ const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
 
-impl<'de> Deserialize<'de> for responses::JpmorganTransactionResponse {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
-        if value.get("transactionState").is_some() {
-            serde_json::from_value(value)
-                .map(Self::Payment)
-                .map_err(serde::de::Error::custom)
-        } else {
-            serde_json::from_value(value)
-                .map(Self::Verification)
-                .map_err(serde::de::Error::custom)
-        }
-    }
-}
-
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -294,6 +279,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
                 "SAFETECH_PAGE_ENCRYPTION" => {
                     requests::JpmorganAccountNumberType::SafetechPageEncryption
                 }
+                "TRACK" => requests::JpmorganAccountNumberType::Track,
                 _ => requests::JpmorganAccountNumberType::NetworkToken,
             },
             None => requests::JpmorganAccountNumberType::DeviceToken,
@@ -2032,7 +2018,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // SetupMandate response transformer
 impl<T: PaymentMethodDataTypes>
-    TryFrom<ResponseRouterData<responses::JpmorganTransactionResponse, Self>>
+    TryFrom<ResponseRouterData<responses::JpmorganSetupMandateResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -2042,14 +2028,9 @@ impl<T: PaymentMethodDataTypes>
 {
     type Error = ResponseError;
     fn try_from(
-        item: ResponseRouterData<responses::JpmorganTransactionResponse, Self>,
+        item: ResponseRouterData<responses::JpmorganSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let responses::JpmorganTransactionResponse::Verification(verification) = item.response
-        else {
-            return Err(requests::JpmorganSyncResource::response_error(
-                item.http_code,
-            ));
-        };
+        let verification = item.response;
         if verification.currency != item.router_data.request.currency {
             return Err(requests::JpmorganSyncResource::response_error(
                 item.http_code,

@@ -77,6 +77,7 @@ pub enum JpmorganAccountNumberType {
     NetworkToken,
     SafetechToken,
     SafetechPageEncryption,
+    Track,
 }
 
 #[derive(Debug, Serialize)]
