@@ -11,5 +11,88 @@
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge",
     "PaymentMethodService/Tokenize"
-  ]
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "suite_dependencies": {
+    "PaymentService/Capture": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_manual_capture_credit_card",
+        "context_map": {
+          "amount_to_capture.currency": "req.amount.currency"
+        }
+      }
+    ],
+    "PaymentService/Get": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_auto_capture_credit_card",
+        "context_map": {
+          "connector_transaction_id": "res.connector_transaction_id",
+          "amount.minor_amount": "req.amount.minor_amount",
+          "amount.currency": "req.amount.currency"
+        }
+      }
+    ],
+    "PaymentService/Refund": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_auto_capture_credit_card"
+      }
+    ],
+    "RefundService/Get": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_auto_capture_credit_card",
+        "context_map": {
+          "connector_transaction_id": "res.connector_transaction_id",
+          "amount.minor_amount": "req.amount.minor_amount",
+          "amount.currency": "req.amount.currency"
+        }
+      },
+      {
+        "suite": "PaymentService/Refund",
+        "context_map": {
+          "connector_refund_id": "res.connector_refund_id",
+          "connector_transaction_id": "res.connector_transaction_id",
+          "refund_id": "res.connector_refund_id"
+        }
+      }
+    ],
+    "PaymentService/Void": [
+      "MerchantAuthenticationService/CreateServerAuthenticationToken",
+      "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+      "CustomerService/Create",
+      {
+        "suite": "PaymentService/Authorize",
+        "scenario": "no3ds_manual_capture_credit_card"
+      }
+    ]
+  },
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
+  "unsupported_scenarios": {
+    "PaymentMethodService/Tokenize": {
+      "tokenize_credit_card": "Datatrans /v1/aliases/tokenize accepts Google Pay only; raw-card aliases are created by SetupRecurring.",
+      "tokenize_debit_card": "Datatrans /v1/aliases/tokenize accepts Google Pay only; raw-card aliases are created by SetupRecurring.",
+      "tokenize_with_metadata": "Datatrans /v1/aliases/tokenize accepts Google Pay only; raw-card aliases are created by SetupRecurring.",
+      "tokenize_fail_invalid_card_number": "Datatrans /v1/aliases/tokenize accepts Google Pay only; raw-card aliases are created by SetupRecurring.",
+      "tokenize_fail_expired_card": "Datatrans /v1/aliases/tokenize accepts Google Pay only; raw-card aliases are created by SetupRecurring."
+    }
+  }
 }

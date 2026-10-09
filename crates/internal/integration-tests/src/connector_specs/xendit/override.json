@@ -140,6 +140,114 @@
           "one_of": ["AUTHENTICATION_PENDING", "PENDING", "AUTHORIZED"]
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
     }
   },
   "PaymentService/Capture": {

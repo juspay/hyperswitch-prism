@@ -142,6 +142,56 @@
       "assert": {
         "error.connector_details.message": { "must_exist": true }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
     }
   },
   "PaymentService/Void": {

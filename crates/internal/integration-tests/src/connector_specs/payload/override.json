@@ -127,6 +127,58 @@
       "pre_request_http": {
         "timeout_secs": 31
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY DESCRIPTOR CHECK 1234567"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY DESCRIPTOR CHECK 1234567"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY DESCRIPTOR CHECK 1234567"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"order_ref\": \"prism-parity-1763\"}"
+        },
+        "billing_descriptor": {
+          "statement_descriptor": "PRISM PARITY DESCRIPTOR CHECK 1234567"
+        }
+      }
     }
   },
   "PaymentService/Get": {

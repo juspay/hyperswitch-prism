@@ -270,6 +270,183 @@
           "must_exist": true
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2026"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
     }
   },
   "PaymentService/Void": {

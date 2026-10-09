@@ -4,6 +4,11 @@
       "grpc_req": {
         "request_incremental_authorization": true
       }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "request_incremental_authorization": true
+      }
     }
   },
   "PaymentService/IncrementalAuthorization": {

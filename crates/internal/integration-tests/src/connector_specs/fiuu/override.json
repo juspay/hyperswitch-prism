@@ -1,23 +1,663 @@
 {
   "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
-      "grpc_req": {}
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_apple_pay_decrypted": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_google_pay_decrypted": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_apple_pay_decrypted_cit": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_google_pay_decrypted_cit": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "payment_method": {
+          "card": {
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "payment_method": {
+          "card": {
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "payment_method": {
+          "card": {
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "50"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "payment_method": {
+          "card": {
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      },
+      "assert": {
+        "status": {
+          "equals": "AUTHORIZED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        },
+        "payment_method": {
+          "card": {
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_duitnow_qr": {
+      "grpc_req": {
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_fpx_maybank": {
+      "grpc_req": {
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "no3ds_auto_capture_fpx_cimb": {
+      "grpc_req": {
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
+      }
     }
   },
   "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
-        "webhook_url": "https://example.com/webhook"
+        "webhook_url": "https://example.com/webhook",
+        "refund_amount": {
+          "currency": "MYR"
+        }
       }
     },
     "refund_partial_amount": {
       "grpc_req": {
-        "webhook_url": "https://example.com/webhook"
+        "webhook_url": "https://example.com/webhook",
+        "refund_amount": {
+          "currency": "MYR"
+        }
       }
     },
     "refund_with_reason": {
       "grpc_req": {
-        "webhook_url": "https://example.com/webhook"
+        "webhook_url": "https://example.com/webhook",
+        "refund_amount": {
+          "currency": "MYR"
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "capture_full_amount": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "capture_partial_amount": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "capture_with_merchant_order_id": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "currency": "MYR"
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {}
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {}
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    }
+  },
+  "RefundService/Get": {
+    "refund_sync": {
+      "grpc_req": {}
+    },
+    "RefundService/Get": {
+      "grpc_req": {}
+    },
+    "refund_sync_with_reason": {
+      "grpc_req": {}
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {}
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {}
+    },
+    "void_with_amount": {
+      "grpc_req": {
+        "amount": {
+          "currency": "MYR"
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJhbW91bnQiOiIxMC4wMCIsImFwcGNvZGUiOiJyZWdyZXNzaW9uX2FwcCIsImNoYW5uZWwiOiJDcmVkaXQiLCJjdXJyZW5jeSI6Ik1ZUiIsImRvbWFpbiI6InJlZ3Jlc3Npb25fbWVyY2hhbnQiLCJvcmRlcmlkIjoicmVncmVzc2lvbl9vcmRlciIsInBheWRhdGUiOiIyMDI2LTAxLTAxIDEyOjAwOjAwIiwic2tleSI6IjIzZTQ5NWIxMTMwNmRjNWZkNzJlMzcwMDE0MzYwOWM5Iiwic3RhdHVzIjoiMDAiLCJ0cmFuSUQiOiJyZWdyZXNzaW9uX3R4biJ9"
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate",
+        "event_context": {
+          "payment": {
+            "capture_method": "AUTOMATIC"
+          }
+        }
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "payment_failed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJhbW91bnQiOiIxMC4wMCIsImFwcGNvZGUiOiJyZWdyZXNzaW9uX2FwcCIsImNoYW5uZWwiOiJDcmVkaXQiLCJjdXJyZW5jeSI6Ik1ZUiIsImRvbWFpbiI6InJlZ3Jlc3Npb25fbWVyY2hhbnQiLCJvcmRlcmlkIjoicmVncmVzc2lvbl9vcmRlciIsInBheWRhdGUiOiIyMDI2LTAxLTAxIDEyOjAwOjAwIiwic2tleSI6IjUzN2I2NDk5OGZiN2M5MjcwODhjMjQwMWJiZTlmOTgwIiwic3RhdHVzIjoiMTEiLCJ0cmFuSUQiOiJyZWdyZXNzaW9uX3R4biJ9"
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate",
+        "event_context": {
+          "payment": {
+            "capture_method": "AUTOMATIC"
+          }
+        }
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "invalid_signature": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJhbW91bnQiOiIxMC4wMCIsImFwcGNvZGUiOiJyZWdyZXNzaW9uX2FwcCIsImNoYW5uZWwiOiJDcmVkaXQiLCJjdXJyZW5jeSI6Ik1ZUiIsImRvbWFpbiI6InJlZ3Jlc3Npb25fbWVyY2hhbnQiLCJvcmRlcmlkIjoicmVncmVzc2lvbl9vcmRlciIsInBheWRhdGUiOiIyMDI2LTAxLTAxIDEyOjAwOjAwIiwic2tleSI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic3RhdHVzIjoiMDAiLCJ0cmFuSUQiOiJyZWdyZXNzaW9uX3R4biJ9"
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate",
+        "event_context": {
+          "payment": {
+            "capture_method": "AUTOMATIC"
+          }
+        }
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "refund_succeeded": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJBbW91bnQiOiIxMC4wMCIsIk1lcmNoYW50SUQiOiJyZWdyZXNzaW9uX21lcmNoYW50IiwiUmVmSUQiOiJyZWdyZXNzaW9uX3JlZiIsIlJlZnVuZElEIjoicmVncmVzc2lvbl9yZWZ1bmQiLCJSZWZ1bmRUeXBlIjoiUCIsIlNpZ25hdHVyZSI6IjgxN2Q1MWZhNWNjODJiZTYxMDI1OThjYjQ0NGY5YjIxIiwiU3RhdHVzIjoiMDAiLCJUeG5JRCI6InJlZ3Jlc3Npb25fdHhuIn0="
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate"
+      },
+      "assert": {
+        "event_status": null,
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
       }
     }
   }

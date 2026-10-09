@@ -250,6 +250,117 @@
       "grpc_req": {
         "order_category": "pay"
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay"
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          }
+        },
+        "order_category": "pay"
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          }
+        },
+        "order_category": "pay"
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay"
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "shipping_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          },
+          "billing_address": {
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "country_alpha2_code": "AE",
+            "phone_country_code": "+971"
+          }
+        },
+        "order_category": "pay"
+      }
     }
   },
   "PaymentService/Refund": {

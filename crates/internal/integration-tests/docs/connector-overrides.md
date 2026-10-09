@@ -21,7 +21,7 @@ Four files can carry connector-specific test data. Pick the first one that fits:
 | A global scenario already matches, and its assertions are true for this connector | nothing — just list the suite in `specs.json` `supported_suites` | the common case; prefer it |
 | The global scenario needs a connector-specific **input** (test card, metadata blob, 3DS lever) | `override.json` `grpc_req` | RFC 7396 merge patch. **Do not** patch a path that the suite's `suite_spec.json` lists as a `context_map` target — the override is applied *after* the context map (`scenario_api.rs`: `apply_context_map` then `apply_connector_overrides`), so it silently decouples the case from its dependency |
 | The global scenario's **expected outcome** differs for documented reasons | `override.json` `assert` | narrow or re-target a rule. A bare `null` deletion removes the rule entirely — replace it, do not just delete it |
-| The dimension exists **only** for this connector | `connector_specific_scenarios.json` | additive only; a name that collides with a global scenario is a hard error. `assert` is mandatory — `ScenarioDef` has no default for it, so a scenario with no assertions cannot be constructed. It inherits the suite's global `depends_on`; there is no per-scenario dependency override |
+| The dimension exists **only** for this connector | `connector_specific_scenarios.json` | additive only; a name that collides with a global scenario is a hard error. `assert` is mandatory — `ScenarioDef` has no default for it, so a scenario with no assertions cannot be constructed. It inherits the suite's dependency chain, with optional connector `specs.json` `suite_dependencies` replacement; there is no per-scenario dependency override |
 | The scenario genuinely does not apply | `specs.json` `unsupported_scenarios` | skips, does not fail. The reason string is mandatory and is the only record of why |
 
 A waived scenario produces **no row in `report.json`** — it is removed before the run — so a waiver is
@@ -37,6 +37,23 @@ Use overrides only when connector behavior differs from global baseline, for exa
 - connector cannot support one assertion field from baseline
 
 Do not duplicate full scenario payload unless necessary.
+
+An entry in `override.json` does not make the scenario connector-specific. For
+example, `no3ds_auto_capture_credit_card` remains a shared Authorize scenario;
+Elavon's override supplies its sandbox card number, expiry, and CVC. Keep those
+values out of the global baseline.
+
+Missing optional addresses, two- and four-digit expiry years, saving a card for
+future payments, crypto invoices, FPX/DuitNow payments, and Google Pay tokenization
+are shared dimensions. Define them in `global_suites`, use
+`supported_payment_methods` to select applicable methods, and patch only fixture
+or assertion differences. When adding a shared card variant, carry over existing
+connector card fixtures while preserving the variant's address and expiry format.
+Connector prerequisite chains must reference the shared scenario name too.
+
+Fiuu's private webhook cases pin its signed wire statuses (`00`, `22`, and refund
+`11`) and capture-context mapping to normalized UCS events. These callbacks test
+Fiuu's response mapping and are kept with its connector fixtures.
 
 ## Directory layout
 

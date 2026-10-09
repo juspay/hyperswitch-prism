@@ -1,0 +1,95 @@
+{
+  "EventService/HandleEvent": {
+    "fiuu_authorization_succeeded": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJhbW91bnQiOiIxMC4wMCIsImFwcGNvZGUiOiJyZWdyZXNzaW9uX2FwcCIsImNoYW5uZWwiOiJDcmVkaXQiLCJjdXJyZW5jeSI6Ik1ZUiIsImRvbWFpbiI6InJlZ3Jlc3Npb25fbWVyY2hhbnQiLCJvcmRlcmlkIjoicmVncmVzc2lvbl9vcmRlciIsInBheWRhdGUiOiIyMDI2LTAxLTAxIDEyOjAwOjAwIiwic2tleSI6IjIzZTQ5NWIxMTMwNmRjNWZkNzJlMzcwMDE0MzYwOWM5Iiwic3RhdHVzIjoiMDAiLCJ0cmFuSUQiOiJyZWdyZXNzaW9uX3R4biJ9"
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate",
+        "event_context": {
+          "payment": {
+            "capture_method": "MANUAL"
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        },
+        "event_content.payments_response.status": {
+          "equals": "AUTHORIZED"
+        }
+      }
+    },
+    "fiuu_payment_pending": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJhbW91bnQiOiIxMC4wMCIsImFwcGNvZGUiOiJyZWdyZXNzaW9uX2FwcCIsImNoYW5uZWwiOiJDcmVkaXQiLCJjdXJyZW5jeSI6Ik1ZUiIsImRvbWFpbiI6InJlZ3Jlc3Npb25fbWVyY2hhbnQiLCJvcmRlcmlkIjoicmVncmVzc2lvbl9vcmRlciIsInBheWRhdGUiOiIyMDI2LTAxLTAxIDEyOjAwOjAwIiwic2tleSI6ImY3MmZmYmIzZDcyYzE3MzE3ZDczNWUzMjNlNjkwY2E1Iiwic3RhdHVzIjoiMjIiLCJ0cmFuSUQiOiJyZWdyZXNzaW9uX3R4biJ9"
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate",
+        "event_context": {
+          "payment": {
+            "capture_method": "AUTOMATIC"
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_PROCESSING"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "fiuu_refund_failed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "eyJBbW91bnQiOiIxMC4wMCIsIk1lcmNoYW50SUQiOiJyZWdyZXNzaW9uX21lcmNoYW50IiwiUmVmSUQiOiJyZWdyZXNzaW9uX3JlZiIsIlJlZnVuZElEIjoicmVncmVzc2lvbl9yZWZ1bmQiLCJSZWZ1bmRUeXBlIjoiUCIsIlNpZ25hdHVyZSI6IjMxODBhNTg5OTRkMTI2NjAxMDY5MjI5ZWMwODNlNDYwIiwiU3RhdHVzIjoiMTEiLCJUeG5JRCI6InJlZ3Jlc3Npb25fdHhuIn0="
+        },
+        "webhook_secrets": {
+          "secret": "public-regression-fixture-secret"
+        },
+        "merchant_event_id": "auto_generate"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_REFUND_FAILURE"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    }
+  }
+}

@@ -51,6 +51,41 @@
       "assert": {
         "error.connector_details.message": null
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": "auto_generate_numeric"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": "auto_generate_numeric"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": "auto_generate_numeric"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": "auto_generate_numeric"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": "auto_generate_numeric"
+        }
+      }
     }
   },
   "PaymentService/SetupRecurring": {

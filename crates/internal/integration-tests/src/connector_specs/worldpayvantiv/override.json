@@ -222,6 +222,60 @@
         },
         "error.connector_details.message": null
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED",
+            "AUTHORIZING"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED",
+            "PENDING"
+          ]
+        }
+      }
     }
   },
   "PaymentService/IncrementalAuthorization": {

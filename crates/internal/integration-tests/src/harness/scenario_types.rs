@@ -28,6 +28,9 @@ pub struct ScenarioDef {
     /// Optional human-friendly scenario name for docs and reports.
     #[serde(default)]
     pub display_name: Option<String>,
+    /// Payment method required by a method-specific dependent scenario.
+    #[serde(default)]
+    pub required_payment_method: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -253,6 +256,9 @@ pub struct ConnectorSuiteSpec {
     /// always runs. Empty or absent runs everything.
     #[serde(default)]
     pub supported_payment_methods: Vec<String>,
+    /// Connector-specific prerequisite chains, replacing the global chain for a suite.
+    #[serde(default)]
+    pub suite_dependencies: BTreeMap<String, Vec<SuiteDependency>>,
     /// Scenarios this connector cannot support, as `suite -> scenario -> reason`.
     /// They are skipped rather than run and failed.
     ///

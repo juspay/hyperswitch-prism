@@ -36,10 +36,10 @@ use crate::harness::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
-        load_scenario, load_suite_scenarios, load_suite_spec,
-        load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
-        merge_connector_specific_scenarios, scenario_matches_supported_payment_methods,
-        scenario_unsupported_reason,
+        load_scenario_for_connector, load_suite_scenarios, load_suite_spec,
+        load_suite_spec_for_connector, load_supported_payment_methods_for_connector,
+        load_supported_suites_for_connector, merge_connector_specific_scenarios,
+        scenario_matches_supported_payment_methods, scenario_unsupported_reason,
     },
     scenario_types::{
         BrowserAutomationHook, BrowserAutomationPhase, CliPreRequestHookConfig, ContextMap,
@@ -67,7 +67,7 @@ fn load_effective_scenario_for_connector(
     scenario: &str,
     connector: &str,
 ) -> Result<(Value, BTreeMap<String, FieldAssert>), ScenarioError> {
-    let base_scenario = load_scenario(suite, scenario)?;
+    let base_scenario = load_scenario_for_connector(suite, scenario, connector)?;
     let mut grpc_req = base_scenario.grpc_req;
     let mut assertions = base_scenario.assert_rules;
 
@@ -3690,8 +3690,9 @@ pub fn run_scenario_test_with_options(
     options: SuiteRunOptions<'_>,
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
-    let target_suite_spec = load_suite_spec(suite)?;
-    let scenarios = load_suite_scenarios(suite)?;
+    let target_suite_spec = load_suite_spec_for_connector(suite, connector)?;
+    let mut scenarios = load_suite_scenarios(suite)?;
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
 
     if !scenarios.contains_key(scenario) {
         return Err(ScenarioError::ScenarioNotFound {
@@ -3931,7 +3932,7 @@ pub fn run_suite_test_with_options(
     options: SuiteRunOptions<'_>,
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
-    let target_suite_spec = load_suite_spec(suite)?;
+    let target_suite_spec = load_suite_spec_for_connector(suite, connector)?;
 
     // A scenario naming a payment method the connector never claimed cannot
     // pass; the only way through is an `assert` override that hides real
@@ -4907,7 +4908,7 @@ fn execute_single_scenario_with_context(
 ) -> Result<ExecutedScenario, ScenarioError> {
     run_test(Some(suite), Some(scenario), Some(connector))?;
 
-    let base_scenario = load_scenario(suite, scenario)?;
+    let base_scenario = load_scenario_for_connector(suite, scenario, connector)?;
     let mut effective_req = base_scenario.grpc_req;
     let mut assertions = base_scenario.assert_rules;
 
@@ -6480,6 +6481,330 @@ grpc-status: 0
             error_body_from_grpc_output(r#"{"code":14,"message":"unavailable"}"#, "").is_none()
         );
         assert!(error_body_from_grpc_output("Resolved method descriptor:", "").is_none());
+    }
+
+    #[tokio::test]
+    async fn expanded_connector_webhooks_verify_and_process_without_sandbox_credentials() {
+        use crate::harness::{credentials::ConnectorConfig, metadata::add_connector_metadata};
+        use base64::Engine;
+        use grpc_api_types::payments::event_service_server::EventService;
+        let config = std::sync::Arc::new(ucs_env::configs::Config::new().unwrap());
+        let suite = "EventService/HandleEvent";
+        for connector in ["cryptopay", "fiuu"] {
+            let mut scenarios = load_suite_scenarios(suite).unwrap();
+            merge_connector_specific_scenarios(connector, suite, &mut scenarios).unwrap();
+            let header = if connector == "cryptopay" {
+                serde_json::json!({"config": {"Cryptopay": {"api_key": "fixture", "api_secret": "fixture"}}})
+            } else {
+                serde_json::json!({"config": {"Fiuu": {"merchant_id": "fixture", "verify_key": "fixture", "secret_key": "fixture"}}})
+            };
+            let auth = ConnectorConfig::from_header_json(header.to_string());
+            for scenario in scenarios.keys() {
+                if super::scenario_unsupported_reason(connector, suite, scenario)
+                    .unwrap()
+                    .is_some()
+                {
+                    continue;
+                }
+                let mut req = get_the_grpc_req_for_connector(suite, scenario, connector).unwrap();
+                resolve_auto_generate(&mut req, connector).unwrap();
+                let body = base64::engine::general_purpose::STANDARD
+                    .decode(req["request_details"]["body"].as_str().unwrap())
+                    .unwrap();
+                req["request_details"]["body"] = serde_json::to_value(body).unwrap();
+                let mut native_req = req.clone();
+                native_req.as_object_mut().unwrap().remove("event_context");
+                let mut payload: payments::EventServiceHandleRequest =
+                    serde_json::from_value(native_req).unwrap();
+                if let Some(method) = req
+                    .pointer("/event_context/payment/capture_method")
+                    .and_then(Value::as_str)
+                {
+                    payload.event_context = Some(payments::EventContext {
+                        event_context: Some(payments::event_context::EventContext::Payment(
+                            payments::PaymentEventContext {
+                                capture_method: Some(if method == "MANUAL" {
+                                    i32::from(payments::CaptureMethod::Manual)
+                                } else {
+                                    i32::from(payments::CaptureMethod::Automatic)
+                                }),
+                            },
+                        )),
+                    });
+                }
+                let mut request = tonic::Request::new(payload);
+                request.extensions_mut().insert(config.clone());
+                add_connector_metadata(
+                    &mut request,
+                    &auth,
+                    "test_merchant",
+                    "default",
+                    scenario,
+                    scenario,
+                );
+                let response = grpc_server::server::events::EventServiceImpl
+                    .handle_event(request)
+                    .await
+                    .unwrap_or_else(|e| panic!("{connector}/{scenario}: {e}"))
+                    .into_inner();
+                assert_eq!(
+                    response.source_verified,
+                    scenario != "invalid_signature",
+                    "{connector}/{scenario}"
+                );
+                let mut json = serde_json::to_value(response).unwrap();
+                // Flatten the prost/serde oneof wrapper into protobuf JSON form.
+                if let Some(content) = json.pointer("/event_content/content").cloned() {
+                    let mut wire_content = serde_json::Map::new();
+                    for (variant, value) in content.as_object().unwrap() {
+                        let key = if variant == "PaymentsResponse" {
+                            "payments_response"
+                        } else {
+                            "refunds_response"
+                        };
+                        wire_content.insert(key.to_string(), value.clone());
+                    }
+                    json["event_content"] = Value::Object(wire_content);
+                }
+                // grpcurl omits scalar defaults; preserve the runner's assertion representation.
+                if scenario == "invalid_signature" {
+                    json.as_object_mut().unwrap().remove("source_verified");
+                }
+                let assertions =
+                    get_the_assertion_for_connector(suite, scenario, connector).unwrap();
+                crate::harness::scenario_assert::do_assertion(&assertions, &json, &req)
+                    .unwrap_or_else(|e| panic!("{connector}/{scenario}: {e}; response={json}"));
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_shared_scenarios_load_and_preserve_payment_method_filtering() {
+        use crate::harness::scenario_loader::{
+            load_connector_specific_scenarios, load_supported_payment_methods_for_connector,
+            scenario_matches_supported_payment_methods,
+        };
+
+        let authorize = load_suite_scenarios("PaymentService/Authorize").unwrap();
+        let card_cases = [
+            "no3ds_auto_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_four_digit_expiry",
+            "no3ds_auto_capture_credit_card_two_digit_expiry",
+            "no3ds_manual_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+        ];
+        let crypto_cases = [
+            "no3ds_auto_capture_crypto",
+            "no3ds_auto_capture_crypto_with_metadata",
+            "no3ds_auto_capture_crypto_with_return_url",
+            "no3ds_auto_capture_crypto_small_amount",
+        ];
+        let local_methods = [
+            "no3ds_auto_capture_duitnow_qr",
+            "no3ds_auto_capture_fpx_maybank",
+            "no3ds_auto_capture_fpx_cimb",
+        ];
+        for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
+            assert!(
+                load_connector_specific_scenarios(connector, "PaymentService/Authorize")
+                    .unwrap()
+                    .is_empty()
+            );
+            let methods = load_supported_payment_methods_for_connector(connector).unwrap();
+            for name in card_cases.iter().chain(&crypto_cases).chain(&local_methods) {
+                let applicable = if crypto_cases.contains(name) {
+                    connector == "cryptopay"
+                } else if local_methods.contains(name) {
+                    connector == "fiuu"
+                } else {
+                    connector != "cryptopay"
+                };
+                assert_eq!(
+                    scenario_matches_supported_payment_methods(&authorize[*name], &methods),
+                    applicable,
+                    "{connector}/{name}"
+                );
+                if applicable {
+                    run_test(
+                        Some("PaymentService/Authorize"),
+                        Some(name),
+                        Some(connector),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        let tokenize = load_suite_scenarios("PaymentMethodService/Tokenize").unwrap();
+        let google_pay = &tokenize["tokenize_google_pay_encrypted"];
+        assert!(scenario_matches_supported_payment_methods(
+            google_pay,
+            &["google_pay_sdk".to_string()]
+        ));
+        assert!(!scenario_matches_supported_payment_methods(
+            google_pay,
+            &["card".to_string()]
+        ));
+        run_test(
+            Some("PaymentMethodService/Tokenize"),
+            Some("tokenize_google_pay_encrypted"),
+            Some("datatrans"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn shared_card_variants_preserve_existing_connector_fixtures() {
+        let suite = "PaymentService/Authorize";
+        for connector in discover_all_connectors().unwrap() {
+            for (scenario, base) in [
+                (
+                    "no3ds_auto_capture_credit_card_without_optional_address",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_manual_capture_credit_card_without_optional_address",
+                    "no3ds_manual_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_four_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_two_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_with_setup_future_usage",
+                    "no3ds_auto_capture_credit_card",
+                ),
+            ] {
+                let mut expected = get_the_grpc_req_for_connector(suite, base, &connector).unwrap();
+                if scenario.ends_with("without_optional_address") {
+                    expected["address"] = serde_json::json!({});
+                }
+                let year = &mut expected["payment_method"]["card"]["card_exp_year"]["value"];
+                if scenario.ends_with("four_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(if value.len() == 2 {
+                        format!("20{value}")
+                    } else {
+                        value.to_string()
+                    });
+                } else if scenario.ends_with("two_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(value[value.len() - 2..].to_string());
+                }
+                if scenario.ends_with("with_setup_future_usage") {
+                    expected["setup_future_usage"] = Value::String("OFF_SESSION".to_string());
+                }
+                let actual = get_the_grpc_req_for_connector(suite, scenario, &connector).unwrap();
+                assert_eq!(actual, expected, "{connector}/{scenario}");
+            }
+        }
+
+        let assertions = get_the_assertion_for_connector(
+            suite,
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+            "elavon",
+        )
+        .unwrap();
+        assert!(matches!(
+            assertions.get("mandate_reference.connector_mandate_id.connector_mandate_id"),
+            Some(FieldAssert::MustExist { must_exist: true })
+        ));
+    }
+
+    #[test]
+    fn expanded_connector_private_scenarios_load_and_match_proto_schema() {
+        for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
+            for suite in load_supported_suites_for_connector(connector).unwrap() {
+                let private = crate::harness::scenario_loader::load_connector_specific_scenarios(
+                    connector, &suite,
+                )
+                .unwrap();
+                for scenario in private.keys() {
+                    // Exercise the same load path used by single runs and dependencies.
+                    run_test(Some(&suite), Some(scenario), Some(connector)).unwrap();
+                    let mut req =
+                        get_the_grpc_req_for_connector(&suite, scenario, connector).unwrap();
+                    resolve_auto_generate(&mut req, connector).unwrap();
+                    validate_suite_scenario_schema(connector, &suite, scenario, &req).unwrap();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_connector_prerequisites_use_the_correct_payment_method() {
+        use crate::harness::scenario_loader::load_suite_spec_for_connector;
+        let crypto = load_suite_spec_for_connector("PaymentService/Get", "cryptopay").unwrap();
+        let dependency = crypto.depends_on.last().unwrap();
+        assert_eq!(dependency.scenario(), Some("no3ds_auto_capture_crypto"));
+        let req = get_the_grpc_req_for_connector(
+            dependency.suite(),
+            dependency.scenario().unwrap(),
+            "cryptopay",
+        )
+        .unwrap();
+        assert!(req.pointer("/payment_method/crypto").is_some());
+        assert_eq!(
+            dependency
+                .context_map()
+                .unwrap()
+                .get("merchant_transaction_id")
+                .unwrap(),
+            "req.merchant_transaction_id"
+        );
+
+        let elavon =
+            load_suite_spec_for_connector("RecurringPaymentService/Charge", "elavon").unwrap();
+        let dependency = elavon.depends_on.last().unwrap();
+        assert_eq!(
+            dependency.scenario(),
+            Some("no3ds_auto_capture_credit_card_with_setup_future_usage")
+        );
+        let req = get_the_grpc_req_for_connector(
+            dependency.suite(),
+            dependency.scenario().unwrap(),
+            "elavon",
+        )
+        .unwrap();
+        assert_eq!(req["setup_future_usage"], "OFF_SESSION");
+
+        let datatrans =
+            load_suite_spec_for_connector("PaymentService/Capture", "datatrans").unwrap();
+        assert!(!datatrans
+            .depends_on
+            .iter()
+            .any(|d| d.suite() == "PaymentMethodService/Tokenize"));
+        for connector in ["datatrans", "elavon", "fiserv", "fiuu"] {
+            let spec = load_suite_spec_for_connector("PaymentService/Capture", connector).unwrap();
+            let mapping = spec.depends_on.last().unwrap().context_map().unwrap();
+            let mut partial = get_the_grpc_req_for_connector(
+                "PaymentService/Capture",
+                "capture_partial_amount",
+                connector,
+            )
+            .unwrap();
+            apply_context_map(
+                &[(
+                    mapping.clone(),
+                    serde_json::json!({"amount": {"minor_amount": 6000, "currency": "USD"}}),
+                    serde_json::json!({}),
+                )],
+                &mut partial,
+            );
+            assert_eq!(partial["amount_to_capture"]["minor_amount"], 3000);
+        }
+        // A suite with no connector override retains its global prerequisite chain.
+        let resolved = load_suite_spec_for_connector("PaymentService/Authorize", "fiserv").unwrap();
+        let global = load_suite_spec("PaymentService/Authorize").unwrap();
+        assert_eq!(resolved.depends_on.len(), global.depends_on.len());
+        for (actual, expected) in resolved.depends_on.iter().zip(&global.depends_on) {
+            assert_eq!(actual.suite(), expected.suite());
+            assert_eq!(actual.scenario(), expected.scenario());
+            assert_eq!(actual.context_map(), expected.context_map());
+        }
     }
 
     #[test]
