@@ -7499,6 +7499,29 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+/// Converts a connector-reported amount (e.g. `amount_captured`, `amount_capturable`) into the
+/// gRPC `Money` returned to callers.
+fn connector_money_to_grpc(
+    money: &common_utils::types::Money,
+) -> Result<grpc_api_types::payments::Money, error_stack::Report<ConnectorError>> {
+    Ok(grpc_api_types::payments::Money {
+        minor_amount: money.amount.get_amount_as_i64(),
+        currency: grpc_api_types::payments::Currency::foreign_try_from(money.currency)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "Failed to convert currency to gRPC Currency type".to_string(),
+                    ),
+                },
+            })
+            .attach_printable(format!(
+                "source currency for connector-reported amount: {:?}",
+                money.currency
+            ))? as i32,
+    })
+}
+
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -9244,6 +9267,18 @@ pub fn generate_payment_sync_response(
                         .amount_captured
                         .as_ref()
                         .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9375,6 +9410,18 @@ pub fn generate_payment_sync_response(
                         .amount_captured
                         .as_ref()
                         .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9479,6 +9526,18 @@ pub fn generate_payment_sync_response(
                 network_txn_link_id: None,
                 amount,
                 captured_amount: None,
+                captured_money: router_data_v2
+                    .resource_common_data
+                    .amount_captured
+                    .as_ref()
+                    .map(connector_money_to_grpc)
+                    .transpose()?,
+                capturable_money: router_data_v2
+                    .resource_common_data
+                    .amount_capturable
+                    .as_ref()
+                    .map(connector_money_to_grpc)
+                    .transpose()?,
                 payment_method_type: None,
                 capture_method: None,
                 auth_type: None,
@@ -10504,6 +10563,13 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .amount_captured
                 .as_ref()
                 .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+            captured_money: value
+                .amount_captured
+                .as_ref()
+                .map(connector_money_to_grpc)
+                .transpose()?,
+            // Webhook details don't carry a capturable amount.
+            capturable_money: None,
             payment_method_type: None,
             capture_method: None,
             auth_type: None,
@@ -16817,6 +16883,18 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .amount_captured
                             .as_ref()
                             .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                        captured_money: router_data_v2
+                            .resource_common_data
+                            .amount_captured
+                            .as_ref()
+                            .map(connector_money_to_grpc)
+                            .transpose()?,
+                        capturable_money: router_data_v2
+                            .resource_common_data
+                            .amount_capturable
+                            .as_ref()
+                            .map(connector_money_to_grpc)
+                            .transpose()?,
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
@@ -16885,6 +16963,18 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     typed_connector_response: None,
                     connector_response,
                     captured_amount: None,
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
                     incremental_authorization_allowed: None,
                     splits: None,
                     payment_account_reference: None,

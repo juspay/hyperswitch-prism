@@ -3100,6 +3100,11 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 43;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 44;
 }
 
 // Request message for voiding a payment
@@ -4154,6 +4159,11 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 25;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 26;
 }
 
 // Request message for a mandate revoke operation
