@@ -544,25 +544,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let is_auto_capture = router_data.request.is_auto_capture();
 
-        // AVS is only sent for credit cards (debit doesn't support it)
-        let address_verification_data = if is_debit {
-            None
-        } else {
-            let billing = router_data.resource_common_data.get_optional_billing();
-            if let Some(billing_addr) = billing {
-                let zip = billing_addr.address.as_ref().and_then(|a| a.zip.clone());
-                let address_line = billing_addr.address.as_ref().and_then(|a| a.line1.clone());
-                if zip.is_some() || address_line.is_some() {
-                    Some(WorldpayraftAddressVerificationData {
-                        avs_zip_code: zip,
-                        avs_address: address_line,
-                    })
-                } else {
-                    None
-                }
-            } else {
-                None
+        let address_verification_data = if !is_debit
+            && router_data.request.enable_avs_check == Some(true)
+        {
+            let billing = router_data.resource_common_data.get_billing_address()?;
+            let zip = billing
+                .zip
+                .clone()
+                .filter(|zip| !zip.peek().trim().is_empty());
+            let address_line = billing
+                .line1
+                .clone()
+                .filter(|line| !line.peek().trim().is_empty());
+            if zip.is_none() && address_line.is_none() {
+                return Err(errors::IntegrationError::MissingRequiredField {
+                        field_name: "billing.address.zip or billing.address.line1",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Worldpay RAFT requires a non-empty billing postal code or address line 1 for AVS verification when enable_avs_check is true".to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                    .into());
             }
+            Some(WorldpayraftAddressVerificationData {
+                avs_zip_code: zip,
+                avs_address: address_line,
+            })
+        } else {
+            None
         };
 
         let payment_id = &router_data
