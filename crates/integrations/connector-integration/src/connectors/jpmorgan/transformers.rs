@@ -370,7 +370,7 @@ impl requests::JpmorganRecurring {
     fn input_context() -> IntegrationErrorContext {
         IntegrationErrorContext {
             suggested_action: Some(
-                "Supply multi-use mandate terms with amount_type exact or variable and a stable agreement identifier.".to_owned(),
+                "Supply amount_type exact or variable whenever mandate terms are provided; otherwise the request reference becomes the agreement identifier.".to_owned(),
             ),
             ..Default::default()
         }
@@ -398,7 +398,7 @@ impl requests::JpmorganRecurring {
             }
         }
         let terms = match mandate.and_then(|data| data.mandate_type.as_ref()) {
-            Some(MandateDataType::MultiUse(Some(terms))) => terms,
+            Some(MandateDataType::MultiUse(Some(terms))) => Some(terms),
             Some(MandateDataType::SingleUse(_)) => {
                 return Err(IntegrationError::InvalidDataFormat {
                     field_name: "setup_mandate_details.mandate_type",
@@ -406,30 +406,24 @@ impl requests::JpmorganRecurring {
                 }
                 .into());
             }
-            Some(MandateDataType::MultiUse(None)) | None => {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
-                    context: Self::input_context(),
-                }
-                .into());
-            }
+            // Terms are optional: without them the agreement is a fixed
+            // amount keyed by the request reference, like other connectors.
+            Some(MandateDataType::MultiUse(None)) | None => None,
         };
         let amount_type = terms
-            .amount_type
-            .as_deref()
-            .ok_or_else(|| IntegrationError::MissingRequiredField {
-                field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
-                context: Self::input_context(),
-            })?
-            .parse::<requests::JpmorganAmountType>()
-            .map_err(|_| IntegrationError::InvalidDataFormat {
-                field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
-                context: Self::input_context(),
-            })?;
-        let is_variable_amount = amount_type == requests::JpmorganAmountType::Variable;
+            .and_then(|terms| terms.amount_type.as_deref())
+            .map(|amount_type| {
+                amount_type
+                    .parse::<requests::JpmorganAmountType>()
+                    .map_err(|_| IntegrationError::InvalidDataFormat {
+                        field_name: "setup_mandate_details.mandate_type.multi_use.amount_type",
+                        context: Self::input_context(),
+                    })
+            })
+            .transpose()?;
+        let is_variable_amount = amount_type == Some(requests::JpmorganAmountType::Variable);
         let agreement_id = terms
-            .external_subscription_id
-            .as_deref()
+            .and_then(|terms| terms.external_subscription_id.as_deref())
             .unwrap_or(reference);
         if agreement_id.trim().is_empty() || agreement_id.chars().count() > 100 {
             return Err(IntegrationError::InvalidDataFormat {
@@ -502,19 +496,18 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             .into());
         }
         Self::validate_cit_context(request)?;
-        if request
-            .setup_mandate_details
-            .as_ref()
-            .is_some_and(|mandate| {
-                mandate.update_mandate_id.is_some()
-                    || (mandate.mandate_type.is_none() && mandate.customer_acceptance.is_none())
-            })
-        {
-            return Err(IntegrationError::InvalidDataFormat {
-                field_name: "setup_mandate_details",
-                context: requests::JpmorganRecurring::input_context(),
+        if let Some(mandate) = request.setup_mandate_details.as_ref() {
+            let has_acceptance =
+                mandate.customer_acceptance.is_some() || request.customer_acceptance.is_some();
+            if mandate.update_mandate_id.is_some()
+                || (mandate.mandate_type.is_none() && !has_acceptance)
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "setup_mandate_details",
+                    context: requests::JpmorganRecurring::input_context(),
+                }
+                .into());
             }
-            .into());
         }
         self.recurring = requests::JpmorganRecurring::from_initial_mandate(
             request.mit_category.as_ref(),
