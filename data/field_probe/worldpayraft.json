@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Card": {
         "status": "supported",
@@ -133,19 +133,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -153,11 +153,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -165,35 +165,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Givex": {
         "status": "not_implemented",
@@ -201,87 +201,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -289,43 +289,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -333,35 +333,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -373,115 +373,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       }
     },
     "capture": {
@@ -769,7 +769,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card and CardWithNoCvc payment methods are supported for Worldpay RAFT Authorize"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
       }
     },
     "token_setup_recurring": {

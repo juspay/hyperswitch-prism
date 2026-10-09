@@ -24,7 +24,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayraftConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "proxy_authorize", "proxy_setup_recurring", "refund", "setup_recurring", "void", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "proxy_authorize", "proxy_setup_recurring", "refund", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -294,6 +294,6 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, authorize, proxyAuthorize, proxySetupRecurring, refund, setupRecurring, void")
     }
 }
