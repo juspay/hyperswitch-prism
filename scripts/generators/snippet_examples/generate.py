@@ -68,6 +68,7 @@ _PROTO_WRAPPER_TYPES: set[str] = set()
 _ONEOF_WRAPPER_FIELD: dict[str, str] = {
     "PaymentMethod": "payment_method",
     "MandateId":     "mandate_id_type",
+    "MandateReference": "mandate_id_type",
     "MandateType":   "mandate_type",
 }
 
@@ -952,7 +953,7 @@ def _annotate_inline_lines(
     lines: list[str] = []
 
     # Filter out fields that don't exist in the proto schema to avoid TypeScript errors
-    items = [(k, v) for k, v in obj.items() if db.is_valid_field(msg_name, k)]
+    items = _expand_oneof_groups(obj, msg_name, db)
     for idx, (key, val) in enumerate(items):
         trailing  = "," if idx < len(items) - 1 else ""
         comment   = db.get_comment(msg_name, key)
@@ -1665,7 +1666,8 @@ def _py_direct_lines(
                 # In Python proto, oneof cases are set directly on the message.
                 msg_mod = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={msg_mod}.{child_msg}({cmt_part}")
-                for case_key, case_val in val.items():
+                wrapper_field = _ONEOF_WRAPPER_FIELD[child_msg]
+                for case_key, case_val in val.get(wrapper_field, val).items():
                     case_type = db.get_type(child_msg, case_key)
                     if isinstance(case_val, dict) and case_type:
                         cm = _py_module_for_type(case_type)
@@ -2661,14 +2663,10 @@ def _preprocess_kt_payload(flow_key: str, proto_req: dict) -> dict:
         if isinstance(cri, dict) and "mandate_id_type" in cri:
             mit = cri["mandate_id_type"]
             if isinstance(mit, dict) and "connector_mandate_id" in mit:
-                # Rewrite: { mandate_id_type: { connector_mandate_id: val } }
-                # →        { connector_mandate_id: { connector_mandate_id: val } }
+                # Remove only the serde oneof wrapper, preserving the complete
+                # connector mandate reference, including its saved metadata.
                 processed = dict(proto_req)
-                processed["connector_recurring_payment_id"] = {
-                    "connector_mandate_id": {
-                        "connector_mandate_id": mit["connector_mandate_id"],
-                    }
-                }
+                processed["connector_recurring_payment_id"] = dict(mit)
                 return processed
     return proto_req
 
@@ -2928,9 +2926,9 @@ def _rust_struct_lines(
                 wrapper_field = _ONEOF_WRAPPER_FIELD[child_msg]
                 # Enum type name = PascalCase of wrapper_field
                 enum_type = "".join(w.title() for w in wrapper_field.split("_"))
-                module    = wrapper_field  # prost sub-module
+                module    = "mandate_reference" if child_msg == "MandateReference" else wrapper_field
 
-                case_items = list(val.items())
+                case_items = list(val.get(wrapper_field, val).items())
                 if case_items:
                     case_key, case_val = case_items[0]
                     case_type = db.get_type(child_msg, case_key)
@@ -3119,7 +3117,7 @@ def _rust_json_lines(
             elif child_msg and child_msg in _ONEOF_WRAPPER_FIELD:
                 # Oneof wrapper: add the struct field name that holds the enum.
                 wrapper_key = _ONEOF_WRAPPER_FIELD[child_msg]
-                inner = _rust_json_lines(val, child_msg, message_schemas, indent + 2)
+                inner = _rust_json_lines(val.get(wrapper_key, val), child_msg, message_schemas, indent + 2)
                 lines.append(f"{pad}{json_key}: {{{cmt_part}")
                 lines.append(f'{pad}    "{wrapper_key}": {{')
                 lines.extend(inner)
@@ -3831,6 +3829,7 @@ def render_consolidated_rust(
     need_secret         = "Secret::new" in all_generated
     need_payment_method = "payment_method::" in all_generated
     need_mandate_id     = "mandate_id_type::" in all_generated
+    need_mandate_reference = "mandate_reference::" in all_generated
 
     extra_imports = ""
     if need_secret:
@@ -3839,6 +3838,8 @@ def render_consolidated_rust(
         extra_imports += "\nuse grpc_api_types::payments::payment_method;"
     if need_mandate_id:
         extra_imports += "\nuse grpc_api_types::payments::mandate_id_type;"
+    if need_mandate_reference:
+        extra_imports += "\nuse grpc_api_types::payments::mandate_reference;"
     
     # Dynamically add imports for special Rust wrapper types based on what's used
     # Exclude types already handled above (e.g., Secret from hyperswitch_masking)

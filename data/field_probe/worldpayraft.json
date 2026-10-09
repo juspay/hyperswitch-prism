@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Card": {
         "status": "supported",
@@ -133,19 +133,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -153,11 +153,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -165,35 +165,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Givex": {
         "status": "not_implemented",
@@ -201,87 +201,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -289,43 +289,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -333,35 +333,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -373,121 +373,138 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       }
     },
     "capture": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_feature_data.original_authorized_amount. Replay the authorization's connector_feature_data on capture to preserve the original amount and stored credential flags — Missing required field: connector_feature_data.original_authorized_amount. Replay the authorization's connector_feature_data on capture to preserve the original amount and stored credential flags"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -671,8 +688,41 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_feature_data.expiration_date — Missing required field: connector_feature_data.expiration_date"
+        "status": "supported",
+        "proto_request": {
+          "merchant_charge_id": "probe_charge_001",
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123",
+                "mandate_metadata": "{\"is_stored_credential\":true,\"card_network\":\"Visa\",\"expiration_date\":\"3003\"}"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "CREDIT",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"CardInfo\":{\"ExpirationDate\":\"3003\"},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"TerminalData\":{\"EntryMode\":\"CREDONFL\",\"POSConditionCode\":\"08\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"01\"},\"ProcFlagsIndicators\":{\"MerchantInitiatedTransaction\":\"Y\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_charge_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "recurring_revoke": {
@@ -769,13 +819,13 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT"
+        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate"
+        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate. Provide PaymentMethodData::Card with a PAN and expiry so Worldpay RAFT can create a TokenizedPAN for subsequent payments"
       }
     },
     "verify_redirect": {
