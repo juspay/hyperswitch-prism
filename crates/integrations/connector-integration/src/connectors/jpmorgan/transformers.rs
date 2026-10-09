@@ -301,34 +301,21 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
     }
 
     fn from_google_pay(data: &GooglePayDecryptedData) -> Result<Self, Error> {
-        let method = data.auth_method.unwrap_or_else(|| {
-            if data.cryptogram.is_some() {
-                common_enums::GooglePayAuthMethod::Cryptogram
-            } else {
-                common_enums::GooglePayAuthMethod::PanOnly
-            }
-        });
-        let (account_number_type, authentication) = match method {
-            common_enums::GooglePayAuthMethod::PanOnly => {
-                if data.cryptogram.is_some() || data.eci_indicator.is_some() {
-                    return Err(Self::invalid_wallet_field("google_pay.auth_method").into());
+        // A present cryptogram classifies the payload as a 3DS cryptogram
+        // (DEVICE_TOKEN); otherwise the payload is PAN-only.
+        let (account_number_type, authentication) = match data.cryptogram.as_ref() {
+            Some(cryptogram) => (
+                requests::JpmorganAccountNumberType::DeviceToken,
+                Some(Self::wallet_authentication(
+                    cryptogram,
+                    &data.eci_indicator,
+                )?),
+            ),
+            None => {
+                if data.eci_indicator.is_some() {
+                    return Err(Self::invalid_wallet_field("google_pay.cryptogram").into());
                 }
                 (requests::JpmorganAccountNumberType::Pan, None)
-            }
-            common_enums::GooglePayAuthMethod::Cryptogram => {
-                let cryptogram = data.cryptogram.as_ref().ok_or_else(|| {
-                    IntegrationError::MissingRequiredField {
-                        field_name: "google_pay.cryptogram",
-                        context: Self::wallet_field_context("google_pay.cryptogram"),
-                    }
-                })?;
-                (
-                    requests::JpmorganAccountNumberType::DeviceToken,
-                    Some(Self::wallet_authentication(
-                        cryptogram,
-                        &data.eci_indicator,
-                    )?),
-                )
             }
         };
         let exp_month = data

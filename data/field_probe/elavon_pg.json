@@ -211,7 +211,7 @@
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\"), auth_method: Some(Cryptogram) }) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",

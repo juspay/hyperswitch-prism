@@ -446,12 +446,6 @@ message GoogleWallet {
 }
 
 message GooglePayDecryptedData {
-  enum AuthMethod {
-    AUTH_METHOD_UNSPECIFIED = 0;
-    PAN_ONLY = 1;
-    CRYPTOGRAM_3DS = 2;
-  }
-
   // The card's expiry month
   SecretString card_exp_month = 1;
   
@@ -467,8 +461,7 @@ message GooglePayDecryptedData {
   // Electronic Commerce Indicator
   optional string eci_indicator = 5;
 
-  // Authentication method supplied by the decrypted Google Pay payload.
-  optional AuthMethod auth_method = 6;
+  reserved 6;
 }
 
 // Google Pay encrypted tokenization data structure

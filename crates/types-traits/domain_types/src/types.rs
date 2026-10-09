@@ -33,7 +33,6 @@ use common_utils::{
     Method, SecretSerdeValue,
 };
 use error_stack::{report, ResultExt};
-use grpc_api_types::payments::google_pay_decrypted_data::AuthMethod;
 use grpc_api_types::payments::{
     self as grpc_payment_types, recipient_account::AccountType as RecipientAccountType,
     recipient_bank_account::BankAccountType as RecipientBankAccountType, AuthenticationType,
@@ -85,33 +84,6 @@ fn convert_optional_country_alpha2(
         Ok(None)
     } else {
         CountryAlpha2::foreign_try_from(value).map(Some)
-    }
-}
-
-impl payment_method_data::GooglePayDecryptedData {
-    fn auth_method_from_proto(
-        value: Option<i32>,
-    ) -> Result<Option<common_enums::GooglePayAuthMethod>, error_stack::Report<IntegrationError>>
-    {
-        let method = value
-            .map(AuthMethod::try_from)
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-            field_name: "payment_method.google_pay.tokenization_data.decrypted_data.auth_method",
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Supply PAN_ONLY or CRYPTOGRAM_3DS as the Google Pay authentication method."
-                        .to_owned(),
-                ),
-                ..Default::default()
-            },
-        })?;
-
-        Ok(match method {
-            None | Some(AuthMethod::Unspecified) => None,
-            Some(AuthMethod::PanOnly) => Some(common_enums::GooglePayAuthMethod::PanOnly),
-            Some(AuthMethod::Cryptogram3ds) => Some(common_enums::GooglePayAuthMethod::Cryptogram),
-        })
     }
 }
 
@@ -2071,7 +2043,6 @@ impl<
                                             )?,
                                             cryptogram: decrypt_data.cryptogram,
                                             eci_indicator: decrypt_data.eci_indicator,
-                                            auth_method: payment_method_data::GooglePayDecryptedData::auth_method_from_proto(decrypt_data.auth_method)?,
                                         }
                                     ))
                                 },
