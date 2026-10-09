@@ -77,7 +77,6 @@ pub enum JpmorganAccountNumberType {
     NetworkToken,
     SafetechToken,
     SafetechPageEncryption,
-    Track,
 }
 
 #[derive(Debug, Serialize)]
@@ -376,7 +375,7 @@ pub(super) struct JpmorganStoredCredential {
     pub(super) source: JpmorganStorageSource,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum JpmorganStorageSource {
     Payment,

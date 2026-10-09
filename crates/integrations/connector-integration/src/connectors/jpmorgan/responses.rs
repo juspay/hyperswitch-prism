@@ -203,7 +203,7 @@ pub enum JpmorganVerificationStatus {
 
 pub type JpmorganSetupMandateResponse = JpmorganTransactionResponse;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(untagged)]
 pub enum JpmorganTransactionResponse {
     Payment(JpmorganPaymentsResponse),

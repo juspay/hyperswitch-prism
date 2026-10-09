@@ -41,6 +41,21 @@ const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
 
+impl<'de> Deserialize<'de> for responses::JpmorganTransactionResponse {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
+        if value.get("transactionState").is_some() {
+            serde_json::from_value(value)
+                .map(Self::Payment)
+                .map_err(serde::de::Error::custom)
+        } else {
+            serde_json::from_value(value)
+                .map(Self::Verification)
+                .map_err(serde::de::Error::custom)
+        }
+    }
+}
+
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -279,7 +294,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
                 "SAFETECH_PAGE_ENCRYPTION" => {
                     requests::JpmorganAccountNumberType::SafetechPageEncryption
                 }
-                "TRACK" => requests::JpmorganAccountNumberType::Track,
                 _ => requests::JpmorganAccountNumberType::NetworkToken,
             },
             None => requests::JpmorganAccountNumberType::DeviceToken,
@@ -527,9 +541,10 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             || request.tokenization == Some(common_enums::Tokenization::TokenizeAtPsp)
             || request.request_incremental_authorization == Some(true)
             || request.enable_overcapture == Some(true)
+            || request.request_extended_authorization == Some(true)
         {
             return Err(IntegrationError::NotSupported {
-                message: "Cardholder-initiated payments with merchant initiation, separate authentication, PSP tokenization, incremental authorization, or overcapture".to_owned(),
+                message: "Cardholder-initiated payments with merchant initiation, separate authentication, PSP tokenization, incremental authorization, overcapture, or extended authorization".to_owned(),
                 connector: "jpmorgan",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1431,6 +1446,7 @@ impl responses::JpmorganVerificationResponse {
                 reason: Some(self.response_message),
                 status_code: http_code,
                 attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(self.transaction_id.clone()),
                 ..Default::default()
             }));
         }
@@ -2137,6 +2153,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         //                         for the card payload.
         let payment_method_type = match &router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let verification_sourced = connector_mandate_ref
+                    .get_mandate_metadata()
+                    .and_then(|metadata| {
+                        serde_json::from_value::<requests::JpmorganStoredContext>(
+                            metadata.peek().clone(),
+                        )
+                        .ok()
+                    })
+                    .is_some_and(|context| {
+                        context.stored_credential.source
+                            == requests::JpmorganStorageSource::Verification
+                    });
+                if verification_sourced {
+                    return Err(IntegrationError::NotSupported {
+                        message: "Verification identifiers as repeat payment references".to_owned(),
+                        connector: "jpmorgan",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Reference a payment-sourced mandate for repeat payments."
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                    .into());
+                }
                 let transaction_reference_id = connector_mandate_ref
                     .get_connector_mandate_id()
                     .ok_or(IntegrationError::MissingRequiredField {
