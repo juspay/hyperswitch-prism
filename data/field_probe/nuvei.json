@@ -3,8 +3,60 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for nuvei"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "authentication_data": {
+            "connector_transaction_id": "probe_init_txn_001"
+          },
+          "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-continue",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_session_token"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"\",\"clientUniqueId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"relatedTransactionId\":\"probe_init_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\",\"threeD\":{\"methodCompletionInd\":\"U\",\"browserDetails\":{\"acceptHeader\":\"application/json\",\"ip\":\"1.2.3.4\",\"javaEnabled\":\"FALSE\",\"javaScriptEnabled\":\"TRUE\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZone\":-480,\"userAgent\":\"Mozilla/5.0 (probe-bot)\"},\"notificationURL\":\"https://example.com/3ds-continue\",\"merchantURL\":\"https://example.com/3ds-return\",\"platformType\":\"02\",\"v2AdditionalParams\":{\"challengeWindowSize\":\"05\",\"challengePreference\":\"01\"}}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/3ds-return\",\"failureUrl\":\"https://example.com/3ds-return\",\"pendingUrl\":\"https://example.com/3ds-return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "authorize": {
@@ -24,15 +76,37 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
+            "shipping_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -45,6 +119,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -54,7 +150,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"test@example.com\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_ACH\",\"AccountNumber\":\"000123456789\",\"RoutingNumber\":\"110000000\",\"SECCode\":\"WEB\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"test@example.com\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_ACH\",\"AccountNumber\":\"000123456789\",\"RoutingNumber\":\"110000000\",\"SECCode\":\"WEB\"}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "AchBankTransfer": {
@@ -159,17 +255,37 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
-            "billing_address": {
+            "shipping_address": {
               "first_name": "John",
               "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -182,6 +298,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -191,7 +329,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"cust_probe_123\",\"clientUniqueId\":\"probe_txn_001\",\"isRebilling\":\"0\",\"relatedTransactionId\":\"probe_related_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\",\"threeD\":{\"externalMpi\":{\"eci\":\"05\",\"cavv\":\"AAAAAAAAAA==\",\"dsTransID\":\"probe-ds-txn-001\"}}}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "CashappQr": {
@@ -254,15 +392,37 @@
             "eps": {}
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
+            "shipping_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -275,6 +435,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -284,7 +466,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_EPS\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_EPS\"}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "FamilyMart": {
@@ -307,15 +489,37 @@
             "giropay": {}
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
+            "shipping_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -328,6 +532,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -337,7 +563,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Giropay\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Giropay\"}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Givex": {
@@ -372,15 +598,37 @@
             "ideal": {}
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
+            "shipping_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -393,6 +641,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -402,7 +672,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_iDeal\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_iDeal\"}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Indomaret": {
@@ -633,15 +903,37 @@
             "sofort": {}
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "id": "cust_probe_123"
+          },
           "address": {
+            "shipping_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAAAAAAAAA==",
+            "ds_transaction_id": "probe-ds-txn-001"
+          },
           "return_url": "https://example.com/return",
           "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "enable_partial_authorization": true,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
           "browser_info": {
             "color_depth": 24,
             "screen_height": 900,
@@ -654,6 +946,28 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "payment_channel": "MAIL_ORDER",
+          "billing_descriptor": {
+            "name": "Probe Merchant",
+            "phone": "4155550132"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "ProbeProduct",
+                  "quantity": 1,
+                  "amount": 1000,
+                  "total_tax_amount": 100,
+                  "product_id": "probe_product_001"
+                }
+              ],
+              "shipping_cost": 100
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -663,7 +977,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Sofort\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Sofort\"}},\"transactionType\":\"Sale\",\"isPartialApproval\":\"1\",\"isMoto\":true,\"dynamicDescriptor\":{\"merchantName\":\"Probe Merchant\",\"merchantPhone\":\"4155550132\"},\"items\":[{\"name\":\"ProbeProduct\",\"type\":\"physical\",\"price\":\"10.00\",\"quantity\":\"1\",\"groupId\":\"probe_product_001\",\"tax\":\"1.00\"}],\"amountDetails\":{\"totalTax\":\"1.00\",\"totalShipping\":\"1.00\"},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"shippingAddress\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Swish": {
@@ -874,7 +1188,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "ppp_status=OK&PPP_TransactionID=547&TransactionID=2110000000004302220&Status=APPROVED&transactionType=Sale&totalAmount=115&currency=USD&responseTimeStamp=2020-03-14.16%3A22%3A34&productId=Your+Product"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "ppp_status=OK&PPP_TransactionID=547&TransactionID=2110000000004302220&Status=APPROVED&transactionType=Sale&totalAmount=115&currency=USD&responseTimeStamp=2020-03-14.16%3A22%3A34&productId=Your+Product"
+        }
       }
     },
     "incremental_authorization": {
@@ -885,7 +1214,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "ppp_status=OK&PPP_TransactionID=547&TransactionID=2110000000004302220&Status=APPROVED&transactionType=Sale&totalAmount=115&currency=USD&responseTimeStamp=2020-03-14.16%3A22%3A34&productId=Your+Product"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "ppp_status=OK&PPP_TransactionID=547&TransactionID=2110000000004302220&Status=APPROVED&transactionType=Sale&totalAmount=115&currency=USD&responseTimeStamp=2020-03-14.16%3A22%3A34&productId=Your+Product"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -895,32 +1238,141 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for nuvei"
+        "status": "supported"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for nuvei"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_session_token"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/initPayment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"\",\"clientUniqueId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/3ds-return\",\"failureUrl\":\"https://example.com/3ds-return\",\"pendingUrl\":\"https://example.com/3ds-return\"}}"
+        }
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: session_token — Missing required field: session_token"
+        "error": "Stuck on field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set — Missing required field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set"
       }
     },
     "proxy_setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
+        "error": "Stuck on field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set — Missing required field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: state.access_token — Missing required field: state.access_token"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "connector_customer_id": "cust_probe_123",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_session_token"
+            }
+          },
+          "customer": {
+            "id": "cust_probe_123"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"\",\"userTokenId\":\"cust_probe_123\",\"paymentOption\":{\"userPaymentOptionId\":\"probe-mandate-123\"},\"isRebilling\":\"1\",\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/recurring-return\",\"failureUrl\":\"https://example.com/recurring-return\",\"pendingUrl\":\"https://example.com/recurring-return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "recurring_revoke": {
@@ -973,7 +1425,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"probe_refund_001\",\"transactionId\":\"probe_connector_txn_001\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"transactionId\":\"probe_refund_id_001\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       }
     },
@@ -985,20 +1437,68 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_mandate_001\",\"amount\":\"0.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_mandate_001\",\"userTokenId\":\"cust_probe_123\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"isRebilling\":\"0\",\"transactionType\":\"Auth\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/mandate-return\",\"failureUrl\":\"https://example.com/mandate-return\",\"pendingUrl\":\"https://example.com/mandate-return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: session_token — Missing required field: session_token"
+        "error": "Stuck on field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set — Missing required field: session_token. Nuvei /payment.do needs the sessionToken returned by /getSessionToken.do; neither session_token nor state.access_token is set"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei for SetupMandate. Nuvei SetupRecurring stores a card credential (userPaymentOptionId) through /payment.do"
       }
     },
     "verify_redirect": {
