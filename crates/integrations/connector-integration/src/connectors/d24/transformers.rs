@@ -785,7 +785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            request.minor_amount,
+            request.amount.amount,
             request.currency,
         )?;
 
@@ -1163,7 +1163,8 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
 
         let mut status = AttemptStatus::from(response.status);
         if status == AttemptStatus::Charged
-            && settled_amount.is_some_and(|settled| settled < item.router_data.request.amount)
+            && settled_amount
+                .is_some_and(|settled| settled < item.router_data.request.amount.amount)
         {
             status = AttemptStatus::PartialCharged;
         }
@@ -1171,12 +1172,16 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         // Report the figure alongside the status, so the caller reconciles
         // against what was really paid. Only once money has settled: before
         // that `amount` is the amount D24 is waiting for, not a receipt.
-        let minor_amount_captured = matches!(
+        let amount_captured = matches!(
             status,
             AttemptStatus::Charged | AttemptStatus::PartialCharged
         )
         .then_some(settled_amount)
-        .flatten();
+        .flatten()
+        .map(|amount| common_utils::types::Money {
+            amount,
+            currency: requested_currency,
+        });
 
         // A DECLINED deposit is reported through `status`, not by returning an
         // Err: the UCS PSync convention is that the sync response carries the
@@ -1184,8 +1189,7 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: Some(raw_status.clone()),
                     message: Some(raw_status),
@@ -1396,7 +1400,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            request.minor_refund_amount,
+            request.refund_amount.amount,
             request.currency,
         )?;
 

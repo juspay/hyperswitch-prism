@@ -270,7 +270,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
 
         let amount = JuspayAmountConvertor::convert(
-            router_data.request.amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1046,7 +1046,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount_to_capture = router_data.request.minor_amount_to_capture;
+        let amount_to_capture = router_data.request.amount_to_capture.amount;
         let original_amount = router_data
             .resource_common_data
             .amount
@@ -1165,7 +1165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
 
         let amount = JuspayAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 

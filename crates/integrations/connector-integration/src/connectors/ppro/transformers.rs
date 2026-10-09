@@ -163,7 +163,9 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(router_data.request.amount.get_amount_as_i64()),
+            value: common_utils::MinorUnit::new(
+                router_data.request.amount.amount.get_amount_as_i64(),
+            ),
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
@@ -522,7 +524,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
         })
     }
 }
@@ -554,12 +556,14 @@ where
             .router_data
             .request
             .amount
+            .map(|amount| amount.amount)
             .or(item
                 .router_data
                 .resource_common_data
-                .minor_amount_authorized)
+                .amount_authorized
+                .map(|amount| amount.amount))
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "amount or minor_amount_authorized",
+                field_name: "amount or amount_authorized.amount",
                 context: Default::default(),
             })?;
 
@@ -591,7 +595,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -903,12 +907,24 @@ where
             })
         };
 
+        let response_currency = item
+            .router_data
+            .resource_common_data
+            .amount
+            .as_ref()
+            .map(|money| money.currency)
+            .unwrap_or_default();
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: Some(raw_connector_status),
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
                 amount_captured: captured_amount
+                    .map(|amount| common_utils::types::Money {
+                        amount: common_utils::MinorUnit::new(amount),
+                        currency: response_currency,
+                    })
                     .or(item.router_data.resource_common_data.amount_captured),
                 ..item.router_data.resource_common_data
             },
@@ -1224,7 +1240,9 @@ where
             value: common_utils::MinorUnit::new(
                 router_data
                     .request
-                    .minor_amount
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
                     .map(|a| a.get_amount_as_i64())
                     .unwrap_or(0),
             ),
@@ -1623,7 +1641,7 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnit::new(
-                router_data.request.minor_amount.get_amount_as_i64(),
+                router_data.request.amount.amount.get_amount_as_i64(),
             ),
         };
 
@@ -1636,8 +1654,15 @@ where
         Ok(Self {
             amount,
             schedule_type: Some(match router_data.request.mit_category {
-                Some(common_enums::MitCategory::Recurring) => PproScheduleType::Recurring,
-                _ => PproScheduleType::Unscheduled,
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+                ) => PproScheduleType::Recurring,
+                Some(
+                    common_enums::MitCategory::Installment
+                    | common_enums::MitCategory::Unscheduled
+                    | common_enums::MitCategory::Resubmission,
+                )
+                | None => PproScheduleType::Unscheduled,
             }),
             auto_capture: matches!(
                 router_data.request.capture_method,

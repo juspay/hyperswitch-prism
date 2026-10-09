@@ -394,11 +394,12 @@ enum MitCategory {
   // Merchant-initiated transaction using stored credentials, but not tied to a
   // fixed schedule
   UNSCHEDULED_MIT = 2;
-  // Merchant-initiated payments that happen at regular intervals (usually the
-  // same amount each time).
+  // Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
   RECURRING_MIT = 3;
   // A retried MIT after a previous transaction failed or was declined.
   RESUBMISSION_MIT = 4;
+  // Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+  SUBSCRIPTION_MIT = 5;
 }
 
 // Indicates the type of payment sync request
@@ -462,6 +463,10 @@ enum TransactionStatus {
 
   // Informational Only; 3DS Requestor challenge preference acknowledged
   TRANSACTION_STATUS_INFORMATION_ONLY = 8; // "I"
+
+  // Challenge using Secure Payment Confirmation (SPC); available for EMV 3DS
+  // 2.3.1 and later versions
+  TRANSACTION_STATUS_SECURE_PAYMENT_CONFIRMATION_REQUIRED = 9; // "S"
 }
 
 // SCA (Strong Customer Authentication) exemption indicators.
@@ -1996,7 +2001,8 @@ message CardConnectorResponse {
       5; // Unique authorisation code generated for the payment
 }
 
-// Additional card information for payment processing
+// Additional card information for payment processing.
+// Shared by plain-card, Apple Pay, and Google Pay / Samsung Pay additional data.
 message AdditionalCardInfo {
   // The name of issuer of the card
   optional string card_issuer = 1;
@@ -2019,12 +2025,71 @@ message AdditionalCardInfo {
   // Card holder name (sensitive)
   optional SecretString card_holder_name = 7;
 
+  // Bin of the underlying card resolved by the connector from the DPAN
+  optional string card_bin = 8;
+
+  // Card type (e.g. Credit, Debit)
+  optional CardType card_type = 9;
+
+  // Unique authorisation code generated for the payment
+  optional string auth_code = 10;
+
+  // Card product or subtype
+  optional string card_subtype = 11;
+
+  // Card segment (e.g. consumer, commercial)
+  optional CardSegmentType card_segment_type = 12;
+
+  // Card funding source (e.g. credit, debit)
+  optional FundingSource funding_source = 13;
+
+  // Card issuer country
+  optional CountryAlpha2 issuer_country = 14;
+
+  // Card network (e.g. Visa, Mastercard)
+  optional string card_network = 15;
+}
+
+// Apple Pay additional data for recurring payments.
+// Wallet-specific fields are kept here; all card metadata is in card_info.
+message AdditionalApplePayInfo {
+  // Display name shown on the Apple Pay button (from PKPaymentMethod.displayName)
+  string display_name = 1;
+  // Common card metadata (expiry, BIN, type, issuer, network, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 2;
+  // Bin of the DPAN (device PAN) from Apple Pay wallet payment data.
+  // Distinct from card_bin, which is the underlying physical card BIN resolved by the connector.
+  optional string device_pan_bin = 3;
+}
+
+// Google Pay additional data for recurring payments.
+// Wallet-specific fields are kept here; all card metadata is in card_info.
+message AdditionalGooglePayInfo {
+  // Payment method data type (PAN_ONLY or CRYPTOGRAM_3DS for Google Pay)
+  optional string payment_method_data_type = 1;
+  // Email address associated with the wallet account (e.g. Google Pay account email)
+  optional SecretString email = 2;
+  // Common card metadata (expiry, BIN, last4, type, network, issuer, auth_code, etc.)
+  optional AdditionalCardInfo card_info = 3;
+  // Bin of the DPAN (device PAN) from Google Pay wallet payment data.
+  // Distinct from card_bin, which is the underlying physical card BIN resolved by the connector.
+  optional string device_pan_bin = 4;
+}
+
+// Wallet additional payment data wrapping Apple Pay and Google Pay data.
+// Exactly one wallet provider is always present.
+message AdditionalWalletInfo {
+  oneof wallet_data {
+    AdditionalApplePayInfo apple_pay = 1;
+    AdditionalGooglePayInfo google_pay = 2;
+  }
 }
 
 // Additional payment data for various payment methods
 message AdditionalPaymentData {
   oneof payment_method_data {
     AdditionalCardInfo card = 1;
+    AdditionalWalletInfo wallet = 2;
   }
 }
 
@@ -2777,6 +2842,10 @@ message PaymentServiceAuthorizeRequest {
 
   // Merchant business country, ISO 3166-1 alpha-2
   optional string business_country = 56;
+
+  // Opt in to address verification using billing details when supported by the
+  // connector. Only true requests AVS; omitted or false leaves it disabled.
+  optional bool enable_avs_check = 57;
 }
 
 // Partner / external-platform application details.
@@ -6456,6 +6525,9 @@ message PaymentServiceTokenAuthorizeRequest {
   // authorize
   optional string connector_order_id = 22;
   optional int64 shipping_cost = 23;    // Cost of shipping for the order
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 24;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6515,6 +6587,9 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 28;
+
+  // Opt in to address verification using the supplied billing details.
+  optional bool enable_avs_check = 29;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

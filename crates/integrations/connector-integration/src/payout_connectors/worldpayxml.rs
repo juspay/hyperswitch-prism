@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 pub mod transformers;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine as _};
@@ -240,17 +241,23 @@ impl
     }
 }
 
-impl PayoutServiceTrait for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutServiceTrait<T> for WorldpayxmlPayouts
+{
+}
 
 // ===== PAYOUT TRANSFER (REAL) =====
 
-impl PayoutTransferV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutTransferV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutTransfer,
         PayoutFlowData,
-        PayoutTransferRequest,
+        PayoutTransferRequest<T>,
         PayoutTransferResponse,
     > for WorldpayxmlPayouts
 {
@@ -267,7 +274,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -284,7 +291,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
@@ -296,7 +303,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
@@ -314,13 +321,18 @@ impl
         data: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest<T>,
+            PayoutTransferResponse,
+        >,
         ConnectorError,
     > {
         let response: responses::WorldpayxmlPayoutTransferResponse =
@@ -482,17 +494,25 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
 
 // ===== PAYOUT STUB FLOWS =====
 
-impl PayoutCreateV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
-    for WorldpayxmlPayouts
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<
+        PayoutCreate,
+        PayoutFlowData,
+        PayoutCreateRequest<T>,
+        PayoutCreateResponse,
+    > for WorldpayxmlPayouts
 {
     fn get_url(
         &self,
         _req: &RouterDataV2<
             PayoutCreate,
             PayoutFlowData,
-            PayoutCreateRequest,
+            PayoutCreateRequest<T>,
             PayoutCreateResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -505,14 +525,23 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
     }
 }
 
-impl PayoutStageV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutStageV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>
     for WorldpayxmlPayouts
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+        _req: &RouterDataV2<
+            PayoutStage,
+            PayoutFlowData,
+            PayoutStageRequest<T>,
+            PayoutStageResponse,
+        >,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
@@ -523,13 +552,16 @@ impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, Pay
     }
 }
 
-impl PayoutCreateLinkV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateLinkV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateLink,
         PayoutFlowData,
-        PayoutCreateLinkRequest,
+        PayoutCreateLinkRequest<T>,
         PayoutCreateLinkResponse,
     > for WorldpayxmlPayouts
 {
@@ -538,7 +570,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateLink,
             PayoutFlowData,
-            PayoutCreateLinkRequest,
+            PayoutCreateLinkRequest<T>,
             PayoutCreateLinkResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -551,13 +583,16 @@ impl
     }
 }
 
-impl PayoutCreateRecipientV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutCreateRecipientV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutCreateRecipient,
         PayoutFlowData,
-        PayoutCreateRecipientRequest,
+        PayoutCreateRecipientRequest<T>,
         PayoutCreateRecipientResponse,
     > for WorldpayxmlPayouts
 {
@@ -566,7 +601,7 @@ impl
         _req: &RouterDataV2<
             PayoutCreateRecipient,
             PayoutFlowData,
-            PayoutCreateRecipientRequest,
+            PayoutCreateRecipientRequest<T>,
             PayoutCreateRecipientResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -579,13 +614,16 @@ impl
     }
 }
 
-impl PayoutEnrollDisburseAccountV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEnrollDisburseAccountV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEnrollDisburseAccount,
         PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountRequest<T>,
         PayoutEnrollDisburseAccountResponse,
     > for WorldpayxmlPayouts
 {
@@ -594,7 +632,7 @@ impl
         _req: &RouterDataV2<
             PayoutEnrollDisburseAccount,
             PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
+            PayoutEnrollDisburseAccountRequest<T>,
             PayoutEnrollDisburseAccountResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
@@ -607,13 +645,16 @@ impl
     }
 }
 
-impl PayoutEligibilityV2 for WorldpayxmlPayouts {}
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    PayoutEligibilityV2<T> for WorldpayxmlPayouts
+{
+}
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     ConnectorIntegrationV2<
         PayoutEligibility,
         PayoutFlowData,
-        PayoutEligibilityRequest,
+        PayoutEligibilityRequest<T>,
         PayoutEligibilityResponse,
     > for WorldpayxmlPayouts
 {
@@ -622,7 +663,7 @@ impl
         _req: &RouterDataV2<
             PayoutEligibility,
             PayoutFlowData,
-            PayoutEligibilityRequest,
+            PayoutEligibilityRequest<T>,
             PayoutEligibilityResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {

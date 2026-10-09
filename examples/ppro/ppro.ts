@@ -7,7 +7,7 @@
 
 import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "recurring_charge", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -139,17 +139,6 @@ function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectRespo
     };
 }
 
-function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
-    return {
-        "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (Ideal)
@@ -233,19 +222,10 @@ async function verifyRedirect(merchantTransactionId: string, config: types.IConn
     return verifyResponse;
 }
 
-// Flow: PaymentService.Void
-async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
-
-    return voidResponse;
-}
-
 
 // Export all process* functions for the smoke test
 export {
-    authorize, capture, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, verifyRedirect, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest, _buildVoidRequest
+    authorize, capture, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, verifyRedirect, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner

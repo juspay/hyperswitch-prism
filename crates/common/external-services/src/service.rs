@@ -33,7 +33,9 @@ use domain_types::{
     },
     IntegrationError,
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+#[cfg(feature = "injector-client")]
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -204,7 +206,7 @@ impl ConnectorRequestReference for domain_types::payouts::payouts_types::PayoutF
 
 impl AdditionalHeaders for domain_types::payouts::payouts_types::PayoutFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
-        None
+        self.vault_headers.as_ref()
     }
 }
 
@@ -1517,13 +1519,19 @@ pub async fn call_connector_api(
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 
+    // Keep the certificate material on the request so both the initial client
+    // and the lazily-created retry client can borrow it without copying PEMs.
+    let client_certificate = request.certificate.as_ref();
+    let client_certificate_key = request.certificate_key.as_ref();
+    let ca_certificate = request.ca_certificate.as_ref();
+
     let client = create_client(
         proxy,
         should_bypass_proxy,
         proxy_name,
-        request.certificate,
-        request.certificate_key,
-        request.ca_certificate,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate,
         test_mode,
     )?;
 
@@ -1658,7 +1666,21 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
+    // On "connection closed before message completed", the retry is sent over
+    // a NEW TCP connection: a fresh client owns a fresh pool, so nothing stale
+    // can be checked out. The fresh client is built lazily, only on the error.
+    let (response, retried) = crate::http_client::send_request_with_retry(request, move || {
+        create_fresh_client(
+            proxy,
+            should_bypass_proxy,
+            proxy_name,
+            client_certificate,
+            client_certificate_key,
+            ca_certificate,
+            test_mode,
+        )
+    })
+    .await;
 
     if retried {
         #[cfg(feature = "otel")]
@@ -1683,12 +1705,61 @@ pub fn create_client(
     proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
     proxy_name: &str,
-    client_certificate: Option<Secret<String>>,
-    client_certificate_key: Option<Secret<String>>,
-    ca_certificate_pem: Option<Secret<String>>,
+    client_certificate: Option<&Secret<String>>,
+    client_certificate_key: Option<&Secret<String>>,
+    ca_certificate_pem: Option<&Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
-    match (client_certificate.clone(), client_certificate_key.clone()) {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        true,
+    )
+}
+
+/// Builds a brand-new client bypassing the shared client caches. The returned
+/// client owns a fresh connection pool, so its first request always dials a
+/// new TCP connection. Used as the retry client after a "connection closed
+/// before message completed" error: retrying through the shared pool risks
+/// checking out another equally stale keep-alive connection.
+pub fn create_fresh_client(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<&Secret<String>>,
+    client_certificate_key: Option<&Secret<String>>,
+    ca_certificate_pem: Option<&Secret<String>>,
+    test_mode: bool,
+) -> CustomResult<Client, ApiClientError> {
+    create_client_impl(
+        proxy_config,
+        should_bypass_proxy,
+        proxy_name,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate_pem,
+        test_mode,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn create_client_impl(
+    proxy_config: &ProxyConfig,
+    should_bypass_proxy: bool,
+    proxy_name: &str,
+    client_certificate: Option<&Secret<String>>,
+    client_certificate_key: Option<&Secret<String>>,
+    ca_certificate_pem: Option<&Secret<String>>,
+    test_mode: bool,
+    use_client_cache: bool,
+) -> CustomResult<Client, ApiClientError> {
+    match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder =
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
@@ -1713,7 +1784,13 @@ pub fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode),
+        _ if use_client_cache => {
+            get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode)
+        }
+        _ => get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?
+            .build()
+            .change_context(ApiClientError::ClientConstructionFailed)
+            .attach_printable("Failed to construct fresh client"),
     }
 }
 
@@ -1903,15 +1980,15 @@ fn get_client_builder(
 }
 
 pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: Secret<String>,
-    encoded_certificate_key: Secret<String>,
+    encoded_certificate: &Secret<String>,
+    encoded_certificate_key: &Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
+        .decode(encoded_certificate.peek().as_bytes())
         .change_context(ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key.expose())
+        .decode(encoded_certificate_key.peek().as_bytes())
         .change_context(ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
@@ -1936,10 +2013,10 @@ pub fn parse_ca_pem_bundle(
 }
 
 pub fn create_certificate(
-    encoded_certificate: Secret<String>,
+    encoded_certificate: &Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
+        .decode(encoded_certificate.peek().as_bytes())
         .change_context(ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)

@@ -1,6 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -214,12 +215,12 @@ pub struct PaypalBatchResponse {
     pub batch_status: PaypalPayoutStatus,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for PaypalFulfillRequest
@@ -230,7 +231,7 @@ impl
         item: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -250,12 +251,12 @@ impl
 /// Newtype wrapper used by the direct TryFrom for PaypalPayoutItem.
 struct PaypalPayoutItemDirect(PaypalPayoutItem);
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for PaypalPayoutItemDirect
@@ -266,7 +267,7 @@ impl
         item: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -370,6 +371,20 @@ impl
                         doc_url: None,
                     },
                 })?,
+                PayoutWallet::Mifinity(_) => Err(IntegrationError::NotSupported {
+                    message: "Mifinity PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayPal Payout Transfer - MiFinity wallet is not supported for payouts"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use PayPal or Venmo wallet for payouts".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?,
             },
             _ => Err(IntegrationError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
@@ -396,8 +411,14 @@ impl
     }
 }
 
-impl TryFrom<ResponseRouterData<PaypalFulfillResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaypalFulfillResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = Report<ConnectorError>;
 

@@ -171,7 +171,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -408,7 +408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -622,7 +622,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .convert(
                 item.router_data
                     .request
-                    .minor_amount
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
                 item.router_data.request.currency,
             )
@@ -748,7 +750,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
