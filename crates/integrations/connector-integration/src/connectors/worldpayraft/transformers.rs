@@ -556,12 +556,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .line1
                 .clone()
                 .filter(|line| !line.peek().trim().is_empty());
-            if zip.is_none() && address_line.is_none() {
+            if zip.is_none() || address_line.is_none() {
                 return Err(errors::IntegrationError::MissingRequiredField {
-                        field_name: "billing.address.zip or billing.address.line1",
+                        field_name: "billing.address.zip and billing.address.line1",
                         context: errors::IntegrationErrorContext {
                             additional_context: Some(
-                                "Worldpay RAFT requires a non-empty billing postal code or address line 1 for AVS verification when enable_avs_check is true".to_string(),
+                                "Worldpay RAFT requires both a non-empty billing postal code and a non-empty address line 1 for AVS verification when enable_avs_check is true".to_string(),
                             ),
                             ..Default::default()
                         },
