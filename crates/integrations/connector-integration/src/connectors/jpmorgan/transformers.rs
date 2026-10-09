@@ -383,7 +383,9 @@ impl requests::JpmorganRecurring {
     ) -> Result<Option<Self>, Error> {
         match category {
             None | Some(common_enums::MitCategory::Unscheduled) => return Ok(None),
-            Some(common_enums::MitCategory::Recurring) => (),
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => (),
             Some(
                 common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission,
             ) => {
@@ -2281,9 +2283,9 @@ impl requests::JpmorganStoredContext {
             return Err(Self::invalid());
         }
         match request.mit_category {
-            Some(common_enums::MitCategory::Recurring) if context.recurring.is_none() => {
-                return Err(Self::invalid())
-            }
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) if context.recurring.is_none() => return Err(Self::invalid()),
             Some(common_enums::MitCategory::Unscheduled) if context.recurring.is_some() => {
                 return Err(Self::invalid())
             }
