@@ -13,7 +13,8 @@ These checks police the diff the run authored.
   WAIV-01    every `unsupported_scenarios` reason must carry a class and evidence
   WAIV-02    no waiver may be added for a scenario that PASSed earlier in this run
   WAIV-03    no waiver may be added for a scenario a P0 plan hook names
-  SUITE-01   every suite the run declares must have at least one executed PASS behind it
+  SUITE-01   every suite the run declares must have at least one COMMITTED scenario's PASS
+             behind it (a row with no `suite_ref` came from an ad-hoc matrix, not the suite)
 
 Exit codes: 0 pass, 1 fail, 2 could not evaluate (treated as fail by the caller).
 Stdlib only.
@@ -332,19 +333,37 @@ def check_waivers(cur_specs, base_specs, passed_before, plan):
     return ev01, ev02, ev03
 
 
-def check_suites(cur_specs, base_specs, rows):
-    """SUITE-01: a suite this run declares must have an executed PASS behind it."""
+def check_suites(cur_specs, base_specs, passes):
+    """SUITE-01: a suite this run declares must have a committed scenario's PASS behind it.
+
+    `passes` is scenario_passes()'s (suite, scenario) set, which counts a gRPC row only
+    when it carries a `suite_ref` -- that is, only when a scenario committed to
+    specs.json/override.json drove it. Joining on the row's `method` instead would accept
+    an ad-hoc grpcurl matrix, because `method` and `supported_suites` share the
+    `Service/Method` shape: the suite would read as proven while `make test-connector`
+    reproduced none of it. That is the exact hole this check exists to close, so the join
+    has to be the same one WAIV-02 already uses.
+    """
+    if isinstance(passes, dict):
+        # report_rows()'s dict is keyed by (method, case_id), so iterating it yields 2-tuples
+        # too and the comprehension below would silently reinstate the `method` join. Refuse
+        # the shape instead of accepting it quietly: the caller treats a crash as a failure.
+        raise TypeError(
+            "check_suites takes scenario_passes()'s (suite, scenario) set, not report_rows()'s "
+            "method-keyed dict; that dict's keys unpack the same way and would restore the "
+            "ad-hoc-matrix join SUITE-01 exists to reject")
     evidence = []
     cur = set((cur_specs or {}).get("supported_suites") or [])
     base = set((base_specs or {}).get("supported_suites") or [])
+    proven = {suite for suite, _scenario in (passes or set())}
     for suite in sorted(cur - base):
-        passes = [r for (s, _sc), outs in rows.items() if s == suite for r in outs if r == "PASS"]
-        if not passes:
+        if suite not in proven:
             evidence.append({
                 "file": SPECS, "suite": suite, "scenario": None,
-                "detail": "declared in supported_suites but no scenario of it PASSed in the report "
-                          "(declaring a suite with nothing behind it is what lets a green run hide "
-                          "an untested flow)"})
+                "detail": "declared in supported_suites but no committed scenario of it PASSed in "
+                          "the report (declaring a suite with nothing behind it is what lets a "
+                          "green run hide an untested flow; a PASS whose row carries no "
+                          "suite_ref came from an ad-hoc matrix and is not the suite)"})
     return evidence
 
 
@@ -454,7 +473,8 @@ def main():
             else "no report from an earlier round")
 
     if have_report:
-        add("SUITE-01", "declared_suite_has_a_pass", check_suites(cur_specs, base_specs, rows),
+        add("SUITE-01", "declared_suite_has_a_pass",
+            check_suites(cur_specs, base_specs, scenario_passes(report_blob)),
             "A declared suite with no passing scenario behind it is an untested flow that reads "
             "as covered.")
     else:
@@ -587,20 +607,41 @@ def _replay():
     # -- SUITE-01: a declared suite needs an executed PASS behind it ---------------------
     cur_specs2 = {"supported_suites": ["PaymentService/Authorize", "PaymentService/Void"]}
     base_specs2 = {"supported_suites": ["PaymentService/Authorize"]}
-    rows = {("PaymentService/Void", "x"): ["FAIL"]}
-    ev = check_suites(cur_specs2, base_specs2, rows)
+    ev = check_suites(cur_specs2, base_specs2, set())
     assert len(ev) == 1 and ev[0]["suite"] == "PaymentService/Void", ev
-    assert check_suites(cur_specs2, base_specs2,
-                        {("PaymentService/Void", "x"): ["PASS"]}) == []
+    assert check_suites(cur_specs2, base_specs2, {("PaymentService/Void", "void_ok")}) == []
     # a suite already in base is not re-checked even with no PASS
-    assert check_suites(base_specs2, base_specs2, {}) == []
+    assert check_suites(base_specs2, base_specs2, set()) == []
+
+    # the join must be scenario_passes', not the row's `method`: a gRPC row with no
+    # suite_ref came from an ad-hoc matrix, and `method` shares supported_suites' shape,
+    # so joining on it would read the suite as proven while the committed suite is empty.
+    blob = {"rows": [{"method": "PaymentService/Void", "case_id": "Void/card/ok",
+                      "outcome": "PASS", "suite_ref": None}]}
+    assert scenario_passes(blob) == set(), scenario_passes(blob)
+    assert len(check_suites(cur_specs2, base_specs2, scenario_passes(blob))) == 1
+    blob["rows"][0]["suite_ref"] = "PaymentService/Void/void_ok"
+    assert check_suites(cur_specs2, base_specs2, scenario_passes(blob)) == []
+    # the legacy harness report still counts: those rows ARE committed scenarios
+    legacy = {"runs": [{"suite": "PaymentService/Void", "scenario": "void_ok",
+                        "assertion_result": "PASS"}]}
+    assert check_suites(cur_specs2, base_specs2, scenario_passes(legacy)) == []
+    # report_rows()'s shape is refused outright -- its keys unpack like the pass set, so
+    # accepting it would reinstate the `method` join without changing a visible line
+    try:
+        check_suites(cur_specs2, base_specs2, {("PaymentService/Void", "x"): ["PASS"]})
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("check_suites must refuse report_rows()'s method-keyed dict")
 
     print("replay OK: response_asserting rejects a must_not_exist-only block (the shape that let "
           "a suite go green over four defects), ASSERT-01/02 fire only on scenarios this run "
           "changed and grade money suites S0, CTX-01 matches nested overrides against "
           "context_map targets and honours same_endpoint_justified while the private-scenario "
           "case stays advisory, WAIV-01/02/03 catch a malformed reason / waiving a passing test / "
-          "waiving a P0 hook, and SUITE-01 refuses a suite declared with no executed PASS")
+          "waiving a P0 hook, and SUITE-01 refuses a suite declared with no COMMITTED PASS behind it "
+          "(a suite_ref-less ad-hoc row does not count)")
     return 0
 
 
