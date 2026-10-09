@@ -67,7 +67,7 @@ jobs:
   deja_art_label_check:
     name: Verify PR carries the deja-art label
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     concurrency:
       group: deja-art-gate-${{ github.event.pull_request.number || github.run_id }}
       cancel-in-progress: true
