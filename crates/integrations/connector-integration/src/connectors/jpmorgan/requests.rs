@@ -30,6 +30,14 @@ pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub account_holder: Option<JpmorganAccountHolder>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiator_type: Option<JpmorganInitiatorType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_on_file: Option<JpmorganAccountOnFile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_amount_final: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,6 +59,35 @@ pub struct JpmorganPaymentMethodType<T: PaymentMethodDataTypes> {
 pub struct JpmorganCard<T: PaymentMethodDataTypes> {
     pub account_number: RawCardNumber<T>,
     pub expiry: Expiry,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number_type: Option<JpmorganAccountNumberType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet_provider: Option<JpmorganWalletProvider>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<JpmorganWalletAuthentication>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganAccountNumberType {
+    Pan,
+    DeviceToken,
+    NetworkToken,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganWalletProvider {
+    ApplePay,
+    GooglePay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganWalletAuthentication {
+    pub token_authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub electronic_commerce_indicator: Option<String>,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
@@ -166,6 +203,7 @@ pub enum JpmorganInitiatorType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum JpmorganAccountOnFile {
+    NotStored,
     ToBeStored,
     Stored,
 }

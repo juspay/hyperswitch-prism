@@ -1088,6 +1088,9 @@ impl ForeignTryFrom<grpc_api_types::payments::CaptureMethod> for CaptureMethod {
             grpc_api_types::payments::CaptureMethod::Manual => Ok(Self::Manual),
             grpc_api_types::payments::CaptureMethod::ManualMultiple => Ok(Self::ManualMultiple),
             grpc_api_types::payments::CaptureMethod::Scheduled => Ok(Self::Scheduled),
+            grpc_api_types::payments::CaptureMethod::SequentialAutomatic => {
+                Ok(Self::SequentialAutomatic)
+            }
             _ => Ok(Self::Automatic),
         }
     }
