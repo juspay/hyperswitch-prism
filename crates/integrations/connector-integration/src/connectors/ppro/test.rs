@@ -5,7 +5,9 @@ mod tests {
     use domain_types::{
         connector_types::{EventType, HttpMethod, RequestDetails},
         payment_method_data::DefaultPCIHolder,
+        router_data::ConnectorSpecificConfig,
     };
+    use hyperswitch_masking::Secret;
     use interfaces::{api::ConnectorCommon, connector_types::IncomingWebhook};
 
     use crate::connectors;
@@ -375,21 +377,35 @@ mod tests {
 
     // ── Webhook: verify_webhook_source ───────────────────────────────────────
 
-    /// Helper: compute SHA256(body + "." + secret) and return hex-encoded signature.
-    fn sign_body(secret: &[u8], body: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
-        use common_utils::crypto::GenerateDigest;
-        let mut message = body.to_vec();
+    /// Helper: build a `ppro-signature` header value matching PPRO's scheme:
+    /// `t=<unix_ts>,s=<hex(HMAC-SHA256(secret, t + "." + raw_body))>`.
+    fn sign_ppro_webhook(
+        secret: &[u8],
+        timestamp: &str,
+        body: &[u8],
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        use common_utils::crypto::SignMessage;
+        let mut message = timestamp.as_bytes().to_vec();
         message.push(b'.');
-        message.extend_from_slice(secret);
-        let digest = common_utils::crypto::Sha256
-            .generate_digest(&message)
-            .map_err(|e| format!("SHA256 digest failed: {e:?}"))?;
-        Ok(hex::encode(digest))
+        message.extend_from_slice(body);
+        let signature = common_utils::crypto::HmacSha256
+            .sign_message(secret, &message)
+            .map_err(|e| format!("HMAC-SHA256 signing failed: {e:?}"))?;
+        Ok(format!("t={timestamp},s={}", hex::encode(signature)))
+    }
+
+    fn ppro_connector_config(webhook_secret: &str) -> Option<ConnectorSpecificConfig> {
+        Some(ConnectorSpecificConfig::Ppro {
+            api_key: Secret::new("test_api_key".to_string()),
+            merchant_id: Secret::new("test_merchant_id".to_string()),
+            base_url: None,
+            webhook_secret: Some(Secret::new(webhook_secret.to_string())),
+        })
     }
 
     fn make_signed_request(body: &[u8], signature: &str) -> RequestDetails {
         let mut headers = HashMap::new();
-        headers.insert("Webhook-Signature".to_string(), signature.to_string());
+        headers.insert("ppro-signature".to_string(), signature.to_string());
         RequestDetails {
             method: HttpMethod::Post,
             uri: None,
@@ -404,67 +420,63 @@ mod tests {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_body(secret, &body)?;
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
         let request = make_signed_request(&body, &signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(result, "valid HMAC-SHA256 signature should verify as true");
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_case_insensitive_header() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let secret = b"my_webhook_secret";
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
+        // HTTP intermediaries may normalise header casing
+        let mut headers = HashMap::new();
+        headers.insert("PPRO-SIGNATURE".to_string(), signature);
+        let request = RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers,
+            body: body.to_vec(),
+            query_params: None,
         };
 
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(result, "valid SHA256 signature should verify as true");
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(result, "signature header lookup must be case-insensitive");
         Ok(())
     }
 
     #[test]
     fn test_verify_webhook_source_invalid_signature() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
         // Sign with a different secret
-        let wrong_signature = sign_body(b"wrong_secret", &body)?;
+        let wrong_signature = sign_ppro_webhook(b"wrong_secret", "1700000000", &body)?;
         let request = make_signed_request(&body, &wrong_signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(!result, "invalid SHA256 signature should verify as false");
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(
+            !result,
+            "signature from a different secret should verify as false"
+        );
         Ok(())
-    }
-
-    #[test]
-    fn test_verify_webhook_source_missing_header() {
-        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        // No Webhook-Signature header
-        let request = make_request(&body);
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: b"my_webhook_secret".to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None);
-        assert!(
-            result.is_err(),
-            "missing Webhook-Signature header should return an error"
-        );
-    }
-
-    #[test]
-    fn test_verify_webhook_source_no_secret_returns_error() {
-        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let request = make_request(&body);
-
-        let result = connector.verify_webhook_source(request, None, None);
-        assert!(
-            result.is_err(),
-            "missing connector_webhook_secret should return NotImplemented error"
-        );
     }
 
     #[test]
@@ -472,20 +484,206 @@ mod tests {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_body(secret, &body)?;
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
 
         // Tamper with the body after signing
         let tampered_body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "FAILED");
         let request = make_signed_request(&tampered_body, &signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
         ensure!(!result, "tampered body should fail signature verification");
         Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_tampered_timestamp() -> Result<(), Box<dyn std::error::Error>> {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let secret = b"my_webhook_secret";
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
+
+        // Replay the same signature with a different timestamp: `t` is part of
+        // the signed message, so this must fail.
+        let tampered_signature = signature.replacen("t=1700000000", "t=1700000001", 1);
+        let request = make_signed_request(&body, &tampered_signature);
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(
+            !result,
+            "tampered timestamp should fail signature verification"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_header() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // No ppro-signature header
+        let request = make_request(&body);
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing ppro-signature header should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_timestamp_element() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // Header without the `t` element
+        let request = make_signed_request(&body, "s=deadbeef");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing timestamp element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_signature_element() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // Header without the `s` element
+        let request = make_signed_request(&body, "t=1700000000");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing signature element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_invalid_hex_signature() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // `s` element is not valid hex
+        let request = make_signed_request(&body, "t=1700000000,s=not_hex");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "non-hex signature element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_no_secret_returns_error() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
+        let request = make_signed_request(&body, &signature);
+
+        let result = connector.verify_webhook_source(request, None, None);
+        ensure!(
+            result.is_err(),
+            "missing webhook_secret in connector config should return an error"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_rpc_webhook_secrets_fallback(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
+        let request = make_signed_request(&body, &signature);
+
+        // With no connector config `webhook_secret`, the RPC `webhook_secrets`
+        // field must be used (legacy callers can only set the RPC secret).
+        let rpc_secrets = domain_types::connector_types::ConnectorWebhookSecrets {
+            secret: b"my_webhook_secret".to_vec(),
+            additional_secret: None,
+        };
+        let result = connector.verify_webhook_source(request, Some(rpc_secrets), None);
+        ensure!(
+            result?,
+            "RPC webhook_secrets should be used when the config field is absent"
+        );
+        Ok(())
+    }
+
+    // ── Webhook: get_ppro_signature_elements_from_header ─────────────────────
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_parses_elements(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "ppro-signature".to_string(),
+            "t=1700000000,s=deadbeef".to_string(),
+        );
+        let elements =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers)?;
+        ensure_eq!(elements.get("t").map(String::as_str), Some("1700000000"));
+        ensure_eq!(elements.get("s").map(String::as_str), Some("deadbeef"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_case_insensitive() {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "PPRO-Signature".to_string(),
+            "t=1700000000,s=deadbeef".to_string(),
+        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(result.is_ok(), "header lookup must be case-insensitive");
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_missing() {
+        let headers = HashMap::new();
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(result.is_err(), "missing header should return an error");
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_malformed_element() {
+        let mut headers = HashMap::new();
+        // Element without `=`
+        headers.insert(
+            "ppro-signature".to_string(),
+            "t=1700000000,deadbeef".to_string(),
+        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(
+            result.is_err(),
+            "element without '=' should return an error"
+        );
     }
 
     // ── Webhook: get_webhook_resource_object ─────────────────────────────────
