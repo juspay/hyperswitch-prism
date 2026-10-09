@@ -762,7 +762,7 @@ pub(crate) fn get_ppro_signature_elements_from_header(
     for prop_str in security_header.split(',') {
         let (prop_key, prop_value) = prop_str
             .split_once('=')
-            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSourceVerificationFailed))?;
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
         signature_elements.insert(prop_key.to_string(), prop_value.to_string());
     }
 
