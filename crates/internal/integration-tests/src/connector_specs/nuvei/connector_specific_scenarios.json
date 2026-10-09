@@ -1,0 +1,1835 @@
+{
+  "PaymentService/Authorize": {
+    "cit_stored_credential_off_session": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761344136141390"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "OFF_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE",
+          "accepted_at": 0
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"isRebilling\":\"0\""
+        }
+      }
+    },
+    "external_3ds_mpi_data": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761344136141390"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "authentication_data": {
+          "eci": "05",
+          "cavv": "AAABBEg0VhI0VniQEjRWAAAAAAA=",
+          "ds_transaction_id": "f25084f0-5b16-4c0a-ae5d-b24808a95e4b",
+          "message_version": "2.2.0",
+          "trans_status": "TRANSACTION_STATUS_SUCCESS"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"externalMpi\":{"
+        }
+      }
+    },
+    "order_details_l2l3": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761344136141390"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "order_details": [
+          {
+            "product_name": "Widget",
+            "quantity": 1,
+            "amount": 5000
+          }
+        ],
+        "l2_l3_data": {
+          "order_info": {
+            "order_details": [
+              {
+                "product_name": "Widget",
+                "quantity": 1,
+                "amount": 5000,
+                "product_id": "sku-1",
+                "total_tax_amount": 500
+              }
+            ],
+            "shipping_cost": 500,
+            "discount_amount": 0
+          },
+          "tax_info": {
+            "order_tax_amount": 500
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"totalTax\":\"5.00\""
+        }
+      }
+    },
+    "dynamic_descriptor": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761344136141390"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "billing_descriptor": {
+          "name": {
+            "value": "GRACE TEST"
+          },
+          "phone": {
+            "value": "4155550132"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"merchantName\":\"GRACE TEST\""
+        }
+      }
+    },
+    "manual_capture_issuer_decline": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4344141510671174"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "MANUAL",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS manual capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZATION_FAILED"
+          ]
+        },
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "equals": "Do not honor"
+        },
+        "error.connector_details.code": {
+          "equals": "-1"
+        }
+      }
+    },
+    "issuer_decline_code_unchanged": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4344141510671174"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "off_session": false,
+        "description": "Issuer decline: the code stays gwErrorCode",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "-1"
+        },
+        "error.connector_details.message": {
+          "equals": "Do not honor"
+        },
+        "error.issuer_details.network_details.decline_code": {
+          "equals": "-1"
+        }
+      }
+    },
+    "threeds_final_authorize_refuses_failed_cres": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 15100,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "2221008123677736"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "THREE_DS",
+        "enrolled_for_3ds": true,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "off_session": false,
+        "description": "3DS final Authorize with a failed challenge result",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "connector_feature_data": {
+          "value": "{\"session_token\":\"probe_session_token\",\"related_transaction_id\":\"probe_related_txn_001\"}"
+        },
+        "redirection_response": {
+          "params": "",
+          "payload": {
+            "cres": "eyJ0cmFuc1N0YXR1cyI6Ik4ifQ=="
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "external_3ds_mpi_data_three_ds": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4761344136141390"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "217"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "THREE_DS",
+        "enrolled_for_3ds": true,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "External 3DS data with auth_type THREE_DS",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "authentication_data": {
+          "eci": "05",
+          "cavv": "AAABBEg0VhI0VniQEjRWAAAAAAA=",
+          "ds_transaction_id": "f25084f0-5b16-4c0a-ae5d-b24808a95e4b",
+          "message_version": "2.2.0",
+          "trans_status": "TRANSACTION_STATUS_SUCCESS"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"externalMpi\":{"
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_returns_no_payment_checks": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "connector_response": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_over_remaining_filter_code": {
+      "grpc_req": {
+        "merchant_refund_id": "auto_generate",
+        "connector_transaction_id": "auto_generate",
+        "payment_amount": 6000,
+        "refund_amount": {
+          "minor_amount": 20000,
+          "currency": "USD"
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "REFUND_FAILURE"
+          ]
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "1106"
+        },
+        "error.issuer_details.network_details.decline_code": {
+          "equals": "-1100"
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "three_ds_setup_without_authentication_refused": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "connector_customer_id": null,
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "THREE_DS",
+        "enrolled_for_3ds": true,
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        },
+        "setup_future_usage": "OFF_SESSION",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "mandate_reference": {
+          "must_not_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "setup_missing_billing_name_names_one_field": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "connector_customer_id": null,
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        },
+        "setup_future_usage": "OFF_SESSION",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "MISSING_REQUIRED_FIELD"
+        },
+        "error.error_message": {
+          "contains": "session_token"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "mandate_reference": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_failed_challenge_authentication_failed": {
+      "grpc_req": {
+        "merchant_order_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "authentication_data": {
+          "connector_transaction_id": "auto_generate"
+        },
+        "connector_order_reference_id": "auto_generate",
+        "metadata": {
+          "value": "{}"
+        },
+        "connector_feature_data": {
+          "value": "{}"
+        },
+        "return_url": "https://example.com/payment/return",
+        "continue_redirection_url": "https://example.com/payment/complete",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US"
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "redirection_response": {
+          "params": "",
+          "payload": {
+            "cres": "eyJ0cmFuc1N0YXR1cyI6Ik4ifQ=="
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_FAILED"
+          ]
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "equals": "3ds Authentication failed"
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        }
+      }
+    }
+  }
+}

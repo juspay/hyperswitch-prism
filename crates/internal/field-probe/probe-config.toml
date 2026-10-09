@@ -160,6 +160,76 @@ default = '{}'
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
 
+# Nuvei's /payment.do carries ten fields that exist only when the request asks
+# for them: shippingAddress, dynamicDescriptor, items, amountDetails,
+# threeD.externalMpi, isRebilling + userTokenId (customer-initiated stored
+# credential), isPartialApproval, isMoto and relatedTransactionId. None of them
+# is ever reported as a missing field, so the patcher cannot discover them and
+# the probed request would never show them. They have to be pre-set.
+# 1 = CountryAlpha2::US, 1 = FutureUsage::OFF_SESSION, 2 = AcceptanceType::OFFLINE,
+# 2 = PaymentChannel::MAIL_ORDER. `billing_descriptor.phone` stays within the
+# 13 characters Nuvei allows for dynamicDescriptor.merchantPhone.
+[connector_overrides.authorize.nuvei]
+"address.shipping_address.first_name" = "John"
+"address.shipping_address.last_name" = "Doe"
+"address.shipping_address.line1" = "123 Main St"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+"billing_descriptor.name" = "Probe Merchant"
+"billing_descriptor.phone" = "4155550132"
+"l2_l3_data.order_info.order_details" = [
+  { product_name = "ProbeProduct", quantity = 1, amount = 1000, product_id = "probe_product_001", total_tax_amount = 100 },
+]
+"l2_l3_data.order_info.shipping_cost" = 100
+"l2_l3_data.tax_info.order_tax_amount" = 100
+"authentication_data.eci" = "05"
+"authentication_data.cavv" = "AAAAAAAAAA=="
+"authentication_data.ds_transaction_id" = "probe-ds-txn-001"
+"setup_future_usage" = 1
+"customer_acceptance.acceptance_type" = 2
+"customer_acceptance.accepted_at" = 0
+"customer.id" = "cust_probe_123"
+"enable_partial_authorization" = true
+"payment_channel" = 2
+"connector_feature_data" = '{"related_transaction_id":"probe_related_txn_001"}'
+
+# Nuvei builds paymentOption.card.cardHolderName from the billing name and
+# refuses a mandate setup without it. The base request has an empty billing
+# address, so both names are pre-set. The email and country go with them: their
+# refusal names the whole `billing_address`, which the patcher cannot act on.
+# 1 = CountryAlpha2::US.
+[connector_overrides."setup_recurring,proxy_setup_recurring".nuvei]
+"address.billing_address.first_name" = "John"
+"address.billing_address.last_name" = "Doe"
+"address.billing_address.email" = "test@example.com"
+"address.billing_address.country_alpha2_code" = 1
+
+# A Nuvei merchant-initiated payment is a card payment: the base request's
+# Token payment method is refused before the connector mandate id is read.
+# The card below goes with the probe's own connector mandate id, so the
+# stored-credential arm (paymentOption.userPaymentOptionId) is built. The card
+# is written in the request's serde shape (the oneof nests one level) and needs
+# a CVC to be accepted. The charge request has no session_token field for the
+# patcher to fill, so the /getSessionToken.do token is pre-set in `state`.
+[connector_overrides.recurring_charge.nuvei]
+"payment_method" = { payment_method = { card = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_cvc = "737", card_holder_name = "John Doe" } } }
+"customer.id" = "cust_probe_123"
+"state.access_token.token" = "probe_session_token"
+
+# Both Nuvei 3DS legs need the sessionToken of /getSessionToken.do, a call the
+# probe does not make, so the token is pre-set in `state`. The requirement
+# itself is unchanged: without the token both legs are refused. The billing
+# email and country go with it: their refusal names the whole
+# `billing_address`, which the patcher cannot act on. 1 = CountryAlpha2::US.
+# `authentication_data.connector_transaction_id` is the /initPayment.do
+# transactionId the second leg references; the first leg does not read it.
+[connector_overrides."pre_authenticate,authenticate".nuvei]
+"state.access_token.token" = "probe_session_token"
+"address.billing_address.email" = "test@example.com"
+"address.billing_address.country_alpha2_code" = 1
+"authentication_data.connector_transaction_id" = "probe_init_txn_001"
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]
@@ -182,3 +252,5 @@ GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"prob
 [local_response_flows]
 worldpayxml = ["pre_authenticate"]
 kount = ["pre_authenticate"]
+# Nuvei has no call for the challenge result: the cres is decoded locally.
+nuvei = ["post_authenticate"]

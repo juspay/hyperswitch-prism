@@ -42,8 +42,80 @@ pub fn generate_signature(
         "checkout" => generate_checkout_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "nuvei" => generate_nuvei_signature(payload, secret),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Generate Nuvei payment-DMN `advanceResponseChecksum`.
+///
+/// Nuvei signs selected fields of the form-urlencoded DMN body, not the body
+/// itself:
+///   sha256(secret + totalAmount + currency + responseTimeStamp
+///          + PPP_TransactionID + Status + productId), lowercase hex
+/// over the form-decoded values. A body missing any of the six fields is an
+/// error, so a fixture the rule cannot sign is never signed some other way.
+fn generate_nuvei_signature(form_body: &[u8], secret: &str) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+
+    const SIGNED_FIELDS: [&str; 6] = [
+        "totalAmount",
+        "currency",
+        "responseTimeStamp",
+        "PPP_TransactionID",
+        "Status",
+        "productId",
+    ];
+
+    let body = std::str::from_utf8(form_body)
+        .map_err(|e| format!("nuvei signature payload must be UTF-8: {e}"))?;
+
+    let mut checksum_input = secret.to_string();
+    for field in SIGNED_FIELDS {
+        let raw_value = body
+            .split('&')
+            .filter_map(|pair| pair.split_once('='))
+            .find(|(name, _)| *name == field)
+            .map(|(_, value)| value)
+            .ok_or_else(|| format!("nuvei signature payload is missing {field}"))?;
+        checksum_input.push_str(&form_urldecode(raw_value)?);
+    }
+
+    let hash_bytes = Sha256::digest(checksum_input.as_bytes());
+
+    let mut hex_hash = String::with_capacity(hash_bytes.len() * 2);
+    for byte in hash_bytes {
+        write!(&mut hex_hash, "{byte:02x}").map_err(|e| format!("Failed to write hex: {e}"))?;
+    }
+
+    Ok(hex_hash)
+}
+
+/// Decode one `application/x-www-form-urlencoded` value: `+` is a space and
+/// `%XX` is a byte.
+fn form_urldecode(raw: &str) -> Result<String, String> {
+    let hex_digit = |byte: Option<u8>| {
+        byte.and_then(|b| char::from(b).to_digit(16))
+            .ok_or_else(|| format!("Invalid percent escape in form value: {raw}"))
+    };
+
+    let mut bytes = raw.bytes();
+    let mut decoded = Vec::with_capacity(raw.len());
+    while let Some(byte) = bytes.next() {
+        match byte {
+            b'+' => decoded.push(b' '),
+            b'%' => {
+                let high = hex_digit(bytes.next())?;
+                let low = hex_digit(bytes.next())?;
+                let value = u8::try_from(high * 16 + low)
+                    .map_err(|e| format!("Invalid percent escape in form value: {e}"))?;
+                decoded.push(value);
+            }
+            other => decoded.push(other),
+        }
+    }
+
+    String::from_utf8(decoded).map_err(|e| format!("Form value must be UTF-8: {e}"))
 }
 
 /// Generate PhonePe webhook X-VERIFY signature.

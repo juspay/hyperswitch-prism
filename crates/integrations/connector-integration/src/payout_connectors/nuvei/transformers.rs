@@ -264,15 +264,19 @@ impl NuveiPayoutResponse {
     fn payout_status(&self, status_code: u16) -> Result<PayoutStatus, Report<ConnectorError>> {
         match self.status {
             NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Ok(PayoutStatus::Failure),
-            NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
+            NuveiPaymentStatus::Processing
+            | NuveiPaymentStatus::Pending
+            | NuveiPaymentStatus::Unknown => Ok(PayoutStatus::Pending),
             NuveiPaymentStatus::Success => match self.transaction_status {
                 Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
                 Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
                     Ok(PayoutStatus::Failure)
                 }
-                Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
-                    Ok(PayoutStatus::Pending)
-                }
+                Some(
+                    NuveiTransactionStatus::Pending
+                    | NuveiTransactionStatus::Processing
+                    | NuveiTransactionStatus::Unknown,
+                ) => Ok(PayoutStatus::Pending),
                 Some(NuveiTransactionStatus::Redirect) => Ok(PayoutStatus::Ineligible),
                 None => Err(Report::new(
                     crate::utils::response_handling_fail_for_connector(status_code, "nuvei"),

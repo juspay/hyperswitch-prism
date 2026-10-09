@@ -1,0 +1,61 @@
+{
+  "_webhook_config": {
+    "signature_body_field": "advanceResponseChecksum",
+    "signature_algorithm": "nuvei_sha256_concat",
+    "signature_format": "sha256(secret + totalAmount + currency + responseTimeStamp + PPP_TransactionID + Status + productId), lowercase hex, over the form-decoded values",
+    "webhook_secret_key": "webhook_secret",
+    "note": "Nuvei payment DMNs are form bodies with the signature in the advanceResponseChecksum field. The positive scenarios carry no checksum: the harness computes it at run time from the creds-file webhook secret and appends it. Nothing in this file is derived from a secret."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nuvei",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "cHBwX3N0YXR1cz1PSyZQUFBfVHJhbnNhY3Rpb25JRD01NDcmVHJhbnNhY3Rpb25JRD0yMTEwMDAwMDAwMDA0MzAyMjIwJlN0YXR1cz1BUFBST1ZFRCZ0cmFuc2FjdGlvblR5cGU9U2FsZSZ0b3RhbEFtb3VudD0xMTUmY3VycmVuY3k9VVNEJnJlc3BvbnNlVGltZVN0YW1wPTIwMjAtMDMtMTQuMTYlM0EyMiUzQTM0JnByb2R1Y3RJZD1Zb3VyK1Byb2R1Y3QmRXJyQ29kZT0wJkV4RXJyQ29kZT0wJnBheW1lbnRfbWV0aG9kPWNjX2NhcmQmY2xpZW50VW5pcXVlSWQ9Z3JhY2VfZG1uX3JlZiZtZXJjaGFudF91bmlxdWVfaWQ9Z3JhY2VfZG1uX3JlZiZyZWxhdGVkVHJhbnNhY3Rpb25JZD0yMTEwMDAwMDAwMDA0MzAyMjE5JnJlcXVlc3RWZXJzaW9uPTEuMCZtZXNzYWdlPUFQUFJPVkVE"
+      },
+      "merchant_event_id": "nuvei_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nuvei",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "cHBwX3N0YXR1cz1GQUlMJlBQUF9UcmFuc2FjdGlvbklEPTU0NyZUcmFuc2FjdGlvbklEPTIxMTAwMDAwMDAwMDQzMDIyMjAmU3RhdHVzPURFQ0xJTkVEJnRyYW5zYWN0aW9uVHlwZT1TYWxlJnRvdGFsQW1vdW50PTExNSZjdXJyZW5jeT1VU0QmcmVzcG9uc2VUaW1lU3RhbXA9MjAyMC0wMy0xNC4xNiUzQTIyJTNBMzQmcHJvZHVjdElkPVlvdXIrUHJvZHVjdCZFcnJDb2RlPTAmRXhFcnJDb2RlPTAmcGF5bWVudF9tZXRob2Q9Y2NfY2FyZCZjbGllbnRVbmlxdWVJZD1ncmFjZV9kbW5fcmVmJm1lcmNoYW50X3VuaXF1ZV9pZD1ncmFjZV9kbW5fcmVmJnJlbGF0ZWRUcmFuc2FjdGlvbklkPTIxMTAwMDAwMDAwMDQzMDIyMTkmcmVxdWVzdFZlcnNpb249MS4wJm1lc3NhZ2U9REVDTElORUQ="
+      },
+      "merchant_event_id": "nuvei_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nuvei",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "cHBwX3N0YXR1cz1PSyZQUFBfVHJhbnNhY3Rpb25JRD01NDcmVHJhbnNhY3Rpb25JRD0yMTEwMDAwMDAwMDA0MzAyMjIwJlN0YXR1cz1BUFBST1ZFRCZ0cmFuc2FjdGlvblR5cGU9Q3JlZGl0JnRvdGFsQW1vdW50PTExNSZjdXJyZW5jeT1VU0QmcmVzcG9uc2VUaW1lU3RhbXA9MjAyMC0wMy0xNC4xNiUzQTIyJTNBMzQmcHJvZHVjdElkPVlvdXIrUHJvZHVjdCZFcnJDb2RlPTAmRXhFcnJDb2RlPTAmcGF5bWVudF9tZXRob2Q9Y2NfY2FyZCZjbGllbnRVbmlxdWVJZD1ncmFjZV9kbW5fcmVmJm1lcmNoYW50X3VuaXF1ZV9pZD1ncmFjZV9kbW5fcmVmJnJlbGF0ZWRUcmFuc2FjdGlvbklkPTIxMTAwMDAwMDAwMDQzMDIyMTkmcmVxdWVzdFZlcnNpb249MS4wJm1lc3NhZ2U9QVBQUk9WRUQ="
+      },
+      "merchant_event_id": "nuvei_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nuvei",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "cHBwX3N0YXR1cz1PSyZQUFBfVHJhbnNhY3Rpb25JRD01NDcmVHJhbnNhY3Rpb25JRD0yMTEwMDAwMDAwMDA0MzAyMjIwJlN0YXR1cz1BUFBST1ZFRCZ0cmFuc2FjdGlvblR5cGU9U2FsZSZ0b3RhbEFtb3VudD0xMTUmY3VycmVuY3k9VVNEJnJlc3BvbnNlVGltZVN0YW1wPTIwMjAtMDMtMTQuMTYlM0EyMiUzQTM0JnByb2R1Y3RJZD1Zb3VyK1Byb2R1Y3QmRXJyQ29kZT0wJkV4RXJyQ29kZT0wJnBheW1lbnRfbWV0aG9kPWNjX2NhcmQmY2xpZW50VW5pcXVlSWQ9Z3JhY2VfZG1uX3JlZiZtZXJjaGFudF91bmlxdWVfaWQ9Z3JhY2VfZG1uX3JlZiZyZWxhdGVkVHJhbnNhY3Rpb25JZD0yMTEwMDAwMDAwMDA0MzAyMjE5JnJlcXVlc3RWZXJzaW9uPTEuMCZtZXNzYWdlPUFQUFJPVkVEJmFkdmFuY2VSZXNwb25zZUNoZWNrc3VtPTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+      },
+      "merchant_event_id": "nuvei_webhook_invalid_signature"
+    }
+  }
+}
