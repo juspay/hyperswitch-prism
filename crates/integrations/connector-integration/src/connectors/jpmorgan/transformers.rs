@@ -2361,7 +2361,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 match &wallet.tokenization_data {
                     domain_types::payment_method_data::GpayTokenizationData::Decrypted(data) => {
                         let method = data.auth_method.unwrap_or_else(|| {
-                            if data.cryptogram.is_some() || data.eci_indicator.is_some() {
+                            if data.cryptogram.is_some() {
                                 common_enums::GooglePayAuthMethod::Cryptogram
                             } else {
                                 common_enums::GooglePayAuthMethod::PanOnly
