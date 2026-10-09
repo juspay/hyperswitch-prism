@@ -353,17 +353,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn verify_webhook_source(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         // The HMAC secret is sourced from the connector account config
-        // (`webhook_secret` on `PproConfig`), not from the RPC `webhook_secrets`
-        // field — same pattern as grabpay/payhere.
-        let webhook_secret = match connector_account_details {
-            Some(ConnectorSpecificConfig::Ppro {
-                webhook_secret: Some(secret),
-                ..
-            }) => secret,
+        // (`webhook_secret` on `PproConfig`), falling back to the RPC
+        // `webhook_secrets` field when the config field is absent — legacy
+        // `ConnectorAuthType` callers can only supply the RPC secret.
+        let secret_bytes: Vec<u8> = match (&connector_account_details, connector_webhook_secret) {
+            (
+                Some(ConnectorSpecificConfig::Ppro {
+                    webhook_secret: Some(secret),
+                    ..
+                }),
+                _,
+            ) => secret.peek().as_bytes().to_vec(),
+            (_, Some(rpc_secret)) => rpc_secret.secret,
             _ => {
                 return Err(error_stack::report!(
                     WebhookError::WebhookVerificationSecretNotFound
@@ -391,11 +396,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         message.extend_from_slice(&request.body);
 
         crypto::HmacSha256
-            .verify_signature(
-                webhook_secret.peek().as_bytes(),
-                &expected_signature,
-                &message,
-            )
+            .verify_signature(&secret_bytes, &expected_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 

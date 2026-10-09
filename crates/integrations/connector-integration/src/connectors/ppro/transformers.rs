@@ -23,7 +23,6 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use interfaces::webhooks::IncomingWebhookEvent;
 
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -337,8 +336,10 @@ pub enum PproRefundStatus {
     Failed,
     Rejected,
     Declined,
-    #[serde(other)]
-    Unknown,
+    #[serde(untagged)]
+    #[strum(default)]
+    #[strum(to_string = "{0}")]
+    Unknown(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
@@ -696,37 +697,6 @@ impl TryFrom<PproWebhookType> for EventType {
     }
 }
 
-impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
-    type Error = error_stack::Report<WebhookError>;
-
-    fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
-        match event_type {
-            PproWebhookType::PaymentChargeCreated
-            | PproWebhookType::PaymentChargeProviderConfirmationPending => {
-                Ok(Self::PaymentIntentProcessing)
-            }
-            PproWebhookType::PaymentChargeAuthenticationPending => Ok(Self::PaymentActionRequired),
-            PproWebhookType::PaymentChargeAuthorizationSucceeded
-            | PproWebhookType::PaymentChargeSuccess => Ok(Self::PaymentIntentSuccess),
-            PproWebhookType::PaymentChargeAuthorizationFailed
-            | PproWebhookType::PaymentChargeFailed
-            | PproWebhookType::PaymentChargeDiscarded => Ok(Self::PaymentIntentFailure),
-            PproWebhookType::PaymentChargeCaptureSucceeded => Ok(Self::PaymentIntentCaptureSuccess),
-            PproWebhookType::PaymentChargeCaptureFailed => Ok(Self::PaymentIntentCaptureFailure),
-            PproWebhookType::PaymentChargeVoidSucceeded => Ok(Self::PaymentIntentCancelled),
-            PproWebhookType::PaymentChargeVoidFailed => Ok(Self::PaymentIntentCancelFailure),
-            PproWebhookType::PaymentChargeRefundPending => Ok(Self::RefundProcessing),
-            PproWebhookType::PaymentChargeRefundSucceeded => Ok(Self::RefundSuccess),
-            PproWebhookType::PaymentChargeRefundFailed => Ok(Self::RefundFailure),
-            PproWebhookType::PaymentAgreementActive => Ok(Self::MandateActive),
-            PproWebhookType::PaymentAgreementFailed
-            | PproWebhookType::PaymentAgreementRevokedByConsumer
-            | PproWebhookType::PaymentAgreementRevokedByMerchant
-            | PproWebhookType::PaymentAgreementRevokedByProvider => Ok(Self::MandateRevoked),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproWebhookEvent {
@@ -962,7 +932,7 @@ impl<F, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
             PproRefundStatus::Failed | PproRefundStatus::Rejected | PproRefundStatus::Declined => {
                 common_enums::RefundStatus::Failure
             }
-            PproRefundStatus::Pending | PproRefundStatus::Unknown => {
+            PproRefundStatus::Pending | PproRefundStatus::Unknown(_) => {
                 common_enums::RefundStatus::Pending
             }
         };
@@ -1031,47 +1001,45 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<PproRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let connector_refund_id = &item.router_data.request.connector_refund_id;
         let refunds = &item.response.refunds;
-        // Raw status: prefer the matched refund entry's status (the flow-relevant
-        // resource); fall back to the charge-level status when not found.
-        let raw_status_code = refunds
-            .iter()
-            .find(|r| &r.id == connector_refund_id)
-            .map(|entry| entry.status.to_string())
-            .unwrap_or_else(|| item.response.status.to_string());
-        let refund_status =
-            if let Some(entry) = refunds.iter().find(|r| &r.id == connector_refund_id) {
-                match entry.status {
-                    PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
-                        common_enums::RefundStatus::Success
-                    }
-                    PproRefundStatus::Failed
-                    | PproRefundStatus::Rejected
-                    | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
-                    PproRefundStatus::Pending | PproRefundStatus::Unknown => {
-                        common_enums::RefundStatus::Pending
-                    }
+        let refund_entry = refunds.iter().find(|r| &r.id == connector_refund_id);
+        // Raw status: the matched refund entry's status (the flow-relevant
+        // resource). When the refund isn't in the response there is no
+        // refund-level status to report — leave the code empty rather than
+        // falling back to the charge-level status (e.g. CAPTURED).
+        let raw_status_code = refund_entry.map(|entry| entry.status.to_string());
+        let refund_status = if let Some(entry) = refund_entry {
+            match entry.status {
+                PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
+                    common_enums::RefundStatus::Success
                 }
-            } else if refunds.iter().any(|r| {
+                PproRefundStatus::Failed
+                | PproRefundStatus::Rejected
+                | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
+                PproRefundStatus::Pending | PproRefundStatus::Unknown(_) => {
+                    common_enums::RefundStatus::Pending
+                }
+            }
+        } else if refunds.iter().any(|r| {
+            matches!(
+                r.status,
+                PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
+            )
+        }) {
+            common_enums::RefundStatus::Success
+        } else if !refunds.is_empty()
+            && refunds.iter().all(|r| {
                 matches!(
                     r.status,
-                    PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
+                    PproRefundStatus::Failed
+                        | PproRefundStatus::Rejected
+                        | PproRefundStatus::Declined
                 )
-            }) {
-                common_enums::RefundStatus::Success
-            } else if !refunds.is_empty()
-                && refunds.iter().all(|r| {
-                    matches!(
-                        r.status,
-                        PproRefundStatus::Failed
-                            | PproRefundStatus::Rejected
-                            | PproRefundStatus::Declined
-                    )
-                })
-            {
-                common_enums::RefundStatus::Failure
-            } else {
-                common_enums::RefundStatus::Pending
-            };
+            })
+        {
+            common_enums::RefundStatus::Failure
+        } else {
+            common_enums::RefundStatus::Pending
+        };
 
         let response = Ok(RefundsResponseData {
             connector_refund_id: connector_refund_id.clone(),
@@ -1084,7 +1052,7 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
             response,
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(raw_status_code),
+                    code: raw_status_code,
                     message: None,
                     reason: None,
                 }),

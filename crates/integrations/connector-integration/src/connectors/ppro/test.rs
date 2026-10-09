@@ -612,23 +612,23 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_webhook_source_rpc_webhook_secrets_not_used(
+    fn test_verify_webhook_source_rpc_webhook_secrets_fallback(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
         let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
         let request = make_signed_request(&body, &signature);
 
-        // The RPC `webhook_secrets` field is ignored for Ppro: verification is
-        // keyed only by `webhook_secret` in the connector account config.
+        // With no connector config `webhook_secret`, the RPC `webhook_secrets`
+        // field must be used (legacy callers can only set the RPC secret).
         let rpc_secrets = domain_types::connector_types::ConnectorWebhookSecrets {
             secret: b"my_webhook_secret".to_vec(),
             additional_secret: None,
         };
         let result = connector.verify_webhook_source(request, Some(rpc_secrets), None);
         ensure!(
-            result.is_err(),
-            "RPC webhook_secrets without connector config webhook_secret should fail"
+            result?,
+            "RPC webhook_secrets should be used when the config field is absent"
         );
         Ok(())
     }
