@@ -7,7 +7,7 @@
 
 import { PaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage } = types;
-export const SUPPORTED_FLOWS = ["authorize", "proxy_authorize", "proxy_setup_recurring", "refund", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "proxy_authorize", "proxy_setup_recurring", "refund", "setup_recurring", "void", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -284,7 +284,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processVoidPayment, authorize, proxyAuthorize, proxySetupRecurring, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processRefund, processVoidPayment, processVoidPayment, authorize, proxyAuthorize, proxySetupRecurring, refund, setupRecurring, voidPayment, voidPayment, _buildAuthorizeRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest, _buildVoidRequest
 };
 
 // CLI runner

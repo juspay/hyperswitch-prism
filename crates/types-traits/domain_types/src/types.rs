@@ -2601,6 +2601,7 @@ impl<
                             token_exp_month: decrypted_wallet_token_details_for_nti.token_exp_month.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing decrypted token expiration month".to_string()), ..Default::default() } })?,
                             token_exp_year: decrypted_wallet_token_details_for_nti.token_exp_year.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing decrypted token expiration year".to_string()), ..Default::default() } })?,
                             card_holder_name: decrypted_wallet_token_details_for_nti.card_holder_name,
+                            device_manufacturer_identifier: decrypted_wallet_token_details_for_nti.device_manufacturer_identifier,
                             eci: decrypted_wallet_token_details_for_nti.eci,
                             token_source: decrypted_wallet_token_details_for_nti.token_source
                                 .and_then(|source_i32| grpc_api_types::payments::TokenSource::try_from(source_i32).ok())
@@ -3816,6 +3817,8 @@ pub struct AuthorizationRequest {
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
     pub business_country: Option<String>,
+    /// Authorize-only opt-in for address verification using supplied billing details.
+    pub enable_avs_check: Option<bool>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3952,6 +3955,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
+            enable_avs_check: req.enable_avs_check,
         }
     }
 }
@@ -4034,6 +4038,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             recipient_details: None,
             additional_connector_details: None,
             business_country: None,
+            enable_avs_check: req.enable_avs_check,
         }
     }
 }
@@ -5207,6 +5212,7 @@ impl<
                 .business_country
                 .as_ref()
                 .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
+            enable_avs_check: value.enable_avs_check,
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -21187,6 +21193,7 @@ pub fn tokenized_authorize_to_base(
         recipient_details: None,
         additional_connector_details: None,
         business_country: None,
+        enable_avs_check: v.enable_avs_check,
     }
 }
 
@@ -21381,6 +21388,7 @@ pub fn proxied_authorize_to_base(
         recipient_details: None,
         additional_connector_details: None,
         business_country: None,
+        enable_avs_check: v.enable_avs_check,
     })
 }
 

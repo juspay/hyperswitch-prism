@@ -423,7 +423,7 @@ async fn main() {
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_authorize, process_proxy_authorize, process_proxy_setup_recurring, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_void_payment, process_authorize, process_proxy_authorize, process_proxy_setup_recurring, process_setup_recurring, process_void, process_void", flow);
             return;
         }
     };

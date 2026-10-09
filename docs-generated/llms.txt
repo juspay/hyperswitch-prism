@@ -82,7 +82,7 @@ examples_python: examples/authipay/authipay.py
 connector_id: authorizedotnet
 doc: docs/connectors/authorizedotnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, Card
+payment_methods: Ach, ApplePay, Card, GooglePay
 flows: authorize, capture, create_server_session_authentication_token, customer_create, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/authorizedotnet/authorizedotnet.py
 
@@ -1009,9 +1009,9 @@ examples_python: examples/worldpay/worldpay.py
 ## Worldpayraft
 connector_id: worldpayraft
 doc: docs/connectors/worldpayraft.md
-scenarios: checkout_autocapture, refund, void_payment
+scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
-flows: authorize, proxy_authorize, proxy_setup_recurring, refund, setup_recurring, void
+flows: authorize, capture, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, void
 examples_python: examples/worldpayraft/worldpayraft.py
 
 ## Worldpayvantiv

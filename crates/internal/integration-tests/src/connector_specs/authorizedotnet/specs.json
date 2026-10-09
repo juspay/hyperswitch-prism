@@ -15,12 +15,19 @@
     "EventService/HandleEvent"
   ],
   "supported_payment_methods": [
-    "card"
+    "card",
+    "apple_pay_sdk",
+    "google_pay_sdk"
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "authorizedotnet returns not_implemented for Cards 3DS",
-      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Authorize.Net"
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for Authorize.Net",
+      "no3ds_auto_capture_google_pay_encrypted": "The scenario's token is placeholder text, and a usable one cannot be committed: a real Google Pay token must be minted in a browser and carries a messageExpiration, so a fixture would rot. It also has to be minted against gatewayMerchantId = the account's Authorize.Net gatewayId (not the API Login ID) or Authorize.Net decrypts it and then rejects the merchant binding with 153 \"Invalid ownership\". Verified against the sandbox by grpcurl instead: Authorize responseCode 1, transId 80060702606 through UCS and 80060702659 through hyperswitch -> UCS.",
+      "no3ds_auto_capture_google_pay_decrypted": "authorizedotnet is PSP-decryption only: it accepts the wallet token as an opaqueData passthrough and decrypts it itself, so the dashboard pins payment_processing_details_at to \"Connector\" and a pre-decrypted token is rejected at transformation. Hyperswitch's Direct integration rejects it the same way.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "authorizedotnet is PSP-decryption only: it accepts the wallet token as an opaqueData passthrough and decrypts it itself, so the dashboard pins payment_processing_details_at to \"Connector\" and a pre-decrypted token is rejected at transformation. Hyperswitch's Direct integration rejects it the same way.",
+      "no3ds_auto_capture_apple_pay_decrypted": "authorizedotnet is PSP-decryption only: it accepts the wallet token as an opaqueData passthrough and decrypts it itself, so the dashboard pins payment_processing_details_at to \"Connector\" and a pre-decrypted token is rejected at transformation. Hyperswitch's Direct integration rejects it the same way.",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "authorizedotnet is PSP-decryption only: it accepts the wallet token as an opaqueData passthrough and decrypts it itself, so the dashboard pins payment_processing_details_at to \"Connector\" and a pre-decrypted token is rejected at transformation. Hyperswitch's Direct integration rejects it the same way."
     }
   }
 }
