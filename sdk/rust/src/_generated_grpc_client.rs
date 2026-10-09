@@ -36,6 +36,8 @@ use grpc_api_types::payments::{
     EventServiceParseResponse,
     FrmServicePostRiskCheckRequest,
     FrmServicePostRiskCheckResponse,
+    FrmServicePrePayoutRiskCheckRequest,
+    FrmServicePrePayoutRiskCheckResponse,
     FrmServicePreRiskCheckRequest,
     FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
@@ -251,6 +253,12 @@ impl_grpc_client!(
         post_risk_check,
         FrmServicePostRiskCheckRequest,
         FrmServicePostRiskCheckResponse
+    ),
+    (
+        pre_payout_risk_check,
+        pre_payout_risk_check,
+        FrmServicePrePayoutRiskCheckRequest,
+        FrmServicePrePayoutRiskCheckResponse
     ),
 );
 
