@@ -464,6 +464,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_secret: s(),
             processing_channel_id: id(),
             base_url: None,
+            endpoint_prefix: None,
         },
         ConnectorEnum::Cybersource => ConnectorSpecificConfig::Cybersource {
             api_key: k(),
