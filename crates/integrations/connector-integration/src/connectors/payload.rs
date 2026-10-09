@@ -64,25 +64,147 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: Authorize,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Authorized => success!(Authorized),
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Voided => non_terminal!(Voided),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PayloadAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: PSync,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Authorized => success!(Authorized),
+            responses::PayloadPaymentStatus::Voided => success!(Voided),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PayloadPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Payload<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: Void,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Voided => success!(Voided),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Processed => failure!(VoidFailed),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: PayloadVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Payload<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: RSync,
+    source: responses::RefundStatus,
+    mapping: |status| {
+        match status {
+            responses::RefundStatus::Processed => success!(Success),
+            responses::RefundStatus::Declined => failure!(Failure),
+            responses::RefundStatus::Rejected => failure!(Failure),
+            responses::RefundStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: PayloadRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Payload<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: Refund,
+    source: responses::RefundStatus,
+    mapping: |status| {
+        match status {
+            responses::RefundStatus::Processed => success!(Success),
+            responses::RefundStatus::Declined => failure!(Failure),
+            responses::RefundStatus::Rejected => failure!(Failure),
+            responses::RefundStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: PayloadRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: Capture,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(CaptureFailed),
+            responses::PayloadPaymentStatus::Rejected => failure!(CaptureFailed),
+            responses::PayloadPaymentStatus::Voided => failure!(CaptureFailed),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PayloadCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Payload<T>
@@ -103,9 +225,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::CreateConnectorCustomer for Payload<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: SetupMandate,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: PayloadSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Payload<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payload<T>,
+    flow: RepeatPayment,
+    source: responses::PayloadPaymentStatus,
+    mapping: |status| {
+        match status {
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Authorized),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: PayloadRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response { responses::PayloadPaymentsResponse::PayloadCardsResponse(data) => data.status }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Payload<T>

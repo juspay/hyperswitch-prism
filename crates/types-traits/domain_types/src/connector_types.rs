@@ -887,31 +887,6 @@ impl PaymentFlowData {
         self.status = status;
     }
 
-    /// Set `status` for a specific flow, validating at runtime that the status is in
-    /// the flow's `ALLOWED` set.  Prefer this over `set_status` in connector response
-    /// handlers — it prevents cross-flow status leaks (e.g. Capture returning `Voided`).
-    ///
-    /// Returns `Err` if `status` is not allowed for `F`.
-    pub fn set_status_for_flow<F: crate::flow_status::FlowStatusRules>(
-        mut self,
-        status: AttemptStatus,
-    ) -> Result<Self, crate::ConnectorError> {
-        if crate::flow_status::const_contains(F::ALLOWED, status) {
-            self.status = status;
-            Ok(self)
-        } else {
-            Err(
-                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                    Some(format!(
-                        "status {:?} is not allowed in flow {}",
-                        status,
-                        F::NAME,
-                    )),
-                ),
-            )
-        }
-    }
-
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
         self.amount.as_ref().map(|money| money.currency)
     }
@@ -1563,6 +1538,29 @@ impl PaymentFlowData {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+}
+
+impl<F: crate::flow_status::PaymentFlowSpec>
+    crate::flow_status::FlowStatusSetter<F, crate::flow_status::ConnectorFlowStatus<F>>
+    for PaymentFlowData
+{
+    fn set_mapped_flow_status(
+        &mut self,
+        status: crate::flow_status::ConnectorFlowStatus<F>,
+    ) -> Result<(), crate::ConnectorError> {
+        self.status = status.into();
+        Ok(())
+    }
+}
+
+impl crate::flow_status::FlowStatusReader<AttemptStatus> for PaymentFlowData {
+    fn current_mapped_flow_status(&self) -> AttemptStatus {
+        self.status
+    }
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        Some(&self.connector_request_reference_id)
     }
 }
 
@@ -2976,6 +2974,29 @@ impl RefundFlowData {
     ) -> Self {
         self.access_token = access_token;
         self
+    }
+}
+
+impl<F: crate::flow_status::RefundFlowSpec>
+    crate::flow_status::FlowStatusSetter<F, crate::flow_status::ConnectorFlowStatus<F>>
+    for RefundFlowData
+{
+    fn set_mapped_flow_status(
+        &mut self,
+        status: crate::flow_status::ConnectorFlowStatus<F>,
+    ) -> Result<(), crate::ConnectorError> {
+        self.status = status.into();
+        Ok(())
+    }
+}
+
+impl crate::flow_status::FlowStatusReader<common_enums::RefundStatus> for RefundFlowData {
+    fn current_mapped_flow_status(&self) -> common_enums::RefundStatus {
+        self.status
+    }
+
+    fn connector_request_reference_id(&self) -> Option<&str> {
+        Some(&self.connector_request_reference_id)
     }
 }
 

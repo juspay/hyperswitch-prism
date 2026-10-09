@@ -80,21 +80,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Authorize,
-    source:    stripe::StripePaymentStatus,
-    success:   RequiresCapture          => Authorized,
-    failure:   Failed                   => Failure,
-    {
-        Succeeded              => Charged,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: Authorize,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::RequiresCapture => success!(Authorized),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::Canceled => non_terminal!(Voided),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+        stripe::StripePaymentStatus::RequiresConfirmation => non_terminal!(ConfirmationAwaited),
+        stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PaymentsAuthorizeResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.payment_status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Stripe<T>
@@ -108,21 +110,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      PSync,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded                => Charged,
-    failure:   Failed                   => Failure,
-    {
-        RequiresCapture        => Authorized,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: PSync,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::RequiresCapture => success!(Authorized),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::Canceled => success!(Voided),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+        stripe::StripePaymentStatus::RequiresConfirmation => non_terminal!(ConfirmationAwaited),
+        stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PaymentSyncResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.payment_status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Stripe<T>
@@ -133,21 +137,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Void,
-    source:    stripe::StripePaymentStatus,
-    success:   Canceled              => Voided,
-    failure:   Failed                => VoidFailed,
-    {
-        RequiresPaymentMethod => VoidFailed,
-        Succeeded             => VoidFailed,
-        Processing            => Pending,
-        RequiresCustomerAction => Pending,
-        RequiresConfirmation  => Pending,
-        RequiresCapture       => Pending,
-        Chargeable            => Pending,
-        Consumed              => Pending,
-        Pending               => Pending,
-    }
+    flow: Void,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Canceled => success!(Voided),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod | stripe::StripePaymentStatus::Succeeded => failure!(VoidFailed),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::RequiresCustomerAction | stripe::StripePaymentStatus::RequiresConfirmation | stripe::StripePaymentStatus::RequiresCapture | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed | stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentVoidData,
+        response: PaymentsVoidResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.payment_status()),
+    },
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -166,21 +167,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Capture,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded             => Charged,
-    failure:   Failed                => CaptureFailed,
-    {
-        RequiresPaymentMethod  => CaptureFailed,
-        Processing             => Pending,
-        Canceled               => Failure,
-        RequiresCustomerAction => Pending,
-        RequiresConfirmation   => Pending,
-        RequiresCapture        => Pending,
-        Chargeable             => Pending,
-        Consumed               => Pending,
-        Pending                => Pending,
-    }
+    flow: Capture,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(CaptureFailed),
+        stripe::StripePaymentStatus::Canceled => failure!(Failure),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::RequiresCustomerAction | stripe::StripePaymentStatus::RequiresConfirmation | stripe::StripePaymentStatus::RequiresCapture | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed | stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PaymentsCaptureResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.payment_status()),
+    },
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -195,21 +194,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      IncrementalAuthorization,
-    source:    stripe::StripePaymentStatus,
-    success:   RequiresCapture          => Authorized,
-    failure:   Failed                   => Failure,
-    {
-        Succeeded              => Charged,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: IncrementalAuthorization,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::RequiresCapture => success!(Authorized),
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::Canceled => non_terminal!(Voided),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+        stripe::StripePaymentStatus::RequiresConfirmation => non_terminal!(ConfirmationAwaited),
+        stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: PaymentIncrementalAuthResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stripe<T>
@@ -221,21 +222,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      RepeatPayment,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded                => Charged,
-    failure:   Failed                   => Failure,
-    {
-        RequiresCapture        => Authorized,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Failure,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => Pending,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: RepeatPayment,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::RequiresCapture => non_terminal!(Authorized),
+        stripe::StripePaymentStatus::Failed | stripe::StripePaymentStatus::RequiresPaymentMethod | stripe::StripePaymentStatus::Canceled => failure!(Failure),
+        stripe::StripePaymentStatus::Processing | stripe::StripePaymentStatus::Chargeable | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+        stripe::StripePaymentStatus::RequiresConfirmation | stripe::StripePaymentStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: RepeatPaymentResponse,
+        source: |_common, _request, response, _http_status_code| Ok(response.payment_status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Stripe<T>

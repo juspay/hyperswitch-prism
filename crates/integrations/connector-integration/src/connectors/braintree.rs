@@ -193,29 +193,264 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Braintree<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: Authorize,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Authorized => success!(Authorized),
+            braintree::BraintreePaymentStatus::Settling => success!(Charged),
+            braintree::BraintreePaymentStatus::Settled => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementPending => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => success!(Charged),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => success!(Charged),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(AuthorizationFailed),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Authorizing),
+            braintree::BraintreePaymentStatus::Voided => non_terminal!(Voided),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BraintreePaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreePaymentsResponse::PaymentsResponse(response) => {
+                        response.data.charge_credit_card.transaction.status.clone()
+                    }
+                    BraintreePaymentsResponse::WalletPaymentsResponse(response) => {
+                        response.data.charge_payment_method.transaction.status.clone()
+                    }
+                    BraintreePaymentsResponse::ClientTokenResponse(_)
+                    | BraintreePaymentsResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: PSync,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Settled => success!(Charged),
+            braintree::BraintreePaymentStatus::Authorized => success!(Authorized),
+            braintree::BraintreePaymentStatus::Voided => success!(Voided),
+            braintree::BraintreePaymentStatus::Settling => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementPending => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => success!(Charged),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => success!(Charged),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(AuthorizationFailed),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Authorizing),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: BraintreePSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreePSyncResponse::SuccessResponse(response) => response
+                        .data
+                        .search
+                        .transactions
+                        .edges
+                        .first()
+                        .map(|edge| edge.node.status.clone())
+                        .unwrap_or(braintree::BraintreePaymentStatus::Failed),
+                    BraintreePSyncResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Braintree<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: Void,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Voided => success!(Voided),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(Failure),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::Settling => failure!(VoidFailed),
+            braintree::BraintreePaymentStatus::Settled => failure!(VoidFailed),
+            braintree::BraintreePaymentStatus::SettlementPending => failure!(VoidFailed),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => failure!(VoidFailed),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => failure!(VoidFailed),
+            braintree::BraintreePaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(VoidInitiated),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: BraintreeCancelResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeCancelResponse::CancelResponse(response) => {
+                        response.data.reverse_transaction.reversal.status.clone()
+                    }
+                    BraintreeCancelResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: VoidPC,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Voided => success!(VoidedPostCapture),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(Failure),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::Settled => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => failure!(Failure),
+            braintree::BraintreePaymentStatus::Authorized => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::Settling => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::SettlementPending => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCancelPostCaptureData,
+        response: BraintreeVoidPCResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeVoidPCResponse::VoidPCResponse(response) => {
+                        response.data.reverse_transaction.reversal.status.clone()
+                    }
+                    BraintreeVoidPCResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Braintree<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: RSync,
+    source: braintree::BraintreeRefundStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreeRefundStatus::Settled => success!(Success),
+            braintree::BraintreeRefundStatus::SettlementPending => success!(Success),
+            braintree::BraintreeRefundStatus::Settling => success!(Success),
+            braintree::BraintreeRefundStatus::SubmittedForSettlement => success!(Success),
+            braintree::BraintreeRefundStatus::Failed => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: BraintreeRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeRSyncResponse::RSyncResponse(response) => response
+                        .data
+                        .search
+                        .refunds
+                        .edges
+                        .first()
+                        .map(|edge| edge.node.status.clone())
+                        .unwrap_or(braintree::BraintreeRefundStatus::Failed),
+                    BraintreeRSyncResponse::ErrorResponse(_) => braintree::BraintreeRefundStatus::Failed,
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Braintree<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: Refund,
+    source: braintree::BraintreeRefundStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreeRefundStatus::Settled => success!(Success),
+            braintree::BraintreeRefundStatus::SettlementPending => success!(Success),
+            braintree::BraintreeRefundStatus::Settling => success!(Success),
+            braintree::BraintreeRefundStatus::SubmittedForSettlement => success!(Success),
+            braintree::BraintreeRefundStatus::Failed => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BraintreeRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeRefundResponse::SuccessResponse(response) => {
+                        response.data.refund_transaction.refund.status.clone()
+                    }
+                    BraintreeRefundResponse::ErrorResponse(_) => braintree::BraintreeRefundStatus::Failed,
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: Capture,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Settled => success!(Charged),
+            braintree::BraintreePaymentStatus::Settling => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementPending => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => success!(Charged),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::Voided => failure!(CaptureFailed),
+            braintree::BraintreePaymentStatus::Authorized => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: BraintreeCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeCaptureResponse::SuccessResponse(response) => {
+                        response.data.capture_transaction.transaction.status.clone()
+                    }
+                    BraintreeCaptureResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Braintree<T>
@@ -233,9 +468,74 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         matches!(payment_method, PaymentMethod::Card)
     }
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: RepeatPayment,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Settled => success!(Charged),
+            braintree::BraintreePaymentStatus::Settling => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementPending => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => success!(Charged),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => success!(Charged),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(AuthorizationFailed),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::Voided => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::Authorized => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: BraintreeRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeRepeatPaymentResponse::PaymentsResponse(response) => {
+                        response.data.charge_credit_card.transaction.status.clone()
+                    }
+                    BraintreeRepeatPaymentResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Braintree<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Braintree<T>,
+    flow: SetupMandate,
+    source: braintree::BraintreePaymentStatus,
+    mapping: |status| {
+        match status {
+            braintree::BraintreePaymentStatus::Settled => success!(Charged),
+            braintree::BraintreePaymentStatus::Settling => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementPending => success!(Charged),
+            braintree::BraintreePaymentStatus::SettlementConfirmed => success!(Charged),
+            braintree::BraintreePaymentStatus::SubmittedForSettlement => success!(Charged),
+            braintree::BraintreePaymentStatus::Failed => failure!(Failure),
+            braintree::BraintreePaymentStatus::AuthorizedExpired => failure!(AuthorizationFailed),
+            braintree::BraintreePaymentStatus::ProcessorDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::GatewayRejected => failure!(Failure),
+            braintree::BraintreePaymentStatus::Voided => failure!(Failure),
+            braintree::BraintreePaymentStatus::SettlementDeclined => failure!(Failure),
+            braintree::BraintreePaymentStatus::Authorized => non_terminal!(Pending),
+            braintree::BraintreePaymentStatus::Authorizing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: BraintreeSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response {
+                    BraintreeSetupMandateResponse::TokenResponse(_) => braintree::BraintreePaymentStatus::Settled,
+                    BraintreeSetupMandateResponse::ErrorResponse(_) => braintree::BraintreePaymentStatus::Failed,
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Braintree<T>

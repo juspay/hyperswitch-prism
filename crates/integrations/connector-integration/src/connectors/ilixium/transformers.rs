@@ -1430,6 +1430,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Context bundle for the Authorize flow status macro.
+/// Mirrors the three inputs that `map_attempt_status` uses beyond the status code itself.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IlixiumAuthorizeCtx {
+    pub operation_type: Option<IlixiumOperationType>,
+    pub has_three_ds_url: bool,
+    pub is_auto_capture: bool,
+}
+
 /// Request-level outcome. **Every** business failure is returned as HTTP 200 with one of these
 /// codes, so this — never the HTTP status — is what the connector branches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -1820,7 +1829,7 @@ fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Charged,
         IlixiumStatusCode::Pending => AttemptStatus::CaptureInitiated,
-        IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
+        IlixiumStatusCode::Cancelled => AttemptStatus::CaptureFailed,
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::CaptureFailed
         }
@@ -3496,7 +3505,7 @@ impl IlixiumHistoryResponse {
 /// enums to make it would lose the distinction between "the operation failed" and "the query was
 /// malformed".
 ///
-/// The nearest neighbour in the *other* direction, [`map_history_sync_status`], shares this enum
+/// The payment-sync history mapping shares this enum
 /// but targets `AttemptStatus` and branches on the operation type; here the operation type is
 /// already known to be `REFUND`, so only the status code matters.
 fn map_history_refund_status(status: &IlixiumHistoryStatus) -> RefundStatus {

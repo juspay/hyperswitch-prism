@@ -53,21 +53,139 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Aci<T>
 {
 }
+// Authorize: Succeeded maps to Authorized (manual-capture) or Charged (auto-capture)
+domain_types::impl_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Aci<T>,
+    flow:           Authorize,
+    source:         aci::AciPaymentStatus,
+    context:        bool,
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: AciPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            response.flow_status().map_err(aci_runtime_status_error)
+        },
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Aci<T>
 {
+}
+
+// PSync: also context-dependent on auto_capture
+domain_types::impl_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Aci<T>,
+    flow:           PSync,
+    source:         aci::AciPaymentStatus,
+    context:        bool,
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: AciPaymentsSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            response.flow_status().map_err(aci_runtime_status_error)
+        },
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Aci<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Aci<T>,
+    flow: Void,
+    source: aci::AciStatus,
+    mapping: |status| {
+        match status {
+            aci::AciStatus::Succeeded => success!(Voided),
+            aci::AciStatus::Failed => failure!(VoidFailed),
+            aci::AciStatus::Pending => non_terminal!(VoidInitiated),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: AciVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Aci<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Aci<T>,
+    flow: Refund,
+    source: aci::AciRefundStatus,
+    mapping: |status| {
+        match status {
+            aci::AciRefundStatus::Succeeded => success!(Success),
+            aci::AciRefundStatus::Failed => failure!(Failure),
+            aci::AciRefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: AciRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Aci<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Aci<T>,
+    flow: Capture,
+    source: aci::AciStatus,
+    mapping: |status| {
+        match status {
+            aci::AciStatus::Succeeded => success!(Charged),
+            aci::AciStatus::Failed => failure!(Failure),
+            aci::AciStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: AciCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+                    response.flow_status().map_err(aci_runtime_status_error)
+                },
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Aci<T>
@@ -77,14 +195,65 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Aci<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Aci<T>,
+    flow: SetupMandate,
+    source: aci::AciMandateStatus,
+    mapping: |status| {
+        match status {
+            aci::AciMandateStatus::Succeeded => success!(Charged),
+            aci::AciMandateStatus::Failed => failure!(Failure),
+            aci::AciMandateStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: AciMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Aci<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Aci<T>,
+    flow:           RepeatPayment,
+    source:         aci::AciPaymentStatus,
+    context:        bool,
+    mapping: |status, context| {
+        match (status, context) {
+            (aci::AciPaymentStatus::Succeeded, true) => success!(Charged),
+            (aci::AciPaymentStatus::Failed, _) => failure!(Failure),
+            (aci::AciPaymentStatus::Succeeded, false) => non_terminal!(Authorized),
+            (aci::AciPaymentStatus::Pending, _) => non_terminal!(Pending),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: AciRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            response.flow_status().map_err(aci_runtime_status_error)
+        },
+        context: |_resource_common_data, request, _response, _http_status_code| {
+            Ok(request.is_auto_capture())
+        },
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Aci<T>
 {
 }
+
+fn aci_runtime_status_error(_error: error_stack::Report<ConnectorError>) -> ConnectorError {
+    ConnectorError::unexpected_response_error_http_status_unknown()
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Aci<T>
 {

@@ -157,9 +157,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Calida<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Calida<T>,
+    flow: Authorize,
+    source: CalidaPaymentStatus,
+    mapping: |status| {
+        match status {
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: CalidaPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Calida<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Calida<T>,
+    flow: PSync,
+    source: CalidaPaymentStatus,
+    mapping: |status| {
+        match status {
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: CalidaSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Calida<T>

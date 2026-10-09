@@ -154,9 +154,15 @@ pub struct BillwerkPaymentsResponse {
     recurring_payment_method: Option<String>,
 }
 
+impl BillwerkPaymentsResponse {
+    pub fn flow_status(&self) -> BillwerkPaymentState {
+        self.state.clone()
+    }
+}
+
 pub type BillwerkRepeatPaymentResponse = BillwerkPaymentsResponse;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
@@ -164,10 +170,16 @@ pub enum RefundState {
     Processing,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
     state: RefundState,
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundState {
+        self.state.clone()
+    }
 }
 
 #[derive(Debug, Serialize)]

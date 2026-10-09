@@ -22,6 +22,9 @@ pub mod surcharge;
 pub mod types;
 pub mod utils;
 
+#[doc(hidden)]
+pub use paste;
+
 pub use errors::{
     combine_error_message_with_context, ConnectorError, IntegrationError, IntegrationErrorContext,
     ResponseTransformationErrorContext,

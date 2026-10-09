@@ -74,18 +74,185 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: CreateOrder,
+    source: (),
+    mapping: |_status| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: TrustpayCreateIntentResponse,
+        source: |_common, _request, _response, _http_status_code| Ok(()),
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: Authorize,
+    source: transformers::TrustpayAuthorizeStatus,
+    context: common_enums::AttemptStatus,
+    mapping: |status, previous_attempt_status| {
+        match status.attempt_status(previous_attempt_status) {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            _ => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustpayPaymentsResponse,
+        source: |_common, _request, response, _http_status_code| Ok(trustpay::authorize_flow_status(response)),
+        context: |common, _request, _response, _http_status_code| {
+            Ok(domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                common,
+            ))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: PSync,
+    source: transformers::TrustpayAuthorizeStatus,
+    context: common_enums::AttemptStatus,
+    mapping: |status, previous_attempt_status| {
+        match status.attempt_status(previous_attempt_status) {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::RouterDeclined => Err(
+                ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: TrustpayPaymentsSyncResponse,
+        source: |_common, _request, response, _http_status_code| Ok(trustpay::authorize_flow_status(response)),
+        context: |common, _request, _response, _http_status_code| {
+            Ok(domain_types::flow_status::FlowStatusReader::current_mapped_flow_status(
+                common,
+            ))
+        },
+    },
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Trustpay<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: RSync,
+    source: common_enums::RefundStatus,
+    mapping: |status| {
+        match status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => Err(
+                ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_common, _request, response, _http_status_code| {
+            trustpay::refund_flow_status(response)
+        },
+    },
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Trustpay<T>
 {
 }
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: Refund,
+    source: common_enums::RefundStatus,
+    mapping: |status| {
+        match status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => Err(
+                ConnectorError::unexpected_response_error_http_status_unknown(),
+            ),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |_common, _request, response, _http_status_code| {
+            trustpay::refund_flow_status(response)
+        },
+    },
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Trustpay<T>
 {
@@ -107,9 +274,57 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: SetupMandate,
+    source: transformers::TrustpayCardPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TrustpayCardPaymentStatus::Charged => success!(Charged),
+            transformers::TrustpayCardPaymentStatus::Failed => failure!(Failure),
+            transformers::TrustpayCardPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            transformers::TrustpayCardPaymentStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: TrustpaySetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok({
+                    trustpay::card_payment_flow_status(
+                        response.payment_status.clone(),
+                        response.redirect_url.clone(),
+                    )
+                }),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Trustpay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow: RepeatPayment,
+    source: transformers::TrustpayCardPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TrustpayCardPaymentStatus::Charged => success!(Charged),
+            transformers::TrustpayCardPaymentStatus::Failed => failure!(Failure),
+            transformers::TrustpayCardPaymentStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            transformers::TrustpayCardPaymentStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: TrustpayRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok({
+                    trustpay::card_payment_flow_status(
+                        response.payment_status.clone(),
+                        response.redirect_url.clone(),
+                    )
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Trustpay<T>

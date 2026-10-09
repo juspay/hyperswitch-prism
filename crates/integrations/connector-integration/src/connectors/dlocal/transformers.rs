@@ -916,6 +916,12 @@ pub struct DlocalSetupMandateResponse {
     pub card: Option<DlocalSetupMandateCardData>,
 }
 
+impl DlocalSetupMandateResponse {
+    pub fn flow_status(&self) -> DlocalPaymentStatus {
+        self.status.clone()
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<DlocalSetupMandateResponse, Self>>
     for RouterDataV2<
@@ -1228,6 +1234,12 @@ pub struct DlocalPaymentsResponse {
     external_id: Option<String>,
 }
 
+impl DlocalPaymentsResponse {
+    pub fn flow_status(&self) -> DlocalPaymentStatus {
+        self.status.clone()
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -1393,6 +1405,12 @@ pub struct DlocalPaymentsCancelResponse {
     order_id: String,
 }
 
+impl DlocalPaymentsCancelResponse {
+    pub fn flow_status(&self) -> DlocalPaymentStatus {
+        self.status.clone()
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<DlocalPaymentsCancelResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
@@ -1484,6 +1502,12 @@ impl From<RefundStatus> for common_enums::RefundStatus {
 pub struct RefundResponse {
     pub id: String,
     pub status: RefundStatus,
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        self.status.clone()
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>

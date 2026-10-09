@@ -344,6 +344,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Maya<T>,
+    flow: Authorize,
+    source: (),
+    mapping: |_status| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: MayaPaymentsResponse,
+        source: |_common, _request, _response, _http_status_code| Ok(()),
+    },
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Maya<T>
 {
@@ -586,21 +599,109 @@ macros::macro_connector_implementation!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Maya<T>,
+    flow: PSync,
+    source: transformers::MayaPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MayaPaymentStatus::PaymentSuccess => success!(Charged),
+            transformers::MayaPaymentStatus::PaymentCancelled => success!(Voided),
+            transformers::MayaPaymentStatus::Voided => success!(Voided),
+            transformers::MayaPaymentStatus::Refunded => success!(AutoRefunded),
+            transformers::MayaPaymentStatus::PaymentFailed => failure!(Failure),
+            transformers::MayaPaymentStatus::AuthFailed => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::CheckOutDropout => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::ThreeDsPaymentFailure => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::ThreeDsPaymentDropout => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::CheckOutFailure => failure!(AuthorizationFailed),
+            transformers::MayaPaymentStatus::PendingToken => non_terminal!(PaymentMethodAwaited),
+            transformers::MayaPaymentStatus::PendingPayment => non_terminal!(PaymentMethodAwaited),
+            transformers::MayaPaymentStatus::ForAuthentication => non_terminal!(AuthenticationPending),
+            transformers::MayaPaymentStatus::Authenticating => non_terminal!(AuthenticationPending),
+            transformers::MayaPaymentStatus::AuthSuccess => non_terminal!(AuthenticationSuccessful),
+            transformers::MayaPaymentStatus::PaymentProcessing => non_terminal!(Authorizing),
+            transformers::MayaPaymentStatus::PaymentExpired => non_terminal!(Expired),
+            transformers::MayaPaymentStatus::CheckOutSuccess => non_terminal!(Authorizing),
+            transformers::MayaPaymentStatus::ThreeDsPaymentSuccess => non_terminal!(AuthenticationSuccessful),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: MayaWebhookBody,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Maya<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Maya<T>,
+    flow: Void,
+    source: transformers::MayaVoidStatus,
+    mapping: |status| {
+        match status {
+            transformers::MayaVoidStatus::Success => success!(Voided),
+            transformers::MayaVoidStatus::Failed => failure!(VoidFailed),
+            transformers::MayaVoidStatus::Pending => non_terminal!(VoidInitiated),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: MayaVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Maya<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Maya<T>,
+    flow: RSync,
+    source: transformers::MayaRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::MayaRefundStatus::Success => success!(Success),
+            transformers::MayaRefundStatus::Failed => failure!(Failure),
+            transformers::MayaRefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: MayaRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Maya<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Maya<T>,
+    flow: Refund,
+    source: transformers::MayaRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::MayaRefundStatus::Success => success!(Success),
+            transformers::MayaRefundStatus::Failed => failure!(Failure),
+            transformers::MayaRefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: MayaRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Maya<T>
 {

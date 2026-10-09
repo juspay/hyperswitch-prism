@@ -158,6 +158,23 @@ impl From<GigadatTransactionStatus> for AttemptStatus {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GigadatRefundStatus {
+    Success,
+    Failure,
+    Pending,
+}
+
+impl From<GigadatRefundStatus> for RefundStatus {
+    fn from(status: GigadatRefundStatus) -> Self {
+        match status {
+            GigadatRefundStatus::Success => Self::Success,
+            GigadatRefundStatus::Failure => Self::Failure,
+            GigadatRefundStatus::Pending => Self::Pending,
+        }
+    }
+}
+
 // ===== PAYMENT REQUEST (CPI) =====
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -545,11 +562,12 @@ impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
         let mut router_data = item.router_data;
 
         // Determine refund status based on HTTP code
-        let refund_status = match item.http_code {
-            200 => RefundStatus::Success,
-            400 | 401 | 422 => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+        let typed_status = match item.http_code {
+            200 => GigadatRefundStatus::Success,
+            400 | 401 | 422 => GigadatRefundStatus::Failure,
+            _ => GigadatRefundStatus::Pending,
         };
+        let refund_status = RefundStatus::from(typed_status);
 
         router_data.response = Ok(RefundsResponseData {
             connector_refund_id: response.data.transaction_id,

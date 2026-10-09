@@ -674,7 +674,7 @@ pub struct PaymentMethodInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionAuthChargeResponseBody {
     id: String,
-    status: BraintreePaymentStatus,
+    pub status: BraintreePaymentStatus,
     payment_method: Option<PaymentMethodInfo>,
 }
 
@@ -686,7 +686,7 @@ pub struct DataAuthResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthChargeCreditCard {
-    transaction: TransactionAuthChargeResponseBody,
+    pub transaction: TransactionAuthChargeResponseBody,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1108,7 +1108,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaymentsResponse {
-    data: DataResponse,
+    pub data: DataResponse,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1176,7 +1176,7 @@ pub enum BraintreeCompleteChargeResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataResponse {
-    charge_credit_card: AuthChargeCreditCard,
+    pub charge_credit_card: AuthChargeCreditCard,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1480,32 +1480,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RSyncNodeData {
     id: String,
-    status: BraintreeRefundStatus,
+    pub status: BraintreeRefundStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RSyncEdgeData {
-    node: RSyncNodeData,
+    pub node: RSyncNodeData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RefundData {
-    edges: Vec<RSyncEdgeData>,
+    pub edges: Vec<RSyncEdgeData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RSyncSearchData {
-    refunds: RefundData,
+    pub refunds: RefundData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RSyncResponseData {
-    search: RSyncSearchData,
+    pub search: RSyncSearchData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RSyncResponse {
-    data: RSyncResponseData,
+    pub data: RSyncResponseData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1819,23 +1819,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CaptureResponseTransactionBody {
     id: String,
-    status: BraintreePaymentStatus,
+    pub status: BraintreePaymentStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CaptureTransactionData {
-    transaction: CaptureResponseTransactionBody,
+    pub transaction: CaptureResponseTransactionBody,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponseData {
-    capture_transaction: CaptureTransactionData,
+    pub capture_transaction: CaptureTransactionData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CaptureResponse {
-    data: CaptureResponseData,
+    pub data: CaptureResponseData,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
@@ -2257,23 +2257,23 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelResponseTransactionBody {
     id: String,
-    status: BraintreePaymentStatus,
+    pub status: BraintreePaymentStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelTransactionData {
-    reversal: CancelResponseTransactionBody,
+    pub reversal: CancelResponseTransactionBody,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelResponseData {
-    reverse_transaction: CancelTransactionData,
+    pub reverse_transaction: CancelTransactionData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelResponse {
-    data: CancelResponseData,
+    pub data: CancelResponseData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2371,32 +2371,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeData {
     id: String,
-    status: BraintreePaymentStatus,
+    pub status: BraintreePaymentStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EdgeData {
-    node: NodeData,
+    pub node: NodeData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionData {
-    edges: Vec<EdgeData>,
+    pub edges: Vec<EdgeData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SearchData {
-    transactions: TransactionData,
+    pub transactions: TransactionData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PSyncResponseData {
-    search: SearchData,
+    pub search: SearchData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PSyncResponse {
-    data: PSyncResponseData,
+    pub data: PSyncResponseData,
 }
 
 impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
@@ -3223,23 +3223,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoidPCResponseTransactionBody {
     id: String,
-    status: BraintreePaymentStatus,
+    pub status: BraintreePaymentStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoidPCTransactionData {
-    reversal: VoidPCResponseTransactionBody,
+    pub reversal: VoidPCResponseTransactionBody,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoidPCResponseData {
-    reverse_transaction: VoidPCTransactionData,
+    pub reverse_transaction: VoidPCTransactionData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoidPCResponse {
-    data: VoidPCResponseData,
+    pub data: VoidPCResponseData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

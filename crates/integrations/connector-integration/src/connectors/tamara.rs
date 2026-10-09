@@ -177,6 +177,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: Authorize,
+    source: transformers::TamaraPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraPaymentStatus::Authorised => success!(Authorized),
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::Canceled => non_terminal!(Voided),
+            transformers::TamaraPaymentStatus::Updated => non_terminal!(Voided),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: TamaraPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Tamara<T>
 {
@@ -395,26 +419,150 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // Marker traits for flows with real macro_connector_implementation! impls.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: Capture,
+    source: transformers::TamaraPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Declined => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Canceled => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Updated => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Expired => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: TamaraCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Tamara<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: PSync,
+    source: transformers::TamaraPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Authorised => success!(Authorized),
+            transformers::TamaraPaymentStatus::Canceled => success!(Voided),
+            transformers::TamaraPaymentStatus::Updated => success!(Voided),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: TamaraPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Tamara<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: Void,
+    source: transformers::TamaraPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraPaymentStatus::Canceled => success!(Voided),
+            transformers::TamaraPaymentStatus::Updated => success!(Voided),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::FullyCaptured => failure!(VoidFailed),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => failure!(VoidFailed),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::Authorised => non_terminal!(VoidInitiated),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: TamaraVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Tamara<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: Refund,
+    source: transformers::TamaraRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraRefundStatus::FullyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::PartiallyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Declined => failure!(Failure),
+            transformers::TamaraRefundStatus::Expired => failure!(Failure),
+            transformers::TamaraRefundStatus::Canceled => failure!(Failure),
+            transformers::TamaraRefundStatus::Updated => failure!(Failure),
+            transformers::TamaraRefundStatus::Approved => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::PartiallyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::FullyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::New => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: TamaraRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Tamara<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Tamara<T>,
+    flow: RSync,
+    source: transformers::TamaraRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::TamaraRefundStatus::FullyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::PartiallyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Declined => failure!(Failure),
+            transformers::TamaraRefundStatus::Expired => failure!(Failure),
+            transformers::TamaraRefundStatus::Canceled => failure!(Failure),
+            transformers::TamaraRefundStatus::Updated => failure!(Failure),
+            transformers::TamaraRefundStatus::Approved => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::PartiallyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::FullyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::New => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: TamaraRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Tamara<T>
 {

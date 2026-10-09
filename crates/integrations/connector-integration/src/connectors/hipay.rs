@@ -54,26 +54,257 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Hipay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: Authorize,
+    source: hipay::HipayPaymentStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayPaymentStatus::Authorized => success!(Authorized),
+            hipay::HipayPaymentStatus::Captured => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            hipay::HipayPaymentStatus::Collected => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallySettled => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallyCollected => success!(Charged),
+            hipay::HipayPaymentStatus::Settled => success!(Charged),
+            hipay::HipayPaymentStatus::Refused => failure!(AuthorizationFailed),
+            hipay::HipayPaymentStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::Blocked => failure!(Failure),
+            hipay::HipayPaymentStatus::Denied => failure!(Failure),
+            hipay::HipayPaymentStatus::Expired => failure!(Failure),
+            hipay::HipayPaymentStatus::CaptureRefused => failure!(Failure),
+            hipay::HipayPaymentStatus::SoftDeclined => failure!(Failure),
+            hipay::HipayPaymentStatus::ChargedBack => failure!(Failure),
+            hipay::HipayPaymentStatus::UnableToAuthenticate => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::CouldNotAuthenticate => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::AcquirerNotFound => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizationRefused => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizedAndPending => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Cancelled => non_terminal!(Voided),
+            hipay::HipayPaymentStatus::CaptureRequested => non_terminal!(Authorizing),
+            hipay::HipayPaymentStatus::AwaitingTerminal => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthorizationCancellationRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::ChallengeRequested => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::PendingPayment => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Created => non_terminal!(Started),
+            hipay::HipayPaymentStatus::CardholderAuthenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationAttempted => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::AuthenticationRequested => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::Authenticated => non_terminal!(AuthenticationSuccessful),
+            hipay::HipayPaymentStatus::RiskAccepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: HipayAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Hipay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: PSync,
+    source: hipay::HipayPaymentStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayPaymentStatus::Captured => success!(Charged),
+            hipay::HipayPaymentStatus::Cancelled => success!(Voided),
+            hipay::HipayPaymentStatus::Authorized => success!(Authorized),
+            hipay::HipayPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            hipay::HipayPaymentStatus::Collected => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallySettled => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallyCollected => success!(Charged),
+            hipay::HipayPaymentStatus::Settled => success!(Charged),
+            hipay::HipayPaymentStatus::Refused => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::Blocked => failure!(Failure),
+            hipay::HipayPaymentStatus::Denied => failure!(Failure),
+            hipay::HipayPaymentStatus::Expired => failure!(Failure),
+            hipay::HipayPaymentStatus::CaptureRefused => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::SoftDeclined => failure!(Failure),
+            hipay::HipayPaymentStatus::ChargedBack => failure!(Failure),
+            hipay::HipayPaymentStatus::UnableToAuthenticate => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::CouldNotAuthenticate => failure!(AuthenticationFailed),
+            hipay::HipayPaymentStatus::AcquirerNotFound => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizationRefused => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizedAndPending => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::CaptureRequested => non_terminal!(CaptureInitiated),
+            hipay::HipayPaymentStatus::AwaitingTerminal => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthorizationCancellationRequested => non_terminal!(VoidInitiated),
+            hipay::HipayPaymentStatus::ChallengeRequested => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::PendingPayment => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Created => non_terminal!(Started),
+            hipay::HipayPaymentStatus::CardholderAuthenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationAttempted => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::AuthenticationRequested => non_terminal!(AuthenticationPending),
+            hipay::HipayPaymentStatus::Authenticated => non_terminal!(AuthenticationSuccessful),
+            hipay::HipayPaymentStatus::RiskAccepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: HipayPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.flow_status()),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Hipay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: Void,
+    source: hipay::HipayPaymentStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayPaymentStatus::Cancelled => success!(Voided),
+            hipay::HipayPaymentStatus::Refused => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::AuthenticationFailed => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::Blocked => failure!(Failure),
+            hipay::HipayPaymentStatus::Denied => failure!(Failure),
+            hipay::HipayPaymentStatus::Expired => failure!(Failure),
+            hipay::HipayPaymentStatus::Captured => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::PartiallyCaptured => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::SoftDeclined => failure!(Failure),
+            hipay::HipayPaymentStatus::ChargedBack => failure!(Failure),
+            hipay::HipayPaymentStatus::UnableToAuthenticate => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::CouldNotAuthenticate => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::Collected => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::PartiallySettled => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::PartiallyCollected => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::Settled => failure!(VoidFailed),
+            hipay::HipayPaymentStatus::AcquirerNotFound => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizationRefused => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizedAndPending => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            hipay::HipayPaymentStatus::CaptureRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::CaptureRefused => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AwaitingTerminal => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthorizationCancellationRequested => non_terminal!(VoidInitiated),
+            hipay::HipayPaymentStatus::ChallengeRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::PendingPayment => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Created => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::CardholderAuthenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationAttempted => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Authenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::RiskAccepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: HipayVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Hipay<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: RSync,
+    source: hipay::HipayRefundStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayRefundStatus::Refunded => success!(Success),
+            hipay::HipayRefundStatus::PartiallyRefunded => success!(Success),
+            hipay::HipayRefundStatus::RefundRefused => failure!(Failure),
+            hipay::HipayRefundStatus::RefundRequested => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: HipayRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(match response.status {
+                    25 => hipay::HipayRefundStatus::Refunded,
+                    26 => hipay::HipayRefundStatus::PartiallyRefunded,
+                    65 => hipay::HipayRefundStatus::RefundRefused,
+                    _ => hipay::HipayRefundStatus::RefundRequested,
+                }),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Hipay<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: Refund,
+    source: hipay::HipayRefundStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayRefundStatus::Refunded => success!(Success),
+            hipay::HipayRefundStatus::PartiallyRefunded => success!(Success),
+            hipay::HipayRefundStatus::RefundRefused => failure!(Failure),
+            hipay::HipayRefundStatus::RefundRequested => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: HipayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Hipay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow: Capture,
+    source: hipay::HipayPaymentStatus,
+    mapping: |status| {
+        match status {
+            hipay::HipayPaymentStatus::Captured => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            hipay::HipayPaymentStatus::Collected => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallySettled => success!(Charged),
+            hipay::HipayPaymentStatus::PartiallyCollected => success!(Charged),
+            hipay::HipayPaymentStatus::Settled => success!(Charged),
+            hipay::HipayPaymentStatus::CaptureRefused => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::AuthenticationFailed => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::Blocked => failure!(Failure),
+            hipay::HipayPaymentStatus::Denied => failure!(Failure),
+            hipay::HipayPaymentStatus::Refused => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::Expired => failure!(Failure),
+            hipay::HipayPaymentStatus::Cancelled => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::AuthorizationCancellationRequested => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::SoftDeclined => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::ChargedBack => failure!(Failure),
+            hipay::HipayPaymentStatus::UnableToAuthenticate => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::CouldNotAuthenticate => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::AcquirerNotFound => failure!(Failure),
+            hipay::HipayPaymentStatus::AuthorizationRefused => failure!(CaptureFailed),
+            hipay::HipayPaymentStatus::AuthorizedAndPending => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Authorized => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::CaptureRequested => non_terminal!(CaptureInitiated),
+            hipay::HipayPaymentStatus::AwaitingTerminal => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::ChallengeRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::PendingPayment => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Created => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::CardholderAuthenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationAttempted => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::AuthenticationRequested => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::Authenticated => non_terminal!(Pending),
+            hipay::HipayPaymentStatus::RiskAccepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: HipayCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Hipay<T>

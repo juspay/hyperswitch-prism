@@ -105,17 +105,79 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+// Authorize only prepares an Interac redirect form; the response carries no
+// transaction status, so the attempt is always AuthenticationPending (matches
+// the TryFrom, which hardcodes the same status).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow: Authorize,
+    source: (),
+    mapping: |_status| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: GigadatPaymentsResponse,
+        source: |_common, _request, _response, _http_status_code| Ok(()),
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Gigadat<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow: PSync,
+    source: transformers::GigadatTransactionStatus,
+    mapping: |status| {
+        match status {
+            transformers::GigadatTransactionStatus::StatusSuccess => success!(Charged),
+            transformers::GigadatTransactionStatus::StatusFailed => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusRejected => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusRejected1 => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusExpired => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusAborted1 => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusInited => non_terminal!(Pending),
+            transformers::GigadatTransactionStatus::StatusPending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: GigadatSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Gigadat<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow: Refund,
+    source: gigadat::GigadatRefundStatus,
+    mapping: |status| {
+        match status {
+            gigadat::GigadatRefundStatus::Success => success!(Success),
+            gigadat::GigadatRefundStatus::Failure => failure!(Failure),
+            gigadat::GigadatRefundStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: GigadatRefundResponse,
+        source: |_resource_common_data, _request, _response, http_status_code| {
+            Ok(match http_status_code {
+                200 => gigadat::GigadatRefundStatus::Success,
+                400 | 401 | 422 => gigadat::GigadatRefundStatus::Failure,
+                _ => gigadat::GigadatRefundStatus::Pending,
+            })
+        },
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Gigadat<T>
 {
