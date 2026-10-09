@@ -3,7 +3,7 @@
 //! This module provides a comprehensive integrity checking system for payment operations.
 //! It ensures that request and response data remain consistent across connector interactions
 //! by comparing critical fields like amounts, currencies, and transaction identifiers.
-use common_utils::errors::IntegrityCheckError;
+use common_utils::{errors::IntegrityCheckError, types::MinorUnit};
 use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
@@ -60,6 +60,69 @@ use domain_types::{
 };
 
 // ========================================================================
+// AMOUNT TOLERANCE
+// ========================================================================
+
+/// How far the connector-reported amount may drift from the requested amount before the
+/// integrity check flags it. The default (both `false`) requires an exact match.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AmountTolerance {
+    /// Accept a connector-reported amount higher than the requested amount (overcapture).
+    pub allow_higher_amount: bool,
+    /// Accept a connector-reported amount lower than the requested amount (partial authorization).
+    pub allow_lower_amount: bool,
+}
+
+impl AmountTolerance {
+    /// Exact match required in both directions.
+    pub const fn exact() -> Self {
+        Self {
+            allow_higher_amount: false,
+            allow_lower_amount: false,
+        }
+    }
+
+    /// `allow_amount_mismatch = Some(true)` accepts any amount. Otherwise a higher amount is
+    /// accepted only when `allow_higher_amount` is `Some(true)` and a lower amount only when
+    /// `allow_lower_amount` is `Some(true)`; a flag the flow doesn't collect is passed as `None`.
+    pub fn new(
+        allow_amount_mismatch: Option<bool>,
+        allow_higher_amount: Option<bool>,
+        allow_lower_amount: Option<bool>,
+    ) -> Self {
+        if allow_amount_mismatch == Some(true) {
+            return Self {
+                allow_higher_amount: true,
+                allow_lower_amount: true,
+            };
+        }
+        Self {
+            allow_higher_amount: allow_higher_amount.unwrap_or(false),
+            allow_lower_amount: allow_lower_amount.unwrap_or(false),
+        }
+    }
+
+    /// Records a mismatch in `mismatched_fields` unless this tolerance permits it.
+    fn check_amount(
+        self,
+        field: &str,
+        requested: MinorUnit,
+        reported: MinorUnit,
+        mismatched_fields: &mut Vec<String>,
+    ) {
+        let permitted = (reported > requested && self.allow_higher_amount)
+            || (reported < requested && self.allow_lower_amount);
+        if requested != reported && !permitted {
+            mismatched_fields.push(format_mismatch(
+                field,
+                &requested.to_string(),
+                &reported.to_string(),
+            ));
+        }
+    }
+}
+
+// ========================================================================
 // CORE TRAITS
 // ========================================================================
 
@@ -74,14 +137,16 @@ pub trait FlowIntegrity {
     /// * `req_integrity_object` - Integrity object derived from the request
     /// * `res_integrity_object` - Integrity object derived from the response
     /// * `connector_transaction_id` - Optional transaction ID for error context
+    /// * `tolerance` - Which amount differences to accept; `AmountTolerance::exact()` accepts none
     ///
     /// # Returns
-    /// * `Ok(())` if all fields match
+    /// * `Ok(())` if all fields match (amounts within `tolerance`)
     /// * `Err(IntegrityCheckError)` if there are mismatches
     fn compare(
         req_integrity_object: Self::IntegrityObject,
         res_integrity_object: Self::IntegrityObject,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError>;
 }
 
@@ -92,6 +157,12 @@ pub trait GetIntegrityObject<T: FlowIntegrity> {
 
     /// Generate integrity object from request data
     fn get_request_integrity_object(&self) -> T::IntegrityObject;
+
+    /// Amount tolerance the integrity check applies for this request.
+    /// Defaults to an exact match.
+    fn amount_tolerance(&self) -> AmountTolerance {
+        AmountTolerance::exact()
+    }
 }
 
 /// Trait for data types that can perform integrity checks
@@ -141,6 +212,7 @@ macro_rules! impl_check_integrity {
                             req_integrity_object,
                             res_integrity_object,
                             connector_transaction_id,
+                            request.amount_tolerance(),
                         )
                     }
                     None => Ok(()),
@@ -166,6 +238,7 @@ macro_rules! impl_check_integrity {
                             req_integrity_object,
                             res_integrity_object,
                             connector_transaction_id,
+                            request.amount_tolerance(),
                         )
                     }
                     None => Ok(()),
@@ -241,6 +314,15 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<AuthoriseIntegrityObject>
             currency: self.amount.currency,
         }
     }
+
+    fn amount_tolerance(&self) -> AmountTolerance {
+        // Overcapture is a capture-time concept, so it is not considered at authorization.
+        AmountTolerance::new(
+            self.allow_amount_mismatch,
+            None,
+            self.enable_partial_authorization,
+        )
+    }
 }
 
 impl GetIntegrityObject<CreateOrderIntegrityObject> for PaymentCreateOrderData {
@@ -281,6 +363,14 @@ impl GetIntegrityObject<PaymentSynIntegrityObject> for PaymentsSyncData {
             amount: self.amount.amount,
             currency: self.amount.currency,
         }
+    }
+
+    fn amount_tolerance(&self) -> AmountTolerance {
+        AmountTolerance::new(
+            self.allow_amount_mismatch,
+            self.is_overcapture_enabled,
+            self.enable_partial_authorization,
+        )
     }
 }
 
@@ -331,6 +421,15 @@ impl GetIntegrityObject<CaptureIntegrityObject> for PaymentsCaptureData {
             amount_to_capture: self.amount_to_capture.amount,
             currency: self.amount_to_capture.currency,
         }
+    }
+
+    fn amount_tolerance(&self) -> AmountTolerance {
+        // Partial authorization is accepted only at authorization time.
+        AmountTolerance::new(
+            self.allow_amount_mismatch,
+            self.is_overcapture_enabled,
+            None,
+        )
     }
 }
 
@@ -423,6 +522,15 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
                 }
             },
         }
+    }
+
+    fn amount_tolerance(&self) -> AmountTolerance {
+        // A recurring charge is an authorization: overcapture is not considered here.
+        AmountTolerance::new(
+            self.allow_amount_mismatch,
+            None,
+            self.enable_partial_authorization,
+        )
     }
 }
 
@@ -537,6 +645,11 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PaymentMethodTokenIntegrityOb
             currency: self.currency,
         }
     }
+
+    fn amount_tolerance(&self) -> AmountTolerance {
+        // Tokenization neither authorizes nor captures, so only the explicit flag applies.
+        AmountTolerance::new(self.allow_amount_mismatch, None, None)
+    }
 }
 
 impl<T: PaymentMethodDataTypes> GetIntegrityObject<PreAuthenticateIntegrityObject>
@@ -626,16 +739,16 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -656,16 +769,16 @@ impl FlowIntegrity for CreateOrderIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -686,17 +799,14 @@ impl FlowIntegrity for SetupMandateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
         // Handle optional amount field
         match (req_integrity_object.amount, res_integrity_object.amount) {
-            (Some(req_amount), Some(res_amount)) if req_amount != res_amount => {
-                mismatched_fields.push(format_mismatch(
-                    "amount",
-                    &req_amount.to_string(),
-                    &res_amount.to_string(),
-                ));
+            (Some(req_amount), Some(res_amount)) => {
+                tolerance.check_amount("amount", req_amount, res_amount, &mut mismatched_fields);
             }
             (None, Some(_)) | (Some(_), None) => {
                 mismatched_fields.push("amount is missing in request or response".to_string());
@@ -723,16 +833,16 @@ impl FlowIntegrity for PaymentSynIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -753,6 +863,7 @@ impl FlowIntegrity for PaymentVoidIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -777,6 +888,7 @@ impl FlowIntegrity for PaymentVoidPostCaptureIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -801,16 +913,16 @@ impl FlowIntegrity for RefundIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.refund_amount != res_integrity_object.refund_amount {
-            mismatched_fields.push(format_mismatch(
-                "refund_amount",
-                &req_integrity_object.refund_amount.to_string(),
-                &res_integrity_object.refund_amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "refund_amount",
+            req_integrity_object.refund_amount,
+            res_integrity_object.refund_amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -831,16 +943,16 @@ impl FlowIntegrity for CaptureIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount_to_capture != res_integrity_object.amount_to_capture {
-            mismatched_fields.push(format_mismatch(
-                "amount_to_capture",
-                &req_integrity_object.amount_to_capture.to_string(),
-                &res_integrity_object.amount_to_capture.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount_to_capture",
+            req_integrity_object.amount_to_capture,
+            res_integrity_object.amount_to_capture,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -861,6 +973,7 @@ impl FlowIntegrity for AcceptDisputeIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -883,6 +996,7 @@ impl FlowIntegrity for DefendDisputeIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -913,6 +1027,7 @@ impl FlowIntegrity for RefundSyncIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -945,6 +1060,7 @@ impl FlowIntegrity for SubmitEvidenceIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -967,16 +1083,16 @@ impl FlowIntegrity for RepeatPaymentIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1005,6 +1121,7 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1027,6 +1144,7 @@ impl FlowIntegrity for PaymentMethodEligibilityIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         _connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         Ok(())
     }
@@ -1039,6 +1157,7 @@ impl FlowIntegrity for RefreshPaymentMethodIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         _connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         Ok(())
     }
@@ -1051,6 +1170,7 @@ impl FlowIntegrity for VerifyWebhookSourceIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1073,16 +1193,16 @@ impl FlowIntegrity for SessionTokenIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1103,6 +1223,7 @@ impl FlowIntegrity for ClientAuthenticationTokenIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         _connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         Ok(())
     }
@@ -1115,6 +1236,7 @@ impl FlowIntegrity for AccessTokenIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1137,16 +1259,16 @@ impl FlowIntegrity for PaymentMethodTokenIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1167,16 +1289,16 @@ impl FlowIntegrity for PreAuthenticateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1197,16 +1319,16 @@ impl FlowIntegrity for AuthenticateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1227,16 +1349,16 @@ impl FlowIntegrity for PostAuthenticateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1257,6 +1379,7 @@ impl FlowIntegrity for IncrementalAuthorizationIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         _connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         Ok(())
     }
@@ -1269,6 +1392,7 @@ impl FlowIntegrity for CreateConnectorCustomerIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1345,16 +1469,16 @@ impl FlowIntegrity for PayoutCreateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1619,16 +1743,16 @@ impl FlowIntegrity for PayoutTransferIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1649,16 +1773,16 @@ impl FlowIntegrity for PayoutStageIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1679,16 +1803,16 @@ impl FlowIntegrity for PayoutCreateLinkIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1709,16 +1833,16 @@ impl FlowIntegrity for PayoutCreateRecipientIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1739,16 +1863,16 @@ impl FlowIntegrity for PayoutEnrollDisburseAccountIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1769,6 +1893,7 @@ impl FlowIntegrity for PayoutGetIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1794,6 +1919,7 @@ impl FlowIntegrity for PayoutVoidIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1819,16 +1945,16 @@ impl FlowIntegrity for PayoutEligibilityIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1849,16 +1975,16 @@ impl FlowIntegrity for SurchargeCalculateIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push(format_mismatch(
@@ -1879,6 +2005,7 @@ impl FlowIntegrity for SurchargePaymentSucceededIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1903,6 +2030,7 @@ impl FlowIntegrity for SurchargeRefundSucceededIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -1927,17 +2055,17 @@ impl FlowIntegrity for RechargeIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
         // Check amount
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push(format_mismatch(
-                "amount",
-                &req_integrity_object.amount.to_string(),
-                &res_integrity_object.amount.to_string(),
-            ));
-        }
+        tolerance.check_amount(
+            "amount",
+            req_integrity_object.amount,
+            res_integrity_object.amount,
+            &mut mismatched_fields,
+        );
 
         // Check currency
         if req_integrity_object.currency != res_integrity_object.currency {
@@ -1959,6 +2087,7 @@ impl FlowIntegrity for CreatePaymentMethodIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // CreatePaymentMethod has no amount/currency invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -1972,6 +2101,7 @@ impl FlowIntegrity for GetPaymentMethodIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // GetPaymentMethod has no payment-attempt invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -1985,6 +2115,7 @@ impl FlowIntegrity for PreRiskCheckIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // PreRiskCheck has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -1998,6 +2129,7 @@ impl FlowIntegrity for PostRiskCheckIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // PostRiskCheck has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -2011,6 +2143,7 @@ impl FlowIntegrity for FrmPaymentOutcomeIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // FRM payment outcome has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -2024,6 +2157,7 @@ impl FlowIntegrity for FrmRefundProcessedIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // FRM refund processed has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
@@ -2037,8 +2171,144 @@ impl FlowIntegrity for FrmChargebackReceivedIntegrityObject {
         _req_integrity_object: Self,
         _res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance, // no amount field for the tolerance to apply to
     ) -> Result<(), IntegrityCheckError> {
         // FRM chargeback received has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::Currency;
+
+    use super::*;
+
+    fn authorise(amount: i64, currency: Currency) -> AuthoriseIntegrityObject {
+        AuthoriseIntegrityObject {
+            amount: MinorUnit::new(amount),
+            currency,
+        }
+    }
+
+    fn capture(amount: i64) -> CaptureIntegrityObject {
+        CaptureIntegrityObject {
+            amount_to_capture: MinorUnit::new(amount),
+            currency: Currency::USD,
+        }
+    }
+
+    #[test]
+    fn allow_amount_mismatch_allows_both_directions() {
+        let tolerance = AmountTolerance::new(Some(true), None, None);
+        assert!(tolerance.allow_higher_amount && tolerance.allow_lower_amount);
+    }
+
+    #[test]
+    fn unset_flags_require_exact_match() {
+        assert_eq!(
+            AmountTolerance::new(None, None, None),
+            AmountTolerance::exact()
+        );
+        assert_eq!(
+            AmountTolerance::new(Some(false), Some(false), Some(false)),
+            AmountTolerance::exact()
+        );
+    }
+
+    #[test]
+    fn individual_flags_map_to_their_direction() {
+        let tolerance = AmountTolerance::new(None, Some(true), None);
+        assert!(tolerance.allow_higher_amount && !tolerance.allow_lower_amount);
+        let tolerance = AmountTolerance::new(None, None, Some(true));
+        assert!(!tolerance.allow_higher_amount && tolerance.allow_lower_amount);
+    }
+
+    #[test]
+    fn exact_tolerance_rejects_any_amount_difference() {
+        for reported in [900, 1100] {
+            assert!(AuthoriseIntegrityObject::compare(
+                authorise(1000, Currency::USD),
+                authorise(reported, Currency::USD),
+                None,
+                AmountTolerance::exact(),
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn lower_tolerance_accepts_only_lower_amount() {
+        let tolerance = AmountTolerance::new(None, None, Some(true));
+        assert!(AuthoriseIntegrityObject::compare(
+            authorise(1000, Currency::USD),
+            authorise(900, Currency::USD),
+            None,
+            tolerance,
+        )
+        .is_ok());
+        assert!(AuthoriseIntegrityObject::compare(
+            authorise(1000, Currency::USD),
+            authorise(1100, Currency::USD),
+            None,
+            tolerance,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn higher_tolerance_accepts_only_higher_amount() {
+        let tolerance = AmountTolerance::new(None, Some(true), None);
+        assert!(
+            CaptureIntegrityObject::compare(capture(1000), capture(1100), None, tolerance).is_ok()
+        );
+        assert!(
+            CaptureIntegrityObject::compare(capture(1000), capture(900), None, tolerance).is_err()
+        );
+    }
+
+    #[test]
+    fn currency_mismatch_fails_even_with_full_tolerance() {
+        let result = AuthoriseIntegrityObject::compare(
+            authorise(1000, Currency::USD),
+            authorise(1100, Currency::EUR),
+            None,
+            AmountTolerance::new(Some(true), None, None),
+        );
+        assert!(matches!(
+            result,
+            Err(ref err) if err.field_names.contains("currency") && !err.field_names.contains("amount")
+        ));
+    }
+
+    #[test]
+    fn sync_and_capture_take_higher_tolerance_from_overcapture_only() {
+        let sync = PaymentsSyncData {
+            is_overcapture_enabled: Some(true),
+            ..Default::default()
+        };
+        assert_eq!(
+            GetIntegrityObject::<PaymentSynIntegrityObject>::amount_tolerance(&sync),
+            AmountTolerance::new(None, Some(true), None)
+        );
+        let capture = PaymentsCaptureData {
+            allow_amount_mismatch: Some(false),
+            ..Default::default()
+        };
+        assert_eq!(
+            GetIntegrityObject::<CaptureIntegrityObject>::amount_tolerance(&capture),
+            AmountTolerance::exact()
+        );
+    }
+
+    #[test]
+    fn exact_tolerance_accepts_equal_amounts() {
+        assert!(CaptureIntegrityObject::compare(
+            capture(1000),
+            capture(1000),
+            None,
+            AmountTolerance::exact()
+        )
+        .is_ok());
     }
 }

@@ -259,6 +259,9 @@ fn create_payment_sync_request(
     amount: i64,
 ) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        allow_amount_mismatch: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
