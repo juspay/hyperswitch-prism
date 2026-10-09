@@ -302,7 +302,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
 
     fn from_google_pay(data: &GooglePayDecryptedData) -> Result<Self, Error> {
         let method = data.auth_method.unwrap_or_else(|| {
-            if data.cryptogram.is_some() || data.eci_indicator.is_some() {
+            if data.cryptogram.is_some() {
                 common_enums::GooglePayAuthMethod::Cryptogram
             } else {
                 common_enums::GooglePayAuthMethod::PanOnly
