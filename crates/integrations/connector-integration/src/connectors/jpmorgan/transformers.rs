@@ -775,17 +775,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             })?,
                     )),
                     expiry: requests::Expiry {
-                        month: Secret::new(
-                            token_data
-                                .get_network_token_expiry_month()
-                                .peek()
-                                .parse::<i32>()
-                                .change_context(
-                                    requests::JpmorganCard::<T>::invalid_wallet_field(
-                                        "wallet.expiry.month",
-                                    ),
-                                )?,
-                        ),
+                        month: Secret::new(get_network_token_expiry_month_i32(
+                            &token_data.get_network_token_expiry_month(),
+                            requests::JpmorganCard::<T>::invalid_wallet_field(
+                                "wallet.expiry.month",
+                            ),
+                        )?),
                         year: Secret::new(
                             token_data
                                 .get_expiry_year_4_digit()
@@ -1873,6 +1868,14 @@ fn build_jpmorgan_expiry<T: PaymentMethodDataTypes>(
         month: Secret::new(month),
         year: Secret::new(year),
     })
+}
+
+// Parse a network token expiry month to its numeric value.
+fn get_network_token_expiry_month_i32(
+    expiry_month: &Secret<String>,
+    context: IntegrationError,
+) -> Result<i32, Error> {
+    expiry_month.peek().parse::<i32>().change_context(context)
 }
 
 // SetupMandate (initial CIT with credential storage) request transformer
