@@ -440,7 +440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
             .convert(
-                wrapper.router_data.request.amount,
+                wrapper.router_data.request.amount.amount,
                 wrapper.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -479,7 +479,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
-            .convert(item.request.amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -948,7 +948,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1306,7 +1306,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

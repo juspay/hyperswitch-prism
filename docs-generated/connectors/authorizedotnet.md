@@ -198,35 +198,35 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
-| Google Pay | x |
-| Google Pay Dec | x |
-| Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
-| Cash App | x |
-| PayPal | x |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ? |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ✓ |
+| Google Pay Dec | ? |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
 | Paze | ⚠ |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| GoPay | x |
-| GCash | x |
-| Momo | x |
-| Dana | x |
-| Kakao Pay | x |
-| Touch 'n Go | x |
-| Twint | x |
-| Vipps | x |
-| Swish | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
 | Affirm | x |
 | Afterpay | x |
 | Klarna | x |
@@ -310,6 +310,45 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_exp_year": "2030",
     "card_cvc": "737",
     "card_holder_name": "John Doe"
+  }
+}
+```
+
+##### Google Pay
+
+```python
+"payment_method": {
+  "google_pay_sdk": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
+    }
+  }
+}
+```
+
+##### Apple Pay
+
+```python
+"payment_method": {
+  "apple_pay_sdk": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
   }
 }
 ```

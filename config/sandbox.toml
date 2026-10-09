@@ -9,8 +9,12 @@ return_typed_connector_data = true
 
 [log.console]
 enabled = true
-level = "TRACE"
-log_format = "default"
+# TRACE emits every span and event on every request, which is far more than a
+# deployed environment needs and expensive at payment volumes. `json` keeps the
+# output parseable by log aggregators; `default` is the human-readable format
+# and is kept in development.toml.
+level = "DEBUG"
+log_format = "json"
 
 [server]
 host = "0.0.0.0"
@@ -204,7 +208,7 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name","x-payment-method","x-payment-method-type"]
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)

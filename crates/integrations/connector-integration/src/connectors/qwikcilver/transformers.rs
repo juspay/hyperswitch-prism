@@ -282,7 +282,7 @@ where
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -290,10 +290,10 @@ where
                     format!(
                         "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.minor_amount.get_amount_as_i64(),
+                        item.router_data.request.amount.amount.get_amount_as_i64(),
                         item.router_data.request.currency,
                     ),
-                    "Verify `amount.minor_amount` is a non-negative integer and \
+                    "Verify `amount.amount.amount` is a non-negative integer and \
                      `amount.currency` is a 3-letter ISO 4217 code that Pine Labs supports \
                      for your terminal (e.g. AED, INR).",
                 ),
@@ -597,15 +597,15 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(req.amount, req.currency)
+            .convert(req.amount.amount, req.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
                         "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        req.amount.get_amount_as_i64(),
+                        req.amount.amount.get_amount_as_i64(),
                         req.currency,
                     ),
-                    "Verify `amount.minor_amount` is a non-negative integer and \
+                    "Verify `amount.amount.amount` is a non-negative integer and \
                      `amount.currency` is supported by your Pine Labs program (e.g. AED for \
                      `Blue Retail UAE Refund eCard`).",
                 ),
@@ -1264,8 +1264,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                     } else {
                         (common_enums::EligibilityStatus::Unknown, None)
                     };
-                // Verdict fanned across every requested PM; the wallet details
-                // only attach to the wallet PM they describe.
+                // Each result describes the same wallet lookup, including legacy unspecified PMs.
                 let results = data
                     .request
                     .payment_method_types
@@ -1274,13 +1273,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                         payment_method_type: *payment_method_type,
                         eligibility,
                         error_info: None,
-                        payment_method_details: if *payment_method_type
-                            == grpc_api_types::payments::PaymentMethodType::QwikcilverWallet
-                        {
-                            payment_method_details.clone()
-                        } else {
-                            None
-                        },
+                        payment_method_details: payment_method_details.clone(),
                     })
                     .collect();
                 Ok(PaymentMethodEligibilityResponse {

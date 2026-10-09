@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, PayoutVoid},
     errors::{
@@ -12,7 +13,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::Report;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 
 use crate::{
     connectors::worldpayxml::{requests, responses, WorldpayxmlAmountConvertor},
@@ -111,12 +112,12 @@ fn worldpayxml_amount_exponent(
 }
 
 // ----- PayoutTransfer (PoFulfill) request -----
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for requests::WorldpayxmlPayoutTransferRequest
@@ -127,7 +128,7 @@ impl
         router_data: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -179,7 +180,7 @@ impl
                 recipient: requests::WorldpayxmlPayoutRecipient {
                     payment_instrument: requests::WorldpayxmlPayoutPaymentInstrument {
                         card_details: requests::WorldpayxmlPayoutCardDetails {
-                            card_number: Secret::new(card.card_number.peek().to_string()),
+                            card_number: Secret::new(T::peek_inner(&card.card_number).to_owned()),
                             expiry_date: requests::WorldpayxmlExpiryDate {
                                 date: requests::WorldpayxmlDate {
                                     month: card.expiry_month.clone(),
@@ -225,8 +226,14 @@ impl
 }
 
 // ----- PayoutTransfer response -----
-impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
+    TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = Report<ConnectorError>;
 

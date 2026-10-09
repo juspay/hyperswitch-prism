@@ -7,7 +7,7 @@
 
 import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -178,6 +178,17 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
     };
 }
 
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
@@ -251,6 +262,28 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     return { status: refundResponse.status, error: refundResponse.error } as any;
 }
 
+// Void Payment
+// Cancel an authorized but not-yet-captured payment.
+async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId!));
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
+}
+
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -314,10 +347,19 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
     return setupResponse;
 }
 
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

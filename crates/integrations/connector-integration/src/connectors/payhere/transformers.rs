@@ -215,7 +215,7 @@ impl PayherePaymentsRequest {
 
         let amount = common_utils::types::AmountConvertor::convert(
             &common_utils::types::StringMajorUnitForConnector,
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )
         .change_context(IntegrationError::RequestEncodingFailed {

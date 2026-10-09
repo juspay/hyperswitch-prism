@@ -229,7 +229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None, None)
         };
 
-        let minor_amount_captured = match status {
+        let amount_captured = match status {
             AttemptStatus::Charged => webhook_body.amount,
             AttemptStatus::PartialCharged => webhook_body.total_captured,
             _ => None,
@@ -250,9 +250,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: minor_amount_captured
-                .map(|minor_amount| minor_amount.get_amount_as_i64()),
-            minor_amount_captured,
+            amount_captured: amount_captured.map(|amount| common_utils::types::Money {
+                amount,
+                currency: webhook_body.currency,
+            }),
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

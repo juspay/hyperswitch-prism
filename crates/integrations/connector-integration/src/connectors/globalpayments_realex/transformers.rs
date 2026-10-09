@@ -861,7 +861,7 @@ where
                 .resource_common_data
                 .connector_request_reference_id,
         )?;
-        let amount = format_amount(request.minor_amount, request.currency)?;
+        let amount = format_amount(request.amount.amount, request.currency)?;
         let currency = request.currency.to_string();
         let card_number = card.card_number.peek().to_string();
         let merchant_id = auth.merchant_id.clone().expose();
@@ -1470,7 +1470,7 @@ where
 
         // Always sent explicitly, so full and partial settles share one code path and one digest
         // blueprint (both verified live — see `build_reference_request_hash`).
-        let amount = format_amount(request.minor_amount_to_capture, request.currency)?;
+        let amount = format_amount(request.amount_to_capture.amount, request.currency)?;
 
         let timestamp = current_timestamp()?;
         let merchant_id = auth.merchant_id.clone().expose();
@@ -2152,7 +2152,7 @@ where
 
         // Minor units, integer, no decimal point. The gateway owns the 115% / 105% over-refund
         // ceiling; no client-side limit is applied so its refusal surfaces verbatim.
-        let amount = format_amount(request.minor_refund_amount, request.currency)?;
+        let amount = format_amount(request.refund_amount.amount, request.currency)?;
         let currency = request.currency.to_string();
 
         let timestamp = current_timestamp()?;
@@ -4209,7 +4209,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             order: Gp3ds2Order {
                 date_time_created: format!("{request_timestamp}Z"),
-                amount: format_amount(request.amount, currency)?,
+                amount: format_amount(request.amount.amount, currency)?,
                 currency: currency.to_string(),
                 id: mint_order_id(
                     &router_data

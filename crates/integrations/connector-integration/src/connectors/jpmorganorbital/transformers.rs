@@ -838,7 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: build_amount(request.minor_amount, request.currency)?,
+                amount: build_amount(request.amount.amount, request.currency)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },
