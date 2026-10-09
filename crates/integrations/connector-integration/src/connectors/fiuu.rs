@@ -1133,7 +1133,7 @@ where
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         error!("Error in Deserializing Response Data: {:?}", e);
-        log_unparseable_plain_text_response::<T>(&response_str);
+        log_unparsable_plain_text_response::<T>(&response_str);
         error_stack::Report::from(
             crate::utils::response_deserialization_fail(http_status, "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
         )
@@ -1142,7 +1142,7 @@ where
     Ok(response)
 }
 
-fn log_unparseable_plain_text_response<T>(response_str: &str) {
+fn log_unparsable_plain_text_response<T>(response_str: &str) {
     const LOGGABLE_KEYS: [&str; 8] = [
         "StatCode",
         "StatName",
