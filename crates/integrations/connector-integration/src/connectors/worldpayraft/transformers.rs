@@ -1,6 +1,7 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus};
 use common_utils::{
+    ext_traits::Encode,
     pii::SecretSerdeValue,
     types::{Money, StringMajorUnit},
 };
@@ -2290,7 +2291,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             expiration_date: inputs.expiration_date,
         };
-        let connector_metadata = serde_json::to_value(&metadata.connector_metadata)
+        let connector_metadata = metadata
+            .connector_metadata
+            .encode_to_value()
             .change_context(errors::ConnectorError::response_handling_failed(
                 item.http_code,
             ))?;
@@ -2482,9 +2485,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_str(),
             &response.brand_specific_data,
         );
-        let connector_metadata = serde_json::to_value(metadata.connector_metadata).change_context(
-            errors::ConnectorError::response_handling_failed(item.http_code),
-        )?;
+        let connector_metadata = metadata
+            .connector_metadata
+            .encode_to_value()
+            .change_context(errors::ConnectorError::response_handling_failed(
+                item.http_code,
+            ))?;
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
