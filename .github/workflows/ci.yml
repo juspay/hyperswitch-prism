@@ -22,6 +22,7 @@ permissions:
 # Job dependency graph:
 #
 #   changes ─┬─ typos              (always, ~8s)
+#            ├─ lean-spec          (if tests/lean or the types it models changed: proofs + vectors)
 #            ├─ auto-fix           (PR only: format + generate + docs → bot commit if needed)
 #            │   ├─ check          (if rust changed AND auto-fix didn't push, ~11min)
 #            │   ├─ test           (parallel with check, ~15min)
@@ -59,6 +60,7 @@ jobs:
       stripe: ${{ steps.filter.outputs.stripe }}
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
+      lean-spec: ${{ steps.filter.outputs.lean-spec }}
       certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
       payment-connector-names: ${{ steps.connector-names.outputs.list }}
       all-connector-names: ${{ steps.connector-names.outputs.all-list }}
@@ -87,6 +89,8 @@ jobs:
               - 'crates/internal/integration-tests/src/harness/**'
               - 'crates/internal/integration-tests/src/global_suites/**'
               - 'crates/internal/integration-tests/src/lib.rs'
+              - 'tests/lean/harness/**'
+              - 'tests/lean/vectors/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             connector:
@@ -94,6 +98,8 @@ jobs:
               - 'crates/internal/integration-tests/src/connector_specs/**'
             any-rust:
               - 'crates/**'
+              - 'tests/lean/harness/**'
+              - 'tests/lean/vectors/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'config/**'
@@ -118,6 +124,11 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
+            # The Lean spec, plus the proto/card code it mirrors (Luhn, length bounds).
+            lean-spec:
+              - 'tests/lean/**'
+              - 'crates/types-traits/grpc-api-types/proto/**'
+              - 'crates/types-traits/cards/**'
             # Read at run time by certification; they match no connector path.
             # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
@@ -351,6 +362,43 @@ jobs:
         uses: crate-ci/typos@master
         with:
           config: ./.typos.toml
+
+  # ── Lean spec ─────────────────────────────────────────────────────────────
+  # `lake build` checks every theorem in tests/lean (a wrong vector fails the
+  # build); `lake exe gen` then regenerates the vectors, which must match the
+  # committed JSON. The Rust side (tests/lean/harness) runs in the `test` job.
+  lean-spec:
+    name: Lean spec
+    needs: changes
+    if: >-
+      !github.event.pull_request.draft &&
+      (needs.changes.outputs.lean-spec == 'true' ||
+       needs.changes.outputs.ci == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lean and build proofs
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: tests/lean
+          auto-config: false
+          build: true
+          use-mathlib-cache: false
+
+      - name: Regenerate vectors
+        working-directory: tests/lean
+        run: lake exe gen
+
+      - name: Committed vectors are up to date
+        run: |
+          if [[ -n "$(git status --porcelain -- tests/lean/vectors)" ]]; then
+            git --no-pager diff -- tests/lean/vectors
+            git status --porcelain -- tests/lean/vectors
+            echo "::error::tests/lean/vectors is stale — run: cd tests/lean && lake build && lake exe gen"
+            exit 1
+          fi
 
   clippy:
     name: Clippy check
@@ -1149,7 +1197,7 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
+    needs: [typos, clippy, lean-spec, formatting, auto-fix, check, test, sdk-build, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results
@@ -1157,6 +1205,7 @@ jobs:
           echo "Job results:"
           echo "  typos:         ${{ needs.typos.result }}"
           echo "  clippy:        ${{ needs.clippy.result }}"
+          echo "  lean-spec:     ${{ needs.lean-spec.result }}"
           echo "  formatting:    ${{ needs.formatting.result }}"
           echo "  auto-fix:      ${{ needs.auto-fix.result }}"
           echo "  check:         ${{ needs.check.result }}"
@@ -1176,6 +1225,7 @@ jobs:
           results=(
             "${{ needs.typos.result }}"
             "${{ needs.clippy.result }}"
+            "${{ needs.lean-spec.result }}"
             "${{ needs.formatting.result }}"
             "${{ needs.auto-fix.result }}"
             "${{ needs.check.result }}"

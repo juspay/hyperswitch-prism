@@ -506,3 +506,5 @@ grace/*.log
 /.connector_backup_*/
 docs/qwikcilver.postman_collection.json
 
+# Lean spec build output (`cd tests/lean && lake build`); lake-manifest.json is the lockfile and stays tracked
+tests/lean/.lake/

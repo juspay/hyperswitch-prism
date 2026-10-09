@@ -28,7 +28,8 @@ members = [
   "crates/internal/uniffi-bindgen",
   "crates/internal/field-probe",
   "crates/internal/integration-tests",
-  "crates/internal/connector-creds"
+  "crates/internal/connector-creds",
+  "tests/lean/harness"
 ]
 resolver = "2"
 
