@@ -271,7 +271,17 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             Some(identifier) if identifier.peek().trim().is_empty() => Err(
                 Self::invalid_wallet_field("apple_pay.merchant_token_identifier"),
             )?,
-            Some(_) => requests::JpmorganAccountNumberType::NetworkToken,
+            Some(identifier) => match identifier.peek().trim() {
+                "PAN" => requests::JpmorganAccountNumberType::Pan,
+                "NETWORK_TOKEN" => requests::JpmorganAccountNumberType::NetworkToken,
+                "DEVICE_TOKEN" => requests::JpmorganAccountNumberType::DeviceToken,
+                "SAFETECH_TOKEN" => requests::JpmorganAccountNumberType::SafetechToken,
+                "SAFETECH_PAGE_ENCRYPTION" => {
+                    requests::JpmorganAccountNumberType::SafetechPageEncryption
+                }
+                "TRACK" => requests::JpmorganAccountNumberType::Track,
+                _ => requests::JpmorganAccountNumberType::NetworkToken,
+            },
             None => requests::JpmorganAccountNumberType::DeviceToken,
         };
         Ok(Self {
@@ -1411,6 +1421,7 @@ impl responses::JpmorganVerificationResponse {
     fn into_payment_response(
         self,
         http_code: u16,
+        mandate_metadata: Option<serde_json::Value>,
         mut metadata: serde_json::Value,
     ) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
         if self.status(http_code)? == AttemptStatus::Failure {
@@ -1438,7 +1449,14 @@ impl responses::JpmorganVerificationResponse {
         Ok(Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference: mandate_metadata.map(|mandate_metadata| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(self.transaction_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: Some(SecretSerdeValue::new(mandate_metadata)),
+                })
+            }),
             connector_metadata: Some(metadata),
             network_txn_id: network_response
                 .as_ref()
@@ -1517,27 +1535,28 @@ impl<T: PaymentMethodDataTypes, F>
                         },
                     })?
                 };
-                // The stored context rides the metadata channel that later
+                // The stored context rides the mandate metadata that later
                 // requests read back, so preserve it explicitly.
-                // A payment identifier is not a reusable payment credential.
-                *mandate_reference = None;
-                if let Some(previous) = previous {
-                    *connector_metadata = Some(previous.metadata());
+                let mandate_metadata = if let Some(previous) = previous {
+                    Some(serde_json::json!(previous))
                 } else if matches!(status, AttemptStatus::Authorized | AttemptStatus::Charged) {
-                    *connector_metadata = Some(
-                        requests::JpmorganStoredContext {
-                            stored_credential: requests::JpmorganStoredCredential {
-                                initialization_reference: reference.clone(),
-                                source: requests::JpmorganStorageSource::Payment,
-                            },
-                            recurring,
-                        }
-                        .metadata(),
-                    );
-                } else if let Some(recurring) = recurring {
-                    *connector_metadata =
-                        Some(serde_json::json!({"jpmorgan": {"recurring": recurring}}));
-                }
+                    Some(serde_json::json!(requests::JpmorganStoredContext {
+                        stored_credential: requests::JpmorganStoredCredential {
+                            initialization_reference: reference.clone(),
+                            source: requests::JpmorganStorageSource::Payment,
+                        },
+                        recurring,
+                    }))
+                } else {
+                    recurring.map(|recurring| serde_json::json!({"recurring": recurring}))
+                };
+                *connector_metadata = None;
+                *mandate_reference = Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(item.response.transaction_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: mandate_metadata.map(SecretSerdeValue::new),
+                }));
             }
         }
 
@@ -1612,7 +1631,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPSyncResponse, Self>>
                     .clone();
                 (
                     status,
-                    response.into_payment_response(item.http_code, metadata)?,
+                    response.into_payment_response(item.http_code, None, metadata)?,
                 )
             }
             _ => {
@@ -2019,7 +2038,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::JpmorganPS
             ));
         }
         let status = verification.status(item.http_code)?;
-        let mut metadata = serde_json::json!({"jpmorgan": {}});
+        let metadata = serde_json::json!({"jpmorgan": {}});
+        let mut mandate_metadata = None;
         if status == AttemptStatus::Charged {
             let recurring = requests::JpmorganRecurring::from_initial_mandate(
                 item.router_data.request.mit_category.as_ref(),
@@ -2030,7 +2050,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::JpmorganPS
                     .connector_request_reference_id,
             )
             .map_err(|_| requests::JpmorganSyncResource::response_error(item.http_code))?;
-            metadata = requests::JpmorganStoredContext {
+            mandate_metadata = Some(serde_json::json!(requests::JpmorganStoredContext {
                 stored_credential: requests::JpmorganStoredCredential {
                     initialization_reference: item
                         .router_data
@@ -2040,10 +2060,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::JpmorganPS
                     source: requests::JpmorganStorageSource::Verification,
                 },
                 recurring,
-            }
-            .metadata();
+            }));
         }
-        let response = verification.into_payment_response(item.http_code, metadata)?;
+        let response =
+            verification.into_payment_response(item.http_code, mandate_metadata, metadata)?;
 
         Ok(Self {
             response,
@@ -2290,10 +2310,6 @@ impl requests::JpmorganStoredContext {
             }
         }
         Ok(Some(context))
-    }
-
-    pub(super) fn metadata(self) -> serde_json::Value {
-        serde_json::json!({"jpmorgan": self})
     }
 }
 
