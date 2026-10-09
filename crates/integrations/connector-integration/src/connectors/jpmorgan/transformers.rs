@@ -41,21 +41,6 @@ const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
 
-impl<'de> Deserialize<'de> for responses::JpmorganPSyncResponse {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
-        if value.get("transactionState").is_some() {
-            serde_json::from_value(value)
-                .map(Self::Payment)
-                .map_err(serde::de::Error::custom)
-        } else {
-            serde_json::from_value(value)
-                .map(Self::Verification)
-                .map_err(serde::de::Error::custom)
-        }
-    }
-}
-
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
     type Error = error_stack::Report<IntegrationError>;
 
