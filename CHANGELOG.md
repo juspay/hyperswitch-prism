@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.09.0
+
+### Features
+
+- **framework:** Add avs check flag support ([#2478](https://github.com/juspay/connector-service/pull/2478)) ([`e45d358`](https://github.com/juspay/connector-service/commit/e45d35830516deb288d75cd9d56a3baffb130e94))
+
+### Bug Fixes
+
+- **framework:** Retry on a fresh client after stale-pool connection-closed error ([#2424](https://github.com/juspay/connector-service/pull/2424)) ([`7cefa03`](https://github.com/juspay/connector-service/commit/7cefa03380ae0cf2f1b5e1bf496a22765a538570))
+- **revolv3:** Forward device manufacturer identifier for Apple Pay MIT payments ([#2473](https://github.com/juspay/connector-service/pull/2473)) ([`f7cc541`](https://github.com/juspay/connector-service/commit/f7cc54110dd0bb18bbb990e8ee01c5173f1ee7af))
+
+**Full Changelog:** [`2026.10.08.1...2026.10.09.0`](https://github.com/juspay/connector-service/compare/2026.10.08.1...2026.10.09.0)
+
+- - -
+
 ## 2026.10.08.1
 
 ### Features
