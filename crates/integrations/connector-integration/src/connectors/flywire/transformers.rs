@@ -847,8 +847,8 @@ pub struct FlywirePaymentWebhookData {
 
 /// Refund-resource webhook payload. Flywire uses a separate set of statuses
 /// for refund events (the documented values are `initiated`, `received`,
-/// `finished`, `cancelled`, `returned`, `failed`). We model just success vs.
-/// failure here; everything else maps to Pending.
+/// `finished`, `cancelled`, `returned`, `failed`). We model terminal success
+/// and failure here; everything else maps to Pending.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum FlywireRefundWebhookStatus {
@@ -865,9 +865,9 @@ pub enum FlywireRefundWebhookStatus {
 impl FlywireRefundWebhookStatus {
     pub fn to_refund_status(&self) -> RefundStatus {
         match self {
-            Self::Finished => RefundStatus::Success,
+            Self::Received | Self::Finished => RefundStatus::Success,
             Self::Cancelled | Self::Returned | Self::Failed => RefundStatus::Failure,
-            Self::Initiated | Self::Received | Self::Unknown => RefundStatus::Pending,
+            Self::Initiated | Self::Unknown => RefundStatus::Pending,
         }
     }
 }
@@ -985,13 +985,15 @@ pub fn webhook_event_type(body: &FlywireWebhookBody) -> EventType {
                 .map(|d| d.status)
                 .unwrap_or(FlywireRefundWebhookStatus::Unknown);
             match status {
-                FlywireRefundWebhookStatus::Finished => EventType::RefundSuccess,
+                FlywireRefundWebhookStatus::Received | FlywireRefundWebhookStatus::Finished => {
+                    EventType::RefundSuccess
+                }
                 FlywireRefundWebhookStatus::Cancelled
                 | FlywireRefundWebhookStatus::Returned
                 | FlywireRefundWebhookStatus::Failed => EventType::RefundFailure,
-                FlywireRefundWebhookStatus::Initiated
-                | FlywireRefundWebhookStatus::Received
-                | FlywireRefundWebhookStatus::Unknown => EventType::PaymentIntentProcessing,
+                FlywireRefundWebhookStatus::Initiated | FlywireRefundWebhookStatus::Unknown => {
+                    EventType::PaymentIntentProcessing
+                }
             }
         }
         // `charges` events are per-card-capture-attempt notifications. A single
