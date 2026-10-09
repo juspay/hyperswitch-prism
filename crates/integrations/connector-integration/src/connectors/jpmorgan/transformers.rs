@@ -1876,30 +1876,6 @@ impl TryFrom<&JpmorganAuthType> for requests::JpmorganMerchant {
     }
 }
 
-// Build JPMorgan Expiry from card data (shared by SetupMandate / RepeatPayment).
-fn build_jpmorgan_expiry<T: PaymentMethodDataTypes>(
-    card_data: &domain_types::payment_method_data::Card<T>,
-) -> Result<requests::Expiry, Error> {
-    let month = card_data
-        .card_exp_month
-        .peek()
-        .parse::<i32>()
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
-    let year = card_data
-        .get_expiry_year_4_digit()
-        .peek()
-        .parse::<i32>()
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
-    Ok(requests::Expiry {
-        month: Secret::new(month),
-        year: Secret::new(year),
-    })
-}
-
 // Parse a network token expiry month to its numeric value.
 fn get_network_token_expiry_month_i32(
     expiry_month: &Secret<String>,
@@ -2422,15 +2398,12 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                         })?,
                 )),
                 requests::Expiry {
-                    month: Secret::new(
-                        token
-                            .get_network_token_expiry_month()
-                            .peek()
-                            .parse::<i32>()
-                            .change_context(IntegrationError::RequestEncodingFailed {
-                                context: Self::mit_context(),
-                            })?,
-                    ),
+                    month: Secret::new(get_network_token_expiry_month_i32(
+                        &token.get_network_token_expiry_month(),
+                        IntegrationError::RequestEncodingFailed {
+                            context: Self::mit_context(),
+                        },
+                    )?),
                     year: Secret::new(
                         token
                             .get_expiry_year_4_digit()
