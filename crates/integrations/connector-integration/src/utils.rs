@@ -377,21 +377,10 @@ pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
 /// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
 /// A value outside either table is logged and discarded.
 pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
-    code.parse::<enums::CountryAlpha2>()
+    code.parse::<u16>()
         .ok()
-        .or_else(|| {
-            code.parse::<u16>()
-                .ok()
-                .and_then(enums::CountryAlpha2::from_numeric)
-        })
-        .or_else(|| {
-            tracing::debug!(
-                value = code,
-                target_type = std::any::type_name::<enums::CountryAlpha2>(),
-                "Unrecognised value received from connector"
-            );
-            None
-        })
+        .and_then(enums::CountryAlpha2::from_numeric)
+        .or_else(|| parse_or_log_unrecognised::<enums::CountryAlpha2>(code))
 }
 
 pub trait SplitPaymentData {
