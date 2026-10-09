@@ -99,6 +99,56 @@
           }
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_man",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
     }
   }
 }

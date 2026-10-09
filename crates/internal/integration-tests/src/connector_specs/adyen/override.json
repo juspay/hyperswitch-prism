@@ -245,6 +245,140 @@
           "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "screen_height": 900,
+          "screen_width": 1440,
+          "time_zone_offset_minutes": -330,
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "screen_height": 900,
+          "screen_width": 1440,
+          "time_zone_offset_minutes": -330,
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "screen_height": 900,
+          "screen_width": 1440,
+          "time_zone_offset_minutes": -330,
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "screen_height": 900,
+          "screen_width": 1440,
+          "time_zone_offset_minutes": -330,
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "screen_height": 900,
+          "screen_width": 1440,
+          "time_zone_offset_minutes": -330,
+          "language": "en-US"
+        }
+      }
     }
   },
   "PaymentService/Refund": {

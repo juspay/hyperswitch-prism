@@ -38,6 +38,23 @@ Use overrides only when connector behavior differs from global baseline, for exa
 
 Do not duplicate full scenario payload unless necessary.
 
+An entry in `override.json` does not make the scenario connector-specific. For
+example, `no3ds_auto_capture_credit_card` remains a shared Authorize scenario;
+Elavon's override supplies its sandbox card number, expiry, and CVC. Keep those
+values out of the global baseline.
+
+Missing optional addresses, two- and four-digit expiry years, saving a card for
+future payments, crypto invoices, FPX/DuitNow payments, and Google Pay tokenization
+are shared dimensions. Define them in `global_suites`, use
+`supported_payment_methods` to select applicable methods, and patch only fixture
+or assertion differences. When adding a shared card variant, carry over existing
+connector card fixtures while preserving the variant's address and expiry format.
+Connector prerequisite chains must reference the shared scenario name too.
+
+Fiuu's private webhook cases pin its signed wire statuses (`00`, `22`, and refund
+`11`) and capture-context mapping to normalized UCS events. These callbacks test
+Fiuu's response mapping and are kept with its connector fixtures.
+
 ## Directory layout
 
 ```text

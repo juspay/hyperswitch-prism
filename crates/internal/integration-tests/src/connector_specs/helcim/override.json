@@ -248,6 +248,46 @@
       "assert": {
         "connector_transaction_id": { "must_exist": true }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6107
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6107
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6107
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6117
+        }
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6107
+        }
+      }
     }
   }
 }

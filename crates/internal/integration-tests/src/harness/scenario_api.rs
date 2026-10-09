@@ -6579,6 +6579,142 @@ grpc-status: 0
     }
 
     #[test]
+    fn expanded_shared_scenarios_load_and_preserve_payment_method_filtering() {
+        use crate::harness::scenario_loader::{
+            load_connector_specific_scenarios, load_supported_payment_methods_for_connector,
+            scenario_matches_supported_payment_methods,
+        };
+
+        let authorize = load_suite_scenarios("PaymentService/Authorize").unwrap();
+        let card_cases = [
+            "no3ds_auto_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_four_digit_expiry",
+            "no3ds_auto_capture_credit_card_two_digit_expiry",
+            "no3ds_manual_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+        ];
+        let crypto_cases = [
+            "no3ds_auto_capture_crypto",
+            "no3ds_auto_capture_crypto_with_metadata",
+            "no3ds_auto_capture_crypto_with_return_url",
+            "no3ds_auto_capture_crypto_small_amount",
+        ];
+        let local_methods = [
+            "no3ds_auto_capture_duitnow_qr",
+            "no3ds_auto_capture_fpx_maybank",
+            "no3ds_auto_capture_fpx_cimb",
+        ];
+        for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
+            assert!(
+                load_connector_specific_scenarios(connector, "PaymentService/Authorize")
+                    .unwrap()
+                    .is_empty()
+            );
+            let methods = load_supported_payment_methods_for_connector(connector).unwrap();
+            for name in card_cases.iter().chain(&crypto_cases).chain(&local_methods) {
+                let applicable = if crypto_cases.contains(name) {
+                    connector == "cryptopay"
+                } else if local_methods.contains(name) {
+                    connector == "fiuu"
+                } else {
+                    connector != "cryptopay"
+                };
+                assert_eq!(
+                    scenario_matches_supported_payment_methods(&authorize[*name], &methods),
+                    applicable,
+                    "{connector}/{name}"
+                );
+                if applicable {
+                    run_test(
+                        Some("PaymentService/Authorize"),
+                        Some(name),
+                        Some(connector),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        let tokenize = load_suite_scenarios("PaymentMethodService/Tokenize").unwrap();
+        let google_pay = &tokenize["tokenize_google_pay_encrypted"];
+        assert!(scenario_matches_supported_payment_methods(
+            google_pay,
+            &["google_pay_sdk".to_string()]
+        ));
+        assert!(!scenario_matches_supported_payment_methods(
+            google_pay,
+            &["card".to_string()]
+        ));
+        run_test(
+            Some("PaymentMethodService/Tokenize"),
+            Some("tokenize_google_pay_encrypted"),
+            Some("datatrans"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn shared_card_variants_preserve_existing_connector_fixtures() {
+        let suite = "PaymentService/Authorize";
+        for connector in discover_all_connectors().unwrap() {
+            for (scenario, base) in [
+                (
+                    "no3ds_auto_capture_credit_card_without_optional_address",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_manual_capture_credit_card_without_optional_address",
+                    "no3ds_manual_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_four_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_two_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_with_setup_future_usage",
+                    "no3ds_auto_capture_credit_card",
+                ),
+            ] {
+                let mut expected = get_the_grpc_req_for_connector(suite, base, &connector).unwrap();
+                if scenario.ends_with("without_optional_address") {
+                    expected["address"] = serde_json::json!({});
+                }
+                let year = &mut expected["payment_method"]["card"]["card_exp_year"]["value"];
+                if scenario.ends_with("four_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(if value.len() == 2 {
+                        format!("20{value}")
+                    } else {
+                        value.to_string()
+                    });
+                } else if scenario.ends_with("two_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(value[value.len() - 2..].to_string());
+                }
+                if scenario.ends_with("with_setup_future_usage") {
+                    expected["setup_future_usage"] = Value::String("OFF_SESSION".to_string());
+                }
+                let actual = get_the_grpc_req_for_connector(suite, scenario, &connector).unwrap();
+                assert_eq!(actual, expected, "{connector}/{scenario}");
+            }
+        }
+
+        let assertions = get_the_assertion_for_connector(
+            suite,
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+            "elavon",
+        )
+        .unwrap();
+        assert!(matches!(
+            assertions.get("mandate_reference.connector_mandate_id.connector_mandate_id"),
+            Some(FieldAssert::MustExist { must_exist: true })
+        ));
+    }
+
+    #[test]
     fn expanded_connector_private_scenarios_load_and_match_proto_schema() {
         for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
             for suite in load_supported_suites_for_connector(connector).unwrap() {
@@ -6603,7 +6739,7 @@ grpc-status: 0
         use crate::harness::scenario_loader::load_suite_spec_for_connector;
         let crypto = load_suite_spec_for_connector("PaymentService/Get", "cryptopay").unwrap();
         let dependency = crypto.depends_on.last().unwrap();
-        assert_eq!(dependency.scenario(), Some("cryptopay_invoice"));
+        assert_eq!(dependency.scenario(), Some("no3ds_auto_capture_crypto"));
         let req = get_the_grpc_req_for_connector(
             dependency.suite(),
             dependency.scenario().unwrap(),
@@ -6623,7 +6759,10 @@ grpc-status: 0
         let elavon =
             load_suite_spec_for_connector("RecurringPaymentService/Charge", "elavon").unwrap();
         let dependency = elavon.depends_on.last().unwrap();
-        assert_eq!(dependency.scenario(), Some("elavon_sale_with_token"));
+        assert_eq!(
+            dependency.scenario(),
+            Some("no3ds_auto_capture_credit_card_with_setup_future_usage")
+        );
         let req = get_the_grpc_req_for_connector(
             dependency.suite(),
             dependency.scenario().unwrap(),

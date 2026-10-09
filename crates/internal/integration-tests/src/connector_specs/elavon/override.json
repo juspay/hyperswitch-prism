@@ -119,6 +119,134 @@
           }
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "50"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "AUTHORIZED"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2050"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        }
+      }
     }
   }
 }

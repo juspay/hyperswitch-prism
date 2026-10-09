@@ -46,6 +46,31 @@
       "grpc_req": {
         "merchant_transaction_id": "gp-auth-ideal"
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-cc"
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-cc"
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-cc"
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-manual-cc"
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-cc"
+      }
     }
   },
   "PaymentService/SetupRecurring": {

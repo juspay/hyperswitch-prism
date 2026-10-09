@@ -13,7 +13,7 @@
     "RecurringPaymentService/Charge": [
       {
         "suite": "PaymentService/Authorize",
-        "scenario": "elavon_sale_with_token",
+        "scenario": "no3ds_auto_capture_credit_card_with_setup_future_usage",
         "context_map": {
           "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id",
           "customer.id": "req.customer.id"
