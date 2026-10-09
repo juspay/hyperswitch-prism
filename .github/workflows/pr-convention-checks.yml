@@ -12,6 +12,8 @@ on:
       - reopened
       - ready_for_review
       - synchronize
+      # Not `unlabeled`: the gate removes the label itself and must not re-run on it.
+      - labeled
 
   merge_group:
     types:
@@ -54,34 +56,115 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.merge_group.head_commit.message }}
         run: cog verify "$COMMIT_MESSAGE"
 
+  # The Deja ART gate: the pull request's latest commit must have a Deja ART
+  # replay result. The `deja-art` label is the button that asks for one, not
+  # what this check looks for: adding it starts a replay of the current commit,
+  # the gate waits for that replay and then removes the label. Any other event
+  # only reads whether the latest commit has a result. For now any result
+  # passes; requiring pass/acknowledged is a later change to the `result` case.
+  #
+  # The job name is what the main-branch ruleset requires; rename them together.
   deja_art_label_check:
     name: Verify PR carries the deja-art label
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: deja-art-gate-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
+    permissions:
+      checks: read
+      pull-requests: write
 
     steps:
-      # The `deja-art` label starts a Deja ART replay of the pull request
-      # against recorded sandbox traffic. Every pull request must carry it.
-      # The replay's verdict does not gate the merge; the label does.
-      #
-      # Labels are read live rather than from the event payload, so re-running
-      # this check after adding the label is enough.
-      - name: Verify PR carries the deja-art label
+      # The head's `Deja ART Replay` check runs (posted by hyperswitch-bot on the
+      # commit it replayed) reduce to one word: result, running, noverdict (the
+      # job's FAILED / TIMED_OUT) or none. All runs are read, so a duplicate
+      # build that died cannot hide another build's result.
+      - name: Verify the latest commit has a Deja ART replay result
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECK_NAME: Deja ART Replay
+          STARTED_BY_LABEL: ${{ github.event.action == 'labeled' && github.event.label.name == 'deja-art' }}
+          EVENT_AT: ${{ github.event.pull_request.updated_at }}
+          REPLAY_STARTS_WITHIN_SECONDS: 600
+          COME_BACK_WITHIN_SECONDS: 6000
+          POLL_SECONDS: 30
         run: |
-          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '.[].name')"
-          if grep -qx 'deja-art' <<< "$labels"; then
-            echo "Label deja-art present; a Deja ART replay will run for this pull request."
-            exit 0
-          fi
-          echo "::error::This pull request must carry the 'deja-art' label. Add it and re-run this check."
-          exit 1
+          short="${HEAD_SHA:0:10}"
+          runs() {
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=${CHECK_NAME// /%20}&filter=all&per_page=100" \
+              --jq '[.check_runs[] | select(.app.slug == "hyperswitch-bot")]'
+          }
+          state() {
+            runs | jq -r 'map(. + {verdict: (.status == "completed" and ((.output.title // "") | test(": (FAILED|TIMED_OUT)$") | not))})
+                          | if length == 0 then "none"
+                            elif any(.verdict) then "result\t" + ([.[] | select(.verdict)] | sort_by(.completed_at) | last | "\(.output.title)\t\(.conclusion)")
+                            elif any(.status != "completed") then "running"
+                            else "noverdict\t" + (sort_by(.completed_at) | last | .output.title)
+                            end'
+          }
 
-      # A change reaches the merge queue only after this check passed on its
-      # pull request, and a merge group has no pull request to read labels from.
+          # The replay job re-opens the head's existing check, so a start time
+          # after the label event tells the new replay from an older result.
+          if [ "$STARTED_BY_LABEL" = "true" ]; then
+            echo "The deja-art label was added: a replay of ${short} starts. Waiting up to $((REPLAY_STARTS_WITHIN_SECONDS / 60)) min for it to appear..."
+            waited=0
+            until runs | jq -e --arg since "$EVENT_AT" 'any(.[]; .started_at >= $since)' > /dev/null; do
+              if [ "$waited" -ge "$REPLAY_STARTS_WITHIN_SECONDS" ]; then
+                echo "::error::Adding the deja-art label did not start a Deja ART replay on ${short} within $((REPLAY_STARTS_WITHIN_SECONDS / 60)) minutes. Add the label again to retry."
+                exit 1
+              fi
+              sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
+            done
+            echo "Replay found; waiting up to $((COME_BACK_WITHIN_SECONDS / 60)) min for its result..."
+            waited=0
+            s="$(state)"
+            while [ "$s" = "running" ]; do
+              if [ "$waited" -ge "$COME_BACK_WITHIN_SECONDS" ]; then
+                echo "::error::The Deja ART replay on ${short} has not come back after $((COME_BACK_WITHIN_SECONDS / 60)) minutes. See the 'Deja ART Replay' check; add the label again to retry."
+                exit 1
+              fi
+              sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
+              s="$(state)"
+            done
+          else
+            s="$(state)"
+          fi
+
+          IFS=$'\t' read -r word title conclusion <<< "$s"
+          case "$word" in
+            result)
+              echo "Deja ART replay result is back for ${short}: ${title} (conclusion: ${conclusion})."
+              echo "The gate does not read the verdict yet; it passes once a result exists."
+              ;;
+            running)
+              echo "::error::A Deja ART replay of ${short} is still running. Re-run this check when it has finished."
+              exit 1
+              ;;
+            noverdict)
+              echo "::error::The Deja ART replay on ${short} did not reach a verdict (${title##*: }). See the 'Deja ART Replay' check; add the deja-art label to run it again."
+              exit 1
+              ;;
+            *)
+              echo "::error::No Deja ART replay has run on the latest commit ${short}. When this commit is the one to merge, add the deja-art label: it replays this commit and this check follows."
+              exit 1
+              ;;
+          esac
+
+      # Whatever the outcome, so adding the label again is the retry.
+      - name: Remove the deja-art label
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'deja-art' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels/deja-art" > /dev/null || echo "The label was already gone."
+
+      # A merge group's commit has no replay of its own; the check passed on the
+      # pull request.
       - name: Nothing to verify in the merge queue
         if: ${{ github.event_name == 'merge_group' }}
-        run: echo "Merge group - the label was verified on the pull request."
+        run: echo "Merge group - the replay was verified on the pull request."
