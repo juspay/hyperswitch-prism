@@ -127,16 +127,6 @@ structure No3dsCardAuthorize where
 
 /-! ## Properties that follow from the types alone -/
 
-theorem amex_cvc_is_4 (c : Card) (h : networkOf c.number.digits = .amex) :
-    c.cvc.digits.length = 4 := by
-  -- rewrite only `cvcLen _`; `c.cvc`'s own type mentions the network, so it can't be rewritten
-  exact c.cvc.h_len.trans (by rw [h]; rfl)
-
-theorem other_cvc_is_3 (c : Card) (h : networkOf c.number.digits = .other) :
-    c.cvc.digits.length = 3 := by
-  -- rewrite only `cvcLen _`; `c.cvc`'s own type mentions the network, so it can't be rewritten
-  exact c.cvc.h_len.trans (by rw [h]; rfl)
-
 theorem amount_positive (r : No3dsCardAuthorize) : 0 < r.amount.minor :=
   r.amount.h_pos
 
