@@ -1187,7 +1187,7 @@ fn log_unparseable_plain_text_response<T>(response_str: &str) {
         })
         .collect();
     error!(
-        "Unparseable {} response: {} bytes, {} lines\n{:?}",
+        "Unparsable {} response: {} bytes, {} lines\n{:?}",
         type_name::<T>(),
         response_str.len(),
         lines.len(),
