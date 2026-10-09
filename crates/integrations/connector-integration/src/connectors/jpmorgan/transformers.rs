@@ -2174,7 +2174,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             }
             .into()),
             Some(common_enums::MitCategory::Unscheduled) => Ok(None),
-            Some(common_enums::MitCategory::Recurring) => {
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => {
                 let recurring = request
                     .connector_feature_data
                     .as_ref()
@@ -2360,20 +2362,10 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             PaymentMethodData::Wallet(WalletData::GooglePay(wallet)) => {
                 match &wallet.tokenization_data {
                     domain_types::payment_method_data::GpayTokenizationData::Decrypted(data) => {
-                        let method = data.auth_method.unwrap_or_else(|| {
-                            if data.cryptogram.is_some() {
-                                common_enums::GooglePayAuthMethod::Cryptogram
-                            } else {
-                                common_enums::GooglePayAuthMethod::PanOnly
-                            }
-                        });
-                        let account_number_type = match method {
-                            common_enums::GooglePayAuthMethod::PanOnly => {
-                                requests::JpmorganAccountNumberType::Pan
-                            }
-                            common_enums::GooglePayAuthMethod::Cryptogram => {
-                                requests::JpmorganAccountNumberType::DeviceToken
-                            }
+                        let account_number_type = if data.cryptogram.is_some() {
+                            requests::JpmorganAccountNumberType::DeviceToken
+                        } else {
+                            requests::JpmorganAccountNumberType::Pan
                         };
                         (
                             RawCardNumber(T::inner_from_card_number(
