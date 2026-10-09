@@ -1571,19 +1571,19 @@ impl<T: PaymentMethodDataTypes, F>
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<responses::JpmorganPSyncResponse, Self>>
+impl<F> TryFrom<ResponseRouterData<responses::JpmorganTransactionResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = ResponseError;
     fn try_from(
-        item: ResponseRouterData<responses::JpmorganPSyncResponse, Self>,
+        item: ResponseRouterData<responses::JpmorganTransactionResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let resource = requests::JpmorganSyncResource::from_request(&item.router_data.request)
             .map_err(|_| requests::JpmorganSyncResource::response_error(item.http_code))?;
         let (status, response) = match (resource, item.response) {
             (
                 requests::JpmorganSyncResource::Payment(_),
-                responses::JpmorganPSyncResponse::Payment(response),
+                responses::JpmorganTransactionResponse::Payment(response),
             ) => {
                 let status = AttemptStatus::try_from(&response)?;
                 let mut result = build_payments_response_result(&response, item.http_code, status)?;
@@ -1618,7 +1618,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPSyncResponse, Self>>
             }
             (
                 requests::JpmorganSyncResource::Verification(id),
-                responses::JpmorganPSyncResponse::Verification(response),
+                responses::JpmorganTransactionResponse::Verification(response),
             ) if id == response.transaction_id => {
                 let status = response.status(item.http_code)?;
                 let metadata = item
@@ -2015,7 +2015,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // SetupMandate response transformer
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::JpmorganPSyncResponse, Self>>
+impl<T: PaymentMethodDataTypes>
+    TryFrom<ResponseRouterData<responses::JpmorganTransactionResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -2025,9 +2026,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::JpmorganPS
 {
     type Error = ResponseError;
     fn try_from(
-        item: ResponseRouterData<responses::JpmorganPSyncResponse, Self>,
+        item: ResponseRouterData<responses::JpmorganTransactionResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let responses::JpmorganPSyncResponse::Verification(verification) = item.response else {
+        let responses::JpmorganTransactionResponse::Verification(verification) = item.response
+        else {
             return Err(requests::JpmorganSyncResource::response_error(
                 item.http_code,
             ));
