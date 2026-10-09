@@ -4920,6 +4920,8 @@ dependencies = [
  "serde",
  "serde_json",
  "ucs_cards",
+ "ucs_common_enums",
+ "ucs_common_utils",
 ]
 
 [[package]]

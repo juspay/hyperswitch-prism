@@ -32,6 +32,8 @@ const VECTORS: &str = include_str!("../../vectors/authorize_no3ds_card.json");
 const KNOWN_GAPS: &[&str] = &[
     // `MinorUnit::new` takes any i64
     "amount_non_positive",
+    // since #2450, proto `Currency::Unspecified` maps to `Ok(Currency::Unspecified)`
+    "currency_unspecified",
     // authentication_data is forwarded even when auth_type is NO_THREE_DS
     "authentication_data_with_no3ds",
     // the prost decoder for `CardNumber` stores the string without `sanitize_card_number`
@@ -165,17 +167,17 @@ fn check_accepted(v: &Vector, data: &PaymentsAuthorizeData<DefaultPCIHolder>) ->
         .as_ref()
         .expect("valid vector has expected values");
 
-    if data.amount.get_amount_as_i64() != expected.minor_amount {
+    if data.amount.amount.get_amount_as_i64() != expected.minor_amount {
         problems.push(format!(
             "amount {} != {}",
-            data.amount.get_amount_as_i64(),
+            data.amount.amount.get_amount_as_i64(),
             expected.minor_amount
         ));
     }
-    if data.currency.to_string() != expected.currency {
+    if data.amount.currency.to_string() != expected.currency {
         problems.push(format!(
             "currency {} != {}",
-            data.currency, expected.currency
+            data.amount.currency, expected.currency
         ));
     }
     let capture = data.capture_method.map(|c| format!("{c:?}"));

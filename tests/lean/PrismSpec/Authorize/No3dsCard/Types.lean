@@ -130,7 +130,18 @@ structure No3dsCardAuthorize where
 theorem amount_positive (r : No3dsCardAuthorize) : 0 < r.amount.minor :=
   r.amount.h_pos
 
-theorem card_number_passes_luhn (r : No3dsCardAuthorize) : luhn r.card.number.digits = true :=
-  r.card.number.h_luhn
+/-- Every card guarantee at once: number digits / length / Luhn, expiry month and year,
+and a CVC of digits whose length matches the card's network. -/
+theorem card_valid (r : No3dsCardAuthorize) :
+    r.card.number.digits.all (· < 10) = true ∧
+    (minCardLen ≤ r.card.number.digits.length ∧ r.card.number.digits.length ≤ maxCardLen) ∧
+    luhn r.card.number.digits = true ∧
+    (1 ≤ r.card.expMonth.val ∧ r.card.expMonth.val ≤ 12) ∧
+    ((r.card.expYear.text.length = 2 ∨ r.card.expYear.text.length = 4) ∧
+      r.card.expYear.text.all Char.isDigit = true) ∧
+    r.card.cvc.digits.all (· < 10) = true ∧
+    r.card.cvc.digits.length = cvcLen (networkOf r.card.number.digits) :=
+  ⟨r.card.number.h_digit, r.card.number.h_len, r.card.number.h_luhn, r.card.expMonth.h,
+   r.card.expYear.h, r.card.cvc.h_digit, r.card.cvc.h_len⟩
 
 end PrismSpec.Authorize.No3dsCard
