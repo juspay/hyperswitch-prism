@@ -455,6 +455,51 @@ from these S3 `AMEND`s (`test_hooks_changed`) reach 2.3b Phase 2t in S4z's hooks
 After the last UCS unit: R10 (`pre-S4z-<k>`), S4 template with `UNIT: __finalize__`, `MODE: NEW`; `guard`, snapshot.
 `DONE` or `FAILED` → continue (S7 gates again), then the hooks round.
 
+**Shape-receipt sweep** — once, after S4z. A request-field claim resting on documentation alone is the
+defect this exists to stop, so it is checked rather than trusted. It must print nothing:
+
+```bash
+jq -r '(.shape_receipts // [])[]
+       | select(.verdict == "accepted" and (.receipt | startswith("doc:")))
+       | "\(.field) @ \(.pm_type): accepted on doc: alone -- \(.receipt)"' \
+   "$R"/code/*.json
+```
+
+Any line → AMEND the owning unit with `required_change` "probe `<field>` on `<pm_type>` and replace the
+doc: receipt, or set verdict unknown and do not emit it". `doc:` can describe what an API supports; it
+cannot know what this merchant, this environment and this payment-method type accept today.
+
+A field plumbed into the contract with nothing upstream to populate it is the same defect wearing the
+opposite sign: it compiles, it smoke-tests, and e2e fails on an empty value. It must print nothing:
+
+```bash
+jq -r '(.shape_receipts // [])[]
+       | select(.verdict == "unpopulated" and ((.hs_change_id // "") == ""))
+       | "\(.field): added to the contract with no hs_changes_required[] entry -- e2e will fail silently"' \
+   "$R"/code/*.json
+```
+
+Any line → the unit plumbed a field through UCS and recorded no Hyperswitch dependency for it. AMEND it
+with `required_change` "add the `hs_changes_required[]` entry that populates `<field>`, or mark the flow
+blocked with `no merchant-side source`". This is the `hs_changes_required[]` failure the run's own
+analysis named — filled correctly, handed off into nothing — made mechanically detectable.
+
+Then record, diagnostically, whether anyone actually asked the connector:
+
+```bash
+jq -s '[.[] | (.shape_receipts // [])[]]
+       | {receipts: length,
+          probed: (map(select(.receipt | startswith("probe:"))) | length),
+          unknown: (map(select(.verdict == "unknown")) | length)}' "$R"/code/*.json
+```
+
+`receipts > 0` with `probed == 0` means every claim was settled from documentation or precedent and the
+connector was never consulted — the state that cost run `rapyd-854c2a` ~$39. `unknown == 0` across a whole
+run is the same signal in weaker form: `2.1a_hs_scout.md` already licenses `unknown` with a cited command
+as warrant and it was used 0 times in 23 verdicts, so a vocabulary that is never used is decorative. Both
+go in the run's decisions file, not into a gate — they describe the run's evidence discipline, and the
+next run should be able to compare.
+
 **Hooks round** — `H=$(jq -c '[.amendments[]?.test_hooks_changed[]?] | unique' "$R/plan/plan.json")`
 `!= '[]'` and no `rca/briefs/o-hooks.json` yet → write it (`origin: PLANNER`, `units` = `H`, evidence
 [`plan/plan.json`], `required_change` "reconcile `connector_specs/` to plan §8 for these units (plan rev <rev>)")
