@@ -6326,6 +6326,10 @@ pub struct AdyenRefundRequest {
     reference: String,
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
+    /// Deja replay probe: a field the recorded refunds never carried, so the
+    /// replay charges every Adyen refund request to this change. Not for merge.
+    #[serde(rename = "refundProbe")]
+    refund_probe: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -6376,6 +6380,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             reference: item.router_data.request.refund_id.clone(),
             store,
             splits,
+            refund_probe: Some("deja-probe".to_owned()),
         })
     }
 }
