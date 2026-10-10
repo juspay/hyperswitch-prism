@@ -7,9 +7,40 @@ use domain_types::payment_method_data::DefaultPCIHolder;
 
 use grpc_api_types::payments::{ConnectorError, Environment, IntegrationError};
 
+/// Runtime config override for in-process Rust embedders of this crate (e.g.
+/// Hyperswitch's UCS "library mode"). Unset by default, in which case
+/// `get_config` falls back to the two embedded sandbox/production defaults
+/// shipped with this crate, as before. See [`set_runtime_config`].
+static RUNTIME_CONFIG_OVERRIDE: std::sync::OnceLock<std::sync::Arc<ucs_env::configs::Config>> =
+    std::sync::OnceLock::new();
+
+/// Lets an in-process Rust caller supply its own [`ucs_env::configs::Config`]
+/// (e.g. built from its own toml via `Config::new_with_config_path`) instead of
+/// this crate's embedded sandbox/production defaults. Every flow's handler
+/// (built through [`impl_flow_handlers`]) reads config exclusively through
+/// [`get_config`], so setting this once is sufficient — no other call site
+/// needs to know an override exists.
+///
+/// Must be called before the first request is handled; the override is a
+/// process-wide, set-once value (first call wins). Returns the value back as
+/// `Err` if a config was already set, so a caller can detect a duplicate call
+/// rather than silently keeping the first one.
+///
+/// Connector base URLs and other server-side settings are unaffected by this:
+/// they always come from whichever `Config` is in effect (the embedded default,
+/// or this override), never overridden separately.
+pub fn set_runtime_config(
+    config: std::sync::Arc<ucs_env::configs::Config>,
+) -> Result<(), std::sync::Arc<ucs_env::configs::Config>> {
+    RUNTIME_CONFIG_OVERRIDE.set(config)
+}
+
 fn get_config(
     environment: Option<Environment>,
 ) -> Result<std::sync::Arc<ucs_env::configs::Config>, IntegrationError> {
+    if let Some(config) = RUNTIME_CONFIG_OVERRIDE.get() {
+        return Ok(config.clone());
+    }
     let config_str = if environment == Some(Environment::Production) {
         EMBEDDED_PROD_CONFIG
     } else {
