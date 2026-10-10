@@ -675,12 +675,25 @@ message CompositePaymentMethodEligibilityRequest {
   // deprecated scalar payment_method_type; lets one connector be checked for many
   // payment methods in a single call.
   repeated PaymentMethodType payment_method_types = 15;
+
+  // Tokenization fields accepted by connectors that need payment method context
+  // before determining eligibility (for example bank-link eligibility checks).
+  optional string merchant_payment_method_id = 16;
+  optional PaymentMethod payment_method = 17;
+  optional string return_url = 18;
+  optional SplitPaymentsDetails split_payments = 19 [deprecated = true];
+  optional FutureUsage setup_future_usage = 20;
+  optional CustomerAcceptance customer_acceptance = 21;
+  optional SetupMandateDetails setup_mandate_details = 22;
+  optional BrowserInformation browser_info = 23;
+  optional string payment_method_token = 24;  // PaymentMethod Token Information
 }
 
 // Response message for composite payment method eligibility flow.
 message CompositePaymentMethodEligibilityResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentMethodServiceEligibilityResponse eligibility_response = 2;
+  optional PaymentMethodServiceTokenizeResponse tokenize_response = 3;
 }
 
 // Request message for composite verify redirect response flow.

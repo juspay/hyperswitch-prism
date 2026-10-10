@@ -6785,6 +6785,8 @@ message PaymentMethodServiceEligibilityRequest {
   // call, avoiding one round-trip per payment method. Preferred over the
   // deprecated scalar `payment_method_type`.
   repeated PaymentMethodType payment_method_types = 13;
+
+  optional string payment_method_token = 14; // PaymentMethod Token Information
 }
 
 // Per-payment-method eligibility verdict. One of these is returned for each
