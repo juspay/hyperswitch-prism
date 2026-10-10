@@ -4910,6 +4910,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lean-spec-harness"
+version = "0.1.0"
+dependencies = [
+ "domain_types",
+ "grpc-api-types",
+ "hyperswitch_masking",
+ "prost 0.14.3",
+ "serde",
+ "serde_json",
+ "ucs_cards",
+ "ucs_common_enums",
+ "ucs_common_utils",
+]
+
+[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,9 @@
+name = "prism_spec"
+defaultTargets = ["PrismSpec", "gen"]
+
+[[lean_lib]]
+name = "PrismSpec"
+
+[[lean_exe]]
+name = "gen"
+root = "Gen"
