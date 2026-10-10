@@ -3,6 +3,30 @@ use serde::{Deserialize, Serialize};
 
 use super::requests::CapMethod;
 
+/// 3DS 2.x transaction status from the directory server
+/// (Visa/Mastercard `transStatus` values).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum JpmorganThreeDsStatus {
+    #[serde(rename = "Y")]
+    Authenticated,
+    #[serde(rename = "A")]
+    Attempted,
+    #[serde(rename = "N")]
+    NotAuthenticated,
+    #[serde(rename = "U")]
+    Unavailable,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "D")]
+    DecoupledAuthentication,
+    #[serde(rename = "I")]
+    InformationalOnly,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JpmorganAuthUpdateResponse {
     pub access_token: Secret<String>,
@@ -58,6 +82,26 @@ pub struct JpmorganPaymentsResponse {
     pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<CapMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_authentication_result: Option<PaymentAuthenticationResult>,
+}
+
+/// Orchestrated 3DS result returned at the payment response top level.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentAuthenticationResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_orchestration_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_domain_secure_challenge: Option<PaymentThreeDsChallenge>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentThreeDsChallenge {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "threeDSAcsUrl")]
+    pub three_ds_acs_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
