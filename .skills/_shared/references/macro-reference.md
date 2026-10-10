@@ -124,6 +124,30 @@ macros::create_all_prerequisites!(
 - Bridge implementations for request/response handling
 - Amount converter wrappers
 
+### `get_auth_header` (ConnectorCommon)
+
+`build_headers` above calls `self.get_auth_header(...)`, but that function itself lives in the
+connector's `ConnectorCommon` impl, not in the macro. Its body:
+
+```rust
+fn get_auth_header(
+    &self,
+    auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+    let auth = examplepay::ExamplePayAuthType::try_from(auth_type)
+        .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!("Bearer {}", auth.api_key.peek()).into_masked(),
+    )])
+}
+```
+
+`.into_masked()` (from `hyperswitch_masking::Mask` -- add it to the `use hyperswitch_masking::{...}`
+import), not bare `.into()`: `impl From<T> for Maskable<T>` builds `Maskable::Normal`, which the
+events pipeline logs in clear. This applies to every secret-derived header value, not just
+`Authorization` -- e.g. `x-api-key`/`x-client-id` built the same way need the same fix.
+
 ---
 
 ## macro_connector_implementation!
