@@ -1,0 +1,14 @@
+{
+  "_issue": "juspay/hyperswitch-cloud#20501 (noon/repeat_payment status-mapping parity)",
+  "_note": "MIT repeat_payment. Requires a prior CIT with setup_future_usage=off_session to mint mandate_id. Card 4111111111111111 exp 03/2030.",
+  "amount": 1700,
+  "currency": "AED",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "noon_mit_cust",
+  "email": "noon@example.com",
+  "description": "noon mit repeat",
+  "off_session": true,
+  "connector_metadata": {"noon": {"order_category": "pay"}},
+  "recurring_details": {"type": "mandate_id", "data": "<mandate_id_from_CIT>"}
+}
