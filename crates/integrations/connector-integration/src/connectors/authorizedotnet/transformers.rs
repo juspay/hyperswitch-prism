@@ -1024,8 +1024,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = item.router_data.request.currency;
 
-        // Handle different mandate reference types with appropriate MIT structures
-        let (profile, processing_options, subsequent_auth_information) = match &item
+        // Handle different mandate reference types with appropriate MIT structures.
+        // `customer` mirrors Direct: omitted on the ConnectorMandateId (stored customer
+        // profile) path, and sent on the NetworkMandateId path keyed by `payment_id`.
+        let (profile, processing_options, subsequent_auth_information, customer) = match &item
             .router_data
             .request
             .mandate_reference
@@ -1065,6 +1067,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         is_subsequent_auth: true,
                     }),
                     None, // No network transaction ID for mandate-based flow
+                    None, // Direct omits `customer` on the stored-profile MIT path
                 )
             }
 
@@ -1079,6 +1082,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         network_trans_id.network_transaction_id.clone(),
                     ),
                     reason: Reason::Resubmission,
+                }),
+                // Direct keys `customer.id` off `payment_id`, not `customer_id`, and
+                // always sends the object on this path.
+                Some(CustomerDetails {
+                    id: {
+                        let payment_id = &item.router_data.resource_common_data.payment_id;
+                        if payment_id.len() <= MAX_ID_LENGTH {
+                            payment_id.clone()
+                        } else {
+                            get_random_string()
+                        }
+                    },
+                    email: item.router_data.request.email.clone(),
                 }),
             ),
 
@@ -1131,19 +1147,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )
         .filter(|id| id.len() <= MAX_ID_LENGTH);
 
-        let customer_id_string = validate_customer_id_length(
-            item.router_data
-                .resource_common_data
-                .customer_id
-                .as_ref()
-                .map(|cid| cid.get_string_repr().to_owned()),
-        );
-
-        let customer_details = customer_id_string.map(|cid| CustomerDetails {
-            id: cid,
-            email: item.router_data.request.email.clone(),
-        });
-
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::AuthOnlyTransaction,
             Some(enums::CaptureMethod::Automatic)
@@ -1178,7 +1181,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency_code: currency,
             profile,
             order: Some(order),
-            customer: customer_details,
+            customer,
             user_fields,
             processing_options,
             subsequent_auth_information,
