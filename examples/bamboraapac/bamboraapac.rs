@@ -6,6 +6,7 @@
 // Run a scenario:  cargo run --example bamboraapac -- process_checkout_card
 use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
+use grpc_api_types::payments::mandate_reference;
 use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
 use hyperswitch_masking::Secret;
@@ -186,7 +187,12 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
     RecurringPaymentServiceChargeRequest {
         connector_recurring_payment_id: Some(MandateReference {
             // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            mandate_id_type: Some(mandate_reference::MandateIdType::ConnectorMandateId(
+                ConnectorMandateReferenceId {
+                    connector_mandate_id: Some("probe-mandate-123".to_string()),
+                    ..Default::default()
+                },
+            )),
             ..Default::default()
         }),
         amount: Some(Money {

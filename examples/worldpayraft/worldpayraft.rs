@@ -6,6 +6,7 @@
 // Run a scenario:  cargo run --example worldpayraft -- process_checkout_card
 use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
+use grpc_api_types::payments::mandate_reference;
 use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
 use hyperswitch_masking::Secret;
@@ -165,30 +166,30 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
 
 pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
     RecurringPaymentServiceChargeRequest {
-        connector_recurring_payment_id: Some(MandateReference {
-            // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+        merchant_charge_id: Some("probe_charge_001".to_string()),  // Reference ID for tracking.
+        connector_recurring_payment_id: Some(MandateReference {  // Reference to existing mandate.
+            mandate_id_type: Some(mandate_reference::MandateIdType::ConnectorMandateId(ConnectorMandateReferenceId {
+                connector_mandate_id: Some("probe-mandate-123".to_string()),
+                mandate_metadata: Some(Secret::new("{\"is_stored_credential\":true,\"card_network\":\"Visa\",\"expiration_date\":\"3003\"}".to_string())),
+                ..Default::default()
+            })),
             ..Default::default()
         }),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        amount: Some(Money {  // Amount Information.
+            minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        payment_method: Some(PaymentMethod {
-            // Optional payment Method Information (for network transaction flows).
-            payment_method: Some(payment_method::PaymentMethod::Token(
-                TokenPaymentMethodType {
-                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
-                    ..Default::default()
-                },
-            )),
+        payment_method: Some(PaymentMethod {  // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(TokenPaymentMethodType {
+                token: Some(Secret::new("probe_pm_token".to_string())),  // The token string representing a payment method.
+                ..Default::default()
+            })),
             ..Default::default()
         }),
         return_url: Some("https://example.com/recurring-return".to_string()),
         connector_customer_id: Some("cust_probe_123".to_string()),
-        payment_method_type: Some(PaymentMethodType::PayPal.into()),
-        off_session: Some(true), // Behavioral Flags and Preferences.
+        payment_method_type: Some(PaymentMethodType::Credit.into()),
+        off_session: Some(true),  // Behavioral Flags and Preferences.
         ..Default::default()
     }
 }

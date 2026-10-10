@@ -115,7 +115,12 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
 
 function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
     return {
+        "merchantChargeId": "probe_charge_001",  // Reference ID for tracking.
         "connectorRecurringPaymentId": {  // Reference to existing mandate.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe-mandate-123",
+                "mandateMetadata": {"value": "{\"is_stored_credential\":true,\"card_network\":\"Visa\",\"expiration_date\":\"3003\"}"}
+            }
         },
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
@@ -128,7 +133,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "returnUrl": "https://example.com/recurring-return",
         "connectorCustomerId": "cust_probe_123",
-        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "paymentMethodType": PaymentMethodType.CREDIT,
         "offSession": true  // Behavioral Flags and Preferences.
     };
 }

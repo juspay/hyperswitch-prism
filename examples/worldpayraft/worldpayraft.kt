@@ -270,11 +270,11 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
 fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RecurringPaymentClient(config)
     val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
+        merchantChargeId = "probe_charge_001"  // Reference ID for tracking.
         connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
             connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
-                connectorMandateIdBuilder.apply {
-                    connectorMandateId = "probe-mandate-123"
-                }
+                connectorMandateId = "probe-mandate-123"
+                mandateMetadataBuilder.value = "{\"is_stored_credential\":true,\"card_network\":\"Visa\",\"expiration_date\":\"3003\"}"
             }
         }
         amountBuilder.apply {  // Amount Information.
@@ -288,7 +288,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
-        paymentMethodType = PaymentMethodType.PAY_PAL
+        paymentMethodType = PaymentMethodType.CREDIT
         offSession = true  // Behavioral Flags and Preferences.
     }.build()
     val response = client.charge(request)

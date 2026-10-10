@@ -105,6 +105,13 @@ paybox  = '{"connector_request_id":"probe_req_001"}'
 peachpayments = '{"client_merchant_reference_id":"probe_merchant_ref_001","merchant_payment_method_route_id":"probe_route_001"}'
 default = '{}'
 
+# Stored TokenizedPAN charges replay the secret mandate_metadata returned by
+# Worldpay RAFT Authorize/SetupMandate; connector_feature_data excludes expiry.
+[connector_overrides.recurring_charge.worldpayraft]
+"merchant_charge_id" = "probe_charge_001"
+"payment_method_type" = 24 # CREDIT
+"connector_recurring_payment_id.mandate_id_type.ConnectorMandateId.mandate_metadata" = '{"is_stored_credential":true,"card_network":"Visa","expiration_date":"3003"}'
+
 # Per-connector request field overrides.
 # Format: [connector_overrides."flow1,flow2,...".connector]
 # Zift, Placetopay and Helcim parse connector_transaction_id as i64/u64,
