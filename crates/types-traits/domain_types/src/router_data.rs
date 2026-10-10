@@ -4821,6 +4821,13 @@ impl ConnectorResponseData {
                 card_network: None,
                 domestic_network: None,
                 auth_code: Some(auth_code),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             },
         };
         Self {
@@ -4874,6 +4881,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         domestic_network: Option<String>,
         /// auth code returned by the processor
         auth_code: Option<String>,
+        /// Normalized card network returned by the processor. `card_network` retains the
+        /// connector-specific spelling used by later calls to the same connector.
+        processor_card_network: Option<common_enums::CardNetwork>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     Upi {
         /// UPI source detected from the connector response
