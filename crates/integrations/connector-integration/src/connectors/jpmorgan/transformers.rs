@@ -470,10 +470,13 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             self.initiator_type = Some(requests::JpmorganInitiatorType::Cardholder);
             self.account_on_file = Some(requests::JpmorganAccountOnFile::Stored);
             self.is_amount_final = Some(true);
-            self.merchant_order_number = request
-                .merchant_order_id
-                .clone()
-                .filter(|id| !id.trim().is_empty());
+            self.merchant_order_number = Some(
+                request
+                    .merchant_order_id
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .unwrap_or_else(|| reference.to_owned()),
+            );
             self.recurring = None;
             if let Some(card) = self.payment_method_type.card.as_mut() {
                 card.account_number_type
@@ -515,10 +518,13 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
         self.initiator_type = Some(requests::JpmorganInitiatorType::Cardholder);
         self.account_on_file = Some(requests::JpmorganAccountOnFile::ToBeStored);
         self.is_amount_final = Some(true);
-        self.merchant_order_number = request
-            .merchant_order_id
-            .clone()
-            .filter(|id| !id.trim().is_empty());
+        self.merchant_order_number = Some(
+            request
+                .merchant_order_id
+                .clone()
+                .filter(|id| !id.trim().is_empty())
+                .unwrap_or_else(|| reference.to_owned()),
+        );
         if let Some(card) = self.payment_method_type.card.as_mut() {
             card.account_number_type
                 .get_or_insert(requests::JpmorganAccountNumberType::Pan);
@@ -591,11 +597,19 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             },
             account_holder: None,
             statement_descriptor: None,
-            merchant_order_number: router_data
-                .request
-                .merchant_order_id
-                .clone()
-                .filter(|id| !id.trim().is_empty()),
+            merchant_order_number: Some(
+                router_data
+                    .request
+                    .merchant_order_id
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .unwrap_or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone()
+                    }),
+            ),
             initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
             account_on_file: Some(requests::JpmorganAccountOnFile::NotStored),
             is_amount_final: Some(true),
@@ -2019,10 +2033,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganSetupMandatePaymentMethodType { card },
             recurring_sequence: recurring.map(|details| details.recurring_sequence),
-            merchant_order_number: request
-                .merchant_order_id
-                .clone()
-                .filter(|id| !id.trim().is_empty()),
+            merchant_order_number: Some(
+                request
+                    .merchant_order_id
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .unwrap_or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone()
+                    }),
+            ),
             initiator_type: requests::JpmorganInitiatorType::Cardholder,
             account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
         })
