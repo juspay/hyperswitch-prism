@@ -218,7 +218,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Ilixium](connectors/ilixium.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ? | x | x | x | x | x | x | x | x | x | x | x | x | ? | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Imerchantsolutions](connectors/imerchantsolutions.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ? | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Itaubank](connectors/itaubank.md) | ⚠ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Jpmorgan](connectors/jpmorgan.md) | ✓ | ✓ | ? | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Jpmorgan](connectors/jpmorgan.md) | ✓ | ✓ | ? | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Jpmorgan Orbital](connectors/jpmorgan_orbital.md) | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | x | x | x | ✓ | x | x | x | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Jpmorganorbital](connectors/jpmorganorbital.md) | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | x | x | x | ✓ | x | x | x | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Juspay](connectors/juspay.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
