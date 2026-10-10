@@ -1105,6 +1105,7 @@ macros::macro_connector_flow_status_impls!(
 );
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod base_url_tests {
     use domain_types::router_data::ConnectorSpecificConfig;
     use hyperswitch_masking::Secret;
