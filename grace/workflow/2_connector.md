@@ -53,7 +53,18 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 - R4 **No commits or pushes before S7** in either repo; no stash/reset/checkout -f/clean/restore.
 - R5 **Never poll or re-message a finished agent**. A completion notification is handled once; if the row is already `done`, make no tool call. No TaskOutput/SendMessage on done rows, and no progress checks on running agents.
 - R6 **Join on files**: don't advance past a join until the output file exists; while waiting, wait for the notification. No sleep loops, no polling.
-- R7 **Context hygiene**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
+- R7 **Context hygiene** — symmetric, because a token entering a conversation is billed as `cache_write` once and
+  then as `cache_read` on *every* later turn of that agent:
+  - **R7a read**: read only return blocks (≤8 lines, ≤2k chars) and `run.json`; pass paths, never contents.
+  - **R7b probe**: every probe command bounds its own output — `cut -c1-200`, `head -c 4000`, `jq` a projection,
+    `grep -c`. Never `cat` a whole artefact, source file or log into the conversation; `sed -n` the range you need.
+    Over ~4k chars, write it to a file and return the path (the `long`/`waitx` contract in 2.0 Phase 9 generalises:
+    output to a file, only `<exit> <duration_s>` comes back).
+  - **R7c write**: never emit an artefact body larger than ~60 lines inside a tool call. Above that, generate the
+    artefact with a tool from a compact spec, or append to it incrementally. A hand-typed heredoc is billed at the
+    output rate (~4x `cache_write`, ~97x `cache_read`) and then re-read on every later turn.
+  - **R7d never re-read your own writes**: an agent that wrote a file already knows its contents. Re-reading an
+    artefact this agent produced is pure duplication — keep what you need in the return block instead.
 - R8 **Bounded loops**: check caps in `run.json` counters **before** spawning; if a cap is exceeded, mark unresolved and continue.
 - R9 **Time budget** `MAX_RUN_HOURS` (default 24): when exceeded, finish the current stage and go to S6/S7.
 - R10 **Disk guard** before S4, S4z and each S5 build: if free space < `MIN_FREE_GB_RUNTIME` (20), re-run the 2.0 cleanup; if still low, stop at the stage boundary (resumable).
@@ -62,7 +73,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 
 How they apply here: **R2** `__hs__` also runs in background (it writes only `hs-wt`). **R4** `snapshot` writes
 objects and `refs/grace/<run_id>/*`, never a branch; one carve-out, the `no_op` restore ("## Final status and
-Output"). **R7** `jq` projections of ids/counts (≤20 lines) are allowed for routing. **R8** every AMEND, REPAIR, inner-loop or withdraw spawn bumps its `counters` key before the stamp
+Output"). **R7** `jq` projections of ids/counts (≤20 lines) are allowed for routing; measured on `rapyd-028fad`, `Read` was 13% of tool calls but 40% of all tool-result bytes, and 48% of those were workflow stage files re-read in full by repeat spawns. **R8** every AMEND, REPAIR, inner-loop or withdraw spawn bumps its `counters` key before the stamp
 (2.3b: `amend_hs` for `__hs__`, else `amend_codegen <unit>` against `amend_codegen_per_unit`);
 "unresolved" = bug status `unresolved`, unit unfinished. **R9** before every `row_start` except `DISK:*` and the
 R9 targets themselves (S4z, the promotion spawns, the S7 prelude execs, S6 `FULL`, S7), `late` → `ev SKIP <row id> reason=time` and jump:
@@ -119,7 +130,8 @@ Tree-writing stages append `claimed.tsv`.
 ```
 {schema: 1, run_id, connector, connector_lc, units[], inputs{flows, hs_repo_path, max_run_hours, min_free_gb,
  min_free_gb_runtime, parallel_hs_build}, started_at, deadline_at, ended_at, status (null | SUCCESS | FAILED | SKIPPED), stopped (null | cause),
- workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref, caps{<key>: n},
+ workflow_dir, branch, base_sha, ports{grpc, metrics}, hs_mode, review_ref,
+ caps{<key>: n | true}  <- every row of the caps table, including the non-numeric `stop_early`,
  counters{nn, exec_round, rca_rounds, status_update, review_rounds, amend_links, amend_techspec, amend_plan, amend_hs,
           amend_codegen{<unit>}, e2e, env_repairs, missing{<file>},
           crash{<unit_fs>}},
@@ -422,7 +434,35 @@ AMEND, from S4, S4z, S5, loop-back or promotion) uses this template with a fresh
   SMOKE: 1                                     (plan.json .foundation_smoke != null, UNIT = its .unit: the NEW spawn and every o-smoke, o-gate or o-resume AMEND)
   HS_REPO_PATH: {HS_REPO_PATH}                 (every __hs__ spawn, NEW or AMEND)
   ROW_ID: <row id>                             (every __hs__ spawn)
+  PHASE: READ | ITEM | GATE | ASSEMBLE         (recovery only — omit by default; never for __hs__, __finalize__, AMEND)
+  ITEM_ID: <plan item id>                      (PHASE: ITEM only)
 ```
+
+**A code unit in `MODE: NEW` runs as ONE spawn by default.** Omit `PHASE` unless a phase split is being used
+for recovery (below). Context does grow monotonically inside an agent, but splitting is measurably *more*
+expensive, not less: a spawn is not ~10k tokens, it re-pays the whole per-agent prefix — this stage file is 57 KB
+(~14k tokens), and on `rapyd-028fad` the split made it a 40x Read instead of 4x, +1.94 MB (+484k tokens) billed
+at the `cache_write` rate, which is 24x `cache_read`. Per-item cost measured $1.18 split vs $0.73-0.78 unsplit
+(~2x worse). Context inside one agent is amortisation; N spawns pay N fresh prefixes.
+
+Use `PHASE` only to **resume or retry part of a unit** — a unit that failed mid-way, or one whose single spawn
+exhausted its turn budget. The phases hand state to each other through `$BRIEF`, `claimed.tsv` and `$FIXLOG` —
+never through a conversation — so a phase re-spawn resumes exactly; that is what makes it a recovery tool.
+
+Per unit, in order, each its own message, reusing the unit's `NN` throughout:
+
+1. `PHASE: READ` → one spawn. `DONE` with `code/<NN>-<unit_fs>.brief.json` → 2. `NO_CHANGE` → the unit is done,
+   no further phase. `PLAN_CONFLICT`/`FAILED`/`BLOCKED` → the S4 table as usual.
+2. `PHASE: ITEM` → one spawn per entry of `jq -r '.items[].item_id' <brief>`, **in file order** (R3: the UCS tree
+   is sequential). A `FAILED` ends the unit; remaining items are not spawned.
+3. `PHASE: GATE` → spawn, and re-spawn while it returns `PARTIAL`, up to `caps.gate_iterations_codegen`. The
+   iteration count lives in `$FIXLOG` (`wc -l`), not in the row, so a re-spawn resumes the loop exactly.
+4. `PHASE: ASSEMBLE` → one spawn. `DONE` with `code/<NN>-<unit_fs>.json` closes the unit.
+
+Row ids carry the phase: `S4:<NN>:<unit_fs>:READ`, `:ITEM:<item_id>`, `:GATE:<k>`, `:ASSEMBLE`. The unit's own
+row (`S4:<NN>:<unit_fs>`) is stamped `done` when ASSEMBLE returns, so the S4 table, the `__finalize__` trigger
+and Resume rule 4a all keep working on it unchanged. **Omitting `PHASE` runs every phase in one spawn** — the
+default, and the cheaper path.
 
 R10 spawn `DISK:<tag>` (`2.0_preflight.md`): `CONNECTOR`, `UNITS` (JSON array), `HS_REPO_PATH`, `RUN_DIR`,
 `MODE: DISK_ONLY`, `DISK_TAG: <pre-S4 | pre-S4z-<k> | pre-r<N>>`, `MIN_FREE_GB_RUNTIME`, `STALE_DAYS: {STALE_DAYS}`,
@@ -781,7 +821,11 @@ Input: the briefs of `rca/r<N>.json` (`brief_ref` non-null) plus this round's or
 
 ## Caps
 
-Single source of truth; stage files cite this section. Copied into `run.json .caps` at init.
+Single source of truth; stage files cite this section. **Every** row is copied into `run.json .caps`
+at init -- `stop_early` included, as `true`. It is not numeric, which is exactly why it gets skipped:
+one run omitted it and the comparison floor's `caps_must_equal` rejected that run for an absent
+anti-cheat key while its quality was fine. A cap the orchestrator cannot read is a cap that is not
+enforced, so transcribe the whole table, not the rows that fit the numeric shape.
 
 | Cap | Default | `run.json .caps` keys |
 |---|---|---|
@@ -791,7 +835,7 @@ Single source of truth; stage files cite this section. Copied into `run.json .ca
 | Plan validator fix iterations (2.3a Phase 11, per spawn) | 6 | `validator_fix_iterations` |
 | ENV repairs per RCA round | 4 | `env_repairs_per_round` |
 | Review remediation rounds / crash re-spawn per stage | 2 / 2 | `review_remediation_rounds` / `crash_respawn_per_stage` |
-| Stop early | a round where the blocking open count doesn't fall | `stop_early` |
+| Stop early | `true` (the rule: a round where the blocking open count doesn't fall) | `stop_early` |
 | Warm UCS build wait / BASELINE join wait (minutes) | 120 / 180 | `warm_build_wait_min` / `baseline_join_min` |
 | E2E join wait / `__hs__` join wait (minutes) | 60 / 120 | `e2e_join_min` / `hs_join_min` |
 | CI auto-fix wait (2.8) | 30 min | `ci_autofix_wait_min` |
