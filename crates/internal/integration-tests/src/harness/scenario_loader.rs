@@ -114,6 +114,33 @@ pub fn load_scenario(suite: &str, scenario: &str) -> Result<ScenarioDef, Scenari
         })
 }
 
+/// Loads the scenarios a connector sees for a suite: the global `scenario.json`
+/// plus the connector's own `connector_specific_scenarios.json` entries.
+pub fn load_suite_scenarios_for_connector(
+    connector: &str,
+    suite: &str,
+) -> Result<ScenarioFile, ScenarioError> {
+    let mut scenarios = load_suite_scenarios(suite)?;
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+    Ok(scenarios)
+}
+
+/// Loads one named scenario definition as a connector sees it, including the
+/// scenarios only that connector declares.
+pub fn load_scenario_for_connector(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+) -> Result<ScenarioDef, ScenarioError> {
+    load_suite_scenarios_for_connector(connector, suite)?
+        .get(scenario)
+        .cloned()
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })
+}
+
 /// Loads suite execution metadata including dependency graph and scope.
 pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
     let path = suite_spec_file_path(suite);

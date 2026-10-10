@@ -9,11 +9,12 @@ use domain_types::connector_types::{
     SurchargeConnectorEnum,
 };
 use grpc_api_types::payments::{
-    AccessToken, CustomerServiceCreateResponse,
+    AccessToken, ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodServiceTokenizeResponse, PaymentStatus,
 };
+use hyperswitch_masking::{PeekInterface, Secret};
 
 pub fn connector_from_composite_authorize_metadata(
     metadata: &tonic::metadata::MetadataMap,
@@ -211,6 +212,32 @@ pub fn get_session_token(
 ) -> Option<String> {
     session_token_from_request
         .or_else(|| session_token_response.map(|response| response.session_token.clone()))
+}
+
+/// State for a sub-request that has no session_token field: the access token when there is
+/// one, else the session token in the access-token slot (what connectors with
+/// `should_do_session_token` read on their authentication legs).
+pub fn state_with_session_token_fallback(
+    state: Option<ConnectorState>,
+    session_token: Option<String>,
+) -> Option<ConnectorState> {
+    let has_access_token = state
+        .as_ref()
+        .and_then(|state| state.access_token.as_ref())
+        .and_then(|access_token| access_token.token.as_ref())
+        .is_some_and(|token| !token.peek().is_empty());
+
+    match session_token.filter(|token| !token.is_empty()) {
+        Some(token) if !has_access_token => Some(ConnectorState {
+            access_token: Some(AccessToken {
+                token: Some(Secret::new(token)),
+                token_type: None,
+                expires_in_seconds: None,
+            }),
+            connector_customer_id: state.and_then(|state| state.connector_customer_id),
+        }),
+        _ => state,
+    }
 }
 
 /// Check if payment status indicates a terminal state (success or failure)

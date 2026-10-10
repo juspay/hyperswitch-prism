@@ -11,6 +11,10 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "EventService/HandleEvent",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate"
   ]
 }

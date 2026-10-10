@@ -22,7 +22,13 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4107652651950141"
+              "value": "4344141510671174"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_cvc": {
+              "value": "217"
             }
           }
         }
@@ -34,8 +40,35 @@
         "connector_transaction_id": {
           "must_exist": true
         },
-        "error": null,
-        "error.connector_details.message": null
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "equals": "Do not honor"
+        },
+        "error.connector_details.code": {
+          "equals": "-1"
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": null,
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "MISSING_REQUIRED_FIELD"
+        },
+        "error.error_message": {
+          "contains": "connector_feature_data.related_transaction_id"
+        }
       }
     }
   },
@@ -80,6 +113,28 @@
         "amount": {
           "minor_amount": 6000,
           "currency": "USD"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "redirection_response": {
+          "payload": {
+            "cres": "eyJ0cmFuc1N0YXR1cyI6IlkifQ=="
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["AUTHENTICATION_SUCCESSFUL"]
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data": {
+          "must_not_exist": true
         }
       }
     }

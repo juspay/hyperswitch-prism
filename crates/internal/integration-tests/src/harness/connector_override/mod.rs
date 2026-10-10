@@ -155,7 +155,10 @@ pub fn context_deferred_paths_for_connector(connector: &str) -> Vec<String> {
 /// 2. If the webhook config has a `signature_header` and no explicit signature
 ///    already exists in the merged headers, attempt to compute an HMAC signature
 ///    from `webhook_secrets` in the connector's creds.json.
-/// 3. Inject `webhook_secrets` at the top level if the credential exists.
+/// 3. If the webhook config has a `signature_body_field` and the form-urlencoded
+///    body carries no value for it, compute the signature the same way and
+///    append it to the body as that field.
+/// 4. Inject `webhook_secrets` at the top level if the credential exists.
 fn apply_webhook_payload_overrides(
     connector: &str,
     scenario: &str,
@@ -230,6 +233,17 @@ fn apply_webhook_payload_overrides(
         }
     }
 
+    // Write the computed signature into a form body field if the webhook
+    // config names one (connectors that sign inside the body, not a header).
+    let signature_body_field = webhook_config
+        .as_ref()
+        .and_then(|c| c.get("signature_body_field"))
+        .and_then(Value::as_str);
+
+    if let (Some(field_name), Some(secret)) = (signature_body_field, webhook_secret.as_ref()) {
+        inject_body_signature_field(connector, field_name, secret, grpc_req);
+    }
+
     // Inject webhook_secrets at the top level if a secret exists.
     if let Some(secret) = &webhook_secret {
         if let Some(root) = grpc_req.as_object_mut() {
@@ -241,6 +255,55 @@ fn apply_webhook_payload_overrides(
     }
 
     Ok(())
+}
+
+/// Appends `&<field_name>=<signature>` to a base64 form-urlencoded
+/// `request_details.body`, for connectors whose signature travels in the body.
+///
+/// A field that is already present and non-empty is left alone (e.g. the
+/// invalid_signature scenario). If the body is not a base64 UTF-8 string or
+/// the signature cannot be computed, the body is left unsigned.
+fn inject_body_signature_field(
+    connector: &str,
+    field_name: &str,
+    secret: &str,
+    grpc_req: &mut Value,
+) {
+    let Some(form_body) = grpc_req
+        .pointer("/request_details/body")
+        .and_then(Value::as_str)
+        .and_then(|body_b64| STANDARD.decode(body_b64).ok())
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+    else {
+        return;
+    };
+
+    let field_already_set = form_body
+        .split('&')
+        .filter_map(|pair| pair.split_once('='))
+        .any(|(name, value)| name == field_name && !value.is_empty());
+    if field_already_set {
+        return;
+    }
+
+    let Some(signature) = signature_payload_bytes(connector, grpc_req).and_then(|payload_bytes| {
+        let ctx = signature_context(connector, grpc_req);
+        crate::webhook_signatures::generate_signature(connector, &payload_bytes, secret, &ctx).ok()
+    }) else {
+        return;
+    };
+
+    let signed_body = format!("{form_body}&{field_name}={signature}");
+
+    if let Some(details) = grpc_req
+        .pointer_mut("/request_details")
+        .and_then(Value::as_object_mut)
+    {
+        details.insert(
+            "body".to_string(),
+            Value::String(STANDARD.encode(signed_body.as_bytes())),
+        );
+    }
 }
 
 /// The exact bytes a connector's own webhook verification code hashes to

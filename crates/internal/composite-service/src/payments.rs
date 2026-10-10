@@ -35,7 +35,8 @@ use interfaces::connector_types::AuthenticationStep;
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
-    is_failure_payment_status, is_terminal_payment_status,
+    get_session_token, is_failure_payment_status, is_terminal_payment_status,
+    state_with_session_token_fallback,
 };
 
 /// Decoded CRes (Challenge Response) from 3DS challenge completion.
@@ -822,6 +823,33 @@ where
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
 
+        // The authentication sub-requests carry no session_token field. For a connector that
+        // does session tokens and has no access token, hand them the session token in
+        // state.access_token; every other connector gets the payload unchanged.
+        let authentication_session_token = (access_token_response.is_none()
+            && connector_data
+                .connector
+                .should_do_session_token(payload.connector_feature_data()))
+        .then(|| {
+            get_session_token(
+                payload.session_token.clone(),
+                session_token_response.as_ref(),
+            )
+        })
+        .flatten()
+        .filter(|session_token| !session_token.is_empty());
+        let authentication_payload = match authentication_session_token {
+            Some(session_token) => {
+                let mut authentication_payload = payload.clone();
+                authentication_payload.state = state_with_session_token_fallback(
+                    authentication_payload.state.take(),
+                    Some(session_token),
+                );
+                std::borrow::Cow::Owned(authentication_payload)
+            }
+            None => std::borrow::Cow::Borrowed(&payload),
+        };
+
         let mut state = AuthorizeCompositeState::default();
 
         // Authentication loop - connector controls flow via next_authentication_step
@@ -837,7 +865,7 @@ where
                 AuthenticationStep::PreAuthenticate => {
                     state.pre_auth_response_opt = Some(
                         self.pre_authenticate(
-                            &payload,
+                            authentication_payload.as_ref(),
                             access_token_response.as_ref(),
                             create_order_response.as_ref(),
                             &metadata,
@@ -862,7 +890,7 @@ where
                 AuthenticationStep::Authenticate => {
                     state.authn_response_opt = Some(
                         self.authenticate(
-                            &payload,
+                            authentication_payload.as_ref(),
                             state.pre_auth_response_opt.as_ref(),
                             &metadata,
                             &extensions,
@@ -886,7 +914,7 @@ where
                 AuthenticationStep::PostAuthenticate => {
                     state.post_authn_response_opt = Some(
                         self.post_authenticate(
-                            &payload,
+                            authentication_payload.as_ref(),
                             state.authn_response_opt.as_ref(),
                             &metadata,
                             &extensions,
