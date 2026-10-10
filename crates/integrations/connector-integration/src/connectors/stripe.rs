@@ -1002,14 +1002,21 @@ macros::macro_connector_implementation!(
                     "v1/setup_intents",
                     x,
                 )),
-                Ok(x) => Ok(format!(
+                Ok(x) if !x.is_empty() => Ok(format!(
                     "{}{}/{}{}",
                     self.connector_base_url_payments(req),
                     "v1/payment_intents",
                     x,
                     "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
                 )),
-                x => x.change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+                // If the connector transaction id is missing, sync the payment using the
+                // connector_request_reference_id which is sent as metadata[order_id] in the payment intent
+                _ => Ok(format!(
+                    "{}{}?query=metadata['order_id']:'{}'",
+                    self.connector_base_url_payments(req),
+                    "v1/payment_intents/search",
+                    req.resource_common_data.connector_request_reference_id,
+                )),
 }
         }
     }
