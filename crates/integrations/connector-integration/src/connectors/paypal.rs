@@ -457,6 +457,7 @@ macros::create_all_prerequisites!(
             flow: Capture,
             request_body: PaypalPaymentsCaptureRequest,
             response_body: PaypalCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (

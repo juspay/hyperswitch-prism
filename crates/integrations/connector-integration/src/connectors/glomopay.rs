@@ -73,6 +73,7 @@ macros::create_all_prerequisites!(
         (
             flow: PSync,
             response_body: GlomopayPaymentSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (

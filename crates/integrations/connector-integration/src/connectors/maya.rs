@@ -4,7 +4,12 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
+use common_utils::{
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    types::{FloatMajorUnit, StringMajorUnit},
+};
 use domain_types::{
     connector_flow::{self, Authorize, PSync, RSync, Refund, Void},
     connector_types::*,
@@ -52,6 +57,7 @@ macros::create_all_prerequisites!(
         (
             flow: PSync,
             response_body: MayaWebhookBody,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -64,6 +70,7 @@ macros::create_all_prerequisites!(
             flow: Refund,
             request_body: MayaRefundRequest,
             response_body: MayaRefundResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
@@ -73,7 +80,8 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: FloatMajorUnit
+        amount_converter: FloatMajorUnit,
+        response_amount_converter: StringMajorUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(

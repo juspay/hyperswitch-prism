@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, AuthorizationStatus, Currency, RefundStatus};
-use common_utils::{pii, request::Method, types::MinorUnit};
+use common_utils::{
+    pii,
+    request::Method,
+    types::{AmountConvertor, MinorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
@@ -1234,6 +1238,25 @@ fn get_shift4_captured_amount(response: &Shift4PaymentsResponse) -> Option<Minor
         .then_some(response.amount)
 }
 
+fn get_shift4_captured_money(
+    amount_converter: &impl AmountConvertor<Output = MinorUnit>,
+    response: &Shift4PaymentsResponse,
+    currency: Currency,
+    http_code: u16,
+) -> Result<Option<common_utils::types::Money>, error_stack::Report<ConnectorError>> {
+    get_shift4_captured_amount(response)
+        .map(|amount| {
+            crate::utils::response_amount_to_money(
+                amount_converter,
+                amount,
+                currency,
+                http_code,
+                "shift4",
+            )
+        })
+        .transpose()
+}
+
 /// Redirect target Shift4 hands back for APM / redirect flows, if any.
 fn get_shift4_redirection_data(response: &Shift4PaymentsResponse) -> Option<Box<RedirectForm>> {
     response
@@ -1439,14 +1462,21 @@ pub enum Shift4PaymentStatus {
     Unknown,
 }
 
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -1493,11 +1523,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             })
         };
 
-        let amount_captured =
-            get_shift4_captured_amount(&item.response).map(|amount| common_utils::types::Money {
-                amount,
-                currency: item.router_data.request.currency,
-            });
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
@@ -1516,14 +1547,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
 }
 
 // PSync response transformation - reuses Shift4PaymentsResponse and status mapping logic
-impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -1553,11 +1591,12 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             })
         };
 
-        let amount_captured =
-            get_shift4_captured_amount(&item.response).map(|amount| common_utils::types::Money {
-                amount,
-                currency: item.router_data.request.currency,
-            });
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
@@ -1573,14 +1612,21 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
 }
 
 // Capture response transformation - reuses Shift4PaymentsResponse
-impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -1631,11 +1677,12 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
 
         // The charge `amount` is the captured amount after a capture, so a
         // partial capture of 400 reports 400 captured.
-        let amount_captured =
-            get_shift4_captured_amount(&item.response).map(|amount| common_utils::types::Money {
-                amount,
-                currency: item.router_data.request.currency,
-            });
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
@@ -2460,14 +2507,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // RepeatPayment Response transformation — the charge object shared with
 // Authorize, mapped through the same status table and decline builder.
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4RepeatPaymentResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4RepeatPaymentResponse, Self>,
+        item: ResponseRouterData<Shift4RepeatPaymentResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -2503,11 +2557,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             })
         };
 
-        let amount_captured =
-            get_shift4_captured_amount(&item.response).map(|amount| common_utils::types::Money {
-                amount,
-                currency: item.router_data.request.currency,
-            });
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
@@ -3011,7 +3066,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // SetupMandate Response transformation - reuses Shift4PaymentsResponse and the
 // shared status table, and extracts the stored credential (`card.id` or
 // `paymentMethod.id`) as the mandate plus its owning customer.
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4SetupMandateResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -3022,8 +3078,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4SetupMandateResponse, Self>,
+        item: ResponseRouterData<Shift4SetupMandateResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let mut status = get_shift4_attempt_status(&item.response);
 
         // A zero-amount setup is a verification that holds no funds and can never
@@ -3112,11 +3174,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // A non-zero setup is sent captured, so its settled amount is reported
         // like any other captured charge's. A zero-amount verification is sent
         // uncaptured and reports none, although its status is `Charged`.
-        let amount_captured =
-            get_shift4_captured_amount(&item.response).map(|amount| common_utils::types::Money {
-                amount,
-                currency: item.router_data.request.currency,
-            });
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,

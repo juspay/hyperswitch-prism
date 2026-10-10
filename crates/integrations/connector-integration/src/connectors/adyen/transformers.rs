@@ -4357,9 +4357,9 @@ fn get_adyen_payment_status(
 }
 
 // Unified ForeignTryFrom for Authorize and Psync Responses
-impl<F, Req>
+impl<F, Req, T>
     ForeignTryFrom<(
-        ResponseRouterData<AdyenPaymentResponse, Self>,
+        ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
         Option<common_enums::CaptureMethod>,
         bool, // is_multiple_capture_psync_flow
         Option<common_enums::PaymentMethodType>,
@@ -4367,12 +4367,13 @@ impl<F, Req>
 where
     F: Clone,
     Req: Clone,
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         (value, capture_method, is_multiple_capture_psync_flow, payment_method_type): (
-            ResponseRouterData<AdyenPaymentResponse, Self>,
+            ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
             Option<common_enums::CaptureMethod>,
             bool,
             Option<common_enums::PaymentMethodType>,
@@ -4383,6 +4384,8 @@ where
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let is_manual_capture = is_manual_capture(capture_method);
         let pmt = payment_method_type;
 
@@ -4416,15 +4419,17 @@ where
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
         }
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data
+        .map(|amount| {
+            let currency = router_data
                 .resource_common_data
                 .amount
                 .as_ref()
                 .map(|money| money.currency)
-                .unwrap_or_default(),
-        });
+                .unwrap_or_default();
+
+            utils::response_amount_to_money(&connector, amount, currency, http_code, "adyen")
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -4443,17 +4448,17 @@ where
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<AdyenPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 where
     F: Clone,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<AdyenPaymentResponse, Self>,
+        value: ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = value.router_data.request.capture_method;
-        let payment_method_type = value.router_data.request.payment_method_type;
+        let capture_method = value.router_data.router_data.request.capture_method;
+        let payment_method_type = value.router_data.router_data.request.payment_method_type;
         Self::foreign_try_from((
             value,
             capture_method,
@@ -4463,24 +4468,27 @@ where
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<AdyenPSyncResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<AdyenPSyncResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 where
     F: Clone,
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(value: ResponseRouterData<AdyenPSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: ResponseRouterData<AdyenPSyncResponse, AdyenRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         // Extract the inner AdyenPaymentResponse from AdyenPSyncResponse
         let adyen_payment_response = value.response.0;
 
         // Check if this is a multiple capture sync flow
-        let is_multiple_capture_psync_flow = match value.router_data.request.sync_type {
+        let is_multiple_capture_psync_flow = match value.router_data.router_data.request.sync_type {
             SyncRequestType::MultipleCaptureSync => true,
             SyncRequestType::SinglePaymentSync => false,
         };
 
-        let capture_method = value.router_data.request.capture_method;
-        let payment_method_type = value.router_data.request.payment_method_type;
+        let capture_method = value.router_data.router_data.request.capture_method;
+        let payment_method_type = value.router_data.router_data.request.payment_method_type;
 
         let converted_value = ResponseRouterData {
             response: adyen_payment_response,
@@ -4499,18 +4507,20 @@ where
 
 // Response transformer for RepeatPayment - similar to Cybersource/other connectors pattern
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<AdyenRepeatPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<AdyenRepeatPaymentResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<AdyenRepeatPaymentResponse, Self>,
+        value: ResponseRouterData<AdyenRepeatPaymentResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response: repeat_response,
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         // Unwrap the response wrapper to get AdyenPaymentResponse
         let response = repeat_response.0;
         let is_manual_capture = is_manual_capture(router_data.request.capture_method);
@@ -4547,10 +4557,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
         }
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data.request.currency,
-        });
+        .map(|amount| {
+            utils::response_amount_to_money(
+                &connector,
+                amount,
+                router_data.request.currency,
+                http_code,
+                "adyen",
+            )
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -6938,18 +6954,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
+    TryFrom<ResponseRouterData<SetupMandateResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<SetupMandateResponse, Self>,
+        value: ResponseRouterData<SetupMandateResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let pmt = router_data.request.payment_method_type;
         let is_manual_capture = false;
         // Unwrap the response wrapper to get AdyenPaymentResponse
@@ -6986,10 +7004,16 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
         }
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data.request.currency,
-        });
+        .map(|amount| {
+            utils::response_amount_to_money(
+                &connector,
+                amount,
+                router_data.request.currency,
+                http_code,
+                "adyen",
+            )
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(

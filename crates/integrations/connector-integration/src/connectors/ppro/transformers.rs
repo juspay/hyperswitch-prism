@@ -747,13 +747,22 @@ pub enum PproWebhookData {
     Agreement(PproWebhookAgreementData),
 }
 
-impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
+impl<F, Req, T> TryFrom<ResponseRouterData<PproPaymentsResponse, PproRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
     Req: GetOptionalPaymentMethodType,
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PproPaymentsResponse, PproRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = common_enums::AttemptStatus::from(item.response.status);
 
         let mut error_response = None;
@@ -839,10 +848,18 @@ where
                     .map(|m| m.currency)
             });
 
-        let response_amount = resolved_minor_amount.map(|minor| common_utils::types::Money {
-            amount: minor,
-            currency: resolved_currency.unwrap_or_default(),
-        });
+        let response_amount = resolved_minor_amount
+            .map(|minor| {
+                let currency = resolved_currency.unwrap_or_default();
+                crate::utils::response_amount_to_money(
+                    &connector,
+                    minor,
+                    currency,
+                    item.http_code,
+                    "ppro",
+                )
+            })
+            .transpose()?;
 
         let connector_response_reference_id = item
             .response
@@ -863,7 +880,7 @@ where
             .captures
             .as_ref()
             .and_then(|c| c.last())
-            .map(|c| c.amount.get_amount_as_i64());
+            .map(|c| c.amount);
 
         let response = if let Some(err) = error_response {
             Err(err)
@@ -896,10 +913,16 @@ where
                 status,
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
                 amount_captured: captured_amount
-                    .map(|amount| common_utils::types::Money {
-                        amount: common_utils::MinorUnit::new(amount),
-                        currency: response_currency,
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            "ppro",
+                        )
                     })
+                    .transpose()?
                     .or(item.router_data.resource_common_data.amount_captured),
                 ..item.router_data.resource_common_data
             },

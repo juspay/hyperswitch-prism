@@ -19,10 +19,7 @@ use domain_types::{
 
 use crate::types::ResponseRouterData;
 use common_enums::AttemptStatus;
-use common_utils::{
-    custom_serde,
-    types::{MinorUnit, Money},
-};
+use common_utils::{custom_serde, types::MinorUnit};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -677,14 +674,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RevolutOrderCreateResponse, RevolutRouterData<Self, T>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<RevolutOrderCreateResponse, Self>,
+        item: ResponseRouterData<RevolutOrderCreateResponse, RevolutRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let response = item.response;
 
         let status = match &response.payments {
@@ -709,10 +713,13 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
             None => map_order_state(response.state),
         };
 
-        let amount = Some(Money {
-            amount: response.amount,
-            currency: response.currency,
-        });
+        let amount = Some(crate::utils::response_amount_to_money(
+            &connector,
+            response.amount,
+            response.currency,
+            item.http_code,
+            "revolut",
+        )?);
 
         let merchant_reference = response
             .merchant_order_data

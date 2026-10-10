@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -3136,15 +3136,22 @@ fn get_extended_authorization_data(
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<PaymentIntentResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+impl<F, Req, PM> TryFrom<ResponseRouterData<PaymentIntentResponse, StripeRouterData<Self, PM>>>
+    for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
-    T: SplitPaymentData + GetRequestIncrementalAuthorization,
+    Req: SplitPaymentData + GetRequestIncrementalAuthorization,
+    PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentIntentResponse, Self>,
+        item: ResponseRouterData<PaymentIntentResponse, StripeRouterData<Self, PM>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
@@ -3256,33 +3263,42 @@ where
             .latest_charge
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
+        let response_currency = item
+            .router_data
+            .resource_common_data
+            .amount
+            .as_ref()
+            .map(|money| money.currency)
+            .unwrap_or_default();
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item.response.amount_received.map(|amount| {
-                    common_utils::types::Money {
-                        amount,
-                        currency: item
-                            .router_data
-                            .resource_common_data
-                            .amount
-                            .as_ref()
-                            .map(|money| money.currency)
-                            .unwrap_or_default(),
-                    }
-                }),
+                amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            "stripe",
+                        )
+                    })
+                    .transpose()?,
                 connector_response: connector_response_data,
-                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: item
-                        .router_data
-                        .resource_common_data
-                        .amount
-                        .as_ref()
-                        .map(|money| money.currency)
-                        .unwrap_or_default(),
-                }),
+                amount_capturable: amount_capturable
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            "stripe",
+                        )
+                    })
+                    .transpose()?,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -3461,13 +3477,20 @@ pub fn get_payment_method_id(
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
+impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentIntentSyncResponse, StripeRouterData<Self, PM>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentIntentSyncResponse, Self>,
+        item: ResponseRouterData<PaymentIntentSyncResponse, StripeRouterData<Self, PM>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
@@ -3568,12 +3591,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                         item.http_code,
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
-        let amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let amount_in_minor_unit = connector
+            .convert_back(item.response.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = PaymentSynIntegrityObject {
             amount: amount_in_minor_unit,
@@ -3583,12 +3606,19 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item.response.amount_received.map(|amount| {
-                    common_utils::types::Money {
-                        amount,
-                        currency: item.router_data.request.currency,
-                    }
-                }),
+                amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            item.router_data.request.currency,
+                            item.http_code,
+                            "stripe",
+                        )
+                    })
+                    .transpose()?,
                 connector_response: connector_response_data,
                 ..item.router_data.resource_common_data
             },
@@ -3618,13 +3648,21 @@ fn extract_payment_method_connector_response_from_latest_attempt(
     .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
-impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+impl<F, Req, PM> TryFrom<ResponseRouterData<SetupMandateResponse, StripeRouterData<Self, PM>>>
+    for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
-    T: SplitPaymentData,
+    Req: SplitPaymentData,
+    PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<SetupMandateResponse, StripeRouterData<Self, PM>>,
+    ) -> Result<Self, Self::Error> {
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
@@ -4997,11 +5035,14 @@ pub enum PaymentSyncResponse {
     SetupMandateResponse(SetupMandateResponse),
 }
 
-impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
+impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentSyncResponse, StripeRouterData<Self, PM>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentSyncResponse, StripeRouterData<Self, PM>>,
+    ) -> Result<Self, Self::Error> {
         // Untagged serde already disambiguates PI vs setup intent; prev code of routing on connector_transaction_id could fail sync when the txn id is missing or not a ConnectorTransactionId.
         match item.response {
             PaymentSyncResponse::SetupMandateResponse(setup_intent_response) => {
@@ -5026,12 +5067,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
 pub struct PaymentsAuthorizeResponse(PaymentIntentResponse);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
+        item: ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let currency_enum =
             common_enums::Currency::from_str(item.response.0.currency.to_uppercase().as_str())
@@ -5041,12 +5082,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.0.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let amount_in_minor_unit = item
+            .router_data
+            .connector
+            .convert_back(item.response.0.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = AuthoriseIntegrityObject {
             amount: amount_in_minor_unit,
@@ -5073,12 +5116,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsCaptureResponse(PaymentIntentResponse);
 
-impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentsCaptureResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsCaptureResponse, Self>,
+        item: ResponseRouterData<PaymentsCaptureResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let currency_enum =
             common_enums::Currency::from_str(item.response.0.currency.to_uppercase().as_str())
@@ -5092,7 +5136,11 @@ impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
             .response
             .0
             .amount_received
-            .map(|amount| StripeAmountConvertor::convert_back(amount, currency_enum))
+            .map(|amount| {
+                item.router_data
+                    .connector
+                    .convert_back(amount, currency_enum)
+            })
             .transpose()
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -5125,11 +5173,14 @@ impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsVoidResponse(PaymentIntentResponse);
 
-impl TryFrom<ResponseRouterData<PaymentsVoidResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentsVoidResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsVoidResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsVoidResponse, StripeRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(ResponseRouterData {
             response: item.response.0,
             router_data: item.router_data,
@@ -5321,11 +5372,20 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RefundResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<RefundResponse, StripeRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let refund_status = common_enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
             Err(domain_types::router_data::ErrorResponse {
@@ -5364,12 +5424,12 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let refund_amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let refund_amount_in_minor_unit = connector
+            .convert_back(item.response.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = RefundIntegrityObject {
             currency: currency_enum,
@@ -5920,12 +5980,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
+        item: ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         Self::try_from(ResponseRouterData {
             response: item.response.0,

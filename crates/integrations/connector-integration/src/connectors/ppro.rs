@@ -605,6 +605,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+macros::create_amount_converter_wrapper!(connector_name: Ppro, amount_type: MinorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: Ppro,
     generic_type: T,
@@ -613,23 +615,27 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PproPaymentsRequest,
             response_body: PproAuthorizeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: PproPSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
             request_body: PproCaptureRequest,
             response_body: PproCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Void,
             request_body: PproVoidRequest,
             response_body: PproVoidResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
@@ -653,6 +659,7 @@ macros::create_all_prerequisites!(
             flow: RepeatPayment,
             request_body: PproAgreementChargeRequest,
             response_body: PproPaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],

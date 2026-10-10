@@ -723,13 +723,26 @@ pub enum CaptureMode {
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>>
-    for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    TryFrom<
+        ResponseRouterData<
+            ImerchantsolutionsPaymentsResponseData,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
+    > for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>,
+        item: ResponseRouterData<
+            ImerchantsolutionsPaymentsResponseData,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = item.response.status.clone().into();
 
         if is_payment_failure(status) {
@@ -786,10 +799,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_capturable: Some(common_utils::types::Money {
-                        amount: item.response.amount.value,
-                        currency: item.router_data.request.currency,
-                    }),
+                    amount_capturable: Some(utils::response_amount_to_money(
+                        &connector,
+                        item.response.amount.value,
+                        item.router_data.request.currency,
+                        item.http_code,
+                        IMERCHANTSOLUTIONS,
+                    )?),
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -964,13 +980,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>>
-    for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+    TryFrom<
+        ResponseRouterData<
+            ImerchantsolutionsPaymentsResponseData,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
+    > for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>,
+        item: ResponseRouterData<
+            ImerchantsolutionsPaymentsResponseData,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = item.response.status.clone().into();
 
         if is_payment_failure(status) {
@@ -1002,10 +1031,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_capturable: Some(common_utils::types::Money {
-                        amount: item.response.amount.value,
-                        currency: item.router_data.request.currency,
-                    }),
+                    amount_capturable: Some(utils::response_amount_to_money(
+                        &connector,
+                        item.response.amount.value,
+                        item.router_data.request.currency,
+                        item.http_code,
+                        IMERCHANTSOLUTIONS,
+                    )?),
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1156,18 +1188,28 @@ pub enum ImerchantsolutionsWebhookStatus {
     Refused,
 }
 
-impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ResponseRouterData<
+            ImerchantsolutionsPaymentSyncResponse,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
+    > for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>,
+        item: ResponseRouterData<
+            ImerchantsolutionsPaymentSyncResponse,
+            ImerchantsolutionsRouterData<Self, T>,
+        >,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
 
         let is_multiple_capture_psync_flow = match router_data.request.sync_type {
             SyncRequestType::MultipleCaptureSync => true,
@@ -1224,18 +1266,30 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status: response.status.clone().into(),
-                            amount_captured: response.total_captured.map(|amount| {
-                                common_utils::types::Money {
-                                    amount,
-                                    currency: router_data.request.currency,
-                                }
-                            }),
-                            amount_capturable: response.remaining_amount.map(|amount| {
-                                common_utils::types::Money {
-                                    amount,
-                                    currency: router_data.request.currency,
-                                }
-                            }),
+                            amount_captured: response
+                                .total_captured
+                                .map(|amount| {
+                                    utils::response_amount_to_money(
+                                        &connector,
+                                        amount,
+                                        router_data.request.currency,
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    )
+                                })
+                                .transpose()?,
+                            amount_capturable: response
+                                .remaining_amount
+                                .map(|amount| {
+                                    utils::response_amount_to_money(
+                                        &connector,
+                                        amount,
+                                        router_data.request.currency,
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    )
+                                })
+                                .transpose()?,
                             ..router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::MultipleCaptureResponse {
@@ -1248,18 +1302,30 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured: response.total_captured.map(|amount| {
-                                common_utils::types::Money {
-                                    amount,
-                                    currency: router_data.request.currency,
-                                }
-                            }),
-                            amount_capturable: response.remaining_amount.map(|amount| {
-                                common_utils::types::Money {
-                                    amount,
-                                    currency: router_data.request.currency,
-                                }
-                            }),
+                            amount_captured: response
+                                .total_captured
+                                .map(|amount| {
+                                    utils::response_amount_to_money(
+                                        &connector,
+                                        amount,
+                                        router_data.request.currency,
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    )
+                                })
+                                .transpose()?,
+                            amount_capturable: response
+                                .remaining_amount
+                                .map(|amount| {
+                                    utils::response_amount_to_money(
+                                        &connector,
+                                        amount,
+                                        router_data.request.currency,
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    )
+                                })
+                                .transpose()?,
                             ..router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1327,16 +1393,28 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         }
                         _ => (None, None),
                     };
-                    let amount_captured =
-                        amount_captured.map(|amount| common_utils::types::Money {
-                            amount,
-                            currency: router_data.request.currency,
-                        });
-                    let amount_capturable =
-                        amount_capturable.map(|amount| common_utils::types::Money {
-                            amount,
-                            currency: router_data.request.currency,
-                        });
+                    let amount_captured = amount_captured
+                        .map(|amount| {
+                            utils::response_amount_to_money(
+                                &connector,
+                                amount,
+                                router_data.request.currency,
+                                http_code,
+                                IMERCHANTSOLUTIONS,
+                            )
+                        })
+                        .transpose()?;
+                    let amount_capturable = amount_capturable
+                        .map(|amount| {
+                            utils::response_amount_to_money(
+                                &connector,
+                                amount,
+                                router_data.request.currency,
+                                http_code,
+                                IMERCHANTSOLUTIONS,
+                            )
+                        })
+                        .transpose()?;
 
                     Ok(Self {
                         resource_common_data: PaymentFlowData {

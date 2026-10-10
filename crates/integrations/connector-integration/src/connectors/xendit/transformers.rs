@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     pii,
     request::Method,
-    types::FloatMajorUnit,
+    types::{AmountConvertor, FloatMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture},
@@ -448,22 +448,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<XenditPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<XenditPaymentResponse, XenditRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<XenditPaymentResponse, Self>,
+        item: ResponseRouterData<XenditPaymentResponse, XenditRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let status = map_payment_response_to_attempt_status(
             response.clone(),
             is_auto_capture(&router_data.request).change_context(
-                crate::utils::response_handling_fail_for_connector(item.http_code, "xendit"),
+                crate::utils::response_handling_fail_for_connector(http_code, "xendit"),
             )?,
         );
 
@@ -529,12 +531,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             })
         };
 
-        let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "xendit",
-                ))?;
+        let response_amount = connector
+            .convert_back(response.amount, response.currency)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                http_code, "xendit",
+            ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
             amount: response_amount,
@@ -805,23 +806,27 @@ pub enum RefundStatus {
     Cancelled,
 }
 
-impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RefundResponse, XenditRouterData<Self, T>>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<RefundResponse, XenditRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
 
-        let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "xendit",
-                ))?;
+        let response_amount = connector
+            .convert_back(response.amount, response.currency)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                http_code, "xendit",
+            ))?;
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
