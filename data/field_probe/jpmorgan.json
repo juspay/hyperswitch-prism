@@ -922,48 +922,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "connector_recurring_payment_id": {
-            "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
-              }
-            }
-          },
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
-            }
-          },
-          "return_url": "https://example.com/recurring-return",
-          "connector_customer_id": "cust_probe_123",
-          "payment_method_type": "PAY_PAL",
-          "off_session": true,
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "merchant-id": "DefaultMerchantId",
-            "request-id": "",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"transactionReference\":{\"transactionReferenceId\":\"probe-mandate-123\"}},\"recurring\":{\"recurringSequence\":\"SUBSEQUENT\",\"agreementId\":\"\"},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
-        }
+        "status": "not_supported",
+        "error": "Connector-scoped mandate identifiers on a charge is not supported by jpmorgan"
       }
     },
     "recurring_revoke": {

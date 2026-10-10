@@ -12,5 +12,13 @@
     "PaymentService/Reverse",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "RecurringPaymentService/Charge": {
+      "RecurringPaymentService/Charge": "JPMorgan MIT requires a card or decrypted wallet credential with the original network transaction ID; the undocumented connector-mandate reference shape used by this scenario is refused.",
+      "recurring_charge": "JPMorgan MIT requires a card or decrypted wallet credential with the original network transaction ID; the undocumented connector-mandate reference shape used by this scenario is refused.",
+      "recurring_charge_low_amount": "JPMorgan MIT requires a card or decrypted wallet credential with the original network transaction ID; the undocumented connector-mandate reference shape used by this scenario is refused.",
+      "recurring_charge_with_order_context": "JPMorgan MIT requires a card or decrypted wallet credential with the original network transaction ID; the undocumented connector-mandate reference shape used by this scenario is refused."
+    }
+  }
 }
