@@ -1,0 +1,22 @@
+{
+  "_issue": "hyperswitch-cloud#20218 (parent #20217) — nmi/repeat_payment/greenstone_rx",
+  "_signature": "body.keyDiff.email={hyperswitch:false,ucs:true} | body.keyDiff.shipping_email={hyperswitch:false,ucs:true}",
+  "_scenario": "MIT (repeat_payment) with a billing address that has NO email + a top-level customer email set, no shipping. Direct sources email/shipping_email from the billing/shipping address only (omits them here); prism previously fell back to RepeatPaymentData.email and over-sent both fields. Fix removes the fallback -> parity.",
+  "cit": {
+    "amount": 200, "currency": "USD", "confirm": true, "capture_method": "automatic",
+    "off_session": false, "setup_future_usage": "off_session",
+    "customer_acceptance": {"acceptance_type": "online", "accepted_at": "2026-07-13T10:00:00Z", "online": {"ip_address": "127.0.0.1", "user_agent": "repro"}},
+    "payment_method": "card", "payment_method_type": "credit",
+    "payment_method_data": {"card": {"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_holder_name": "John Doe", "card_cvc": "999"}},
+    "billing": {"address": {"first_name": "John", "last_name": "Doe", "line1": "1 Market St", "city": "San Francisco", "state": "CA", "zip": "94105", "country": "US"}},
+    "email": "customer.20218@example.com"
+  },
+  "mit": {
+    "amount": 200, "currency": "USD", "confirm": true, "capture_method": "automatic",
+    "off_session": true,
+    "recurring_details": {"type": "payment_method_id", "data": "<pm_from_cit>"},
+    "payment_method": "card", "payment_method_type": "credit",
+    "billing": {"address": {"first_name": "John", "last_name": "Doe", "line1": "1 Market St", "city": "San Francisco", "state": "CA", "zip": "94105", "country": "US"}},
+    "email": "customer.20218@example.com"
+  }
+}
