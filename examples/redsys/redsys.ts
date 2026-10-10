@@ -50,7 +50,7 @@ function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceA
             "messageVersion": "2.1.0",  // 3DS Message Version (e.g., "2.1.0", "2.2.0").
             "dsTransactionId": "probe-ds-txn-001"  // Directory Server Transaction ID (DS Trans ID).
         },
-        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         "continueRedirectionUrl": "https://example.com/3ds-continue",
         "browserInfo": {  // Contextual Information.
             "colorDepth": 24,  // Display Information.

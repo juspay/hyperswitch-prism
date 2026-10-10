@@ -26,7 +26,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -45,44 +45,6 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-}
-
-/// The template segment in the configured Netcetera 3DS Server host that must be replaced with
-/// the per-merchant endpoint prefix (e.g. `flowbird`) before the request is dispatched.
-const MERCHANT_ENDPOINT_PREFIX_TEMPLATE: &str = "{{merchant_endpoint_prefix}}";
-
-/// Resolve the per-request Netcetera 3DS Server host by substituting the
-/// `{{merchant_endpoint_prefix}}` template segment in the configured `base_url` with the
-/// `endpoint_prefix` from the merchant's Netcetera MCA metadata (forwarded by the router on
-/// `PaymentFlowData.connector_feature_data`).
-///
-/// `base_url(&connectors)` returns a borrowed `&str` from config, so the substitution cannot
-/// happen there — it must be done per-request here, where the request's `connector_feature_data`
-/// is available. If the template is absent the base host is returned unchanged; if it is present
-/// but no `endpoint_prefix` is configured, a clear error is raised (an unsubstituted template
-/// would produce an invalid URL).
-fn resolve_netcetera_base_url(
-    base_url: &str,
-    connector_feature_data: Option<hyperswitch_masking::Secret<serde_json::Value>>,
-) -> CustomResult<String, IntegrationError> {
-    let base_url = base_url.trim_end_matches('/');
-    if !base_url.contains(MERCHANT_ENDPOINT_PREFIX_TEMPLATE) {
-        return Ok(base_url.to_string());
-    }
-
-    let netcetera_meta: netcetera_types::NetceteraMeta = connector_feature_data
-        .map(|data| crate::utils::to_connector_meta_from_secret(Some(data)))
-        .transpose()?
-        .unwrap_or_default();
-
-    let endpoint_prefix = netcetera_meta.endpoint_prefix.ok_or_else(|| {
-        error_stack::report!(IntegrationError::InvalidConnectorConfig {
-            config: "netcetera.endpoint_prefix",
-            context: Default::default(),
-        })
-    })?;
-
-    Ok(base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, &endpoint_prefix))
 }
 
 // ---------------------------------------------------------------------------
@@ -224,14 +186,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        // Real Netcetera 3DS Server host (configured per-environment under
-        // `[connectors] netcetera.base_url`). The configured value contains a
-        // `{{merchant_endpoint_prefix}}` template segment which is substituted
-        // per-request in `resolve_netcetera_base_url` using the merchant's
-        // `endpoint_prefix` (from `NetceteraMeta` / `connector_feature_data`).
-        // `base_url` returns a borrowed `&str` from config, so it CANNOT do the
-        // per-merchant substitution itself — it returns the raw templated host and
-        // each flow's `get_url` resolves the prefix before dispatching.
+        // Netcetera 3DS Server host, configured per environment under
+        // `[connectors] netcetera.base_url`.
         connectors.netcetera.base_url.as_str()
     }
 
@@ -283,6 +239,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // Prerequisites (Bridge structs + connector struct + new())
 // ---------------------------------------------------------------------------
 
+/// mTLS client identity attached to a Netcetera request.
+#[derive(Default)]
+pub struct MtlsIdentity {
+    certificate: Option<Secret<String>>,
+    private_key: Option<Secret<String>>,
+}
+
 macros::create_all_prerequisites!(
     connector_name: Netcetera,
     generic_type: T,
@@ -322,6 +285,38 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
             )])
+        }
+        /// mTLS client identity from `NetceteraConfig`. A call routed through an external
+        /// vault's injector does not need it (the vault owns the outbound TLS); a direct call
+        /// cannot complete the handshake without it, so the pair is required there.
+        pub fn mtls_identity<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+            routed_through_vault: bool,
+        ) -> CustomResult<MtlsIdentity, IntegrationError> {
+            let (certificate, private_key) = match &req.connector_config {
+                ConnectorSpecificConfig::Netcetera {
+                    certificate,
+                    private_key,
+                    ..
+                } => (certificate.clone(), private_key.clone()),
+                _ => (None, None),
+            };
+            match (certificate, private_key) {
+                (Some(certificate), Some(private_key)) => Ok(MtlsIdentity {
+                    certificate: Some(certificate),
+                    private_key: Some(private_key),
+                }),
+                _ if routed_through_vault => Ok(MtlsIdentity::default()),
+                (None, _) => Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_config.netcetera.certificate",
+                    context: Default::default(),
+                })?,
+                (Some(_), None) => Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_config.netcetera.private_key",
+                    context: Default::default(),
+                })?,
+            }
         }
     }
 );
@@ -385,15 +380,26 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.certificate)
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.private_key)
+        }
         fn get_url(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server version / 3DS method endpoint (PRes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/versioning"))
         }
     }
@@ -422,15 +428,26 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.certificate)
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.mtls_identity(req, T::IS_VAULT_TOKEN)?.private_key)
+        }
         fn get_url(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server authentication endpoint (AReq -> ARes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/authentication"))
         }
     }
@@ -459,15 +476,27 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            // PostAuthenticate carries no card, so it never goes through the vault injector.
+            Ok(self.mtls_identity(req, false)?.certificate)
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            Ok(self.mtls_identity(req, false)?.private_key)
+        }
         fn get_url(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Netcetera 3DS Server results fetch endpoint (RReq -> RRes).
-            let base_url = resolve_netcetera_base_url(
-                self.base_url(&req.resource_common_data.connectors),
-                req.resource_common_data.connector_feature_data.clone(),
-            )?;
+            let base_url = self
+                .base_url(&req.resource_common_data.connectors)
+                .trim_end_matches('/');
             Ok(format!("{base_url}/3ds/results"))
         }
     }

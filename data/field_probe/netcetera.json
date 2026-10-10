@@ -3,8 +3,35 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "error",
-        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server/3ds/authentication",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"preferredProtocolVersion\":null,\"enforcePreferredProtocolVersion\":false,\"deviceChannel\":\"02\",\"messageCategory\":\"01\",\"threeDSCompInd\":\"U\",\"threeDSRequestor\":{\"threeDSRequestorAuthenticationInd\":\"01\",\"threeDSRequestorChallengeInd\":null,\"appIp\":null},\"threeDSServerTransID\":null,\"threeDSRequestorURL\":\"https://example.com/3ds-return\",\"cardholderAccount\":{\"cardExpiryDate\":\"3003\",\"acctNumber\":\"4111111111111111\",\"schemeId\":null,\"cardSecurityCode\":\"737\"},\"cardholder\":{\"billAddrCity\":null,\"billAddrCountry\":null,\"billAddrLine1\":null,\"billAddrLine2\":null,\"billAddrLine3\":null,\"billAddrPostCode\":null,\"billAddrState\":null,\"email\":null,\"cardholderName\":null,\"shipAddrCity\":null,\"shipAddrCountry\":null,\"shipAddrLine1\":null,\"shipAddrLine2\":null,\"shipAddrLine3\":null,\"shipAddrPostCode\":null,\"shipAddrState\":null},\"purchase\":{\"purchaseAmount\":1000,\"purchaseCurrency\":\"840\",\"purchaseExponent\":2,\"purchaseDate\":\"00000000000000\",\"transType\":\"01\"},\"acquirer\":null,\"merchant\":{\"merchantConfigurationId\":null,\"mcc\":null,\"merchantCountryCode\":null,\"merchantName\":null,\"notificationURL\":\"https://example.com/3ds-return\",\"threeDSRequestorId\":null,\"threeDSRequestorName\":null,\"resultsResponseNotificationUrl\":null},\"browserInformation\":null,\"sdkInformation\":null,\"deviceRenderOptions\":null}"
+        }
       }
     },
     "authorize": {
@@ -553,14 +580,68 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server/3ds/results",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"threeDSServerTransID\":null}"
+        }
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server/3ds/versioning",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"cardholderAccountNumber\":\"4111111111111111\"}"
+        }
       }
     },
     "proxy_authorize": {
