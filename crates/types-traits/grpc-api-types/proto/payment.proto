@@ -5249,6 +5249,7 @@ message CheckoutConfig {
   SecretString api_secret = 2;
   SecretString processing_channel_id = 3;
   optional string base_url = 50;
+  optional string endpoint_prefix = 51;
 }
 
 message CryptopayConfig {

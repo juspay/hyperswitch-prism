@@ -631,6 +631,7 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
         base_url: Option<String>,
+        endpoint_prefix: Option<String>,
     },
     Cybersource {
         api_key: Secret<String>,
@@ -2245,6 +2246,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
                 base_url: checkout.base_url,
+                endpoint_prefix: checkout.endpoint_prefix,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
                 api_key: cryptopay.api_key.ok_or_else(err)?,
@@ -3472,6 +3474,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
                         base_url: None,
+                        endpoint_prefix: None,
                     }),
                     _ => Err(err().into()),
                 },
