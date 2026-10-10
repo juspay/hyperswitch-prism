@@ -2574,11 +2574,19 @@ fn get_connector_meta(
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<PaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_attempt_status_cap((
             item.response.status,
             item.router_data.request.capture_method,
@@ -2676,13 +2684,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let currency = item.router_data.request.currency;
-        let to_money = |amount| common_utils::types::Money { amount, currency };
+        let to_money = |amount| {
+            crate::utils::response_amount_to_money(
+                &connector,
+                amount,
+                currency,
+                item.http_code,
+                "checkout",
+            )
+        };
         let (amount_captured, amount_capturable) = match item.router_data.request.capture_method {
             Some(common_enums::CaptureMethod::Manual)
             | Some(common_enums::CaptureMethod::ManualMultiple) => {
-                (None, item.response.amount.map(to_money))
+                (None, item.response.amount.map(to_money).transpose()?)
             }
-            _ => (item.response.amount.map(to_money), None),
+            _ => (item.response.amount.map(to_money).transpose()?, None),
         };
 
         let amount_authorized = item
@@ -2691,7 +2707,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .enable_partial_authorization
             .filter(|flag| *flag)
             .and(item.response.amount)
-            .map(to_money);
+            .map(to_money)
+            .transpose()?;
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2710,11 +2727,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<
         T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize + Serialize,
-    > TryFrom<ResponseRouterData<PaymentsResponse, Self>>
+    > TryFrom<ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_attempt_status_cap((
             item.response.status,
             item.router_data.request.capture_method,
@@ -2811,14 +2836,22 @@ impl<
                 };
 
                 let currency = item.router_data.request.currency;
-                let to_money = |amount| common_utils::types::Money { amount, currency };
+                let to_money = |amount| {
+                    crate::utils::response_amount_to_money(
+                        &connector,
+                        amount,
+                        currency,
+                        item.http_code,
+                        "checkout",
+                    )
+                };
                 let (amount_captured, amount_capturable) =
                     match item.router_data.request.capture_method {
                         Some(common_enums::CaptureMethod::Manual)
                         | Some(common_enums::CaptureMethod::ManualMultiple) => {
-                            (None, item.response.amount.map(to_money))
+                            (None, item.response.amount.map(to_money).transpose()?)
                         }
-                        _ => (item.response.amount.map(to_money), None),
+                        _ => (item.response.amount.map(to_money).transpose()?, None),
                     };
 
                 let amount_authorized = item
@@ -2827,7 +2860,8 @@ impl<
                     .enable_partial_authorization
                     .filter(|flag| *flag)
                     .and(item.response.amount)
-                    .map(to_money);
+                    .map(to_money)
+                    .transpose()?;
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {

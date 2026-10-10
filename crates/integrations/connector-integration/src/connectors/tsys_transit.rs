@@ -71,6 +71,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitAuthorizeRequest,
             response_body: TsysTransitAuthorizeResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -78,6 +79,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitTransactionInquiryRequest,
             response_body: TsysTransitTransactionInquiryResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -85,6 +87,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitCaptureRequest,
             response_body: TsysTransitCaptureResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
@@ -92,6 +95,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitReturnRequest,
             response_body: TsysTransitReturnResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
@@ -134,6 +138,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitRepeatPaymentRequest,
             response_body: TsysTransitRepeatPaymentResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],

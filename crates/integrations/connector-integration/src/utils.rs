@@ -10,7 +10,7 @@ use common_utils::{
     errors::{ParsingError, ReportSwitchExt},
     ext_traits::ValueExt,
     request::MultipartData,
-    types::MinorUnit,
+    types::{AmountConvertor, MinorUnit, Money},
     CustomResult,
 };
 use domain_types::{
@@ -214,6 +214,60 @@ pub fn response_http_status_detail(connector: &str) -> String {
 /// Convenience helper for the common non-success HTTP status case.
 pub fn response_handling_fail_for_connector(http_status: u16, connector: &str) -> ConnectorError {
     response_handling_fail(http_status, response_http_status_detail(connector))
+}
+
+pub fn response_amount_to_money<AC>(
+    amount_converter: &AC,
+    amount: AC::Output,
+    currency: enums::Currency,
+    http_status: u16,
+    connector_name: &str,
+) -> Result<Money, Report<ConnectorError>>
+where
+    AC: AmountConvertor + ?Sized,
+{
+    let amount = amount_converter
+        .convert_back(amount, currency)
+        .change_context(response_handling_fail_for_connector(
+            http_status,
+            connector_name,
+        ))?;
+
+    Ok(minor_amount_to_money(amount, currency))
+}
+
+pub fn response_minor_amount_to_money(
+    amount: Result<MinorUnit, Report<ParsingError>>,
+    currency: enums::Currency,
+    http_status: u16,
+    connector_name: &str,
+) -> Result<Money, Report<ConnectorError>> {
+    let amount = amount.change_context(response_handling_fail_for_connector(
+        http_status,
+        connector_name,
+    ))?;
+
+    Ok(minor_amount_to_money(amount, currency))
+}
+
+pub fn webhook_amount_to_money(
+    amount: Result<MinorUnit, Report<ParsingError>>,
+    currency: enums::Currency,
+) -> Result<Money, Report<errors::WebhookError>> {
+    let amount = amount.map_err(|_| {
+        error_stack::report!(errors::WebhookError::WebhookAmountConversionFailed {
+            reason: format!(
+                "Failed to convert amount to minor units: currency={}",
+                currency
+            ),
+        })
+    })?;
+
+    Ok(minor_amount_to_money(amount, currency))
+}
+
+pub fn minor_amount_to_money(amount: MinorUnit, currency: enums::Currency) -> Money {
+    Money { amount, currency }
 }
 
 /// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).
