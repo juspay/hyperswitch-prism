@@ -133,7 +133,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"NETWORK_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"NETWORK_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probe_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -359,7 +359,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probe_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -916,7 +916,7 @@
             "request-id": "probe_proxy_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"{{$card_cvc}}\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"{{$card_cvc}}\"}},\"merchantOrderNumber\":\"probe_proxy_mandate_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
@@ -1094,7 +1094,7 @@
             "request-id": "probe_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"737\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"737\"}},\"merchantOrderNumber\":\"probe_mandate_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
