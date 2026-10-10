@@ -419,6 +419,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(body.id),
                     merchant_transaction_id: body.reference,
+                    connector_preprocessing_id: None,
                 })
             };
 

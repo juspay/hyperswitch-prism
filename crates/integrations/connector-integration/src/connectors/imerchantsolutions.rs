@@ -194,6 +194,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(webhook_body.psp_reference),
                     merchant_transaction_id: webhook_body.merchant_reference,
+                    connector_preprocessing_id: None,
                 })
             }
             ImerchantsolutionsWebhookEventType::PaymentRefunded => {

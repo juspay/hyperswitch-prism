@@ -4493,34 +4493,20 @@ pub(crate) fn get_webhook_reference(
 
     let reference = match event_object.object {
         WebhookEventObjectType::PaymentIntent => {
-            // Mirror HS get_webhook_object_reference_id exactly: when metadata.order_id is
-            // present the reference is the merchant order id (PaymentAttemptId), otherwise the
-            // PaymentIntent object id (ConnectorTransactionId). Either/or — never both, because
-            // the shadow snapshot normaliser prefers connector_transaction_id whenever it is set.
-            match order_id {
-                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(order_id),
-                }),
-                None => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(event_object.id.clone()),
-                    merchant_transaction_id: None,
-                }),
-            }
+            // Expose every identifier present in the payload; HS owns lookup precedence.
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: Some(event_object.id.clone()),
+                merchant_transaction_id: order_id,
+                connector_preprocessing_id: None,
+            })
         }
         WebhookEventObjectType::Charge => {
-            // HS: order_id -> PaymentAttemptId, else the linked payment_intent as the
-            // ConnectorTransactionId. Either/or, as for PaymentIntent.
-            match order_id {
-                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(order_id),
-                }),
-                None => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: event_object.payment_intent.clone(),
-                    merchant_transaction_id: None,
-                }),
-            }
+            // Expose the linked PaymentIntent and any echoed merchant reference.
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: event_object.payment_intent.clone(),
+                merchant_transaction_id: order_id,
+                connector_preprocessing_id: None,
+            })
         }
         WebhookEventObjectType::Dispute => {
             // HS maps a dispute to its PARENT payment:
@@ -4533,11 +4519,11 @@ pub(crate) fn get_webhook_reference(
             })
         }
         WebhookEventObjectType::Source => {
-            // HS uses a PreprocessingId here; prism has no source/preprocessing reference,
-            // so surface the source id as the payment connector transaction id.
+            // HS resolves Stripe source webhooks through the preprocessing id path.
             WebhookResourceReference::Payment(PaymentWebhookReference {
-                connector_transaction_id: Some(event_object.id.clone()),
+                connector_transaction_id: None,
                 merchant_transaction_id: None,
+                connector_preprocessing_id: Some(event_object.id.clone()),
             })
         }
         WebhookEventObjectType::Refund => {

@@ -22159,10 +22159,12 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
             WebhookResourceReference::Payment(PaymentWebhookReference {
                 connector_transaction_id,
                 merchant_transaction_id,
+                connector_preprocessing_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Payment(PaymentEventReference {
                     connector_transaction_id,
                     merchant_transaction_id,
+                    connector_preprocessing_id,
                 })),
             },
             WebhookResourceReference::Refund(RefundWebhookReference {
