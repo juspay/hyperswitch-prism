@@ -4,19 +4,27 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto::{HmacSha256, SignMessage},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken,
         PreAuthenticate, RSync, Refund, RepeatPayment, Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventType,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PayoutWebhookDetailsResponse, PayoutWebhookReference, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        WebhookResourceReference,
     },
+    errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -39,6 +47,7 @@ use transformers::{
     PaysafePreAuthenticateRequest, PaysafePreAuthenticateResponse, PaysafeRSyncResponse,
     PaysafeRefundRequest, PaysafeRefundResponse, PaysafeRepeatPaymentRequest,
     PaysafeRepeatPaymentResponse, PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
+    PaysafeWebhookBody,
 };
 
 use super::macros;
@@ -156,6 +165,119 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Paysafe<T>
 {
+    /// Paysafe PaymentHUB webhooks sign the *entire* request body with
+    /// `Base64(HMAC-SHA256(body, secret))`, sent in the `Signature` header
+    /// (mirrors the official SDK's `SignatureVerifier`).
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let Some(secrets) = connector_webhook_secret else {
+            // No configured secret: treat as unverified so the caller falls back
+            // to a sync instead of failing the webhook outright.
+            return Ok(false);
+        };
+
+        let Some(signature_header) = get_paysafe_webhook_signature(&request.headers) else {
+            return Ok(false);
+        };
+
+        let expected = HmacSha256
+            .sign_message(&secrets.secret, &request.body)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        Ok(signature_header.trim() == BASE64_ENGINE.encode(expected))
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"payload":{"id":"sa_credit_probe_001","merchantRefNum":"payout_probe_001","status":"COMPLETED"},"attemptNumber":"1","type":"STANDALONE_CREDIT","resourceId":"sa_credit_probe_001","links":[{"rel":"standalone_credit"}],"eventDate":"2026-01-01T00:00:00Z","eventName":"SA_CREDIT_COMPLETED"}"#
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let webhook_body: PaysafeWebhookBody = request
+            .body
+            .parse_struct("PaysafeWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(paysafe::get_paysafe_webhook_event(&webhook_body.event_name))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let webhook_body: PaysafeWebhookBody = request
+            .body
+            .parse_struct("PaysafeWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        // Only standalone-credit (`SA_CREDIT_*`) notifications identify a payout.
+        // Payment-handle notifications carry no payout reference and are left for
+        // the caller to resolve through the connector transaction id (PSync).
+        if !paysafe::is_paysafe_payout_webhook_event(&webhook_body.event_name) {
+            return Ok(None);
+        }
+
+        let connector_payout_id = webhook_body
+            .resource_id
+            .clone()
+            .or_else(|| paysafe::get_paysafe_webhook_payload_id(&webhook_body.payload));
+        let merchant_payout_id =
+            paysafe::get_paysafe_webhook_payload_merchant_ref(&webhook_body.payload);
+
+        Ok(Some(WebhookResourceReference::Payout(
+            PayoutWebhookReference {
+                connector_payout_id,
+                merchant_payout_id,
+            },
+        )))
+    }
+
+    fn process_payout_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_body: PaysafeWebhookBody = request
+            .body
+            .parse_struct("PaysafeWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        let status = paysafe::get_paysafe_payout_webhook_status(&webhook_body.event_name)?;
+
+        let connector_payout_id = webhook_body
+            .resource_id
+            .clone()
+            .or_else(|| paysafe::get_paysafe_webhook_payload_id(&webhook_body.payload));
+        let merchant_payout_id =
+            paysafe::get_paysafe_webhook_payload_merchant_ref(&webhook_body.payload);
+
+        Ok(PayoutWebhookDetailsResponse {
+            connector_payout_id,
+            merchant_payout_id,
+            status,
+            error_code: None,
+            error_message: None,
+            status_code: 200,
+        })
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let webhook_body: PaysafeWebhookBody = request
+            .body
+            .parse_struct("PaysafeWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Paysafe<T>
@@ -173,6 +295,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+}
+
+/// Reads the `Signature` header Paysafe webhooks are signed with. Header names
+/// are matched case-insensitively; PaymentHUB canonicalizes them to the HTTP
+/// client's casing, which varies by provider.
+fn get_paysafe_webhook_signature(
+    headers: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    headers.iter().find_map(|(key, value)| {
+        key.eq_ignore_ascii_case("Signature")
+            .then_some(value.clone())
+    })
 }
 
 macros::create_all_prerequisites!(

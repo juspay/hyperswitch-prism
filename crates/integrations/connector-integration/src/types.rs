@@ -271,6 +271,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             PayoutConnectorEnum::GotymeSanlam => {
                 Box::new(payout_connectors::GotymeSanlamPayouts::<T>::new())
             }
+            PayoutConnectorEnum::Paysafe => Box::new(payout_connectors::PaysafePayouts::<T>::new()),
         }
     }
 }

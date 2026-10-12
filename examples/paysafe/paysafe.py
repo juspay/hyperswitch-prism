@@ -10,10 +10,11 @@ import sys
 from payments import PaymentMethodAuthenticationClient
 from payments import PaymentClient
 from payments import CustomerClient
+from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "parse_event", "pre_authenticate", "refund", "refund_get", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -77,6 +78,16 @@ def _build_get_request(connector_transaction_id: str):
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         connector_order_reference_id="probe_order_ref_001",  # Connector Reference Id.
+    )
+
+def _build_parse_event_request():
+    return events_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}".encode(),  # Body of the HTTP request.
+        ),
     )
 
 def _build_pre_authenticate_request():
@@ -178,6 +189,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 
 async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
