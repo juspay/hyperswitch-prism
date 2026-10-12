@@ -1,0 +1,63 @@
+{
+  "_webhook_config": {
+    "signature_location": "body",
+    "signature_field": "bt_signature",
+    "signature_algorithm": "braintree: hex(HMAC-SHA1(key = SHA1_raw_digest(private_key), message = bt_payload))",
+    "signature_encoding": "hex",
+    "webhook_secret_key": "braintree_webhook_fixture_secret_not_in_creds",
+    "note": "Braintree puts its signature in the form BODY (bt_signature), not in a header, and the body is application/x-www-form-urlencoded rather than JSON. The harness's signature injector only writes into a header named by `signature_header` and only base64-encodes a body that is a JSON OBJECT, so neither mechanism can sign a Braintree payload. The bodies below are therefore already-base64-encoded literal strings of the full `bt_signature=...&bt_payload=...` form body, pre-signed. The keys are a fixture-local pair, not Braintree credentials: verification is a pure local HMAC that never contacts Braintree, so signing with a throwaway private key exercises the real algorithm end to end while keeping every real secret out of the repo. `webhook_secrets` is supplied inline for the same reason \u2014 the harness injects only `secret` from creds.json and Braintree also needs `additional_secret` (the PUBLIC key) to select its signature pair. `webhook_secret_key` deliberately names a key that does not exist in creds.json so that inline block is not overwritten.",
+    "payload_source": "braintree_ruby lib/braintree/webhook_testing_gateway.rb \u2014 _transaction_settled_sample_xml / _transaction_settlement_declined_sample_xml, verbatim apart from the ids",
+    "id_space_note": "<id> carries Braintree's LEGACY id (0gtq6gtd), which is what the gateway actually sends. UCS emits the Relay GLOBAL id (base64_nopad('transaction_' + legacy)) in every reference and response, because that is the id space the GraphQL Authorize/Refund legs stored."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/braintree",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "YnRfc2lnbmF0dXJlPWZpeHR1cmVfcHVibGljX2tleSU3Q2FmYzMwY2ZhODgyN2UwODY1MGZlMWU2MmUzMjc4ZGMxMzMyMWJiN2EmYnRfcGF5bG9hZD1QRzV2ZEdsbWFXTmhkR2x2Ymo0S0lDQThkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHklMEFNREkyTFRBNUxURTJWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGdvZ0lEeHJhVzVrUG5SeVlXNXolMEFZV04wYVc5dVgzTmxkSFJzWldROEwydHBibVElMkJDaUFnUEhOMVltcGxZM1ElMkJDaUFnSUNBOGRISmhibk5oJTBBWTNScGIyNCUyQkNpQWdJQ0FnSUR4cFpENHdaM1J4Tm1kMFpEd3ZhV1ElMkJDaUFnSUNBZ0lEeHpkR0YwZFhNJTJCJTBBYzJWMGRHeGxaRHd2YzNSaGRIVnpQZ29nSUNBZ0lDQThkSGx3WlQ1ellXeGxQQzkwZVhCbFBnb2dJQ0FnJTBBSUNBOFkzVnljbVZ1WTNrdGFYTnZMV052WkdVJTJCVlZORVBDOWpkWEp5Wlc1amVTMXBjMjh0WTI5a1pUNEslMEFJQ0FnSUNBZ1BHRnRiM1Z1ZEQ0eE1EQXVNREE4TDJGdGIzVnVkRDRLSUNBZ0lDQWdQRzFsY21Ob1lXNTAlMEFMV0ZqWTI5MWJuUXRhV1ElMkJabWw0ZEhWeVpWOXRaWEpqYUdGdWRGOWhZMk52ZFc1MFBDOXRaWEpqYUdGdSUwQWRDMWhZMk52ZFc1MExXbGtQZ29nSUNBZ0lDQThjR0Y1YldWdWRDMXBibk4wY25WdFpXNTBMWFI1Y0dVJTJCJTBBZFhOZlltRnVhMTloWTJOdmRXNTBQQzl3WVhsdFpXNTBMV2x1YzNSeWRXMWxiblF0ZEhsd1pUNEtJQ0FnJTBBSUNBZ1BHOXlaR1Z5TFdsa1BtSjBYM2RsWW1odmIydGZiM0prWlhKZk1EQXhQQzl2Y21SbGNpMXBaRDRLJTBBSUNBZ0lDQWdQSFZ6TFdKaGJtc3RZV05qYjNWdWRENEtJQ0FnSUNBZ0lDQThjbTkxZEdsdVp5MXVkVzFpJTBBWlhJJTJCTVRJek5EVTJOemc1UEM5eWIzVjBhVzVuTFc1MWJXSmxjajRLSUNBZ0lDQWdJQ0E4YkdGemRDMDAlMEFQakV5TXpROEwyeGhjM1F0TkQ0S0lDQWdJQ0FnSUNBOFlXTmpiM1Z1ZEMxMGVYQmxQbU5vWldOcmFXNW4lMEFQQzloWTJOdmRXNTBMWFI1Y0dVJTJCQ2lBZ0lDQWdJQ0FnUEdGalkyOTFiblF0YUc5c1pHVnlMVzVoYldVJTJCJTBBUkdGdUlGTmphSFZzYldGdVBDOWhZMk52ZFc1MExXaHZiR1JsY2kxdVlXMWxQZ29nSUNBZ0lDQThMM1Z6JTBBTFdKaGJtc3RZV05qYjNWdWRENEtJQ0FnSUR3dmRISmhibk5oWTNScGIyNCUyQkNpQWdQQzl6ZFdKcVpXTjAlMEFQZ284TDI1dmRHbG1hV05oZEdsdmJqNCUzRCUwQQ=="
+      },
+      "webhook_secrets": {
+        "secret": "fixture_private_key",
+        "additional_secret": "fixture_public_key"
+      },
+      "merchant_event_id": "braintree_webhook_transaction_settled"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/braintree",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "YnRfc2lnbmF0dXJlPWZpeHR1cmVfcHVibGljX2tleSU3Q2E2ZWY4ZWVlZmI0MTBhM2FiZGNhOTU3ZTZkYTE4ZTAxN2NhNGQ1ODkmYnRfcGF5bG9hZD1QRzV2ZEdsbWFXTmhkR2x2Ymo0S0lDQThkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHklMEFNREkyTFRBNUxURTJWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGdvZ0lEeHJhVzVrUG5SeVlXNXolMEFZV04wYVc5dVgzTmxkSFJzWlcxbGJuUmZaR1ZqYkdsdVpXUThMMnRwYm1RJTJCQ2lBZ1BITjFZbXBsWTNRJTJCJTBBQ2lBZ0lDQThkSEpoYm5OaFkzUnBiMjQlMkJDaUFnSUNBZ0lEeHBaRDR3WjNSeE5tZDBaRHd2YVdRJTJCQ2lBZyUwQUlDQWdJRHh6ZEdGMGRYTSUyQmMyVjBkR3hsYldWdWRGOWtaV05zYVc1bFpEd3ZjM1JoZEhWelBnb2dJQ0FnJTBBSUNBOGRIbHdaVDV6WVd4bFBDOTBlWEJsUGdvZ0lDQWdJQ0E4WTNWeWNtVnVZM2t0YVhOdkxXTnZaR1UlMkIlMEFWVk5FUEM5amRYSnlaVzVqZVMxcGMyOHRZMjlrWlQ0S0lDQWdJQ0FnUEdGdGIzVnVkRDR4TURBdU1EQTglMEFMMkZ0YjNWdWRENEtJQ0FnSUNBZ1BHMWxjbU5vWVc1MExXRmpZMjkxYm5RdGFXUSUyQlptbDRkSFZ5WlY5dCUwQVpYSmphR0Z1ZEY5aFkyTnZkVzUwUEM5dFpYSmphR0Z1ZEMxaFkyTnZkVzUwTFdsa1Bnb2dJQ0FnSUNBOCUwQWNHRjViV1Z1ZEMxcGJuTjBjblZ0Wlc1MExYUjVjR1UlMkJkWE5mWW1GdWExOWhZMk52ZFc1MFBDOXdZWGx0JTBBWlc1MExXbHVjM1J5ZFcxbGJuUXRkSGx3WlQ0S0lDQWdJQ0FnUEc5eVpHVnlMV2xrUG1KMFgzZGxZbWh2JTBBYjJ0ZmIzSmtaWEpmTURBeFBDOXZjbVJsY2kxcFpENEtJQ0FnSUNBZ1BIVnpMV0poYm1zdFlXTmpiM1Z1JTBBZEQ0S0lDQWdJQ0FnSUNBOGNtOTFkR2x1WnkxdWRXMWlaWEklMkJNVEl6TkRVMk56ZzVQQzl5YjNWMGFXNW4lMEFMVzUxYldKbGNqNEtJQ0FnSUNBZ0lDQThiR0Z6ZEMwMFBqRXlNelE4TDJ4aGMzUXRORDRLSUNBZ0lDQWclMEFJQ0E4WVdOamIzVnVkQzEwZVhCbFBtTm9aV05yYVc1blBDOWhZMk52ZFc1MExYUjVjR1UlMkJDaUFnSUNBZyUwQUlDQWdQR0ZqWTI5MWJuUXRhRzlzWkdWeUxXNWhiV1UlMkJSR0Z1SUZOamFIVnNiV0Z1UEM5aFkyTnZkVzUwJTBBTFdodmJHUmxjaTF1WVcxbFBnb2dJQ0FnSUNBOEwzVnpMV0poYm1zdFlXTmpiM1Z1ZEQ0S0lDQWdJRHd2JTBBZEhKaGJuTmhZM1JwYjI0JTJCQ2lBZ1BDOXpkV0pxWldOMFBnbzhMMjV2ZEdsbWFXTmhkR2x2Ymo0JTNEJTBB"
+      },
+      "webhook_secrets": {
+        "secret": "fixture_private_key",
+        "additional_secret": "fixture_public_key"
+      },
+      "merchant_event_id": "braintree_webhook_settlement_declined"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/braintree",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "YnRfc2lnbmF0dXJlPWZpeHR1cmVfcHVibGljX2tleSU3QzAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAmYnRfcGF5bG9hZD1QRzV2ZEdsbWFXTmhkR2x2Ymo0S0lDQThkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHklMEFNREkyTFRBNUxURTJWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGdvZ0lEeHJhVzVrUG5SeVlXNXolMEFZV04wYVc5dVgzTmxkSFJzWldROEwydHBibVElMkJDaUFnUEhOMVltcGxZM1ElMkJDaUFnSUNBOGRISmhibk5oJTBBWTNScGIyNCUyQkNpQWdJQ0FnSUR4cFpENHdaM1J4Tm1kMFpEd3ZhV1ElMkJDaUFnSUNBZ0lEeHpkR0YwZFhNJTJCJTBBYzJWMGRHeGxaRHd2YzNSaGRIVnpQZ29nSUNBZ0lDQThkSGx3WlQ1ellXeGxQQzkwZVhCbFBnb2dJQ0FnJTBBSUNBOFkzVnljbVZ1WTNrdGFYTnZMV052WkdVJTJCVlZORVBDOWpkWEp5Wlc1amVTMXBjMjh0WTI5a1pUNEslMEFJQ0FnSUNBZ1BHRnRiM1Z1ZEQ0eE1EQXVNREE4TDJGdGIzVnVkRDRLSUNBZ0lDQWdQRzFsY21Ob1lXNTAlMEFMV0ZqWTI5MWJuUXRhV1ElMkJabWw0ZEhWeVpWOXRaWEpqYUdGdWRGOWhZMk52ZFc1MFBDOXRaWEpqYUdGdSUwQWRDMWhZMk52ZFc1MExXbGtQZ29nSUNBZ0lDQThjR0Y1YldWdWRDMXBibk4wY25WdFpXNTBMWFI1Y0dVJTJCJTBBZFhOZlltRnVhMTloWTJOdmRXNTBQQzl3WVhsdFpXNTBMV2x1YzNSeWRXMWxiblF0ZEhsd1pUNEtJQ0FnJTBBSUNBZ1BHOXlaR1Z5TFdsa1BtSjBYM2RsWW1odmIydGZiM0prWlhKZk1EQXhQQzl2Y21SbGNpMXBaRDRLJTBBSUNBZ0lDQWdQSFZ6TFdKaGJtc3RZV05qYjNWdWRENEtJQ0FnSUNBZ0lDQThjbTkxZEdsdVp5MXVkVzFpJTBBWlhJJTJCTVRJek5EVTJOemc1UEM5eWIzVjBhVzVuTFc1MWJXSmxjajRLSUNBZ0lDQWdJQ0E4YkdGemRDMDAlMEFQakV5TXpROEwyeGhjM1F0TkQ0S0lDQWdJQ0FnSUNBOFlXTmpiM1Z1ZEMxMGVYQmxQbU5vWldOcmFXNW4lMEFQQzloWTJOdmRXNTBMWFI1Y0dVJTJCQ2lBZ0lDQWdJQ0FnUEdGalkyOTFiblF0YUc5c1pHVnlMVzVoYldVJTJCJTBBUkdGdUlGTmphSFZzYldGdVBDOWhZMk52ZFc1MExXaHZiR1JsY2kxdVlXMWxQZ29nSUNBZ0lDQThMM1Z6JTBBTFdKaGJtc3RZV05qYjNWdWRENEtJQ0FnSUR3dmRISmhibk5oWTNScGIyNCUyQkNpQWdQQzl6ZFdKcVpXTjAlMEFQZ284TDI1dmRHbG1hV05oZEdsdmJqNCUzRCUwQQ=="
+      },
+      "webhook_secrets": {
+        "secret": "fixture_private_key",
+        "additional_secret": "fixture_public_key"
+      },
+      "merchant_event_id": "braintree_webhook_invalid_signature"
+    }
+  }
+}

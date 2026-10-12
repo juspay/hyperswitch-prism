@@ -14,16 +14,20 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, SetupMandate, Void, VoidPC,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, MandateRevoke, PSync,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
-        DisputeWebhookDetailsResponse, EventType, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        DisputeWebhookDetailsResponse, EventType, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -40,12 +44,15 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as braintree, BraintreeAuthResponse, BraintreeCancelRequest, BraintreeCancelResponse,
+    self as braintree, BraintreeAuthResponse, BraintreeAuthenticateRequest,
+    BraintreeAuthenticateResponse, BraintreeCancelRequest, BraintreeCancelResponse,
     BraintreeCaptureRequest, BraintreeCaptureResponse, BraintreeClientTokenRequest,
     BraintreePSyncRequest, BraintreePSyncResponse, BraintreePaymentsRequest,
-    BraintreePaymentsResponse, BraintreeRSyncRequest, BraintreeRSyncResponse,
-    BraintreeRefundRequest, BraintreeRefundResponse, BraintreeRepeatPaymentRequest,
-    BraintreeRepeatPaymentResponse, BraintreeSessionResponse, BraintreeSetupMandateRequest,
+    BraintreePaymentsResponse, BraintreePostAuthenticateRequest, BraintreePostAuthenticateResponse,
+    BraintreePreAuthenticateRequest, BraintreePreAuthenticateResponse, BraintreeRSyncRequest,
+    BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
+    BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeRevokeMandateRequest,
+    BraintreeRevokeMandateResponse, BraintreeSessionResponse, BraintreeSetupMandateRequest,
     BraintreeSetupMandateResponse, BraintreeTokenRequest, BraintreeTokenResponse,
     BraintreeVoidPCRequest, BraintreeVoidPCResponse,
 };
@@ -222,15 +229,115 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Braintree<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Braintree<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Braintree<T>
+{
+}
+/// Braintree revokes a stored credential by deleting the vaulted payment method
+/// (`deletePaymentMethodFromVault`). Without this impl the flow stays in the `not_implemented`
+/// bucket and a merchant migrating from Hyperswitch loses the ability to revoke a mandate it can
+/// still charge.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::MandateRevokeV2 for Braintree<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Braintree<T>
 {
+    /// Braintree charges a `paymentMethodId`; none of its transaction mutations accepts card
+    /// credentials inline. So every instrument whose credentials prism can actually see has to be
+    /// exchanged for one first.
+    ///
+    /// * **Card** — `tokenizeCreditCard`.
+    /// * **Wallet carrying a DECRYPTED network token** (Apple Pay with cleartext DPAN +
+    ///   cryptogram) — `tokenizeNetworkToken`. Gated on `is_wallet_decrypted_network_token` and
+    ///   not on the wallet alone: an `ApplePayThirdPartySdk` / `GooglePayThirdPartySdk` payload is
+    ///   already a Braintree-minted nonce charged through `chargePaymentMethod`, and tokenizing it
+    ///   would be a round trip that can only fail. An ENCRYPTED Apple Pay blob is excluded by the
+    ///   same flag — prism holds no decryption certificate for it.
     fn should_do_payment_method_token(
         &self,
         payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
-        _is_wallet_decrypted_network_token: bool,
+        is_wallet_decrypted_network_token: bool,
     ) -> bool {
-        matches!(payment_method, PaymentMethod::Card)
+        match payment_method {
+            PaymentMethod::Card => true,
+            PaymentMethod::Wallet => is_wallet_decrypted_network_token,
+            _ => false,
+        }
+    }
+
+    /// Drives the composite authorize loop through Braintree-HOSTED 3D Secure for card + ThreeDs:
+    /// PreAuthenticate (`tokenizeCreditCard` + `createClientToken`) -> Authenticate
+    /// (`performThreeDSecureLookup`) -> [PostAuthenticate (`node(id:)` readback) once the
+    /// cardholder returns from the ACS challenge] -> Authorize.
+    ///
+    /// Without this override the trait default returns `AuthenticationStep::Authorize` and all
+    /// three legs are unreachable from `CompositePaymentService/Authorize`.
+    ///
+    /// Two arms are load-bearing and neither is arbitrary:
+    ///
+    /// * `(InitialRequest, Some(PreAuthenticate)) => Authenticate`. PreAuthenticate emits no
+    ///   redirect — Braintree's lookup is genuinely server-side and is satisfied by
+    ///   `transactionInformation.browserInformation`, so there is nothing to send the browser away
+    ///   for. The composite loop's PreAuthenticate arm breaks only on a redirect or a failure, so
+    ///   it falls through to here and the lookup runs in the same call.
+    /// * `(RedirectWithParams | RedirectWithoutParams, None) => PostAuthenticate`. The ACS posts
+    ///   its PaRes to BRAINTREE's own `termUrl`, not to UCS, so the cardholder returns to the
+    ///   merchant carrying nothing. Both return states are handled because the caller — not this
+    ///   connector — decides whether it puts anything in `redirection_response.params`.
+    ///
+    /// Termination: PreAuthenticate advances to Authenticate; Authenticate either breaks the loop
+    /// on a challenge redirect / a terminal status or advances to Authorize; PostAuthenticate never
+    /// breaks on its own, so the `Some(PostAuthenticate)` arms resolve it to Authorize. Every other
+    /// pair falls to the catch-all.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authenticate
+                }
+                // Frictionless: the lookup resolved without an ACS challenge.
+                (RedirectState::InitialRequest, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+                // `Some(..)` arms precede the catch-all redirect arm below: an earlier `_` in the
+                // completed_step position would shadow them and the loop would re-run
+                // PostAuthenticate forever, since that arm never breaks.
+                (
+                    RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::PostAuthenticate),
+                ) => AuthenticationStep::Authorize,
+                (
+                    RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                    None,
+                ) => AuthenticationStep::PostAuthenticate,
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            // Load-bearing: an unset proto `auth_type` resolves to `NoThreeDs`, so the gate must be
+            // an explicit equality test and everything else must charge directly.
+            AuthenticationStep::Authorize
+        }
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -297,28 +404,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     error_stack::report!(WebhookError::WebhookSignatureNotFound)
                 })?;
 
-        let message = notif.bt_payload.as_bytes();
-
-        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over the payload.
+        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over
+        // the payload. Braintree's scheme is HMAC-SHA1 keyed by the *SHA-1 digest of the
+        // private key*, not by the private key itself; collapsing the two steps into a plain
+        // HMAC silently fails every verification.
         let sha1_hash_key = ring::digest::digest(
             &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
             &connector_webhook_secrets.secret,
         );
 
-        let signed_message = crypto::HmacSha1
-            .sign_message(sha1_hash_key.as_ref(), message)
-            .inspect_err(|error| {
-                tracing::warn!(
-                    target: "braintree_webhook",
-                    ?error,
-                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
-                );
-            })
-            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        // The message is the RAW, newline-inclusive `bt_payload` — not the newline-stripped
+        // form `decode_from_request` builds for base64 decoding. Keep the two asymmetric.
+        //
+        // Braintree's own SDK accepts a match against either the payload as received or the
+        // payload with one trailing "\n" appended: Ruby's `Base64.encode64` always terminates
+        // its output with a newline and signs that, but form parsers, proxies and replay
+        // harnesses routinely trim it before the body reaches the merchant. Normalising to
+        // either one alone rejects half of real traffic, so try both.
+        let candidates = [notif.bt_payload.clone(), format!("{}\n", notif.bt_payload)];
 
-        let payload_sign = hex::encode(signed_message);
+        for candidate in candidates {
+            let signed_message = crypto::HmacSha1
+                .sign_message(sha1_hash_key.as_ref(), candidate.as_bytes())
+                .inspect_err(|error| {
+                    tracing::warn!(
+                        target: "braintree_webhook",
+                        ?error,
+                        "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                    );
+                })
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
-        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+            // Constant-time comparison: a byte-by-byte early return leaks the position of the
+            // first mismatch to anyone who can time the endpoint.
+            #[allow(deprecated)] // ring 0.17 renamed the module; the function is still sound
+            if ring::constant_time::verify_slices_are_equal(
+                hex::encode(signed_message).as_bytes(),
+                extracted_signature.as_bytes(),
+            )
+            .is_ok()
+            {
+                return Ok(true);
+            }
+        }
+
+        tracing::warn!(
+            target: "braintree_webhook",
+            "Braintree webhook signature did not match the computed HMAC-SHA1 digest"
+        );
+        Ok(false)
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
@@ -332,6 +466,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
         let notif = braintree::decode_from_request(&request)?;
         braintree::get_webhook_reference(&notif)
+    }
+
+    /// Reached for the two settlement kinds and — via the misc-event fall-through in
+    /// `webhook_utils::process_webhook_event`, which routes anything that is not a payment,
+    /// refund, dispute or payout event to this handler — for `check` and for every kind UCS
+    /// does not model. It must therefore tolerate a subject it cannot read and report no
+    /// status change rather than erroring or inventing one.
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_payment_response(&notif)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_refund_response(&notif)
     }
 
     fn process_dispute_webhook(
@@ -367,8 +527,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn sample_webhook_body(&self) -> &'static [u8] {
         // form-urlencoded `bt_signature=<pubkey>|<sig>&bt_payload=<base64 dispute_opened XML>`.
-        // Dummy values only; `bt_payload` base64 decodes to a minimal `dispute_opened` notification.
-        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"#
+        //
+        // This is a PARSE probe, not a verification probe, so `bt_signature` is a dummy pair.
+        // The XML is shaped from Braintree's own SDK sample generator, not from these structs:
+        // it carries the `<subject>` wrapper, kebab-case element names, a `type=` attribute, a
+        // `nil="true"` element, a lowercase `chargeback` stage and a decimal major-unit amount.
+        // A fixture derived from the parser under test cannot falsify the parser.
+        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjxraW5kPmRpc3B1dGVfb3BlbmVkPC9raW5kPjxzdWJqZWN0PjxkaXNwdXRlPjxpZD5kdW1teV9kaXNwdXRlX2lkXzAwMTwvaWQ%2BPGFtb3VudD4xMC4wMDwvYW1vdW50PjxhbW91bnQtZGlzcHV0ZWQ%2BMTAuMDA8L2Ftb3VudC1kaXNwdXRlZD48YW1vdW50LXdvbiBuaWw9InRydWUiLz48Y2FzZS1udW1iZXI%2BQ0FTRS0wMDE8L2Nhc2UtbnVtYmVyPjxjcmVhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvY3JlYXRlZC1hdD48Y3VycmVuY3ktaXNvLWNvZGU%2BVVNEPC9jdXJyZW5jeS1pc28tY29kZT48Zm9yd2FyZGVkLWNvbW1lbnRzIG5pbD0idHJ1ZSIvPjxraW5kPmNoYXJnZWJhY2s8L2tpbmQ%2BPG1lcmNoYW50LWFjY291bnQtaWQ%2BZHVtbXlfbWVyY2hhbnRfYWNjb3VudDwvbWVyY2hhbnQtYWNjb3VudC1pZD48cmVhc29uPmZyYXVkPC9yZWFzb24%2BPHJlYXNvbi1jb2RlIG5pbD0idHJ1ZSIvPjxyZWNlaXZlZC1kYXRlIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L3JlY2VpdmVkLWRhdGU%2BPHJlZmVyZW5jZS1udW1iZXI%2BUkVGLTAwMTwvcmVmZXJlbmNlLW51bWJlcj48cmVwbHktYnktZGF0ZSB0eXBlPSJkYXRlIj4yMDI2LTA5LTMwPC9yZXBseS1ieS1kYXRlPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjx1cGRhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdXBkYXRlZC1hdD48c3RhdHVzLWhpc3RvcnkgdHlwZT0iYXJyYXkiPjxzdGF0dXMtaGlzdG9yeT48c3RhdHVzPm9wZW48L3N0YXR1cz48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjwvc3RhdHVzLWhpc3Rvcnk%2BPC9zdGF0dXMtaGlzdG9yeT48ZXZpZGVuY2UgdHlwZT0iYXJyYXkiLz48dHJhbnNhY3Rpb24%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjxhbW91bnQ%2BMTAuMDA8L2Ftb3VudD48b3JkZXItaWQ%2BZHVtbXlfb3JkZXJfMDAxPC9vcmRlci1pZD48cGF5bWVudC1pbnN0cnVtZW50LXR5cGU%2BY3JlZGl0X2NhcmQ8L3BheW1lbnQtaW5zdHJ1bWVudC10eXBlPjwvdHJhbnNhY3Rpb24%2BPGRhdGUtb3BlbmVkIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L2RhdGUtb3BlbmVkPjwvZGlzcHV0ZT48L3N1YmplY3Q%2BPC9ub3RpZmljYXRpb24%2B"#
     }
 }
 
@@ -448,9 +613,33 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: SetupMandate,
-            request_body: BraintreeSetupMandateRequest<T>,
+            request_body: BraintreeSetupMandateRequest,
             response_body: BraintreeSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: MandateRevoke,
+            request_body: BraintreeRevokeMandateRequest,
+            response_body: BraintreeRevokeMandateResponse,
+            router_data: RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: BraintreePreAuthenticateRequest<T>,
+            response_body: BraintreePreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: BraintreeAuthenticateRequest,
+            response_body: BraintreeAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: BraintreePostAuthenticateRequest,
+            response_body: BraintreePostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -815,13 +1004,16 @@ macros::macro_connector_implementation!(
     }
 );
 
-// SetupMandate (SetupRecurring) - tokenize the card and surface the resulting
-// Braintree paymentMethod.id as connector_mandate_id. RepeatPayment then
-// consumes that id via its existing MandatePayment request path.
+// SetupMandate (SetupRecurring) - a real zero-amount card verification.
+// `vaultCreditCard` verifies the card against the network and vaults it in one
+// mutation; the attempt status is mapped from `verification.status`, the AVS/CVV
+// verdicts land on `connector_response`, and the vaulted `paymentMethod.id` is
+// returned as `connector_mandate_id`, which RepeatPayment consumes via its
+// existing MandatePayment request path.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Braintree,
-    curl_request: Json(BraintreeSetupMandateRequest<T>),
+    curl_request: Json(BraintreeSetupMandateRequest),
     curl_response: BraintreeSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,
@@ -840,6 +1032,36 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// `deletePaymentMethodFromVault` — the revoke. `http_method: Post` like every other leg: Braintree
+// is a single GraphQL endpoint and every operation, mutation or query, is POSTed to it.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreeRevokeMandateRequest),
+    curl_response: BraintreeRevokeMandateResponse,
+    flow_name: MandateRevoke,
+    resource_common_data: PaymentFlowData,
+    flow_request: MandateRevokeRequestData,
+    flow_response: MandateRevokeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(self.connector_base_url_payments(req).to_string())
         }
@@ -904,6 +1126,98 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Braintree-hosted 3D Secure, leg 1 of 3. Every leg posts to the same GraphQL endpoint with the
+// same headers as every other Braintree flow — there is no per-flow path and no version override.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreePreAuthenticateRequest<T>),
+    curl_response: BraintreePreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// Leg 2 of 3 — the server-side 3D Secure lookup.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreeAuthenticateRequest),
+    curl_response: BraintreeAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// Leg 3 of 3 — the `node(id:)` readback. `http_method: Post` despite being a GraphQL *query*:
+// GraphQL over HTTP posts queries and mutations alike to the same endpoint.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreePostAuthenticateRequest),
+    curl_response: BraintreePostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 // ConnectorIntegrationV2 implementations for authentication flows
 
 macros::macro_connector_flow_status_impls!(
@@ -920,10 +1234,6 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         DefendDispute,
         Accept,
-        MandateRevoke,
-        PreAuthenticate,
-        Authenticate,
-        PostAuthenticate,
     ],
     not_supported: [
         VoidPostRefund,
