@@ -9279,6 +9279,17 @@ pub fn generate_payment_sync_response(
                         .as_ref()
                         .map(connector_money_to_grpc)
                         .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9422,6 +9433,17 @@ pub fn generate_payment_sync_response(
                         .as_ref()
                         .map(connector_money_to_grpc)
                         .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9537,6 +9559,17 @@ pub fn generate_payment_sync_response(
                     .amount_capturable
                     .as_ref()
                     .map(connector_money_to_grpc)
+                    .transpose()?,
+                authorized_money: router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .map(|integrity_object| {
+                        connector_money_to_grpc(&common_utils::types::Money {
+                            amount: integrity_object.amount,
+                            currency: integrity_object.currency,
+                        })
+                    })
                     .transpose()?,
                 payment_method_type: None,
                 capture_method: None,
@@ -10570,6 +10603,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .transpose()?,
             // Webhook details don't carry a capturable amount.
             capturable_money: None,
+            // Webhook details don't carry the connector-reported amount used by the integrity check.
+            authorized_money: None,
             payment_method_type: None,
             capture_method: None,
             auth_type: None,
@@ -16895,6 +16930,17 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .as_ref()
                             .map(connector_money_to_grpc)
                             .transpose()?,
+                        authorized_money: router_data_v2
+                            .request
+                            .integrity_object
+                            .as_ref()
+                            .map(|integrity_object| {
+                                connector_money_to_grpc(&common_utils::types::Money {
+                                    amount: integrity_object.amount,
+                                    currency: integrity_object.currency,
+                                })
+                            })
+                            .transpose()?,
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
@@ -16974,6 +17020,17 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         .amount_capturable
                         .as_ref()
                         .map(connector_money_to_grpc)
+                        .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
                         .transpose()?,
                     incremental_authorization_allowed: None,
                     splits: None,
