@@ -8,5 +8,12 @@
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_google_pay_encrypted": "Worldpay RAFT requires Hyperswitch-decrypted wallet data (DPAN, expiry, and cryptogram).",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "Wallet stored-credential setup is not supported; use a one-off wallet authorization.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "Wallet stored-credential setup is not supported; use a one-off wallet authorization."
+    }
+  }
 }
