@@ -19,6 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.12.1
+
+### Features
+
+- **connector:** Add avs check for worldpay raft authorize ([#2488](https://github.com/juspay/connector-service/pull/2488)) ([`8eaddb0`](https://github.com/juspay/connector-service/commit/8eaddb0b85e6879c8930d613a0eef29472f05e0b))
+
+### Bug Fixes
+
+- **stripe:** Forward external 3DS authentication data ([#2501](https://github.com/juspay/connector-service/pull/2501)) ([`9d8050b`](https://github.com/juspay/connector-service/commit/9d8050b2345adcda6e64a542c27e274cafad0fff))
+
+**Full Changelog:** [`2026.10.12.0...2026.10.12.1`](https://github.com/juspay/connector-service/compare/2026.10.12.0...2026.10.12.1)
+
+- - -
+
+
+## 2026.10.09.1
+
+### Features
+
+- **connector:**
+  - Worldpay raft Card with No cvc & void implementation ([#2408](https://github.com/juspay/connector-service/pull/2408)) ([`e84cc2e`](https://github.com/juspay/connector-service/commit/e84cc2ee7206dcfafff0b727aee3403e67cd6282))
+  - [Authorizedotnet] add Google Pay and Apple Pay via opaqueData ([#2479](https://github.com/juspay/connector-service/pull/2479)) ([`e28e4e2`](https://github.com/juspay/connector-service/commit/e28e4e2d9b478241ced4359d4acf99851a5c36b7))
+  - Add JPMorgan merchant-decrypted wallet payments ([#2462](https://github.com/juspay/connector-service/pull/2462)) ([`49e2d01`](https://github.com/juspay/connector-service/commit/49e2d01c2eeb259f2fcd0a82b6ded46d87c7d889))
+
+### Bug Fixes
+
+- **connector:** [Fiuu] log response shape when PSync response fails to parse ([#2483](https://github.com/juspay/connector-service/pull/2483)) ([`d4e7e1c`](https://github.com/juspay/connector-service/commit/d4e7e1cc8d18970099b34a36fc9d5f43a2b72f55))
+
+**Full Changelog:** [`2026.10.09.0...2026.10.09.1`](https://github.com/juspay/connector-service/compare/2026.10.09.0...2026.10.09.1)
+
+- - -
+
 ## 2026.10.09.0
 
 ### Features
