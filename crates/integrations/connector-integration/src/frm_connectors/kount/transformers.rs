@@ -1,6 +1,6 @@
 use crate::{frm_connectors::kount::KountRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
-use common_utils::types::StringMinorUnit;
+use common_utils::{pii::SecretSerdeValue, types::StringMinorUnit};
 use domain_types::{
     connector_flow::{
         FrmPaymentOutcome, FrmRefundProcessed, PreAuthenticate, PreRiskCheck,
@@ -766,12 +766,12 @@ pub fn session_id_from_metadata_value(metadata: Option<&serde_json::Value>) -> O
         .map(ToString::to_string)
 }
 
-/// Same as [`session_id_from_metadata_value`], for metadata carried as a JSON
-/// string (`PreRiskCheckRequest::metadata`) instead of a parsed value.
-pub fn session_id_from_metadata_str(metadata: Option<&Secret<String>>) -> Option<String> {
-    let parsed = metadata
-        .and_then(|metadata| serde_json::from_str::<serde_json::Value>(metadata.peek()).ok());
-    session_id_from_metadata_value(parsed.as_ref())
+/// Same as [`session_id_from_metadata_value`], for parsed metadata carried in
+/// a secret (`PreRiskCheckRequest::metadata`).
+pub fn session_id_from_metadata_secret_value(
+    metadata: Option<&SecretSerdeValue>,
+) -> Option<String> {
+    session_id_from_metadata_value(metadata.map(PeekInterface::peek))
 }
 
 pub fn resolve_session_id(provided_session_id: Option<String>, fallback_ref: &str) -> String {
@@ -1749,24 +1749,10 @@ pub(super) fn kount_pre_risk_feature_data(
 /// silently — the caller's convention elsewhere is to emit `null` for an
 /// absent value, not to omit the key.
 pub(super) fn kount_custom_fields(
-    metadata: Option<&Secret<String>>,
+    metadata: Option<&SecretSerdeValue>,
 ) -> Option<serde_json::Map<String, serde_json::Value>> {
-    let parsed = metadata
-        .map(|m| m.peek().trim().to_owned())
-        .filter(|raw| !raw.is_empty())
-        .and_then(|raw| {
-            serde_json::from_str::<serde_json::Value>(&raw)
-                .inspect_err(|err| {
-                    tracing::warn!(
-                        error = %err,
-                        "Kount metadata is not valid JSON; customFields will not be sent"
-                    );
-                })
-                .ok()
-        });
-
-    let filtered: serde_json::Map<String, serde_json::Value> = parsed
-        .as_ref()
+    let filtered: serde_json::Map<String, serde_json::Value> = metadata
+        .map(PeekInterface::peek)
         .and_then(serde_json::Value::as_object)
         // Absent is normal/silent — most callers won't send this key yet.
         .and_then(|metadata_obj| metadata_obj.get("customFields"))
@@ -2126,7 +2112,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // DDC-collected reference) wins; otherwise hash the merchant
             // transaction id — the same value the DDC script derives.
             session_id: resolve_session_id(
-                session_id_from_metadata_str(req.metadata.as_ref()),
+                session_id_from_metadata_secret_value(req.metadata.as_ref()),
                 &order_id,
             ),
             channel: KountChannel::Web,

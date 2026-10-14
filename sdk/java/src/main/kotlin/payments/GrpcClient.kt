@@ -209,6 +209,11 @@ class GrpcFraudAndRiskManagementClient internal constructor(
      */
     suspend fun post_risk_check(req: FrmServicePostRiskCheckRequest): FrmServicePostRiskCheckResponse =
         callGrpc(config, "fraud_and_risk_management/post_risk_check", req, FrmServicePostRiskCheckResponse.parser())
+    /**
+     * FraudAndRiskManagementService.PrePayoutRiskCheck — Evaluate fraud risk before payout processing. Analyzes payout amount and payout method details to determine if the payout should proceed, be rejected, or flagged for manual review.
+     */
+    suspend fun pre_payout_risk_check(req: FrmServicePrePayoutRiskCheckRequest): FrmServicePrePayoutRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/pre_payout_risk_check", req, FrmServicePrePayoutRiskCheckResponse.parser())
 }
 
 /**

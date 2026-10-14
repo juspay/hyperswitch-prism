@@ -209,6 +209,13 @@ class GrpcFraudAndRiskManagementClient:
             "fraud_and_risk_management/post_risk_check",
             req, frm_pb2.FrmServicePostRiskCheckResponse,
         )
+    def pre_payout_risk_check(self, req: frm_pb2.FrmServicePrePayoutRiskCheckRequest) -> frm_pb2.FrmServicePrePayoutRiskCheckResponse:
+        """FraudAndRiskManagementService.PrePayoutRiskCheck — Evaluate fraud risk before payout processing. Analyzes payout amount and payout method details to determine if the payout should proceed, be rejected, or flagged for manual review."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/pre_payout_risk_check",
+            req, frm_pb2.FrmServicePrePayoutRiskCheckResponse,
+        )
 
 class GrpcMerchantAuthenticationClient:
     """MerchantAuthenticationService — gRPC sub-client."""
