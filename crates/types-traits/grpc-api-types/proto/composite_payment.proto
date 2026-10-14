@@ -306,6 +306,13 @@ message CompositeGetRequest {
   // treated as an integrity failure, in either direction. A currency mismatch still is.
   optional bool allow_amount_mismatch = 21;
 
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 22;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 23;
 }
 
 // Response message for composite get flow.

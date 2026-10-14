@@ -418,10 +418,8 @@ impl
 
         Self {
             allow_amount_mismatch: item.allow_amount_mismatch,
-            // Composite get doesn't take overcapture or partial-authorization flags; amount
-            // tolerance there comes only from allow_amount_mismatch.
-            is_overcapture_enabled: None,
-            enable_partial_authorization: None,
+            is_overcapture_enabled: item.is_overcapture_enabled,
+            enable_partial_authorization: item.enable_partial_authorization,
             connector_transaction_id: item.connector_transaction_id.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             encoded_data: item.encoded_data.clone(),
