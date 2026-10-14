@@ -335,6 +335,15 @@ enum RefundStatus {
       5; // Failure at the transaction level for the refund
 }
 
+// Outcome of a post-capture void (PaymentService.Reverse). Describes the void
+// attempt itself, never the status of the payment being voided.
+enum PostCaptureVoidStatus {
+  POST_CAPTURE_VOID_STATUS_UNSPECIFIED = 0; // Default value
+  POST_CAPTURE_VOID_STATUS_SUCCEEDED = 1;   // The captured payment was voided
+  POST_CAPTURE_VOID_STATUS_PENDING = 2;     // The void was accepted but is not final yet
+  POST_CAPTURE_VOID_STATUS_FAILED = 3;      // The void was declined; the payment is unchanged
+}
+
 // Status of a dispute
 enum DisputeStatus {
   DISPUTE_STATUS_UNSPECIFIED = 0; // Default value
@@ -3198,16 +3207,26 @@ message PaymentServiceReverseRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 9;
+
+  // Amount Information
+  // Amount to void, for connectors that require it on a post-capture void.
+  optional Money amount = 10;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
 // to void but for post-capture transactions)
 message PaymentServiceReverseResponse {
   // Identification
+  // The connector's id of the original payment being voided, echoed from the
+  // request. The void's own id is in connector_reference_id.
   string connector_transaction_id = 1;
 
   // Status Information
-  PaymentStatus status = 2;
+  // Deprecated: use post_capture_void_status instead. Always
+  // PAYMENT_STATUS_UNSPECIFIED: a void's outcome is not the payment's status.
+  PaymentStatus status = 2 [deprecated = true];
+  // Set when post_capture_void_status is FAILED; carries the connector's
+  // failure message.
   optional ErrorInfo error = 3;
   uint32 status_code = 4;
   map<string, string> response_headers = 5;
@@ -3224,9 +3243,12 @@ message PaymentServiceReverseResponse {
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
 
-  // Another reference for the connector's transaction, returned in the connector's response.
-  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  // The connector's id for the void itself, when it issues one. Distinct from
+  // connector_transaction_id, which is the original payment's id.
   optional string connector_reference_id = 10;
+
+  // Outcome of the void.
+  PostCaptureVoidStatus post_capture_void_status = 13;
 }
 
 // Request message for creating an access token

@@ -8496,6 +8496,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
     }
 }
 
+impl ForeignFrom<common_enums::PostCaptureVoidStatus>
+    for grpc_api_types::payments::PostCaptureVoidStatus
+{
+    fn foreign_from(status: common_enums::PostCaptureVoidStatus) -> Self {
+        match status {
+            common_enums::PostCaptureVoidStatus::Succeeded => Self::Succeeded,
+            common_enums::PostCaptureVoidStatus::Pending => Self::Pending,
+            common_enums::PostCaptureVoidStatus::Failed => Self::Failed,
+        }
+    }
+}
+
 impl ForeignFrom<common_enums::RefundStatus> for grpc_api_types::payments::RefundStatus {
     fn foreign_from(status: common_enums::RefundStatus) -> Self {
         match status {
@@ -8865,6 +8877,11 @@ pub fn generate_payment_void_post_capture_response(
         .clone()
         .map(ForeignFrom::foreign_from);
 
+    // The id of the payment being voided; the void's own id goes out as connector_reference_id.
+    let original_connector_transaction_id = router_data_v2.request.connector_transaction_id.clone();
+    // An id the connector returned that is not just the original payment's id echoed back.
+    let void_id = |id: Option<String>| id.filter(|id| *id != original_connector_transaction_id);
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -8880,19 +8897,34 @@ pub fn generate_payment_void_post_capture_response(
                 splits: _,
                 payment_account_reference: _,
             } => {
-                let status = router_data_v2.resource_common_data.status;
-                let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
+                let post_capture_void_status = match router_data_v2.resource_common_data.status {
+                    common_enums::AttemptStatus::VoidedPostCapture
+                    | common_enums::AttemptStatus::Voided => {
+                        common_enums::PostCaptureVoidStatus::Succeeded
+                    }
+                    common_enums::AttemptStatus::VoidFailed
+                    | common_enums::AttemptStatus::Failure => {
+                        common_enums::PostCaptureVoidStatus::Failed
+                    }
+                    _ => common_enums::PostCaptureVoidStatus::Pending,
+                };
 
-                let grpc_resource_id = Option::foreign_try_from(resource_id)?;
+                let grpc_resource_id: Option<String> = Option::foreign_try_from(resource_id)?;
+                let connector_reference_id =
+                    connector_response_reference_id.or_else(|| void_id(grpc_resource_id));
 
+                #[allow(deprecated)]
                 Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: extract_connector_request_reference_id(
-                        &grpc_resource_id,
-                    ),
-                    status: grpc_status.into(),
-                    connector_reference_id: connector_response_reference_id.clone(),
+                    connector_transaction_id: original_connector_transaction_id,
+                    status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                    post_capture_void_status:
+                        grpc_api_types::payments::PostCaptureVoidStatus::foreign_from(
+                            post_capture_void_status,
+                        )
+                        .into(),
                     // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
-                    merchant_reverse_id: connector_response_reference_id,
+                    merchant_reverse_id: connector_reference_id.clone(),
+                    connector_reference_id,
                     error: None,
                     status_code: u32::from(status_code),
                     response_headers: router_data_v2
@@ -8908,27 +8940,37 @@ pub fn generate_payment_void_post_capture_response(
             PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id,
-                description: _,
+                description,
                 status_code,
             } => {
-                let grpc_status = match post_capture_void_status {
-                    common_enums::PostCaptureVoidStatus::Succeeded => {
-                        grpc_api_types::payments::PaymentStatus::VoidedPostCapture
-                    }
-                    common_enums::PostCaptureVoidStatus::Pending => {
-                        grpc_api_types::payments::PaymentStatus::Pending
-                    }
-                    common_enums::PostCaptureVoidStatus::Failed => {
-                        grpc_api_types::payments::PaymentStatus::Failure
-                    }
-                };
+                // The connector's failure message goes out as the error message. Connectors may
+                // also describe a successful void, which is not an error.
+                let error = description
+                    .filter(|_| post_capture_void_status.is_post_capture_void_failure())
+                    .map(|message| grpc_api_types::payments::ErrorInfo {
+                        unified_details: None,
+                        connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                            code: None,
+                            message: Some(message),
+                            reason: None,
+                            connector_transaction_id: connector_reference_id.clone(),
+                            status: None,
+                        }),
+                        issuer_details: None,
+                    });
+                #[allow(deprecated)]
                 Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
-                    status: grpc_status.into(),
+                    connector_transaction_id: original_connector_transaction_id,
+                    status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                    post_capture_void_status:
+                        grpc_api_types::payments::PostCaptureVoidStatus::foreign_from(
+                            post_capture_void_status,
+                        )
+                        .into(),
                     // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: connector_reference_id.clone(),
                     connector_reference_id,
-                    error: None,
+                    error,
                     status_code: u32::from(status_code),
                     response_headers: router_data_v2
                         .resource_common_data
@@ -8949,22 +8991,17 @@ pub fn generate_payment_void_post_capture_response(
                 },
             })),
         },
-        Err(e) => {
-            let status = match e.get_attempt_status_for_grpc(
-                e.status_code,
-                router_data_v2.resource_common_data.status,
-            ) {
-                Some(attempt_status) => {
-                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
-                }
-                None => grpc_api_types::payments::PaymentStatus::Unspecified,
-            };
+        // A void the connector rejects is a failed void, not a failed payment: report it
+        // through post_capture_void_status, never through the payment status.
+        Err(e) =>
+        {
+            #[allow(deprecated)]
             Ok(PaymentServiceReverseResponse {
-                connector_transaction_id: extract_connector_request_reference_id(
-                    &e.connector_transaction_id,
-                ),
-                status: status.into(),
-                connector_reference_id: None,
+                connector_transaction_id: original_connector_transaction_id.clone(),
+                status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                post_capture_void_status: grpc_api_types::payments::PostCaptureVoidStatus::Failed
+                    .into(),
+                connector_reference_id: void_id(e.connector_transaction_id.clone()),
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
@@ -10662,7 +10699,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
     fn foreign_try_from(
         value: grpc_api_types::payments::PaymentServiceReverseRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let amount = value
+            .amount
+            .filter(|a| a.currency() != grpc_api_types::payments::Currency::Unspecified)
+            .map(|a| {
+                Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(a.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(a.currency())?,
+                })
+            })
+            .transpose()?;
         Ok(Self {
+            amount,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
