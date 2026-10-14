@@ -22,6 +22,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
             base_url="YOUR_BASE_URL",
+            webhook_secret=payment_methods_pb2.SecretString(value="YOUR_WEBHOOK_SECRET"),
         ),
     ),
 )

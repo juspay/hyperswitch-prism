@@ -1671,6 +1671,8 @@ pub struct PaymentMethodEligibilityData {
     /// when known. Mirrors `GetPaymentMethodData`'s identifier so connectors
     /// can reuse the same lookup as `GetPaymentMethod`.
     pub connector_payment_method_id: Option<String>,
+    /// Tokenized payment-method reference.
+    pub payment_method_token: Option<String>,
     /// Market/country the eligibility check is for. BNPL eligibility is
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the

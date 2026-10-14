@@ -82,7 +82,7 @@ examples_python: examples/authipay/authipay.py
 connector_id: authorizedotnet
 doc: docs/connectors/authorizedotnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, ApplePay, Card, GooglePay
+payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
 flows: authorize, capture, create_server_session_authentication_token, customer_create, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/authorizedotnet/authorizedotnet.py
 
@@ -906,7 +906,7 @@ examples_python: none
 connector_id: travelhub
 doc: docs/connectors/travelhub.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePay, ApplePayDecrypted, Card
 flows: authorize, capture, get, proxy_authorize, refund, void
 examples_python: examples/travelhub/travelhub.py
 

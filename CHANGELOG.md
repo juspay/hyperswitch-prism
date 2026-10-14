@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.14.0
+
+### Features
+
+- **connector:** [PLAID] add eligibility for plaid get_balance ([#2475](https://github.com/juspay/connector-service/pull/2475)) ([`5beabfb`](https://github.com/juspay/connector-service/commit/5beabfb324cd6929f7638271b4d6c64680ff3e19))
+
+### Bug Fixes
+
+- **connector:** Mask auth credentials in request headers ([#2503](https://github.com/juspay/connector-service/pull/2503)) ([`6b6ce41`](https://github.com/juspay/connector-service/commit/6b6ce4167d8f4efd55e057a6414ef7ce4653cf55))
+- **elavon_pg:** Capture on accounts without EPG partial-capture support ([#2493](https://github.com/juspay/connector-service/pull/2493)) ([`91d92ee`](https://github.com/juspay/connector-service/commit/91d92ee97fadb99ead776bee7b921e9d0d83a100))
+
+### Performance
+
+- **framework:** Cut GRACE run cost 45% and wall time 34% (grace/ only) ([#2477](https://github.com/juspay/connector-service/pull/2477)) ([`07b381b`](https://github.com/juspay/connector-service/commit/07b381b8f4c100857ba16cae46d251c8b6c2a4ca))
+
+**Full Changelog:** [`2026.10.12.1...2026.10.14.0`](https://github.com/juspay/connector-service/compare/2026.10.12.1...2026.10.14.0)
+
+- - -
+
 ## 2026.10.12.1
 
 ### Features

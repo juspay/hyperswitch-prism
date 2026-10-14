@@ -221,7 +221,7 @@ Enumeration of authenticity schemes actually observed in `src/connectors/` at th
 | Noon | HMAC-SHA512 | body field | connector-documented concatenation | `noon.rs:239-264` |
 | Novalnet | SHA-256 (plain) | body | amount+currency+...+reversed_secret | `novalnet.rs:683-750` |
 | Payload | SHA-256 (plain) | header | raw body | `payload.rs:774-798` |
-| Ppro | HMAC-SHA256, hex | Header `Webhook-Signature` | raw body | `ppro.rs:546-574` |
+| Ppro | HMAC-SHA256, hex | `s` element of header `ppro-signature` (`t=<unix_ts>,s=<hex>`) | `t + "." + raw body`; secret from `webhook_secret` in connector config (RPC `webhook_secrets` ignored) | `ppro.rs:353-400`; header parse at `ppro/transformers.rs:778-796` |
 | Revolut | HMAC-SHA256 | Header (`Revolut-Signature`) | `"v1.{timestamp}.{body}"` | `revolut.rs:268-339` |
 | Trustpay | HMAC-SHA256 | extracted from body | sorted payload values joined by `/` | `trustpay.rs:196-220` |
 

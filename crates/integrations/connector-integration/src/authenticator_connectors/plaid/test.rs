@@ -448,11 +448,16 @@ mod tests {
                 name: Secret::new(format!("Account {id}")),
                 subtype: subtype.map(str::to_owned),
                 holder_category,
+                mask: None,
+                official_name: None,
                 balances: PlaidBalances {
                     current: current.map(common_utils::types::FloatMajorUnit),
                     available: None,
+                    limit: None,
                     iso_currency_code: currency,
+                    unofficial_currency_code: None,
                 },
+                account_type: None,
             }
         }
 

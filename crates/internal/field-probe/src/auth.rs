@@ -284,6 +284,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             merchant_id: m(),
             base_url: None,
+            webhook_secret: None,
         },
         ConnectorEnum::Powertranz => ConnectorSpecificConfig::Powertranz {
             power_tranz_id: id(),
