@@ -485,7 +485,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceGetResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "amount": "Money", "connectorResponse": "ConnectorResponseData", "state": "ConnectorState", "redirectionData": "RedirectForm", "paymentMethodUpdate": "PaymentMethodUpdate", "splits": "ConnectorSplitResponseData", "splitSettlement": "SplitSettlementResponse", "mandateReferenceDetails": "MandateReferenceDetails", "rawConnectorStatus": "RawConnectorStatus", "connectorReturnedPaymentMethodDetails": "PaymentMethod" },
   PaymentServiceVoidRequest: { "browserInfo": "BrowserInformation", "amount": "Money", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails" },
   PaymentServiceVoidResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "splits": "ConnectorSplitResponseData", "mandateReferenceDetails": "MandateReferenceDetails", "rawConnectorStatus": "RawConnectorStatus" },
-  PaymentServiceReverseRequest: { "browserInfo": "BrowserInformation" },
+  PaymentServiceReverseRequest: { "browserInfo": "BrowserInformation", "amount": "Money" },
   PaymentServiceReverseResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "rawConnectorStatus": "RawConnectorStatus" },
   MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse: { "error": "ErrorInfo" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest: { "state": "ConnectorState", "payment": "PaymentSessionContext" },
