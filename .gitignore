@@ -506,3 +506,14 @@ grace/*.log
 /.connector_backup_*/
 docs/qwikcilver.postman_collection.json
 
+
+# Payment-flow regression suite runtime artifacts (deps, captured prod
+# requests, local prism process state, Playwright output)
+tests/payment-flow-regression/node_modules/
+tests/payment-flow-regression/.prod-requests/
+tests/payment-flow-regression/docker/.prism.pid
+tests/payment-flow-regression/docker/.prism.log
+tests/payment-flow-regression/playwright-report/
+tests/payment-flow-regression/test-results/
+tests/payment-flow-regression/blob-report/
+tests/payment-flow-regression/playwright/.cache/
