@@ -8991,16 +8991,20 @@ pub fn generate_payment_void_post_capture_response(
                 },
             })),
         },
-        // A void the connector rejects is a failed void, not a failed payment: report it
-        // through post_capture_void_status, never through the payment status.
-        Err(e) =>
-        {
+        // Server errors leave the void outcome uncertain; report them as pending.
+        // Report void errors through post_capture_void_status, never through the payment status.
+        Err(e) => {
+            let post_capture_void_status = if (500..=599).contains(&e.status_code) {
+                grpc_api_types::payments::PostCaptureVoidStatus::Pending
+            } else {
+                grpc_api_types::payments::PostCaptureVoidStatus::Failed
+            };
+
             #[allow(deprecated)]
             Ok(PaymentServiceReverseResponse {
                 connector_transaction_id: original_connector_transaction_id.clone(),
                 status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
-                post_capture_void_status: grpc_api_types::payments::PostCaptureVoidStatus::Failed
-                    .into(),
+                post_capture_void_status: post_capture_void_status.into(),
                 connector_reference_id: void_id(e.connector_transaction_id.clone()),
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
