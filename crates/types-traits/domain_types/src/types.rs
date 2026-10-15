@@ -8884,59 +8884,6 @@ pub fn generate_payment_void_post_capture_response(
 
     match transaction_response {
         Ok(response) => match response {
-            PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: _,
-                connector_metadata: _,
-                network_txn_id: _,
-                network_txn_link_id: _,
-                connector_response_reference_id,
-                incremental_authorization_allowed: _,
-                mandate_reference: _,
-                status_code,
-                splits: _,
-                payment_account_reference: _,
-            } => {
-                let post_capture_void_status = match router_data_v2.resource_common_data.status {
-                    common_enums::AttemptStatus::VoidedPostCapture
-                    | common_enums::AttemptStatus::Voided => {
-                        common_enums::PostCaptureVoidStatus::Succeeded
-                    }
-                    common_enums::AttemptStatus::VoidFailed
-                    | common_enums::AttemptStatus::Failure => {
-                        common_enums::PostCaptureVoidStatus::Failed
-                    }
-                    _ => common_enums::PostCaptureVoidStatus::Pending,
-                };
-
-                let grpc_resource_id: Option<String> = Option::foreign_try_from(resource_id)?;
-                let connector_reference_id =
-                    connector_response_reference_id.or_else(|| void_id(grpc_resource_id));
-
-                #[allow(deprecated)]
-                Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: original_connector_transaction_id,
-                    status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
-                    post_capture_void_status:
-                        grpc_api_types::payments::PostCaptureVoidStatus::foreign_from(
-                            post_capture_void_status,
-                        )
-                        .into(),
-                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
-                    merchant_reverse_id: connector_reference_id.clone(),
-                    connector_reference_id,
-                    error: None,
-                    status_code: u32::from(status_code),
-                    response_headers: router_data_v2
-                        .resource_common_data
-                        .get_connector_response_headers_as_map(),
-                    raw_connector_request,
-                    typed_connector_request,
-                    raw_connector_response,
-                    typed_connector_response,
-                    raw_connector_status,
-                })
-            }
             PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id,
