@@ -206,8 +206,16 @@ def postauth_request_impls(text):
 # ------------------------------------------------------------------ declared markers
 
 def declared_markers(sources):
-    """Markers wired up in create_all_prerequisites! minus those parked as
-    not_implemented/not_supported."""
+    """Markers the connector wires up, minus those parked as not_implemented/not_supported.
+
+    Two shapes declare a leg. A leg the connector calls out for appears as a `flow:` entry
+    in create_all_prerequisites!. A leg answered locally -- no outbound call -- is declared
+    by macro_connector_local_flow_implementation!, which replaces both the prerequisite and
+    the ConnectorIntegrationV2 impl, so it has no create_all_prerequisites! entry at all
+    (worldpayxml PreAuthenticate). Both must be read: a connector whose only authentication
+    leg is local would otherwise come back with declared == set(), which takes the TDS-00
+    not_applicable exit and skips all three checks -- TDS-01 included.
+    """
     declared, parked = set(), set()
     for path, (_raw, text) in sources.items():
         for m in re.finditer(r"create_all_prerequisites!\s*\(", text):
@@ -217,6 +225,14 @@ def declared_markers(sources):
             for fm in re.finditer(r"\bflow\s*:\s*(\w+)\s*,", text[m.start():end]):
                 if fm.group(1) in MARKERS:
                     declared.add(fm.group(1))
+        for m in re.finditer(r"macro_connector_local_flow_implementation!\s*\(", text):
+            end = _match_delim(text, m.start(), "(", ")")
+            if end < 0:
+                continue
+            # one flow_name per invocation; payhere declares Authorize this way, not a marker
+            fm = re.search(r"\bflow_name\s*:\s*(\w+)\s*,", text[m.start():end])
+            if fm and fm.group(1) in MARKERS:
+                declared.add(fm.group(1))
         for m in re.finditer(r"macro_connector_flow_status_impls!\s*\(", text):
             end = _match_delim(text, m.start(), "(", ")")
             if end < 0:
@@ -634,5 +650,146 @@ def main():
     return 0 if report["pass"] else 1
 
 
+def _replay():
+    """Self-check over the three checks and the Rust parsers they depend on.
+
+    `sources` is {path: (raw, comment_stripped)}, so fixture Rust strings exercise the real
+    parsers without a checkout. Fixtures reproduce the SHAPES that caused the defects these
+    checks exist for, not simplified stand-ins.
+    """
+    def src(text):
+        return {"nuvei.rs": (text, _strip_comments(text))}
+
+    # -- comment stripping must preserve offsets so reported line numbers stay true --------
+    raw = "let a = 1; // kill\nlet b = /* kill */ 2;\n"
+    st = _strip_comments(raw)
+    assert len(st) == len(raw), "offsets shifted; every reported line number would be wrong"
+    assert st.count("\n") == raw.count("\n")
+    assert "kill" not in st
+    assert _line_of(raw, raw.index("let b")) == 2
+
+    # -- brace matching -------------------------------------------------------------------
+    t = "f( a, g(b), c ) tail"
+    end = _match_delim(t, 0, "(", ")")
+    # the index is PAST the closing delimiter, and the nested g(b) must not end the match early
+    assert t[:end] == "f( a, g(b), c )", t[:end]
+    assert "tail" not in t[:end]
+    assert _match_delim("f( unclosed", 0, "(", ")") < 0, "an unbalanced delimiter must report -1"
+
+    # -- declared_markers: wired up, minus parked -----------------------------------------
+    rs = """
+    create_all_prerequisites!(
+        connector_name: Nuvei,
+        api: [ (flow: PreAuthenticate, request_body: X,), (flow: Authenticate, request_body: Y,),
+               (flow: PostAuthenticate, request_body: Z,), ],
+    );
+    macro_connector_flow_status_impls!(
+        connector: Nuvei,
+        not_implemented: [PostAuthenticate],
+    );
+    """
+    declared, parked = declared_markers(src(rs))
+    # PostAuthenticate is wired up AND parked, so the subtraction is load-bearing: without it
+    # a leg that only errors at runtime would read as implemented.
+    assert declared == {"PreAuthenticate", "Authenticate"}, declared
+    assert parked == {"PostAuthenticate"}, parked
+    assert "PostAuthenticate" not in declared
+
+    # a leg answered locally has no create_all_prerequisites! entry (worldpayxml shape)
+    rs = """
+    macros::macro_connector_local_flow_implementation!(
+        connector: Worldpayxml,
+        flow_name: PreAuthenticate,
+        flow_request: PaymentsPreAuthenticateData<T>,
+    );
+    macros::macro_connector_local_flow_implementation!(
+        connector: Payhere,
+        flow_name: Authorize,
+        flow_request: PaymentsAuthorizeData<T>,
+    );
+    macro_connector_flow_status_impls!(
+        connector: Worldpayxml,
+        not_implemented: [PostAuthenticate, Authenticate],
+    );
+    """
+    declared, parked = declared_markers(src(rs))
+    # without this the connector reads as having no markers at all, takes the TDS-00
+    # not_applicable exit, and every check including TDS-01 is skipped
+    assert declared == {"PreAuthenticate"}, declared
+    assert parked == {"PostAuthenticate", "Authenticate"}, parked
+    # an unclosed invocation contributes nothing rather than its truncated body
+    declared, _ = declared_markers(src(
+        "macro_connector_local_flow_implementation!(\n  flow_name: PreAuthenticate,\n"))
+    assert declared == set(), declared
+
+    # -- resolve: first-match-wins, then the trait default --------------------------------
+    arms = [({"InitialRequest"}, {None}, "PreAuthenticate", 1),
+            ({"InitialRequest"}, {"PreAuthenticate"}, "Authenticate", 2)]
+    assert resolve(arms, "InitialRequest", None) == "PreAuthenticate"
+    assert resolve(arms, "InitialRequest", "PreAuthenticate") == "Authenticate"
+    assert resolve(arms, "RedirectWithParams", None) == "Authorize", "must fall back to the default"
+
+    # -- TDS-02: dead leg, parked return, and plan disagreement ---------------------------
+    c = check_tds02({"PostAuthenticate"}, set(), arms, "nuvei.rs", None)
+    assert not c["pass"] and c["evidence"][0]["signal"] == "TDS-02:dead_leg", c
+    c = check_tds02(set(), {"Authenticate"}, arms, "nuvei.rs", None)
+    assert not c["pass"] and c["evidence"][0]["signal"] == "TDS-02:returns_unimplemented", c
+    c = check_tds02({"PreAuthenticate", "Authenticate"}, set(), arms, "nuvei.rs",
+                    {"three_ds": {"applicable": True, "legs_used": ["PreAuthenticate"]}})
+    assert not c["pass"] and c["evidence"][0]["signal"] == "TDS-02:legs_used_mismatch", c
+    # agreement passes, and a non-applicable plan is not cross-checked at all
+    assert check_tds02({"PreAuthenticate", "Authenticate"}, set(), arms, "nuvei.rs",
+                       {"three_ds": {"applicable": True,
+                                     "legs_used": ["PreAuthenticate", "Authenticate"]}})["pass"]
+    assert check_tds02({"PreAuthenticate", "Authenticate"}, set(), arms, "nuvei.rs",
+                       {"three_ds": {"applicable": False, "legs_used": []}})["pass"]
+
+    # -- TDS-03: no hook is a pass; a PostAuthenticate cycle is evidence ------------------
+    assert check_tds03([], None, None)["pass"], "no dispatch hook -> trait default, nothing to check"
+    loop = [({"InitialRequest"}, {None, "PostAuthenticate"}, "PostAuthenticate", 1)]
+    c = check_tds03(loop, "nuvei.rs", None)
+    assert not c["pass"] and any(e["signal"] == "TDS-03:postauth_cycle" for e in c["evidence"]), c
+    # a terminating hook has nothing to report
+    assert check_tds03([({"InitialRequest"}, {None}, "Authorize", 1)], "nuvei.rs", None)["pass"]
+
+    # -- TDS-01: the money-moving signal, in the shape that caused the defect -------------
+    # A PostAuthenticate request builder that reads capture_method is settling the payment,
+    # not validating an authentication result -- and the composite loop's only non-looping
+    # successor is Authorize, so this charges twice with no CAVV/ECI.
+    bad = """
+    impl TryFrom<Router<PaymentsPostAuthenticateData>> for NuveiPaymentsRequest {
+        fn try_from(item: Router) -> Result<Self> {
+            let tx = get_from_capture_method(item.request.capture_method);
+            Ok(Self { transaction_type: tx })
+        }
+    }
+    """
+    c = check_tds01(src(bad), None, set())
+    assert not c["pass"], c
+    assert any(e["signal"].startswith("A:") for e in c["evidence"]), c["evidence"]
+    # the RESPONSE direction (`... for RouterDataV2<...>`) must be skipped, not flagged
+    resp = """
+    impl TryFrom<Response> for RouterDataV2<PaymentsPostAuthenticateData> {
+        fn try_from(item: Response) -> Result<Self> { let x = item.capture_method; Ok(x) }
+    }
+    """
+    assert check_tds01(src(resp), None, set())["pass"], "the response impl must not be flagged"
+    # a clean builder passes
+    ok = """
+    impl TryFrom<Router<PaymentsPostAuthenticateData>> for NuveiPaymentsRequest {
+        fn try_from(item: Router) -> Result<Self> { Ok(Self { cavv: item.request.cavv }) }
+    }
+    """
+    assert check_tds01(src(ok), None, set())["pass"], check_tds01(src(ok), None, set())
+
+    print("replay OK: comment stripping preserves offsets so line numbers stay true, "
+          "_match_delim reports -1 on an unbalanced delimiter, declared_markers subtracts "
+          "parked legs and reads a locally-answered leg, resolve is first-match-wins with the Authorize default, TDS-02 catches "
+          "a dead leg / a parked return / plan disagreement, TDS-03 passes with no hook and "
+          "flags a PostAuthenticate cycle, and TDS-01 flags a PostAuthenticate builder that "
+          "reads capture_method while skipping the response-direction impl")
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_replay() if sys.argv[1:2] == ["--replay"] else main())

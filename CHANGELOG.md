@@ -19,6 +19,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.15.0
+
+### Features
+
+- **connector:**
+  - [Authorizedotnet] close 13 field and behaviour gaps across six flows ([#2515](https://github.com/juspay/connector-service/pull/2515)) ([`9c51e83`](https://github.com/juspay/connector-service/commit/9c51e8390f7aafeb69b24f4f39fccf437a6727d2))
+  - APPLEPAY_APM Addition for Travelhub ([#2470](https://github.com/juspay/connector-service/pull/2470)) ([`b8993a3`](https://github.com/juspay/connector-service/commit/b8993a3a58f586a3ec5b8e350731dae7e632d89b))
+
+### Bug Fixes
+
+- **PROTO:** Add connector PMT aliases ([#2410](https://github.com/juspay/connector-service/pull/2410)) ([`250638e`](https://github.com/juspay/connector-service/commit/250638e725214548352fdf18d8d00e2d0ade23f7))
+- **connector:** [Ppro] verify webhook via HMAC-SHA256 and add raw connector status ([#2435](https://github.com/juspay/connector-service/pull/2435)) ([`d01b9a4`](https://github.com/juspay/connector-service/commit/d01b9a4278bf5b1f4b381aaf2341f89bfa3144bc))
+- **fiuu:** Migrate to fiuu.com and align API handling ([#2507](https://github.com/juspay/connector-service/pull/2507)) ([`0b68390`](https://github.com/juspay/connector-service/commit/0b683908c613fbce5ac201ca625291818d2c8684))
+
+**Full Changelog:** [`2026.10.14.0...2026.10.15.0`](https://github.com/juspay/connector-service/compare/2026.10.14.0...2026.10.15.0)
+
+- - -
+
+## 2026.10.14.0
+
+### Features
+
+- **connector:** [PLAID] add eligibility for plaid get_balance ([#2475](https://github.com/juspay/connector-service/pull/2475)) ([`5beabfb`](https://github.com/juspay/connector-service/commit/5beabfb324cd6929f7638271b4d6c64680ff3e19))
+
+### Bug Fixes
+
+- **connector:** Mask auth credentials in request headers ([#2503](https://github.com/juspay/connector-service/pull/2503)) ([`6b6ce41`](https://github.com/juspay/connector-service/commit/6b6ce4167d8f4efd55e057a6414ef7ce4653cf55))
+- **elavon_pg:** Capture on accounts without EPG partial-capture support ([#2493](https://github.com/juspay/connector-service/pull/2493)) ([`91d92ee`](https://github.com/juspay/connector-service/commit/91d92ee97fadb99ead776bee7b921e9d0d83a100))
+
+### Performance
+
+- **framework:** Cut GRACE run cost 45% and wall time 34% (grace/ only) ([#2477](https://github.com/juspay/connector-service/pull/2477)) ([`07b381b`](https://github.com/juspay/connector-service/commit/07b381b8f4c100857ba16cae46d251c8b6c2a4ca))
+
+**Full Changelog:** [`2026.10.12.1...2026.10.14.0`](https://github.com/juspay/connector-service/compare/2026.10.12.1...2026.10.14.0)
+
+- - -
+
+## 2026.10.12.1
+
+### Features
+
+- **connector:** Add avs check for worldpay raft authorize ([#2488](https://github.com/juspay/connector-service/pull/2488)) ([`8eaddb0`](https://github.com/juspay/connector-service/commit/8eaddb0b85e6879c8930d613a0eef29472f05e0b))
+
+### Bug Fixes
+
+- **stripe:** Forward external 3DS authentication data ([#2501](https://github.com/juspay/connector-service/pull/2501)) ([`9d8050b`](https://github.com/juspay/connector-service/commit/9d8050b2345adcda6e64a542c27e274cafad0fff))
+
+**Full Changelog:** [`2026.10.12.0...2026.10.12.1`](https://github.com/juspay/connector-service/compare/2026.10.12.0...2026.10.12.1)
+
+- - -
+
+
+## 2026.10.09.1
+
+### Features
+
+- **connector:**
+  - Worldpay raft Card with No cvc & void implementation ([#2408](https://github.com/juspay/connector-service/pull/2408)) ([`e84cc2e`](https://github.com/juspay/connector-service/commit/e84cc2ee7206dcfafff0b727aee3403e67cd6282))
+  - [Authorizedotnet] add Google Pay and Apple Pay via opaqueData ([#2479](https://github.com/juspay/connector-service/pull/2479)) ([`e28e4e2`](https://github.com/juspay/connector-service/commit/e28e4e2d9b478241ced4359d4acf99851a5c36b7))
+  - Add JPMorgan merchant-decrypted wallet payments ([#2462](https://github.com/juspay/connector-service/pull/2462)) ([`49e2d01`](https://github.com/juspay/connector-service/commit/49e2d01c2eeb259f2fcd0a82b6ded46d87c7d889))
+
+### Bug Fixes
+
+- **connector:** [Fiuu] log response shape when PSync response fails to parse ([#2483](https://github.com/juspay/connector-service/pull/2483)) ([`d4e7e1c`](https://github.com/juspay/connector-service/commit/d4e7e1cc8d18970099b34a36fc9d5f43a2b72f55))
+
+**Full Changelog:** [`2026.10.09.0...2026.10.09.1`](https://github.com/juspay/connector-service/compare/2026.10.09.0...2026.10.09.1)
+
+- - -
+
 ## 2026.10.09.0
 
 ### Features

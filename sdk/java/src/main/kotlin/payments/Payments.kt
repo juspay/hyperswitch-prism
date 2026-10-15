@@ -137,3 +137,4 @@ typealias MitCategory = types.Payment.MitCategory
 typealias SyncRequestType = types.Payment.SyncRequestType
 typealias AcceptanceType = types.Payment.AcceptanceType
 typealias CavvAlgorithm = types.Payment.CavvAlgorithm
+typealias TaxStatus = types.Payment.TaxStatus

@@ -18,6 +18,7 @@ const _defaultConfig: types.IConnectorConfig = {
             apiKey: { value: 'YOUR_API_KEY' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
             baseUrl: 'YOUR_BASE_URL',
+            webhookSecret: { value: 'YOUR_WEBHOOK_SECRET' },
         }
     },
 };

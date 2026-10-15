@@ -13,7 +13,8 @@ These checks police the diff the run authored.
   WAIV-01    every `unsupported_scenarios` reason must carry a class and evidence
   WAIV-02    no waiver may be added for a scenario that PASSed earlier in this run
   WAIV-03    no waiver may be added for a scenario a P0 plan hook names
-  SUITE-01   every suite the run declares must have at least one executed PASS behind it
+  SUITE-01   every suite the run declares must have at least one COMMITTED scenario's PASS
+             behind it (a row with no `suite_ref` came from an ad-hoc matrix, not the suite)
 
 Exit codes: 0 pass, 1 fail, 2 could not evaluate (treated as fail by the caller).
 Stdlib only.
@@ -332,19 +333,37 @@ def check_waivers(cur_specs, base_specs, passed_before, plan):
     return ev01, ev02, ev03
 
 
-def check_suites(cur_specs, base_specs, rows):
-    """SUITE-01: a suite this run declares must have an executed PASS behind it."""
+def check_suites(cur_specs, base_specs, passes):
+    """SUITE-01: a suite this run declares must have a committed scenario's PASS behind it.
+
+    `passes` is scenario_passes()'s (suite, scenario) set, which counts a gRPC row only
+    when it carries a `suite_ref` -- that is, only when a scenario committed to
+    specs.json/override.json drove it. Joining on the row's `method` instead would accept
+    an ad-hoc grpcurl matrix, because `method` and `supported_suites` share the
+    `Service/Method` shape: the suite would read as proven while `make test-connector`
+    reproduced none of it. That is the exact hole this check exists to close, so the join
+    has to be the same one WAIV-02 already uses.
+    """
+    if isinstance(passes, dict):
+        # report_rows()'s dict is keyed by (method, case_id), so iterating it yields 2-tuples
+        # too and the comprehension below would silently reinstate the `method` join. Refuse
+        # the shape instead of accepting it quietly: the caller treats a crash as a failure.
+        raise TypeError(
+            "check_suites takes scenario_passes()'s (suite, scenario) set, not report_rows()'s "
+            "method-keyed dict; that dict's keys unpack the same way and would restore the "
+            "ad-hoc-matrix join SUITE-01 exists to reject")
     evidence = []
     cur = set((cur_specs or {}).get("supported_suites") or [])
     base = set((base_specs or {}).get("supported_suites") or [])
+    proven = {suite for suite, _scenario in (passes or set())}
     for suite in sorted(cur - base):
-        passes = [r for (s, _sc), outs in rows.items() if s == suite for r in outs if r == "PASS"]
-        if not passes:
+        if suite not in proven:
             evidence.append({
                 "file": SPECS, "suite": suite, "scenario": None,
-                "detail": "declared in supported_suites but no scenario of it PASSed in the report "
-                          "(declaring a suite with nothing behind it is what lets a green run hide "
-                          "an untested flow)"})
+                "detail": "declared in supported_suites but no committed scenario of it PASSed in "
+                          "the report (declaring a suite with nothing behind it is what lets a "
+                          "green run hide an untested flow; a PASS whose row carries no "
+                          "suite_ref came from an ad-hoc matrix and is not the suite)"})
     return evidence
 
 
@@ -454,7 +473,8 @@ def main():
             else "no report from an earlier round")
 
     if have_report:
-        add("SUITE-01", "declared_suite_has_a_pass", check_suites(cur_specs, base_specs, rows),
+        add("SUITE-01", "declared_suite_has_a_pass",
+            check_suites(cur_specs, base_specs, scenario_passes(report_blob)),
             "A declared suite with no passing scenario behind it is an untested flow that reads "
             "as covered.")
     else:
@@ -481,5 +501,149 @@ def main():
     return 0 if report["pass"] else 1
 
 
+def _replay():
+    """Self-check over the seven checks, exercising each one's pass AND fail path.
+
+    The checks are pure functions over parsed JSON, so they are testable without a repo: the
+    only disk dependency is `context_map_targets`, which reads SUITES_DIR, and that is a module
+    global a fixture can point elsewhere.
+    """
+    global SUITES_DIR
+    import tempfile
+
+    # -- response_asserting: the trap this gate exists for -------------------------------
+    # `{"error": {"must_not_exist": true}}` passes on an EMPTY response, which is how a suite
+    # went green over four real defects. It must not count as asserting the response.
+    assert not response_asserting({"error": {"must_not_exist": True}})
+    assert not response_asserting({}) and not response_asserting(None)
+    assert response_asserting({"status": {"equals": "APPROVED"}})
+    assert response_asserting({"id": {"must_exist": True}})
+    # a non-dict rule must not crash or count
+    assert not response_asserting({"status": "APPROVED"})
+    # the `continue` is load-bearing, not decorative: a field carrying must_not_exist is
+    # skipped WHOLE, so a contradictory rule cannot smuggle itself in via a sibling key.
+    assert not response_asserting({"error": {"must_not_exist": True, "equals": "x"}})
+    # ...while a must_not_exist field alongside a SEPARATE asserting field is fine
+    assert response_asserting({"error": {"must_not_exist": True},
+                               "status": {"equals": "OK"}})
+
+    # -- leaf_paths: a nested override must be comparable with a flat context_map key ----
+    assert sorted(leaf_paths({"a": {"b": 1}, "c": 2})) == ["a.b", "c"]
+    assert leaf_paths({"a": {}}) == ["a"], "an empty dict is a leaf, not a branch"
+
+    # -- ASSERT-01: private scenarios the run added -------------------------------------
+    base_priv = {"PaymentService/Authorize": {"old": {"assert": {"id": {"must_exist": True}}}}}
+    cur_priv = {"PaymentService/Authorize": {
+        "old":      {"assert": {"id": {"must_exist": True}}},        # unchanged -> skipped
+        "no_block": {"grpc_req": {}},                                 # no assert at all
+        "silent":   {"assert": {"error": {"must_not_exist": True}}},  # says nothing of the body
+        "good":     {"assert": {"status": {"equals": "APPROVED"}}},
+    }}
+    ev01, _ = check_assertions(cur_priv, base_priv, {}, {})
+    names = sorted(e["scenario"] for e in ev01)
+    assert names == ["no_block", "silent"], names
+    assert "loader will reject" in [e for e in ev01 if e["scenario"] == "no_block"][0]["detail"]
+
+    # -- ASSERT-02: a null deletion needs a replacement response assertion ---------------
+    cur_ovr = {"PaymentService/Authorize": {"s": {"assert": {"status": None}}}}
+    _, ev02 = check_assertions({}, {}, cur_ovr, {})
+    assert len(ev02) == 1 and ev02[0]["severity"] == "S0", ev02
+    # same shape off a money suite is S1, not S0
+    _, ev02b = check_assertions({}, {}, {"CustomerService/Create": {"s": {"assert": {"x": None}}}}, {})
+    assert ev02b and ev02b[0]["severity"] == "S1", ev02b
+    # a deletion WITH a replacement response assertion is fine
+    _, ev02c = check_assertions({}, {}, {"PaymentService/Authorize":
+        {"s": {"assert": {"status": None, "id": {"must_exist": True}}}}}, {})
+    assert ev02c == [], ev02c
+
+    # -- CTX-01 / private context_map: need a fixture suite_spec.json --------------------
+    saved = SUITES_DIR
+    try:
+        tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(tmp, "PaymentService_Capture"))
+        with open(os.path.join(tmp, "PaymentService_Capture", "suite_spec.json"), "w") as fh:
+            json.dump({"depends_on": [{"context_map": {"amount_to_capture.value": "res.amount"}}]}, fh)
+        SUITES_DIR = tmp
+        assert context_map_targets("PaymentService/Capture") == {"amount_to_capture.value"}
+        assert context_map_targets("PaymentService/Nope") == set(), "a missing suite yields no targets"
+
+        # a nested grpc_req override on that target is caught via leaf_paths
+        hit = check_context_map({"PaymentService/Capture":
+            {"s": {"grpc_req": {"amount_to_capture": {"value": 100}}}}}, {})
+        assert len(hit) == 1 and "context_map" in hit[0]["detail"], hit
+        # the documented escape hatch is honoured
+        assert check_context_map({"PaymentService/Capture":
+            {"s": {"grpc_req": {"amount_to_capture": {"value": 1}},
+                   "same_endpoint_justified": True}}}, {}) == []
+        # an unrelated path is not caught
+        assert check_context_map({"PaymentService/Capture": {"s": {"grpc_req": {"other": 1}}}}, {}) == []
+        # a PRIVATE scenario on the same target is advisory only -- a note, never evidence
+        notes = check_private_context_map({"PaymentService/Capture":
+            {"s": {"grpc_req": {"amount_to_capture": {"value": 1}}}}}, {})
+        assert len(notes) == 1 and "replaced at run time" in notes[0], notes
+    finally:
+        SUITES_DIR = saved
+
+    # -- WAIV-01/02/03 -------------------------------------------------------------------
+    plan = {"test_hooks": [{"global_scenarios": [
+        {"suite": "PaymentService/Authorize", "scenario": "p0_case", "priority": "P0"}]}]}
+    cur_specs = {"unsupported_scenarios": {"PaymentService/Authorize": {
+        "bad_reason": "just because",
+        "was_passing": "PM_NOT_OFFERED: docs p4 - the method is not offered",
+        "p0_case":     "PM_NOT_OFFERED: docs p4 - the method is not offered",
+    }}}
+    passed_before = {("PaymentService/Authorize", "was_passing")}
+    ev1, ev2, ev3 = check_waivers(cur_specs, {}, passed_before, plan)
+    assert [e["scenario"] for e in ev1] == ["bad_reason"], ev1
+    assert [e["scenario"] for e in ev2] == ["was_passing"], ev2
+    assert [e["scenario"] for e in ev3] == ["p0_case"], ev3
+    # the class list and BOTH dash forms are accepted
+    for dash in ("-", "\u2014"):
+        assert WAIVER_RE.match("CONNECTOR_API_LACKS: spec:x %s no endpoint" % dash)
+    assert not WAIVER_RE.match("NOT_A_CLASS: spec:x - y")
+    # an unchanged waiver is not re-reported
+    assert check_waivers(cur_specs, cur_specs, set(), {}) == ([], [], [])
+
+    # -- SUITE-01: a declared suite needs an executed PASS behind it ---------------------
+    cur_specs2 = {"supported_suites": ["PaymentService/Authorize", "PaymentService/Void"]}
+    base_specs2 = {"supported_suites": ["PaymentService/Authorize"]}
+    ev = check_suites(cur_specs2, base_specs2, set())
+    assert len(ev) == 1 and ev[0]["suite"] == "PaymentService/Void", ev
+    assert check_suites(cur_specs2, base_specs2, {("PaymentService/Void", "void_ok")}) == []
+    # a suite already in base is not re-checked even with no PASS
+    assert check_suites(base_specs2, base_specs2, set()) == []
+
+    # the join must be scenario_passes', not the row's `method`: a gRPC row with no
+    # suite_ref came from an ad-hoc matrix, and `method` shares supported_suites' shape,
+    # so joining on it would read the suite as proven while the committed suite is empty.
+    blob = {"rows": [{"method": "PaymentService/Void", "case_id": "Void/card/ok",
+                      "outcome": "PASS", "suite_ref": None}]}
+    assert scenario_passes(blob) == set(), scenario_passes(blob)
+    assert len(check_suites(cur_specs2, base_specs2, scenario_passes(blob))) == 1
+    blob["rows"][0]["suite_ref"] = "PaymentService/Void/void_ok"
+    assert check_suites(cur_specs2, base_specs2, scenario_passes(blob)) == []
+    # the legacy harness report still counts: those rows ARE committed scenarios
+    legacy = {"runs": [{"suite": "PaymentService/Void", "scenario": "void_ok",
+                        "assertion_result": "PASS"}]}
+    assert check_suites(cur_specs2, base_specs2, scenario_passes(legacy)) == []
+    # report_rows()'s shape is refused outright -- its keys unpack like the pass set, so
+    # accepting it would reinstate the `method` join without changing a visible line
+    try:
+        check_suites(cur_specs2, base_specs2, {("PaymentService/Void", "x"): ["PASS"]})
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("check_suites must refuse report_rows()'s method-keyed dict")
+
+    print("replay OK: response_asserting rejects a must_not_exist-only block (the shape that let "
+          "a suite go green over four defects), ASSERT-01/02 fire only on scenarios this run "
+          "changed and grade money suites S0, CTX-01 matches nested overrides against "
+          "context_map targets and honours same_endpoint_justified while the private-scenario "
+          "case stays advisory, WAIV-01/02/03 catch a malformed reason / waiving a passing test / "
+          "waiving a P0 hook, and SUITE-01 refuses a suite declared with no COMMITTED PASS behind it "
+          "(a suite_ref-less ad-hoc row does not count)")
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_replay() if sys.argv[1:2] == ["--replay"] else main())

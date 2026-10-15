@@ -23,7 +23,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -223,7 +223,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::TOKEN.to_string(),
-                    auth.access_token.clone().expose().into(),
+                    auth.access_token.clone().expose().into_masked(),
                 ),
             ]
         }
@@ -243,7 +243,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::APIKEY.to_string(),
-                    auth.access_token.clone().expose().into(),
+                    auth.access_token.clone().expose().into_masked(),
                 ),
             ]
         }
@@ -392,7 +392,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let auth = TwocTwopPacoAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::TOKEN.to_string(),
-            auth.access_token.expose().into(),
+            auth.access_token.expose().into_masked(),
         )])
     }
 
