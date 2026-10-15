@@ -199,7 +199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 number: ccard.card_number,
                                 expiration_month: ccard.card_exp_month,
                                 expiration_year: ccard.card_exp_year,
-                                security_code: Some(ccard.card_cvc),
+                                security_code: get_optional_security_code(ccard.card_cvc),
                                 card_type,
                                 type_selection_indicator: Some("1".to_owned()),
                             },
@@ -807,6 +807,7 @@ pub struct CardWithNti {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
@@ -943,10 +944,21 @@ pub struct Card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
     number: RawCardNumber<T>,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
     type_selection_indicator: Option<String>,
+}
+
+/// Cybersource rejects an empty `securityCode`, so an absent CVC must be
+/// omitted from the request rather than sent as `""`.
+fn get_optional_security_code(card_cvc: Secret<String>) -> Option<Secret<String>> {
+    if card_cvc.peek().is_empty() {
+        None
+    } else {
+        Some(card_cvc)
+    }
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1545,7 +1557,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: Some(ccard.card_cvc),
+                security_code: get_optional_security_code(ccard.card_cvc),
                 card_type: card_type.clone(),
                 type_selection_indicator: Some("1".to_owned()),
             },
@@ -2721,7 +2733,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3763,7 +3775,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -4052,7 +4064,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
