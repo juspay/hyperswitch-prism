@@ -712,6 +712,10 @@ message CompositePaymentMethodEligibilityRequest {
   optional SetupMandateDetails setup_mandate_details = 22;
   optional BrowserInformation browser_info = 23;
   optional string payment_method_token = 24;  // PaymentMethod Token Information
+
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 25;
 }
 
 // Response message for composite payment method eligibility flow.
