@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// Connectors whose modification endpoints acknowledge async processing and
+/// report the terminal outcome via webhook or sync.
+pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &["Adyen"];
+
 /// Currency related errors.
 #[derive(Debug, thiserror::Error)]
 pub enum CurrencyError {

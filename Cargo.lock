@@ -2181,6 +2181,7 @@ dependencies = [
  "grpc-api-types",
  "http 1.4.0",
  "hyperswitch_masking",
+ "paste",
  "rand 0.8.5",
  "regex",
  "router_derive 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2026.06.18.0)",
