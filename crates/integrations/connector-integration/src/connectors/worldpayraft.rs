@@ -374,8 +374,8 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id);
-            let path = if is_debit { "debit/completion" } else { "credit/completion" };
+            let (transaction_type, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id)?;
+            let path = if transaction_type.is_debit() { "debit/completion" } else { "credit/completion" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -414,8 +414,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id);
-            let path = if is_debit { "debit/refund" } else { "credit/refund" };
+            let (transaction_type, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id)?;
+            let path = if transaction_type.is_debit() { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }

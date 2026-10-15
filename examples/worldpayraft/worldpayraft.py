@@ -287,7 +287,7 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     """Flow: PaymentService.Capture"""
     payment_client = PaymentClient(config)
 
-    capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
+    capture_response = await payment_client.capture(_build_capture_request("C|123456|123456789012|000001"))
 
     return {"status": capture_response.status}
 
@@ -332,7 +332,7 @@ async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     """Flow: PaymentService.Void"""
     payment_client = PaymentClient(config)
 
-    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
+    void_response = await payment_client.void(_build_void_request("C|123456|123456789012|000001"))
 
     return {"status": void_response.status}
 
