@@ -1251,7 +1251,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\",\"processingOptions\":{\"isSubsequentAuth\":true},\"subsequentAuthInformation\":{\"originalNetworkTransId\":\"probe_network_txn_001\",\"reason\":\"resubmission\"}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"\"},\"customer\":{\"id\":\"PnFiiwBkgJjmuiLFApIh\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\",\"processingOptions\":{\"isSubsequentAuth\":true},\"subsequentAuthInformation\":{\"originalNetworkTransId\":\"probe_network_txn_001\",\"reason\":\"resubmission\"}}}}"
         }
       }
     },
