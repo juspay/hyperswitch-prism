@@ -661,6 +661,10 @@ pub fn resource_id_authentication_data(resource_id: &str) -> AuthenticationData 
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        acs_signed_content: None,
+        acs_reference_number: None,
+        directory_server_id: None,
+        scheme_id: None,
     }
 }
 

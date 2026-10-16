@@ -85,7 +85,7 @@ pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthent
             ds_transaction_id: Some("probe-ds-txn-001".to_string()), // Directory Server Transaction ID (DS Trans ID).
             ..Default::default()
         }),
-        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continue_redirection_url: Some("https://example.com/3ds-continue".to_string()),
         browser_info: Some(BrowserInformation {
             // Contextual Information.
