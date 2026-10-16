@@ -84,6 +84,15 @@ pub struct Card {
     pub masked_account_number: Option<Secret<String>>,
     pub card_type_indicators: Option<CardTypeIndicators>,
     pub network_response: Option<NetworkResponse>,
+    pub payment_tokens: Option<Vec<PaymentToken>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentToken {
+    pub token_provider: Option<String>,
+    pub token_number: Option<Secret<String>>,
+    pub response_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -93,6 +102,7 @@ pub struct NetworkResponse {
     pub address_verification_result_code: Option<Secret<String>>,
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -170,12 +180,88 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
 /// response shape for both pre-capture void and post-capture void operations.
 pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
-pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVerificationResponse {
+    pub transaction_id: String,
+    pub request_id: String,
+    pub currency: common_enums::Currency,
+    pub response_status: JpmorganVerificationStatus,
+    pub response_code: String,
+    pub response_message: String,
+    pub host_message: String,
+    pub payment_method_type: PaymentMethodType,
+    pub verification_authentication_result:
+        Option<Secret<JpmorganVerificationAuthenticationResult>>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVerificationAuthenticationResult {
+    pub authentication_id: Option<Secret<String>>,
+    pub authentication_return_url: Option<Secret<String>>,
+    pub authentication_orchestration_url: Option<Secret<String>>,
+    pub three_domain_secure_challenge: Option<Secret<serde_json::Value>>,
+    pub three_domain_secure_completion: Option<Secret<JpmorganThreeDsCompletion>>,
+    pub three_domain_secure_server_error_message_text: Option<Secret<String>>,
+    pub three_domain_secure_exemption: Option<Secret<serde_json::Value>>,
+    #[serde(flatten)]
+    pub other: std::collections::HashMap<String, Secret<serde_json::Value>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDsCompletion {
+    #[serde(rename = "threeDSTransactionStatus")]
+    pub transaction_status: Option<JpmorganThreeDsTransactionStatus>,
+    #[serde(flatten)]
+    pub other: std::collections::HashMap<String, Secret<serde_json::Value>>,
+}
+
+impl hyperswitch_masking::SerializableSecret for JpmorganVerificationAuthenticationResult {}
+impl hyperswitch_masking::SerializableSecret for JpmorganThreeDsCompletion {}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum JpmorganThreeDsTransactionStatus {
+    #[serde(rename = "Y")]
+    AuthenticationSuccessful,
+    #[serde(rename = "N")]
+    AuthenticationDenied,
+    #[serde(rename = "U")]
+    AuthenticationUnavailable,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "R")]
+    AuthenticationRejected,
+    #[serde(rename = "A")]
+    AuthenticationAttempted,
+    #[serde(rename = "D")]
+    DecoupledChallengeRequired,
+    #[serde(rename = "I")]
+    InformationalAcknowledged,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganVerificationStatus {
+    Success,
+    Denied,
+    Error,
+    #[serde(other)]
+    Unknown,
+}
+
+pub type JpmorganSetupMandateResponse = JpmorganVerificationResponse;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(transparent)]
+pub struct JpmorganTransactionResponse(pub Secret<serde_json::Value>);
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

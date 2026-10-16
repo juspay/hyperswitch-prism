@@ -147,6 +147,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        JpmorganSyncResource::from_request(data).map(|_| ())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ServerAuthentication for Jpmorgan<T>
@@ -231,7 +239,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: PSync,
-            response_body: JpmorganPSyncResponse,
+            response_body: JpmorganTransactionResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -580,7 +588,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Jpmorgan,
-    curl_response: JpmorganPSyncResponse,
+    curl_response: JpmorganTransactionResponse,
     flow_name: PSync,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsSyncData,
@@ -599,10 +607,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let transaction_id = req.request.connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            Ok(format!("{}/payments/{}", self.connector_base_url(req), transaction_id))
+            Ok(JpmorganSyncResource::from_request(&req.request)?
+                .url(self.connector_base_url(req)))
         }
     }
 );
@@ -745,7 +751,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url(req)))
+            Ok(format!("{}/verifications", self.connector_base_url(req)))
         }
     }
 );
