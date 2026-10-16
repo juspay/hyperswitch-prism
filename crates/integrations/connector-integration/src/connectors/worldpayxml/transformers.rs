@@ -655,13 +655,30 @@ pub(crate) fn handle_pre_authenticate_response<
 
     let bin = match &data.request.payment_method_data {
         Some(PaymentMethodData::Card(card)) => {
+            let _card_holder_name = card
+                .card_holder_name
+                .clone()
+                .or_else(|| data.resource_common_data.get_optional_billing_full_name())
+                .ok_or(utils::response_handling_fail(
+                    res.status_code,
+                    "worldpayxml: card_holder_name or billing full name is required for device data collection.",
+                ))?;
+
             card.card_number.peek().chars().take(6).collect::<String>()
         }
         Some(PaymentMethodData::Wallet(WalletData::GooglePay(gpay))) => {
             match &gpay.tokenization_data {
-                GpayTokenizationData::Decrypted(decrypt_data) => decrypt_data
-                    .application_primary_account_number
-                    .get_card_isin(),
+                GpayTokenizationData::Decrypted(decrypt_data) => {
+                    let _billing_full_name = data
+                        .resource_common_data
+                        .get_billing_full_name()
+                        .change_context(utils::response_handling_fail(
+                            res.status_code,
+                            "worldpayxml: billing full name is required for decrypted google pay flow.",
+                        ))?;
+
+                    decrypt_data.application_primary_account_number.get_card_isin()
+                }
                 GpayTokenizationData::Encrypted(_) => {
                     return Err(utils::response_handling_fail(
                         res.status_code,
@@ -2271,21 +2288,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2415,21 +2436,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2562,21 +2587,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2904,21 +2933,27 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             ..router_data.resource_common_data.clone()
                         },
                         response: Err(ErrorResponse {
-                            code: return_code.map_or_else(
-                                || common_utils::consts::NO_ERROR_CODE.to_string(),
-                                |code| code.code.clone(),
-                            ),
-                            message: return_code.map_or_else(
-                                || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                                |code| code.description.clone(),
-                            ),
-                            reason: return_code.map(|code| code.description.clone()),
+                            code: return_code
+                                .and_then(|code| code.code.clone())
+                                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                            message: return_code
+                                .and_then(|code| code.description.clone())
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
+                            reason: return_code.and_then(|code| code.description.clone()),
                             status_code: item.http_code,
                             attempt_status: Some(FlowStatus::Payment(status)),
                             connector_transaction_id: Some(order_status.order_code.clone()),
-                            network_decline_code: return_code.map(|code| code.code.clone()),
+                            network_decline_code: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone()),
                             network_advice_code: None,
-                            network_error_message: return_code.map(|code| code.description.clone()),
+                            network_error_message: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone()),
                             typed_connector_response: None,
                             raw_connector_response: None,
                             raw_connector_request: None,
@@ -3128,28 +3163,39 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     item.http_code,
                 )?;
 
-                // Check if refund failed and extract error details from ISO8583ReturnCode
+                // Surface connector and issuer error details for failed refunds.
                 if refund_status == RefundStatus::Failure {
-                    if let Some(return_code) = &payment.iso8583_return_code {
-                        return Ok(Self {
-                            response: Err(ErrorResponse {
-                                code: return_code.code.clone(),
-                                message: return_code.description.clone(),
-                                reason: Some(return_code.description.clone()),
-                                status_code: item.http_code,
-                                attempt_status: None,
-                                connector_transaction_id: Some(order_status.order_code.clone()),
-                                network_decline_code: Some(return_code.code.clone()),
-                                network_advice_code: None,
-                                network_error_message: Some(return_code.description.clone()),
-                                typed_connector_response: None,
-                                raw_connector_response: None,
-                                raw_connector_request: None,
-                                typed_connector_request: None,
-                            }),
-                            ..router_data.clone()
-                        });
-                    }
+                    let return_code = payment.iso8583_return_code.as_ref();
+                    return Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: return_code
+                                .and_then(|code| code.code.clone())
+                                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                            message: return_code
+                                .and_then(|code| code.description.clone())
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
+                            reason: return_code.and_then(|code| code.description.clone()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(order_status.order_code.clone()),
+                            network_decline_code: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone()),
+                            network_advice_code: None,
+                            network_error_message: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone()),
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data.clone()
+                    });
                 }
 
                 // Build success response

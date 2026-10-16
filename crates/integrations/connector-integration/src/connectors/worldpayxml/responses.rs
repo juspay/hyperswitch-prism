@@ -77,6 +77,8 @@ pub struct WorldpayxmlPayment {
     pub authorisation_id: Option<WorldpayxmlAuthorisationId>,
     #[serde(rename = "ISO8583ReturnCode")]
     pub iso8583_return_code: Option<WorldpayxmlISO8583ReturnCode>,
+    #[serde(rename = "IssuerResponseCode")]
+    pub issuer_response_code: Option<WorldpayxmlISO8583ReturnCode>,
     // Additional fields from XML response (optional, not used in processing)
     #[serde(rename = "CVCResultCode")]
     pub cvc_result_code: Option<WorldpayxmlResultCode>,
@@ -201,9 +203,9 @@ pub struct WorldpayxmlAuthorisationId {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorldpayxmlISO8583ReturnCode {
     #[serde(rename = "@code")]
-    pub code: String,
+    pub code: Option<String>,
     #[serde(rename = "@description")]
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
