@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, PaymentMethodType, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
@@ -17,7 +17,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -1555,6 +1555,19 @@ pub struct PacoPriorPaymentResponseDetails {
     pub response_code: Option<String>,
     #[serde(default)]
     pub response_description: Option<String>,
+    #[serde(default)]
+    pub approval_code: Option<String>,
+}
+
+fn connector_response_from_approval_code(
+    approval_code: Option<String>,
+    payment_method_type: Option<PaymentMethodType>,
+) -> Option<ConnectorResponseData> {
+    approval_code.and_then(|approval_code| {
+        payment_method_type.map(|payment_method_type| {
+            ConnectorResponseData::with_auth_code(approval_code, payment_method_type)
+        })
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1807,6 +1820,12 @@ where
             });
         }
 
+        let connector_response = connector_response_from_approval_code(
+            prior
+                .as_ref()
+                .and_then(|details| details.approval_code.clone()),
+            router_data.resource_common_data.payment_method_type,
+        );
         let resource_id = connector_txn_id
             .clone()
             .map(ResponseId::ConnectorTransactionId)
@@ -1818,6 +1837,7 @@ where
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
+                connector_response,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
