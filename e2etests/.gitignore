@@ -1,0 +1,7 @@
+node_modules/
+.runtime/
+.secrets/
+.env
+playwright-report/
+test-results/
+*.local.json

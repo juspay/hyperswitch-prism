@@ -1,0 +1,27 @@
+{
+  "name": "ucs-hyperswitch-e2e",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "list": "playwright test --list",
+    "check": "tsc --noEmit",
+    "test:unit": "tsx --test unit/*.test.ts",
+    "stack:up": "node scripts/stack.mjs up",
+    "stack:down": "node scripts/stack.mjs down",
+    "credentials": "bash scripts/credentials.sh",
+    "stack:prepare": "node scripts/stack.mjs prepare"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "pg": "^8.16.0",
+    "prettier": "3.9.10",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

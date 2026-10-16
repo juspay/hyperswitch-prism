@@ -1,0 +1,14 @@
+{
+  "connectors": {
+    "cybersource": { "credential": "connector_1" }
+  },
+  "merchants": {
+    "narvar/gooutdoors/adyen": {
+      "connector": {
+        "metadata": { "account_name": "YOUR_SANDBOX_MERCHANT_ACCOUNT" }
+      },
+      "profile": { "use_billing_as_payment_method_billing": true },
+      "payment": { "currency": "GBP", "metadata": { "order_id": "e2e-order" } }
+    }
+  }
+}
