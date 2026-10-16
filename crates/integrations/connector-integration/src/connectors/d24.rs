@@ -83,6 +83,7 @@ macros::create_all_prerequisites!(
         (
             flow: PSync,
             response_body: D24SyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (

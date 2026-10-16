@@ -63,6 +63,8 @@ pub(crate) mod headers {
 
 // Type alias for non-generic trait implementations
 
+macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
+
 macros::macro_connector_payout_implementation!(
     connector: Checkout,
     generic_type: T,
@@ -401,6 +403,7 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PaymentsRequest<T>,
             response_body: PaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -430,6 +433,7 @@ macros::create_all_prerequisites!(
             flow: RepeatPayment,
             request_body: RepeatPaymentRequest<T>,
             response_body: RepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (

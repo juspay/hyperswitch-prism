@@ -250,10 +250,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: amount_captured.map(|amount| common_utils::types::Money {
-                amount,
-                currency: webhook_body.currency,
-            }),
+            amount_captured: amount_captured
+                .map(|amount| {
+                    crate::utils::webhook_amount_to_money(
+                        common_utils::types::AmountConvertor::convert_back(
+                            self,
+                            amount,
+                            webhook_body.currency,
+                        ),
+                        webhook_body.currency,
+                    )
+                })
+                .transpose()?,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -317,6 +325,11 @@ pub(crate) mod headers {
     pub(crate) const X_MERCHANT_ID: &str = "X-Merchant-Id";
 }
 
+macros::create_amount_converter_wrapper!(
+    connector_name: Imerchantsolutions,
+    amount_type: MinorUnit
+);
+
 macros::create_all_prerequisites!(
     connector_name: Imerchantsolutions,
     generic_type: T,
@@ -325,12 +338,14 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: ImerchantsolutionsPaymentsRequestData<T>,
             response_body: ImerchantsolutionsPaymentsResponseData,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: ImerchantsolutionsRepeatPaymentRequest<T>,
             response_body: ImerchantsolutionsRepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
@@ -342,6 +357,7 @@ macros::create_all_prerequisites!(
         (
             flow: PSync,
             response_body: ImerchantsolutionsPaymentSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
