@@ -205,6 +205,12 @@ default = '{}'
 "address.billing_address.zip_code" = "98101"
 "billing_descriptor.statement_descriptor" = "PROBE DESCRIPTOR"
 
+[connector_overrides.recurring_charge.jpmorgan]
+"connector_recurring_payment_id" = { mandate_id_type = { NetworkMandateId = { network_transaction_id = "probe_network_txn_001" } } }
+"payment_method" = { payment_method = { card_details_for_network_transaction_id = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_holder_name = "John Doe" } } }
+"payment_method_type" = 24
+"mit_category" = 2
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]

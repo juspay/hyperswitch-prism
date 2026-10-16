@@ -922,8 +922,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector mandate references for repeat payments is not supported by jpmorgan"
+        "status": "error",
+        "error": "Stuck on field: payment_method_data.card_network — Missing required field: payment_method_data.card_network"
       }
     },
     "recurring_revoke": {
