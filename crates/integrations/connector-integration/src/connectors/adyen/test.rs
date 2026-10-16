@@ -30,6 +30,30 @@ mod tests {
         fn test_build_request_valid() {
             let api_key = "test_adyen_api_key".to_string(); // Hardcoded dummy value
             let key1 = "test_adyen_key1".to_string(); // Hardcoded dummy value
+            let address_with_full_state = domain_types::payment_address::Address {
+                address: Some(domain_types::payment_address::AddressDetails {
+                    city: Some(Secret::new("London".to_string())),
+                    country: Some(common_enums::CountryAlpha2::GB),
+                    line1: Some(Secret::new("10".to_string())),
+                    line2: Some(Secret::new("Main Street".to_string())),
+                    zip: Some(Secret::new("SW1A 1AA".to_string())),
+                    state: Some(Secret::new("A Region With A Long Name".to_string())),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            let address_with_short_state = domain_types::payment_address::Address {
+                address: Some(domain_types::payment_address::AddressDetails {
+                    city: Some(Secret::new("Zurich".to_string())),
+                    country: Some(common_enums::CountryAlpha2::CH),
+                    line1: Some(Secret::new("1".to_string())),
+                    line2: Some(Secret::new("Main Street".to_string())),
+                    zip: Some(Secret::new("8001".to_string())),
+                    state: Some(Secret::new("ZH".to_string())),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
             let req: RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -48,10 +72,13 @@ mod tests {
                     payment_method: common_enums::PaymentMethod::Card,
                     payment_method_type: None,
                     description: Some("Payment for order #12345".to_string()),
-                    return_url: Some("www.google.com".to_string()),
+                    return_url: Some("https://example.com/return".to_string()),
                     order_details: None,
                     address: domain_types::payment_address::PaymentAddress::new(
-                        None, None, None, None,
+                        Some(address_with_short_state),
+                        Some(address_with_full_state),
+                        None,
+                        None,
                     ),
                     auth_type: common_enums::AuthenticationType::ThreeDs,
                     connector_feature_data: None,
@@ -131,7 +158,7 @@ mod tests {
                     confirm: true,
                     capture_method: None,
                     integrity_object: None,
-                    router_return_url: Some("www.google.com".to_string()),
+                    router_return_url: Some("https://example.com/return".to_string()),
                     webhook_url: None,
                     complete_authorize_url: None,
                     mandate_id: None,
@@ -222,6 +249,10 @@ mod tests {
             > = connector_data.connector.get_connector_integration_v2();
 
             let request = connector_integration.build_request_v2(&req).unwrap();
+            assert_eq!(
+                request.as_ref().unwrap().url,
+                "https://checkout-test.adyen.com/v72/payments"
+            );
             let req_body = request.as_ref().map(|request_val| {
                 let masked_request = match request_val.body.as_ref() {
                     Some(request_content) => match request_content {
@@ -242,6 +273,14 @@ mod tests {
                 req_body.as_ref().unwrap()["reference"],
                 "conn_ref_123456789"
             );
+            assert_eq!(
+                req_body.as_ref().unwrap()["returnUrl"],
+                "https://example.com/return"
+            );
+            let body = req_body.as_ref().unwrap();
+            assert_eq!(body["billingAddress"]["country"], "GB");
+            assert!(body["billingAddress"].get("stateOrProvince").is_none());
+            assert!(body["deliveryAddress"]["stateOrProvince"].is_string());
         }
         #[test]
         fn test_build_request_missing() {

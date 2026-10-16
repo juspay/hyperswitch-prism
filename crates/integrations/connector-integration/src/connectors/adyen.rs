@@ -423,9 +423,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_API_VERSION: &str = "v72";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
