@@ -181,6 +181,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(response_data.id),
                     merchant_transaction_id: response_data.external_reference,
+                    connector_preprocessing_id: None,
                 })
             }
             GivepaymentsWebhookData::Refund(response_data) => {

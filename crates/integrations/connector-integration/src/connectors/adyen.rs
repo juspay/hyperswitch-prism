@@ -922,6 +922,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: notif.original_reference,
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // AUTHORISATION-like events carry both the Adyen PSP reference and
@@ -933,6 +934,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(notif.psp_reference),
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // Refund events carry the refund PSP reference, merchant refund

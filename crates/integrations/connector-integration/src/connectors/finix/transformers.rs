@@ -2180,6 +2180,7 @@ pub(super) fn get_finix_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: Some(authorization.id),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 },
             )))
         }
@@ -2203,6 +2204,7 @@ pub(super) fn get_finix_webhook_reference(
                     PaymentWebhookReference {
                         connector_transaction_id: Some(transfer.id),
                         merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
                     },
                 ))),
             }

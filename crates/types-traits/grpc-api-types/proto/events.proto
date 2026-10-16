@@ -22,10 +22,13 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // connector_transaction_id: connector-assigned ID (e.g. Stripe "pi_xxx", Adyen "pspReference" on capture events).
 // merchant_transaction_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
 //                           on transaction events, Stripe metadata.order_id).
-// Exactly one is expected to be present; both may be present when the connector echoes both.
+// connector_preprocessing_id: connector-assigned ID from a preprocessing/source step
+//                             (e.g. Stripe "src_xxx" for source.chargeable).
+// Populate every identifier present in the connector payload; consumers own lookup precedence.
 message PaymentEventReference {
   optional string connector_transaction_id = 1;
   optional string merchant_transaction_id  = 2;
+  optional string connector_preprocessing_id = 3;
 }
 
 // IDs extracted from a refund webhook.

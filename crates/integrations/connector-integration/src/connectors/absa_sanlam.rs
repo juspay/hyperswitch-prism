@@ -162,6 +162,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: None,
                     merchant_transaction_id: Some(event.payment.user_reference.clone()),
+                    connector_preprocessing_id: None,
                 })
             }
         };
