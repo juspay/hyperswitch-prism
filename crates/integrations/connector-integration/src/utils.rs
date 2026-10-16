@@ -529,6 +529,14 @@ pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) ->
         || capture_method == Some(enums::CaptureMethod::ManualMultiple)
 }
 
+/// True for mail-order / telephone-order (MOTO) payment channels.
+pub fn is_moto_payment_channel(payment_channel: Option<&enums::PaymentChannel>) -> bool {
+    matches!(
+        payment_channel,
+        Some(enums::PaymentChannel::MailOrder | enums::PaymentChannel::TelephoneOrder)
+    )
+}
+
 pub fn get_token_expiry_month_year_2_digit_with_delimiter(
     month: Secret<String>,
     year: Secret<String>,

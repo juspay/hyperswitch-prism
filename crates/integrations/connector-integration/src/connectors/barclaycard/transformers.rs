@@ -2437,6 +2437,9 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 authentication_data,
                                 connector_feature_data,
                                 status_code: item.http_code,
+                                mandate_reference: None,
+                                network_txn_id: None,
+                                network_txn_link_id: None,
                             }),
                             ..item.router_data
                         })
