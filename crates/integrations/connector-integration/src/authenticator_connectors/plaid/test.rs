@@ -287,6 +287,7 @@ mod tests {
                     setup_mandate_details: None,
                     mandate_id: None,
                     integrity_object: None,
+                    allow_amount_mismatch: None,
                     capture_method: None,
                 },
                 response: Err(ErrorResponse::default()),

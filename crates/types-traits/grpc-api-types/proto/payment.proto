@@ -60,6 +60,13 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// Integrity-check settings applied when comparing the connector response with the request.
+message IntegritySpecifications {
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 1;
+}
+
 // Quote details associated with a currency conversion decision.
 message CurrencyConversionQuote {
   // Order amount for the transaction, expressed in the merchant's currency.
@@ -2850,6 +2857,9 @@ message PaymentServiceAuthorizeRequest {
   // Opt in to address verification using billing details when supported by the
   // connector. Only true requests AVS; omitted or false leaves it disabled.
   optional bool enable_avs_check = 57;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 58;
 }
 
 // Partner / external-platform application details.
@@ -2988,6 +2998,17 @@ message PaymentServiceGetRequest {
   optional SplitPaymentsDetails split_payments = 17;
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 19;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 20;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 21;
 }
 
 // Settlement phase reported by the connector on PaymentServiceGetResponse.
@@ -3088,6 +3109,13 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 43;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 44;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 45;
 }
 
 // Request message for voiding a payment
@@ -3414,6 +3442,13 @@ message PaymentServiceCaptureRequest {
   // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 17;
 }
 
 // Response message for a payment capture operation
@@ -4070,6 +4105,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 43;
 }
 
 // Response message for repeat payment operation
@@ -4130,6 +4168,13 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 25;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 26;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 27;
 }
 
 // Request message for a mandate revoke operation
@@ -4685,6 +4730,9 @@ message PaymentMethodServiceTokenizeRequest {
   // Browser context forwarded to connectors that use it for fraud signals when
   // creating a reusable payment method (for example Stripe's ip/user_agent).
   optional BrowserInformation browser_info = 15;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 }
 
 // Response message for tokenizing a payment method
@@ -6532,6 +6580,13 @@ message PaymentServiceTokenAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 24;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 26;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6594,6 +6649,13 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 29;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 30;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 31;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

@@ -3789,6 +3789,7 @@ pub struct AuthorizationRequest {
     pub request_incremental_authorization: Option<bool>,
     pub request_extended_authorization: Option<bool>,
     pub enable_partial_authorization: Option<bool>,
+    pub allow_amount_mismatch: Option<bool>,
     // Contextual Information
     pub customer_acceptance: Option<grpc_payment_types::CustomerAcceptance>,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
@@ -3938,6 +3939,9 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             request_incremental_authorization: req.request_incremental_authorization,
             request_extended_authorization: req.request_extended_authorization,
             enable_partial_authorization: req.enable_partial_authorization,
+            allow_amount_mismatch: req
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info.clone(),
             billing_descriptor: req.billing_descriptor.clone(),
@@ -4020,7 +4024,10 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             off_session: None,
             request_incremental_authorization: None,
             request_extended_authorization: None,
-            enable_partial_authorization: None,
+            enable_partial_authorization: req.enable_partial_authorization,
+            allow_amount_mismatch: req
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
@@ -5182,6 +5189,7 @@ impl<
             shipping_cost,
             merchant_account_id,
             integrity_object: None,
+            allow_amount_mismatch: value.allow_amount_mismatch,
             merchant_config_currency: Some(merchant_config_currency),
             all_keys_required: None, // Field not available in new proto structure
             split_payments: value
@@ -7509,6 +7517,29 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+/// Converts a connector-reported amount (e.g. `amount_captured`, `amount_capturable`) into the
+/// gRPC `Money` returned to callers.
+fn connector_money_to_grpc(
+    money: &common_utils::types::Money,
+) -> Result<grpc_api_types::payments::Money, error_stack::Report<ConnectorError>> {
+    Ok(grpc_api_types::payments::Money {
+        minor_amount: money.amount.get_amount_as_i64(),
+        currency: grpc_api_types::payments::Currency::foreign_try_from(money.currency)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "Failed to convert currency to gRPC Currency type".to_string(),
+                    ),
+                },
+            })
+            .attach_printable(format!(
+                "source currency for connector-reported amount: {:?}",
+                money.currency
+            ))? as i32,
+    })
+}
+
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
@@ -8362,6 +8393,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             payment_experience,
             amount,
             integrity_object: None,
+            allow_amount_mismatch: value
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
+            is_overcapture_enabled: value.is_overcapture_enabled,
+            enable_partial_authorization: value.enable_partial_authorization,
             all_keys_required: None, // Field not available in new proto structure
             split_payments: value
                 .split_payments
@@ -9251,6 +9287,29 @@ pub fn generate_payment_sync_response(
                         .amount_captured
                         .as_ref()
                         .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9382,6 +9441,29 @@ pub fn generate_payment_sync_response(
                         .amount_captured
                         .as_ref()
                         .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
+                        .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
                     auth_type: None,
@@ -9486,6 +9568,29 @@ pub fn generate_payment_sync_response(
                 network_txn_link_id: None,
                 amount,
                 captured_amount: None,
+                captured_money: router_data_v2
+                    .resource_common_data
+                    .amount_captured
+                    .as_ref()
+                    .map(connector_money_to_grpc)
+                    .transpose()?,
+                capturable_money: router_data_v2
+                    .resource_common_data
+                    .amount_capturable
+                    .as_ref()
+                    .map(connector_money_to_grpc)
+                    .transpose()?,
+                authorized_money: router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .map(|integrity_object| {
+                        connector_money_to_grpc(&common_utils::types::Money {
+                            amount: integrity_object.amount,
+                            currency: integrity_object.currency,
+                        })
+                    })
+                    .transpose()?,
                 payment_method_type: None,
                 capture_method: None,
                 auth_type: None,
@@ -10516,6 +10621,15 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .amount_captured
                 .as_ref()
                 .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+            captured_money: value
+                .amount_captured
+                .as_ref()
+                .map(connector_money_to_grpc)
+                .transpose()?,
+            // Webhook details don't carry a capturable amount.
+            capturable_money: None,
+            // Webhook details don't carry the connector-reported amount used by the integrity check.
+            authorized_money: None,
             payment_method_type: None,
             capture_method: None,
             auth_type: None,
@@ -12418,6 +12532,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             integrity_object: None,
+            allow_amount_mismatch: value
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
+            is_overcapture_enabled: value.is_overcapture_enabled,
             capture_method,
             connector_feature_data: value
                 .connector_feature_data
@@ -15272,6 +15390,7 @@ impl<T: PaymentMethodDataTypes> From<&PaymentsAuthorizeData<T>>
             setup_mandate_details: data.setup_mandate_details.clone(),
             mandate_id: data.mandate_id.clone(),
             integrity_object: None,
+            allow_amount_mismatch: data.allow_amount_mismatch,
             connector_feature_data: data.connector_feature_data.clone(),
             metadata: None,
         }
@@ -15475,6 +15594,9 @@ impl<
             mandate_id: None,
             setup_mandate_details,
             integrity_object: None,
+            allow_amount_mismatch: value
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
             split_payments: value
                 .split_payments
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
@@ -16610,6 +16732,9 @@ impl<
             router_return_url: value.return_url,
             complete_authorize_url: value.complete_authorize_url,
             integrity_object: None,
+            allow_amount_mismatch: value
+                .integrity_specifications
+                .and_then(|spec| spec.allow_amount_mismatch),
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
             customer_document_details,
@@ -16825,6 +16950,29 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .amount_captured
                             .as_ref()
                             .map(|amount_captured| amount_captured.amount.get_amount_as_i64()),
+                        captured_money: router_data_v2
+                            .resource_common_data
+                            .amount_captured
+                            .as_ref()
+                            .map(connector_money_to_grpc)
+                            .transpose()?,
+                        capturable_money: router_data_v2
+                            .resource_common_data
+                            .amount_capturable
+                            .as_ref()
+                            .map(connector_money_to_grpc)
+                            .transpose()?,
+                        authorized_money: router_data_v2
+                            .request
+                            .integrity_object
+                            .as_ref()
+                            .map(|integrity_object| {
+                                connector_money_to_grpc(&common_utils::types::Money {
+                                    amount: integrity_object.amount,
+                                    currency: integrity_object.currency,
+                                })
+                            })
+                            .transpose()?,
                         incremental_authorization_allowed,
                         splits: splits.map(|split_response| {
                             grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
@@ -16893,6 +17041,29 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     typed_connector_response: None,
                     connector_response,
                     captured_amount: None,
+                    captured_money: router_data_v2
+                        .resource_common_data
+                        .amount_captured
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    capturable_money: router_data_v2
+                        .resource_common_data
+                        .amount_capturable
+                        .as_ref()
+                        .map(connector_money_to_grpc)
+                        .transpose()?,
+                    authorized_money: router_data_v2
+                        .request
+                        .integrity_object
+                        .as_ref()
+                        .map(|integrity_object| {
+                            connector_money_to_grpc(&common_utils::types::Money {
+                                amount: integrity_object.amount,
+                                currency: integrity_object.currency,
+                            })
+                        })
+                        .transpose()?,
                     incremental_authorization_allowed: None,
                     splits: None,
                     payment_account_reference: None,
@@ -21181,12 +21352,13 @@ pub fn tokenized_authorize_to_base(
         description: v.description,
         payment_channel: v.payment_channel,
         test_mode: v.test_mode,
+        enable_partial_authorization: v.enable_partial_authorization,
+        integrity_specifications: v.integrity_specifications,
         // Fields not in TokenAuthorizeRequest - set to None/default
         authentication_data: None,
         complete_authorize_url: None,
         continue_redirection_url: None,
         enrolled_for_3ds: None,
-        enable_partial_authorization: None,
         locale: None,
         off_session: None,
         order_category: None,
@@ -21380,9 +21552,10 @@ pub fn proxied_authorize_to_base(
         complete_authorize_url: None,
         continue_redirection_url: None,
         description: v.description,
+        enable_partial_authorization: v.enable_partial_authorization,
+        integrity_specifications: v.integrity_specifications,
         // Fields absent from PaymentServiceProxyAuthorizeRequest - set to None/default
         enrolled_for_3ds: None,
-        enable_partial_authorization: None,
         locale: None,
         off_session: None,
         request_incremental_authorization: None,
