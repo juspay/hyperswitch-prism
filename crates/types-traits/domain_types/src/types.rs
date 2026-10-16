@@ -7097,6 +7097,20 @@ impl ForeignTryFrom<ConnectorResponseData> for grpc_api_types::payments::Connect
                                 ),
                             }
                         }
+                        AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id } => {
+                            grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
+                                payment_method_data: Some(
+                                    grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::Paypal(
+                                        grpc_api_types::payments::PaypalConnectorResponse {
+                                            email: email.as_ref().map(|email| {
+                                                Secret::new(email.clone().expose().expose())
+                                            }),
+                                            payer_id: payer_id.clone(),
+                                        }
+                                    )
+                                ),
+                            }
+                        }
                     }
                 },
             ),
@@ -16832,6 +16846,9 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             )
                         }),
                         payment_account_reference,
+                        sender_payment_instrument_id: router_data_v2
+                            .resource_common_data
+                            .sender_payment_instrument_id,
                     },
                 )
             }
@@ -16896,6 +16913,9 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     incremental_authorization_allowed: None,
                     splits: None,
                     payment_account_reference: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id,
                 },
             )
         }

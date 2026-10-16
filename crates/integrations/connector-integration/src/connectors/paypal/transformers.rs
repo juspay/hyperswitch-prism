@@ -556,10 +556,8 @@ pub struct CustomerRequestData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalVaultStruct {
     vault_id: Secret<String>,
-    // Buyer-return context for a vaulted PayPal (wallet) charge that requires
-    // re-approval. Only valid on `payment_source.paypal`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    experience_context: Option<ContextStruct>,
+    attributes: Option<VaultRequestAttributes>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1004,11 +1002,16 @@ impl<
         // RepeatPayment returns PaypalOrdersResponse variant (direct capture)
         match item.response {
             PaypalAuthResponse::PaypalOrdersResponse(orders_response) => {
-                Self::try_from(ResponseRouterData {
+                let payer = orders_response.payer.clone();
+                let mut router_data = Self::try_from(ResponseRouterData {
                     response: orders_response,
                     router_data: item.router_data,
                     http_code: item.http_code,
-                })
+                })?;
+                router_data.resource_common_data.connector_response = payer
+                    .as_ref()
+                    .and_then(Payer::get_wallet_connector_response);
+                Ok(router_data)
             }
             // A PayPal wallet MIT (payment_source.paypal.vault_id) may require buyer
             // re-approval, in which case PayPal returns a redirect response instead of a
@@ -2233,6 +2236,25 @@ pub struct PaypalOrdersResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Payer {
     payer_id: Option<String>,
+    email_address: Option<common_utils::pii::Email>,
+}
+
+impl Payer {
+    fn get_wallet_connector_response(
+        &self,
+    ) -> Option<domain_types::router_data::ConnectorResponseData> {
+        match (self.email_address.clone(), self.payer_id.clone()) {
+            (None, None) => None,
+            (email, payer_id) => Some(
+                domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+                    domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
+                        email,
+                        payer_id: payer_id.map(Secret::new),
+                    },
+                ),
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3662,20 +3684,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             common_enums::PaymentMethodType::Paypal => Some(PaymentSourceItem::Paypal(
                 PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
                     vault_id: Secret::new(connector_mandate_id),
-                    // If PayPal requires buyer re-approval for this wallet MIT, return the
-                    // buyer to Hyperswitch's complete-authorize endpoint so the order can be
-                    // captured on return. Falls back to router_return_url when unset.
-                    experience_context: item
+                    attributes: item
                         .router_data
-                        .request
-                        .complete_authorize_url
+                        .resource_common_data
+                        .customer_id
                         .clone()
-                        .or_else(|| item.router_data.request.router_return_url.clone())
-                        .map(|url| ContextStruct {
-                            return_url: Some(url.clone()),
-                            cancel_url: Some(url),
-                            user_action: Some(UserAction::PayNow),
-                            shipping_preference: ShippingPreference::GetFromFile,
+                        .map(|customer_id| VaultRequestAttributes {
+                            customer: Some(CustomerRequestData {
+                                merchant_customer_id: Some(customer_id),
+                            }),
                         }),
                 }),
             )),

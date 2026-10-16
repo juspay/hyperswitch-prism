@@ -2178,6 +2178,12 @@ message BankRedirectConnectorResponse {
       1; // Interac-specific customer information when using bank redirect
 }
 
+// Additional payment method data returned for a PayPal wallet payment
+message PaypalConnectorResponse {
+  optional SecretString email = 1;    // Email associated with the PayPal payer
+  optional SecretString payer_id = 2; // PayPal's identifier for the payer
+}
+
 // Additional payment method connector response
 message AdditionalPaymentMethodConnectorResponse {
   oneof payment_method_data {
@@ -2188,6 +2194,7 @@ message AdditionalPaymentMethodConnectorResponse {
     ApplePayConnectorResponse apple_pay = 4; // Apple Pay-specific response data
     BankRedirectConnectorResponse bank_redirect =
         5; // Bank Redirect-specific response data
+    PaypalConnectorResponse paypal = 6; // PayPal payer metadata
   }
 }
 
@@ -4130,6 +4137,9 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Connector-provided identifier for the payer's funding instrument.
+  optional string sender_payment_instrument_id = 25;
 }
 
 // Request message for a mandate revoke operation

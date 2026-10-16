@@ -4922,6 +4922,10 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    Paypal {
+        email: Option<common_utils::pii::Email>,
+        payer_id: Option<Secret<String>>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
