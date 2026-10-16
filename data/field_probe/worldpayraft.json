@@ -489,7 +489,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "amount_to_capture": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -503,7 +503,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -585,8 +585,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by worldpayraft connector"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Worldpay RAFT incremental authorization requires the shared follow-up card contract. The incremental authorization request cannot supply the original card yet"
       }
     },
     "parse_event": {
@@ -739,7 +739,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "payment_amount": 1000,
           "refund_amount": {
             "minor_amount": 1000,
@@ -755,7 +755,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -836,7 +836,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -850,7 +850,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_void_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_void_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     }

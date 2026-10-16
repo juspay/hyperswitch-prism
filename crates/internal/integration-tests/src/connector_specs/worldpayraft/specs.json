@@ -3,9 +3,21 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
+    "PaymentService/IncrementalAuthorization",
     "PaymentService/Void",
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_manual_capture_incremental_auth": "Worldpay RAFT incremental authorization requires the deferred shared follow-up card contract"
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
+      "incremental_auth_with_tip": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
+      "incremental_auth_multiple_increase": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
+      "incremental_auth_fail_invalid_transaction_id": "Deferred shared follow-up card contract: the request is unavailable before transaction ID validation can run"
+    }
+  }
 }

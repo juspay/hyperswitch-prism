@@ -445,7 +445,7 @@ pub async fn process_capture(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .capture(
-            build_capture_request("probe_connector_txn_001"),
+            build_capture_request("C|123456|123456789012|000001"),
             &HashMap::new(),
             None,
         )
@@ -518,7 +518,7 @@ pub async fn process_void(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .void(
-            build_void_request("probe_connector_txn_001"),
+            build_void_request("C|123456|123456789012|000001"),
             &HashMap::new(),
             None,
         )

@@ -127,7 +127,7 @@ def _build_incremental_authorization_request():
     return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
         merchant_authorization_id="probe_auth_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
-        amount=payment_pb2.Money(  # new amount to be authorized (in minor currency units).
+        amount=payment_pb2.Money(  # New total authorized amount, including this increase.
             minor_amount=1100,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),

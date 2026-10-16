@@ -519,7 +519,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodAuthenticationServiceAuthenticateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "authenticationData": "AuthenticationData", "state": "ConnectorState", "rawConnectorStatus": "RawConnectorStatus" },
   PaymentMethodAuthenticationServicePostAuthenticateRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "redirectionResponse": "RedirectionResponse" },
   PaymentMethodAuthenticationServicePostAuthenticateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "authenticationData": "AuthenticationData", "state": "ConnectorState", "rawConnectorStatus": "RawConnectorStatus" },
-  PaymentServiceIncrementalAuthorizationRequest: { "amount": "Money", "state": "ConnectorState" },
+  PaymentServiceIncrementalAuthorizationRequest: { "amount": "Money", "state": "ConnectorState", "additionalAmount": "Money" },
   PaymentServiceIncrementalAuthorizationResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },

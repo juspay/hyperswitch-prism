@@ -1,23 +1,29 @@
-use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus};
+use crate::{types::ResponseRouterData, utils::missing_field_err};
+use common_enums::{
+    AttemptStatus, AuthorizationStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus,
+};
 use common_utils::{
+    consts::NO_ERROR_MESSAGE,
     ext_traits::Encode,
     pii::SecretSerdeValue,
-    types::{Money, StringMajorUnit},
+    types::{MinorUnit, Money, StringMajorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors,
     payment_method_data::{
         Card, CardDetailsForNetworkTransactionId, CardWithNoCvc, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     utils::{get_card_issuer, CardIssuer},
 };
@@ -94,6 +100,8 @@ pub enum WorldpayraftFlag {
 
 #[derive(Debug, Clone, Copy, strum::Display)]
 pub enum WorldpayraftSubsequentTransactionReasonCode {
+    #[strum(serialize = "40")]
+    IncrementalAuthorization,
     #[strum(serialize = "41")]
     Resubmission,
 }
@@ -247,6 +255,19 @@ fn truncate_api_transaction_id(id: &str) -> String {
     id.chars().take(16).collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum WorldpayraftTransactionType {
+    Credit,
+    Debit,
+    Legacy,
+}
+
+impl WorldpayraftTransactionType {
+    pub(super) fn is_debit(self) -> bool {
+        self == Self::Debit
+    }
+}
+
 /// Parse a connector_transaction_id that encodes card type + auth trace numbers.
 ///
 /// New format: `"{prefix}|{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"`
@@ -255,23 +276,38 @@ fn truncate_api_transaction_id(id: &str) -> String {
 /// Legacy format (backwards compat, treated as credit):
 /// `"{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"`
 ///
-/// Returns `(is_debit, authorization_number, retrieval_ref_number, system_trace_number)`.
-pub(super) fn parse_connector_transaction_id(id: &str) -> (bool, &str, &str, &str) {
-    let mut iter = id.splitn(4, '|');
-    match (iter.next(), iter.next(), iter.next(), iter.next()) {
-        (Some(prefix), Some(auth_num), Some(retrieval_ref), Some(sys_trace)) => {
-            (prefix == TXN_TYPE_DEBIT, auth_num, retrieval_ref, sys_trace)
+/// Returns the transaction type and trace numbers, rejecting malformed IDs.
+pub(super) fn parse_connector_transaction_id(
+    id: &str,
+) -> Result<
+    (WorldpayraftTransactionType, &str, &str, &str),
+    error_stack::Report<errors::IntegrationError>,
+> {
+    let mut iter = id.split('|');
+    match (iter.next(), iter.next(), iter.next(), iter.next(), iter.next()) {
+        (Some(TXN_TYPE_CREDIT), Some(auth), Some(reference), Some(trace), None) => {
+            Ok((WorldpayraftTransactionType::Credit, auth, reference, trace))
         }
-        (Some(auth_num), Some(retrieval_ref), Some(sys_trace), None) => {
-            // Legacy format without prefix — treat as credit
-            (false, auth_num, retrieval_ref, sys_trace)
+        (Some(TXN_TYPE_DEBIT), Some(auth), Some(reference), Some(trace), None) => {
+            Ok((WorldpayraftTransactionType::Debit, auth, reference, trace))
         }
-        _ => (false, id, "", ""),
+        (Some(auth), Some(reference), Some(trace), None, None) => {
+            Ok((WorldpayraftTransactionType::Legacy, auth, reference, trace))
+        }
+        _ => Err(errors::IntegrationError::InvalidDataFormat {
+            field_name: "connector_transaction_id",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Expected C|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber or D|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber; legacy IDs omit the C| prefix".to_string(),
+                ),
+                ..Default::default()
+            },
+        }.into()),
     }
 }
 
 fn map_payment_status(return_code: &str, response_code: &str) -> bool {
-    return_code == "0000" && response_code == "000"
+    return_code == RETURN_CODE_SUCCESS && response_code == RESPONSE_CODE_SUCCESS
 }
 
 fn payment_status(return_code: &str, response_code: &str, auto_capture: bool) -> AttemptStatus {
@@ -298,6 +334,32 @@ pub struct WorldpayraftCompletionAmounts {
     pub transaction_amount: StringMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preauthorized_amount: Option<StringMajorUnit>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct WorldpayraftCreditAccountData {
+    from_account_selected: WorldpayraftAccountType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum WorldpayraftAccountType {
+    #[serde(rename = "CC")]
+    CreditCard,
+    #[serde(rename = "CK")]
+    Checking,
+    #[serde(rename = "CS")]
+    CashBenefits,
+    #[serde(rename = "DE")]
+    DefaultAccount,
+    #[serde(rename = "FS")]
+    FoodStamps,
+    #[serde(rename = "GC")]
+    GiftCard,
+    #[serde(rename = "SV")]
+    Savings,
+    #[serde(rename = "WI")]
+    Wic,
 }
 
 /// Non-EMD values. Subscription is explicitly signalled by MitCategory::Subscription.
@@ -448,6 +510,7 @@ impl WorldpayraftPosData {
                     partial_allowed: (partial_allowed == Some(true))
                         .then_some(WorldpayraftFlag::Yes),
                     prior_auth: None,
+                    ..WorldpayraftProcFlags::default()
                 },
             ),
         }
@@ -505,6 +568,10 @@ pub struct WorldpayraftProcFlags {
     pub partial_allowed: Option<WorldpayraftFlag>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prior_auth: Option<WorldpayraftFlag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_auth: Option<WorldpayraftFlag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub incremental_auth: Option<WorldpayraftFlag>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -571,6 +638,14 @@ impl WorldpayraftBrandSpecificData {
     ) -> Self {
         let reason = (category == Some(&MitCategory::Resubmission))
             .then(|| WorldpayraftSubsequentTransactionReasonCode::Resubmission.to_string());
+        Self::for_transaction(network, transaction_id, reason)
+    }
+
+    fn for_transaction(
+        network: Option<&CardNetwork>,
+        transaction_id: Option<String>,
+        reason: Option<String>,
+    ) -> Self {
         match (network, transaction_id, reason) {
             // Omit every brand block when there is no ID or reason to send.
             (_, None, None) => Self::default(),
@@ -922,6 +997,8 @@ pub struct WorldpayraftEcommerceData {
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     pub misc_amounts_balances: WorldpayraftAmounts,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_codes_and_data: Option<WorldpayraftCreditAccountData>,
     pub card_info: WorldpayraftCardInfo<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encryption_token_data: Option<WorldpayraftStoredTokenData>,
@@ -1156,6 +1233,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let card = CardFields::try_from(&request.payment_method_data)?;
         let is_debit = card.is_debit;
         let is_auto_capture = request.is_auto_capture();
+        let request_incremental_authorization =
+            request.request_incremental_authorization == Some(true) && !is_debit;
+        if request_incremental_authorization && is_auto_capture {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Incremental authorization requires a credit card with manual capture"
+                    .to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext::default(),
+            }
+            .into());
+        }
         let mandate = request
             .mandate_id
             .as_ref()
@@ -1179,7 +1267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
         let network = card.network.or(metadata.card_network);
-        let pos = if is_debit {
+        let mut pos = if is_debit {
             WorldpayraftPosData::for_debit(is_auto_capture)
         } else {
             validate_stored_card_network(
@@ -1204,6 +1292,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             WorldpayraftBrandSpecificData::default()
         };
+        if request_incremental_authorization {
+            pos.proc_flags
+                .get_or_insert_with(WorldpayraftProcFlags::default)
+                .estimated_auth = Some(WorldpayraftFlag::Yes);
+        }
 
         let address_verification_data = if !is_debit
             && router_data.request.enable_avs_check == Some(true)
@@ -1243,6 +1336,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_str();
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
+            account_codes_and_data: request_incremental_authorization.then_some(
+                WorldpayraftCreditAccountData {
+                    from_account_selected: WorldpayraftAccountType::CreditCard,
+                },
+            ),
             card_info: WorldpayraftCardInfo {
                 pan: Some(card.pan),
                 expiration_date: Some(card.expiration_date),
@@ -1353,7 +1451,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_txn_id: inner.brand_specific_data.network_transaction_id(),
                 network_txn_link_id: None,
                 connector_response_reference_id: inner.api_transaction_id.clone(),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .router_data
+                    .request
+                    .request_incremental_authorization
+                    .filter(|requested| *requested)
+                    // Follow-up card data is unavailable until the shared contract is wired up.
+                    .map(|_| false),
                 splits: None,
                 status_code: item.http_code,
                 payment_account_reference: None,
@@ -1487,8 +1591,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let connector_txn_id = router_data.request.get_connector_transaction_id()?;
-        let (is_debit, auth_num, retrieval_ref, sys_trace) =
-            parse_connector_transaction_id(&connector_txn_id);
+        let (transaction_type, auth_num, retrieval_ref, sys_trace) =
+            parse_connector_transaction_id(&connector_txn_id)?;
+        let is_debit = transaction_type.is_debit();
 
         if auth_num.is_empty() && retrieval_ref.is_empty() {
             return Err(error_stack::report!(
@@ -1778,8 +1883,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let connector_txn_id = &router_data.request.connector_transaction_id;
-        let (is_debit, auth_num, retrieval_ref, sys_trace) =
-            parse_connector_transaction_id(connector_txn_id);
+        let (transaction_type, auth_num, retrieval_ref, sys_trace) =
+            parse_connector_transaction_id(connector_txn_id)?;
+        let is_debit = transaction_type.is_debit();
 
         if auth_num.is_empty() && retrieval_ref.is_empty() {
             return Err(error_stack::report!(
@@ -2283,6 +2389,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
+            account_codes_and_data: None,
             card_info,
             encryption_token_data,
             card_verification_data: None,
@@ -2491,7 +2598,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let connector_txn_id = &router_data.request.connector_transaction_id;
         let (_, auth_num, retrieval_ref, sys_trace) =
-            parse_connector_transaction_id(connector_txn_id);
+            parse_connector_transaction_id(connector_txn_id)?;
 
         if auth_num.is_empty() {
             return Err(error_stack::report!(
@@ -2578,6 +2685,300 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// INCREMENTAL AUTHORIZATION
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayraftIncrementalAuthorizationRequest<T: PaymentMethodDataTypes> {
+    creditauth: WorldpayraftIncrementalAuthorizationInner<T>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct WorldpayraftIncrementalAuthorizationInner<T: PaymentMethodDataTypes> {
+    misc_amounts_balances: WorldpayraftIncrementalAuthorizationAmounts,
+    account_codes_and_data: WorldpayraftCreditAccountData,
+    card_info: WorldpayraftCardInfo<T>,
+    terminal_data: WorldpayraftTerminalData,
+    #[serde(rename = "E-commerceData")]
+    ecommerce_data: WorldpayraftEcommerceData,
+    proc_flags_indicators: WorldpayraftProcFlags,
+    #[serde(flatten)]
+    brand_specific_data: WorldpayraftBrandSpecificData,
+    reference_trace_numbers: WorldpayraftIncrementalAuthorizationTraceNumbers,
+    #[serde(rename = "WorldPayMerchantID")]
+    world_pay_merchant_id: Secret<String>,
+    #[serde(rename = "APITransactionID")]
+    api_transaction_id: String,
+    local_date_time: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct WorldpayraftIncrementalAuthorizationAmounts {
+    transaction_amount: StringMajorUnit,
+    cumulative_amount: StringMajorUnit,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct WorldpayraftIncrementalAuthorizationTraceNumbers {
+    authorization_number: String,
+    #[serde(rename = "RetrievalREFNumber")]
+    retrieval_ref_number: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayraftRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayraftIncrementalAuthorizationRequest<T>
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: WorldpayraftRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Populated once the shared follow-up payment method contract is available.
+        let card_details: Option<CardWithNoCvc> = None;
+        let card = card_details.as_ref().ok_or_else(|| {
+            errors::IntegrationError::not_implemented(
+                "Worldpay RAFT incremental authorization requires the shared follow-up card contract",
+                errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "The incremental authorization request cannot supply the original card yet".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            )
+        })?;
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
+        let additional_amount = request
+            .additional_amount
+            .as_ref()
+            .ok_or_else(missing_field_err("additional_amount"))?;
+        if additional_amount.currency != request.amount.currency
+            || additional_amount.amount <= MinorUnit::zero()
+            || additional_amount.amount > request.amount.amount
+        {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "additional_amount",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "additional_amount must be positive, no greater than the new total amount, and in the same currency".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }.into());
+        }
+        let convert_amount = |amount: &Money, field_name: &str| {
+            item.connector
+                .amount_converter
+                .convert(amount.amount, amount.currency)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Worldpay RAFT {field_name} must be in major currency units"
+                        )),
+                        ..Default::default()
+                    },
+                })
+        };
+        // The caller supplies both values from its current authorization state.
+        // The original authorized amount cannot be used to calculate later increases.
+        let misc_amounts_balances = WorldpayraftIncrementalAuthorizationAmounts {
+            transaction_amount: convert_amount(additional_amount, "TransactionAmount")?,
+            cumulative_amount: convert_amount(&request.amount, "CumulativeAmount")?,
+        };
+
+        let connector_transaction_id = request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::IntegrationError::MissingConnectorTransactionID {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT incremental authorization requires the connector transaction ID returned by the original credit authorization".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Pass the original authorization's connector_transaction_id in the incremental authorization request".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let (transaction_type, authorization_number, retrieval_ref_number, _) =
+            parse_connector_transaction_id(&connector_transaction_id)?;
+        if transaction_type.is_debit()
+            || authorization_number.trim().is_empty()
+            || retrieval_ref_number.trim().is_empty()
+        {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "connector_transaction_id",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Expected the original credit authorization ID: C|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber (legacy IDs without C| are also accepted)".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }.into());
+        }
+        let card = CardFields::<T>::try_from(card)?;
+        if card.is_debit {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Incremental authorization for debit cards".to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext::default(),
+            }
+            .into());
+        }
+        let network = card.network;
+        if !matches!(
+            network,
+            Some(
+                CardNetwork::Visa
+                    | CardNetwork::Mastercard
+                    | CardNetwork::Discover
+                    | CardNetwork::AmericanExpress
+            )
+        ) {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Incremental authorization requires a Visa, Mastercard, Discover, or American Express card".to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext::default(),
+            }.into());
+        }
+        let network_transaction_id = request
+            .network_transaction_id
+            .as_ref()
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(missing_field_err("network_transaction_id"))?;
+        let metadata =
+            WorldpayraftConnectorMetadata::try_from(request.connector_feature_data.as_ref())?;
+        let api_transaction_id = metadata
+            .api_transaction_id
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(missing_field_err(
+                "connector_feature_data.api_transaction_id",
+            ))?;
+
+        Ok(Self {
+            creditauth: WorldpayraftIncrementalAuthorizationInner {
+                misc_amounts_balances,
+                account_codes_and_data: WorldpayraftCreditAccountData {
+                    from_account_selected: WorldpayraftAccountType::CreditCard,
+                },
+                card_info: WorldpayraftCardInfo {
+                    pan: Some(card.pan),
+                    expiration_date: Some(card.expiration_date),
+                },
+                terminal_data: WorldpayraftTerminalData {
+                    entry_mode: WorldpayraftEntryMode::Keyed,
+                    pos_condition_code: WorldpayraftPosConditionCode::Ecommerce,
+                    terminal_entry_cap: WorldpayraftTerminalEntryCapability::Unspecified,
+                    pos_environment: None,
+                },
+                ecommerce_data: WorldpayraftEcommerceData {
+                    ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
+                },
+                proc_flags_indicators: WorldpayraftProcFlags {
+                    incremental_auth: Some(WorldpayraftFlag::Yes),
+                    estimated_auth: Some(WorldpayraftFlag::Yes),
+                    partial_allowed: metadata
+                        .proc_flags_indicators
+                        .and_then(|flags| flags.partial_allowed),
+                    ..WorldpayraftProcFlags::default()
+                },
+                brand_specific_data: WorldpayraftBrandSpecificData::for_transaction(
+                    network.as_ref(),
+                    Some(network_transaction_id.clone()),
+                    Some(
+                        WorldpayraftSubsequentTransactionReasonCode::IncrementalAuthorization
+                            .to_string(),
+                    ),
+                ),
+                reference_trace_numbers: WorldpayraftIncrementalAuthorizationTraceNumbers {
+                    authorization_number: authorization_number.to_string(),
+                    retrieval_ref_number: retrieval_ref_number.to_string(),
+                },
+                world_pay_merchant_id: auth.merchant_id,
+                api_transaction_id,
+                local_date_time: get_local_datetime(),
+            },
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorldpayraftIncrementalAuthorizationResponse {
+    creditauthresponse: WorldpayraftCardAuthResponseInner,
+}
+
+impl TryFrom<ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.creditauthresponse;
+        let result = if map_payment_status(&response.return_code, &response.response_code) {
+            Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: AuthorizationStatus::Success,
+                connector_authorization_id: response
+                    .reference_trace_numbers
+                    .and_then(|trace| trace.authorization_number),
+                status_code: item.http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: if response.return_code == RETURN_CODE_SUCCESS {
+                    response.response_code
+                } else {
+                    response.return_code
+                },
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: response.reason_code,
+                connector_transaction_id: item
+                    .router_data
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .ok(),
+                ..ErrorResponse::default()
+            })
+        };
+        // A failed increase leaves the original authorization in place.
+        Ok(Self {
+            response: result,
             ..item.router_data
         })
     }

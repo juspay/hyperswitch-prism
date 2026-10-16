@@ -4404,7 +4404,7 @@ message PaymentServiceIncrementalAuthorizationRequest {
   string connector_transaction_id = 2;
 
   // Amount Information
-  Money amount = 3; // new amount to be authorized (in minor currency units)
+  Money amount = 3; // New total authorized amount, including this increase.
 
   // Optional Fields
   optional string reason = 4;
@@ -4418,6 +4418,12 @@ message PaymentServiceIncrementalAuthorizationRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 7;
+
+  // Increase over the current authorized total. Must use the same currency as amount.
+  optional Money additional_amount = 8;
+
+  // Network transaction ID returned by the original authorization.
+  optional string network_transaction_id = 9;
 }
 
 // Response message for incremental authorization

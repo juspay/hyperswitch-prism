@@ -297,7 +297,7 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('C|123456|123456789012|000001'));
 
     return captureResponse;
 }
@@ -333,7 +333,7 @@ async function recurringCharge(merchantTransactionId: string, config: types.ICon
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
+    const refundResponse = await paymentClient.refund(_buildRefundRequest('C|123456|123456789012|000001'));
 
     return refundResponse;
 }
@@ -351,7 +351,7 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+    const voidResponse = await paymentClient.void(_buildVoidRequest('C|123456|123456789012|000001'));
 
     return voidResponse;
 }

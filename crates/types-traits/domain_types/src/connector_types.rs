@@ -2522,7 +2522,11 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsIncrementalAuthorizationData {
+    /// New total authorized amount, including this increase.
     pub amount: Money,
+    /// Increase over the current authorized total, in the same currency as amount.
+    pub additional_amount: Option<Money>,
+    pub network_transaction_id: Option<String>,
     pub currency: Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: ResponseId,
