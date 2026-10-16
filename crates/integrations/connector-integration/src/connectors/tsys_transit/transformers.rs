@@ -378,27 +378,11 @@ pub(super) fn generate_xml<T: Serialize>(request: &T) -> Result<String, Report<I
     ))
 }
 
-fn generate_logged_xml<T: Serialize>(request: &T, fallback_root: &str) -> String {
+fn generate_xml_or_fallback<T: Serialize>(request: &T, fallback_root: &str) -> String {
     let fallback = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<{fallback_root}/>");
-    let xml = generate_xml(request).unwrap_or(fallback);
-    tracing::info!(
-        connector = "tsysTransit",
-        root = fallback_root,
-        raw_request_xml = %xml,
-        "tsysTransit raw connector request"
-    );
-    xml
+    generate_xml(request).unwrap_or(fallback)
 }
 
-fn log_tsys_transit_response<T: Debug>(flow: &str, status_code: u16, response: &T) {
-    tracing::info!(
-        connector = "tsysTransit",
-        flow,
-        http_status = status_code,
-        connector_response = ?response,
-        "tsysTransit connector response"
-    );
-}
 #[derive(Debug, Serialize)]
 pub enum TsysTransitAuthorizeRequest {
     #[serde(rename = "Sale")]
@@ -418,7 +402,7 @@ impl GetSoapXml for TsysTransitRepeatPaymentRequest {
 
 impl GetSoapXml for TsysTransitAuthorizeRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Sale")
+        generate_xml_or_fallback(self, "Sale")
     }
 }
 #[derive(Debug, Serialize)]
@@ -562,7 +546,7 @@ pub struct TsysTransitTransactionInquiryRequest {
 
 impl GetSoapXml for TsysTransitTransactionInquiryRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "SearchTransaction")
+        generate_xml_or_fallback(self, "SearchTransaction")
     }
 }
 pub type TsysTransitRSyncRequest = TsysTransitTransactionInquiryRequest;
@@ -589,7 +573,7 @@ pub struct TsysTransitCaptureRequest {
 
 impl GetSoapXml for TsysTransitCaptureRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Capture")
+        generate_xml_or_fallback(self, "Capture")
     }
 }
 #[derive(Debug, Serialize)]
@@ -617,7 +601,7 @@ pub struct TsysTransitReturnRequest {
 
 impl GetSoapXml for TsysTransitReturnRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Return")
+        generate_xml_or_fallback(self, "Return")
     }
 }
 #[derive(Debug, Serialize)]
@@ -639,7 +623,7 @@ pub struct TsysTransitVoidRequest {
 
 impl GetSoapXml for TsysTransitVoidRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 
@@ -664,7 +648,7 @@ pub type TsysTransitVoidPCResponse = TsysTransitVoidResponse;
 
 impl GetSoapXml for TsysTransitVoidPCRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 
@@ -687,7 +671,7 @@ pub struct TsysTransitVoidPostRefundRequest {
 
 impl GetSoapXml for TsysTransitVoidPostRefundRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 #[derive(Debug, Serialize)]
@@ -783,7 +767,7 @@ pub struct TsysTransitCardAuthenticationRequest {
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "CardAuthentication")
+        generate_xml_or_fallback(self, "CardAuthentication")
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -2578,7 +2562,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Authorize", item.http_code, response);
         let body = response.body();
 
         let status = map_authorize_status(response);
@@ -2812,7 +2795,6 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("PSync", item.http_code, response);
 
         if let Some(transaction_details) = response.transaction_details.as_ref() {
             // Incase of failure error message is not returned in sync call
@@ -2995,7 +2977,6 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Capture", item.http_code, response);
 
         let status = map_capture_status(response);
 
@@ -3157,7 +3138,6 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Refund", item.http_code, response);
 
         let refund_status = map_refund_status(response);
 
@@ -3304,8 +3284,6 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-
-        log_tsys_transit_response("RSync", item.http_code, response);
 
         match response
             .transaction_details
@@ -3466,7 +3444,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("VoidPostRefund", item.http_code, response);
 
         let void_post_refund_status = map_void_post_refund_status(response);
 
@@ -3641,7 +3618,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Void", item.http_code, response);
 
         let status = map_void_status(response);
 
@@ -3734,7 +3710,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("VoidPC", item.http_code, response);
 
         let post_capture_void_status = match map_void_status(response) {
             AttemptStatus::Voided => common_enums::PostCaptureVoidStatus::Succeeded,
@@ -3976,7 +3951,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("SetupMandate", item.http_code, response);
 
         let is_success = matches!(response.status, Some(TsysTransitStatus::Pass))
             && response.response_code.as_deref() == Some("A0000");
@@ -4232,7 +4206,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("RepeatPayment", item.http_code, response);
         let body = response.body();
         let authorize_view = response.as_authorize();
         let status = map_authorize_status(&authorize_view);

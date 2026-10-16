@@ -232,7 +232,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Multisafepay](connectors/multisafepay.md) | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Netcetera](connectors/netcetera.md) | x | x | x | x | x | x | x | ⚠ | x | ⚠ | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | ? | ? | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Nexinets](connectors/nexinets.md) | ✓ | ? | x | ? | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | ✓ | x | ✓ | ⚠ | ? | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Nexixpay](connectors/nexixpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ? | ? | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ? | ✓ | ⚠ | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Nexixpay](connectors/nexixpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ? | ? | ? | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ? | ? | ⚠ | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Nmi](connectors/nmi.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Noon](connectors/noon.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ? | x | x | ✓ | ✓ | ✓ | ✓ | ✓ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Novalnet](connectors/novalnet.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
@@ -240,7 +240,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Paybox](connectors/paybox.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | ? | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Payconex](connectors/payconex.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paydotcom](connectors/paydotcom.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ? | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Payhere](connectors/payhere.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
+| [Payhere](connectors/payhere.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Payload](connectors/payload.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | ⚠ | x | x | ✓ | ⚠ | x |
 | [Payme](connectors/payme.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paynearme](connectors/paynearme.md) | ✓ | ✓ | x | ⚠ | ✓ | ✓ | x | ⚠ | ? | ⚠ | ⚠ | ✓ | ? | ? | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |

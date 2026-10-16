@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.16.0
+
+### Features
+
+- **connector:** Handle different pos flag for raft cit and mit ([#2476](https://github.com/juspay/connector-service/pull/2476)) ([`6a4b09b`](https://github.com/juspay/connector-service/commit/6a4b09bf2551defe9f8b315f206d12dcea0abe24))
+
+**Full Changelog:** [`2026.10.15.0...2026.10.16.0`](https://github.com/juspay/connector-service/compare/2026.10.15.0...2026.10.16.0)
+
+- - -
+
 ## 2026.10.15.0
 
 ### Features
