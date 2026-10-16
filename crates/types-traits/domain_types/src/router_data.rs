@@ -473,6 +473,7 @@ pub enum ConnectorSpecificConfig {
         thumbprint: Secret<String>,
         private_key: Secret<String>,
         resource_id: Secret<String>,
+        merchant_id: HashMap<common_enums::Currency, Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         company_name: Option<Secret<String>>,
@@ -2335,6 +2336,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 thumbprint: jpmorgan.thumbprint.ok_or_else(err)?,
                 private_key: jpmorgan.private_key.ok_or_else(err)?,
                 resource_id: jpmorgan.resource_id.ok_or_else(err)?,
+                merchant_id: serde_json::to_value(jpmorgan.merchant_id)
+                    .and_then(serde_json::from_value)
+                    .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                        config: "merchant_id",
+                        context: Default::default(),
+                    })?,
                 base_url: jpmorgan.base_url,
                 secondary_base_url: jpmorgan.secondary_base_url,
                 company_name: jpmorgan.company_name,
@@ -3230,6 +3237,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         thumbprint: key1.clone(),
                         private_key: api_secret.clone(),
                         resource_id: key2.clone(),
+                        merchant_id: HashMap::new(),
                         base_url: None,
                         secondary_base_url: None,
                         company_name: None,

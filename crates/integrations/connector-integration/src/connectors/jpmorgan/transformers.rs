@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::consts::NO_ERROR_MESSAGE;
@@ -85,6 +87,7 @@ pub struct JpmorganAuthType {
     pub thumbprint: Secret<String>,
     pub private_key: Secret<String>,
     pub resource_id: Secret<String>,
+    pub merchant_id: HashMap<common_enums::Currency, Secret<String>>,
     pub company_name: Option<Secret<String>>,
     pub product_name: Option<Secret<String>>,
     pub merchant_purchase_description: Option<Secret<String>>,
@@ -100,6 +103,7 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganAuthType {
                 thumbprint,
                 private_key,
                 resource_id,
+                merchant_id,
                 company_name,
                 product_name,
                 merchant_purchase_description,
@@ -110,6 +114,7 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganAuthType {
                 thumbprint: thumbprint.clone(),
                 private_key: private_key.clone(),
                 resource_id: resource_id.clone(),
+                merchant_id: merchant_id.clone(),
                 company_name: company_name.clone(),
                 product_name: product_name.clone(),
                 merchant_purchase_description: merchant_purchase_description.clone(),
@@ -149,6 +154,25 @@ struct JpmorganClientAssertionClaims {
 }
 
 impl JpmorganAuthType {
+    pub(super) fn merchant_id_for_currency(
+        &self,
+        currency: common_enums::Currency,
+    ) -> Result<Secret<String>, Error> {
+        self.merchant_id
+            .get(&currency)
+            .filter(|merchant_id| !merchant_id.peek().trim().is_empty())
+            .cloned()
+            .ok_or_else(|| IntegrationError::InvalidConnectorConfig {
+                config: "merchant_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(format!(
+                        "Set a non-empty JPMorgan merchant_id.{currency} in the connector configuration.",
+                    )),
+                    ..Default::default()
+                },
+            }.into())
+    }
+
     fn validate_credentials(&self) -> Result<(), Error> {
         for (value, name) in [
             (self.client_id.peek().as_str(), "client_id"),
@@ -1176,10 +1200,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.currency,
         )?;
 
+        let transaction_id = item.router_data.request.connector_transaction_id;
+
         Ok(Self {
             merchant,
             amount,
             currency: item.router_data.request.currency,
+            payment_method_type: requests::JpmorganRefundPaymentMethodType {
+                transaction_reference: requests::JpmorganTransactionReference {
+                    transaction_reference_id: transaction_id,
+                },
+            },
         })
     }
 }

@@ -3198,6 +3198,9 @@ message PaymentServiceReverseRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 9;
+
+  // Original payment amount and currency.
+  optional Money amount = 10;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -5298,6 +5301,8 @@ message JpmorganConfig {
   SecretString thumbprint = 3; // certificate thumbprint; hex SHA-1 format, colons allowed
   SecretString private_key = 4; // base64 encoded PEM
   SecretString resource_id = 5;
+  // JPMorgan merchant IDs keyed by currency, e.g. USD, CAD, EUR, GBP, JPY.
+  map<string, SecretString> merchant_id = 6;
   optional string base_url = 50;
   optional SecretString company_name = 51;
   optional SecretString product_name = 52;

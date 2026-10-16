@@ -593,6 +593,7 @@ value = "cust_probe_123"
 aliases = [
   "Amount",
   "amount",
+  "amount.currency",
   "amount for void operation",
   "currency",
   "amount or minor_amount_authorized",
@@ -655,6 +656,10 @@ value = "probe_order_ref_001"
 
 
 # ── refund_get flow ───────────────────────────────────────────────────────────
+
+["refund_get.refund_amount"]
+aliases = ["refund_amount.currency"]
+type = "usd_money"
 
 # Nexinets RSync reads refund_connector_metadata (proto field: refund_metadata)
 # to extract order_id for building the GET URL. The metadata must be a JSON object

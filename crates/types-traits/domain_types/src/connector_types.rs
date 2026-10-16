@@ -1728,6 +1728,7 @@ pub struct EligibilityErrorInfo {
 #[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
+    pub amount: Option<Money>,
     pub cancellation_reason: Option<String>,
     pub integrity_object: Option<PaymentVoidPostCaptureIntegrityObject>,
     pub raw_connector_response: Option<String>,

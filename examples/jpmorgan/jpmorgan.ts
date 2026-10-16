@@ -5,9 +5,9 @@
 // Jpmorgan — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx jpmorgan.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -16,6 +16,7 @@ const _defaultConfig: types.IConnectorConfig = {
     connectorConfig: {
         jpmorgan: {
             clientId: { value: 'YOUR_CLIENT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
             thumbprint: { value: 'YOUR_THUMBPRINT' },
             privateKey: { value: 'YOUR_PRIVATE_KEY' },
             resourceId: { value: 'YOUR_RESOURCE_ID' },
@@ -230,21 +231,6 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
     };
 }
 
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001",  // Deprecated.
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_access_token"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
 function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringRequest {
     return {
         "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
@@ -299,20 +285,6 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
         "captureMethod": CaptureMethod.AUTOMATIC,
         "returnUrl": "https://example.com/return",
         "state": {
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_access_token"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
-function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
-    return {
-        "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "state": {  // State Information.
             "accessToken": {  // Access token obtained from connector.
                 "token": {"value": "probe_access_token"},  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
@@ -393,28 +365,6 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     }
 
     return { status: refundResponse.status, error: refundResponse.error } as any;
-}
-
-// Void Payment
-// Cancel an authorized but not-yet-captured payment.
-async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
-
-    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
-    }
-    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
-    }
-
-    // Step 2: Void — release reserved funds (cancel authorization)
-    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId!));
-
-    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
 }
 
 // Get Payment Status
@@ -520,15 +470,6 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
-// Flow: RefundService.Get
-async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
-
-    return refundResponse;
-}
-
 // Flow: PaymentService.SetupRecurring
 async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -547,19 +488,10 @@ async function tokenAuthorize(merchantTransactionId: string, config: types.IConn
     return tokenResponse;
 }
 
-// Flow: PaymentService.Void
-async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
-
-    return voidResponse;
-}
-
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createServerAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createServerAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest
 };
 
 // CLI runner

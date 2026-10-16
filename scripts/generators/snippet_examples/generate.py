@@ -48,19 +48,6 @@ from pathlib import Path
 # {message_name: {field_name: proto_type_name}}  — all messages across all protos
 _PROTO_FIELD_TYPES: dict[str, dict[str, str]] = {}
 
-# Deprecated credentials must not appear in generated connector configurations.
-_PROTO_DEPRECATED_FIELDS: dict[str, set[str]] = {}
-
-
-def _config_fields(config_name: str) -> dict[str, str]:
-    deprecated = _PROTO_DEPRECATED_FIELDS.get(config_name, set())
-    return {
-        name: field_type
-        for name, field_type in _PROTO_FIELD_TYPES.get(config_name, {}).items()
-        if name not in deprecated
-    }
-
-
 # Maps message name -> set of field names that are `repeated` in proto.
 # These map to Vec<T> in prost+serde which require the key to be present in
 # JSON (no #[serde(default)] generated), so we must always emit "field": [].
@@ -181,7 +168,7 @@ def _generate_connector_config_rust(connector_name: str) -> str:
     if config_name not in _PROTO_FIELD_TYPES:
         return None
     
-    fields = _config_fields(config_name)
+    fields = _PROTO_FIELD_TYPES[config_name]
     if not fields:
         return None
     
@@ -231,7 +218,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
     kwargs inside ConnectorConfig(options=..., ...).
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _config_fields(config_name)
+    fields = _PROTO_FIELD_TYPES.get(config_name, {})
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -278,7 +265,7 @@ def _generate_connector_config_typescript(
     The returned string uses 4-space indentation so it sits flush with 'options:' etc.
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _config_fields(config_name)
+    fields = _PROTO_FIELD_TYPES.get(config_name, {})
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -318,7 +305,7 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
     """
     config_name = f"{_conn_display(connector_name)}Config"
     conn_display = _conn_display(connector_name)
-    fields = _config_fields(config_name)
+    fields = _PROTO_FIELD_TYPES.get(config_name, {})
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
     i = indent
 
@@ -361,7 +348,6 @@ def load_proto_type_map(proto_dir: Path) -> None:
     global _PROTO_ENUM_PARENT
 
     type_map: dict[str, dict[str, str]] = {}
-    deprecated_map: dict[str, set[str]] = {}
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
@@ -419,7 +405,6 @@ def load_proto_type_map(proto_dir: Path) -> None:
             # Extract only top-level lines (not inside nested { })
             # Also parse fields inside oneof blocks (inner_depth == 1 after entering oneof).
             fields: dict[str, str] = {}
-            deprecated_fields: set[str] = set()
             repeated_fields: set[str] = set()
             optional_fields: set[str] = set()
             map_fields: set[str] = set()
@@ -450,15 +435,12 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     is_repeated, is_optional, ftype, fname = fm.group(1), fm.group(2), fm.group(3), fm.group(4)
                     if ftype not in _SKIP_KEYWORDS and fname not in _SKIP_KEYWORDS:
                         fields[fname] = ftype
-                        if re.search(r"\bdeprecated\s*=\s*true\b", line):
-                            deprecated_fields.add(fname)
                         if is_repeated:
                             repeated_fields.add(fname)
                         if is_optional:
                             optional_fields.add(fname)
 
             type_map[msg_name] = fields
-            deprecated_map[msg_name] = deprecated_fields
             repeated_map[msg_name] = repeated_fields
             optional_map[msg_name] = optional_fields
             map_map[msg_name] = map_fields
@@ -468,8 +450,6 @@ def load_proto_type_map(proto_dir: Path) -> None:
     # Clear and update the global dicts in-place so existing references see the changes
     _PROTO_FIELD_TYPES.clear()
     _PROTO_FIELD_TYPES.update(type_map)
-    _PROTO_DEPRECATED_FIELDS.clear()
-    _PROTO_DEPRECATED_FIELDS.update(deprecated_map)
     _PROTO_REPEATED_FIELDS.clear()
     _PROTO_REPEATED_FIELDS.update(repeated_map)
     _PROTO_OPTIONAL_FIELDS.clear()
