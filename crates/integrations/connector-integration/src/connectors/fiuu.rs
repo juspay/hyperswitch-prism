@@ -23,7 +23,7 @@ use domain_types::{
         SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -666,17 +666,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         res.status_code,
                         "fiuu",
                     ))?;
-                let response: FiuuPaymentResponse = if content_header
-                    .to_lowercase()
-                    .replace(' ', "")
-                    == "text/plain;charset=utf-8"
-                {
-                    parse_response(&res.response, res.status_code)
-                } else {
-                    Err(error_stack::Report::from(crate::utils::response_deserialization_fail(res.status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")))
-                        .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
-                }?;
-                finalize_connector_response!(event_builder, response, data, res.status_code)
+                let response: Result<FiuuPaymentResponse, error_stack::Report<ConnectorError>> =
+                    if content_header.to_lowercase().replace(' ', "") == "text/plain;charset=utf-8"
+                    {
+                        parse_response(&res.response, res.status_code)
+                    } else {
+                        Err(error_stack::Report::from(crate::utils::response_deserialization_fail(res.status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")))
+                            .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
+                    };
+
+                match response {
+                    Ok(response) => {
+                        finalize_connector_response!(event_builder, response, data, res.status_code)
+                    }
+                    // Fiuu can respond with a plain string instead of `key=value` pairs
+                    // (e.g. "System is busy now, temporary out of services..."). Treat it as an
+                    // error with an unknown attempt status instead of a deserialization failure.
+                    Err(error) => match get_plain_text_response(&res.response) {
+                        Some(message) => {
+                            if let Some(event) = event_builder {
+                                event.response_data =
+                                    events::MaskedSerdeValue::from_masked_optional(
+                                        &message,
+                                        "connector_response",
+                                    );
+                            }
+                            Ok(RouterDataV2 {
+                                response: Err(ErrorResponse {
+                                    status_code: res.status_code,
+                                    code: consts::NO_ERROR_CODE.to_string(),
+                                    message: message.clone(),
+                                    reason: Some(message),
+                                    attempt_status: Some(FlowStatus::Payment(
+                                        common_enums::AttemptStatus::Unknown,
+                                    )),
+                                    connector_transaction_id: None,
+                                    network_advice_code: None,
+                                    network_decline_code: None,
+                                    network_error_message: None,
+                                    typed_connector_response: None,
+                                    raw_connector_response: None,
+                                    raw_connector_request: None,
+                                    typed_connector_request: None,
+                                }),
+                                ..data.clone()
+                            })
+                        }
+                        None => Err(error),
+                    },
+                }
             }
             None => {
                 // We don't get headers for payment webhook response handling
@@ -1088,6 +1126,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Fiuu<T>
 {
+}
+
+/// Returns the trimmed body if it is a plain string, i.e. it has no `key=value` lines.
+fn get_plain_text_response(data: &[u8]) -> Option<String> {
+    let response_str = std::str::from_utf8(data).ok()?.trim();
+    (!response_str.is_empty() && !response_str.lines().any(|line| line.contains('=')))
+        .then(|| response_str.to_string())
 }
 
 fn parse_response<T>(
