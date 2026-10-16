@@ -49,14 +49,17 @@ The `Reverse` RPC cancels a captured payment before the funds have been settled 
 | `browser_info` | BrowserInformation | No | Browser details for 3DS verification |
 | `metadata` | SecretString | No | Additional metadata for the connector |
 | `connector_feature_data` | SecretString | No | Connector-specific metadata for the transaction |
+| `amount` | Money | No | Amount to void, for connectors that require it on a post-capture void |
 
 ## Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `connector_transaction_id` | string | Connector's transaction ID |
-| `status` | PaymentStatus | Current status of the payment |
-| `error` | ErrorInfo | Error details if reverse failed |
+| `connector_transaction_id` | string | Connector's ID of the original payment being voided, echoed from the request |
+| `connector_reference_id` | string | Connector's ID for the void itself, when it issues one |
+| `post_capture_void_status` | PostCaptureVoidStatus | Outcome of the void: SUCCEEDED, PENDING or FAILED |
+| `status` | PaymentStatus | Deprecated: use `post_capture_void_status`. Always `PAYMENT_STATUS_UNSPECIFIED` |
+| `error` | ErrorInfo | Set when the void is FAILED; carries the connector's failure message |
 | `status_code` | uint32 | HTTP-style status code (200, 402, etc.) |
 | `response_headers` | map<string, string> | Connector-specific response headers |
 | `merchant_reverse_id` | string | Your reverse reference (echoed back) |
@@ -83,7 +86,7 @@ grpcurl -H "x-connector: stripe" \
 ```json
 {
   "connector_transaction_id": "pi_3Oxxx...",
-  "status": "VOIDED",
+  "post_capture_void_status": "POST_CAPTURE_VOID_STATUS_SUCCEEDED",
   "status_code": 200,
   "merchant_reverse_id": "reverse_001"
 }

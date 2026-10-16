@@ -1732,6 +1732,7 @@ pub struct PaymentsCancelPostCaptureData {
     pub integrity_object: Option<PaymentVoidPostCaptureIntegrityObject>,
     pub raw_connector_response: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    pub amount: Option<Money>,
 }
 
 impl PaymentsCancelPostCaptureData {
