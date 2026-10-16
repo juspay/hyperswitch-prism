@@ -1612,6 +1612,8 @@ impl ConnectorResponseHeaders for PaymentFlowData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentVoidData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub integrity_object: Option<PaymentVoidIntegrityObject>,
@@ -2522,7 +2524,11 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsIncrementalAuthorizationData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub amount: Money,
+    pub additional_amount: Option<Money>,
+    pub network_transaction_id: Option<String>,
     pub currency: Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: ResponseId,
@@ -3745,6 +3751,8 @@ pub struct MultipleCaptureRequestData {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCaptureData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub amount_to_capture: Money,
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,

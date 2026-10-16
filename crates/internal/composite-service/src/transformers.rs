@@ -619,6 +619,7 @@ impl
 
         Self {
             merchant_void_id: item.merchant_void_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             cancellation_reason: item.cancellation_reason.clone(),
             all_keys_required: item.all_keys_required,
@@ -828,6 +829,7 @@ impl
         Self {
             split_settlement: item.split_settlement.clone(),
             merchant_capture_id: item.merchant_capture_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),

@@ -405,6 +405,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
 
     PaymentServiceCaptureRequest {
         split_settlement: None,
+        payment_method: None,
         merchant_capture_id: Some(request_ref_id),
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {

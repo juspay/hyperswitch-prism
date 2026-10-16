@@ -3125,6 +3125,9 @@ message PaymentServiceVoidRequest {
   // (platform fees, transfers, etc.), read only by connectors still on the old
   // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 13;
+
+  // Original payment method, for connectors that require it again on void (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 14;
 }
 
 // Response message for a payment void operation
@@ -3414,6 +3417,9 @@ message PaymentServiceCaptureRequest {
   // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
+
+  // Original payment method, for connectors that require it again on capture (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 16;
 }
 
 // Response message for a payment capture operation
@@ -3587,7 +3593,7 @@ message PaymentServiceRefundRequest {
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 18;
 
-  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 19;
 
   // Split refund data for platform fee reversals and transfers
@@ -4404,7 +4410,7 @@ message PaymentServiceIncrementalAuthorizationRequest {
   string connector_transaction_id = 2;
 
   // Amount Information
-  Money amount = 3; // new amount to be authorized (in minor currency units)
+  Money amount = 3; // New total authorized amount, including this increase.
 
   // Optional Fields
   optional string reason = 4;
@@ -4418,6 +4424,15 @@ message PaymentServiceIncrementalAuthorizationRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 7;
+
+  // Increase over the current authorized total. Must use the same currency as amount.
+  optional Money additional_amount = 8;
+
+  // Network transaction ID returned by the original authorization.
+  optional string network_transaction_id = 9;
+
+  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 10;
 }
 
 // Response message for incremental authorization
