@@ -16,7 +16,9 @@ const _defaultConfig: types.IConnectorConfig = {
     connectorConfig: {
         jpmorgan: {
             clientId: { value: 'YOUR_CLIENT_ID' },
-            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            thumbprint: { value: 'YOUR_THUMBPRINT' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
+            resourceId: { value: 'YOUR_RESOURCE_ID' },
             baseUrl: 'YOUR_BASE_URL',
             companyName: { value: 'YOUR_COMPANY_NAME' },
             productName: { value: 'YOUR_PRODUCT_NAME' },

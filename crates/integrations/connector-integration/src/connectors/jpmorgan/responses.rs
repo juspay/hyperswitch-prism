@@ -6,7 +6,7 @@ use super::requests::CapMethod;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JpmorganAuthUpdateResponse {
     pub access_token: Secret<String>,
-    pub scope: String,
+    pub scope: Option<String>,
     pub token_type: String,
     pub expires_in: i64,
 }
@@ -17,6 +17,19 @@ pub struct JpmorganErrorResponse {
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
     pub response_message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JpmorganOAuthErrorResponse {
+    pub error: String,
+    pub error_description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JpmorganApiErrorResponse {
+    Payment(JpmorganErrorResponse),
+    OAuth(JpmorganOAuthErrorResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -165,7 +178,7 @@ pub struct JpmorganRefundResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct JpmorganClientAuthResponse {
     pub access_token: Secret<String>,
-    pub scope: String,
+    pub scope: Option<String>,
     pub token_type: String,
     pub expires_in: i64,
 }

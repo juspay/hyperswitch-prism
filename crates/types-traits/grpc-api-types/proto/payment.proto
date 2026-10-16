@@ -5298,7 +5298,10 @@ message HipayConfig {
 
 message JpmorganConfig {
   SecretString client_id = 1;
-  SecretString client_secret = 2;
+  optional SecretString client_secret = 2 [deprecated = true];
+  SecretString thumbprint = 3; // certificate thumbprint; hex SHA-1 format, colons allowed
+  SecretString private_key = 4; // base64 encoded PEM
+  SecretString resource_id = 5;
   optional string base_url = 50;
   optional SecretString company_name = 51;
   optional SecretString product_name = 52;

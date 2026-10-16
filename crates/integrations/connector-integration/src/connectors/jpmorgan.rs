@@ -8,7 +8,6 @@ use responses::{JpmorganClientAuthResponse, JpmorganVoidPcResponse, *};
 
 use std::fmt::Debug;
 
-use base64::Engine;
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{
@@ -322,7 +321,7 @@ macros::create_all_prerequisites!(
             // Merchant-Id header
             let merchant_id_header = (
                 headers::MERCHANT_ID.to_string(),
-                req.resource_common_data.merchant_id().get_string_repr().to_string().into_masked(),
+                req.resource_common_data.merchant_id().get_string_repr().to_string().into_masked(), // to be fixed - [hyperswitch-cloud - #24029]
             );
 
             headers.push(auth_header);
@@ -366,9 +365,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: JpmorganErrorResponse = res
+        let response: JpmorganApiErrorResponse = res
             .response
-            .parse_struct("JpmorganErrorResponse")
+            .parse_struct("JpmorganApiErrorResponse")
             .change_context(
                 crate::utils::response_deserialization_fail(
                     res.status_code,
@@ -377,16 +376,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        let response_message = response
-            .response_message
-            .as_ref()
-            .map_or_else(|| consts::NO_ERROR_MESSAGE.to_string(), ToString::to_string);
+        let (response_code, response_message) = match &response {
+            JpmorganApiErrorResponse::Payment(error) => {
+                (error.response_code.clone(), error.response_message.clone())
+            }
+            JpmorganApiErrorResponse::OAuth(error) => {
+                (error.error.clone(), error.error_description.clone())
+            }
+        };
+        let response_message =
+            response_message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.response_code,
+            code: response_code,
             message: response_message.clone(),
             reason: Some(response_message),
             attempt_status: None,
@@ -450,51 +455,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            // ClientAuthenticationToken flow uses Basic auth with client_id:client_secret
-            // to obtain an OAuth2 access token for client-side SDK initialization
-            let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
-            let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
-            let encoded_creds = BASE64_ENGINE.encode(creds);
-            let auth_string = format!("Basic {}", encoded_creds);
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/x-www-form-urlencoded".to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    auth_string.into_masked(),
-                ),
-            ])
+            jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?.token_headers()
         }
         fn get_url(
             &self,
             req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            use domain_types::errors::IntegrationErrorContext;
-            Ok(format!(
-                "{}/am/oauth2/alpha/access_token",
-                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_ref()
-                    .ok_or(IntegrationError::FailedToObtainIntegrationUrl {
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Set the 'secondary_base_url' in the JPMorgan connector \
-                                 configuration. This URL points to the OAuth2 token endpoint."
-                                    .to_owned(),
-                            ),
-                            doc_url: Some(
-                                "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/capabilities/authentication/oauth"
-                                    .to_owned(),
-                            ),
-                            additional_context: Some(
-                                "JPMorgan uses a separate base URL for the OAuth2 token \
-                                 endpoint (secondary_base_url) distinct from the payments API."
-                                    .to_owned(),
-                            ),
-                        },
-                    })?
-            ))
+            jpmorgan::JpmorganAuthType::token_url(
+                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_deref(),
+            )
         }
     }
 );
@@ -519,31 +488,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
-            let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
-            let encoded_creds = BASE64_ENGINE.encode(creds);
-            let auth_string = format!("Basic {}", encoded_creds);
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/x-www-form-urlencoded".to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    auth_string.into_masked(),
-                ),
-            ])
+            jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?.token_headers()
         }
         fn get_url(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}/am/oauth2/alpha/access_token",
-                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_ref()
-                    .ok_or(IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() })?
-            ))
+            jpmorgan::JpmorganAuthType::token_url(
+                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_deref(),
+            )
         }
     }
 );

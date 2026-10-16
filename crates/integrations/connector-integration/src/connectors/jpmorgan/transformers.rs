@@ -1,3 +1,4 @@
+use base64::Engine;
 use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::consts::NO_ERROR_MESSAGE;
 use common_utils::{fp_utils::when, pii::SecretSerdeValue};
@@ -25,7 +26,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses, JpmorganAmountConvertor};
@@ -81,7 +82,9 @@ fn jpmorgan_missing_field_context(field_name: &str) -> IntegrationErrorContext {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganAuthType {
     pub client_id: Secret<String>,
-    pub client_secret: Secret<String>,
+    pub thumbprint: Secret<String>,
+    pub private_key: Secret<String>,
+    pub resource_id: Secret<String>,
     pub company_name: Option<Secret<String>>,
     pub product_name: Option<Secret<String>>,
     pub merchant_purchase_description: Option<Secret<String>>,
@@ -94,7 +97,9 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganAuthType {
         match auth_type {
             ConnectorSpecificConfig::Jpmorgan {
                 client_id,
-                client_secret,
+                thumbprint,
+                private_key,
+                resource_id,
                 company_name,
                 product_name,
                 merchant_purchase_description,
@@ -102,7 +107,9 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganAuthType {
                 ..
             } => Ok(Self {
                 client_id: client_id.clone(),
-                client_secret: client_secret.clone(),
+                thumbprint: thumbprint.clone(),
+                private_key: private_key.clone(),
+                resource_id: resource_id.clone(),
                 company_name: company_name.clone(),
                 product_name: product_name.clone(),
                 merchant_purchase_description: merchant_purchase_description.clone(),
@@ -113,6 +120,119 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganAuthType {
             }
             .into()),
         }
+    }
+}
+
+const JPMORGAN_OAUTH_DOC: &str =
+    "https://developer.payments.jpmorgan.com/api/commerce/online-payments/oauth-authentication";
+const CLIENT_ASSERTION_TYPE: &str = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+const CLIENT_ASSERTION_TTL_SECONDS: i64 = 300;
+
+fn invalid_oauth_config(field: &'static str) -> IntegrationError {
+    IntegrationError::InvalidConnectorConfig {
+        config: field,
+        context: IntegrationErrorContext {
+            doc_url: Some(JPMORGAN_OAUTH_DOC.to_string()),
+            ..Default::default()
+        },
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct JpmorganClientAssertionClaims {
+    jti: String,
+    iat: i64,
+    exp: i64,
+    aud: String,
+    iss: Secret<String>,
+    sub: Secret<String>,
+}
+
+impl JpmorganAuthType {
+    fn validate_credentials(&self) -> Result<(), Error> {
+        for (value, name) in [
+            (self.client_id.peek().as_str(), "client_id"),
+            (self.thumbprint.peek().as_str(), "thumbprint"),
+            (self.private_key.peek().as_str(), "private_key"),
+            (self.resource_id.peek().as_str(), "resource_id"),
+        ] {
+            if value.trim().is_empty() {
+                return Err(invalid_oauth_config(name).into());
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn token_headers(&self) -> Result<Vec<(String, Maskable<String>)>, Error> {
+        self.validate_credentials()?;
+        Ok(vec![(
+            super::headers::CONTENT_TYPE.to_string(),
+            "application/x-www-form-urlencoded".to_string().into(),
+        )])
+    }
+
+    pub(super) fn token_url(secondary_base_url: Option<&str>) -> Result<String, Error> {
+        let base_url =
+            secondary_base_url.ok_or(IntegrationError::FailedToObtainIntegrationUrl {
+                context: IntegrationErrorContext {
+                    doc_url: Some(JPMORGAN_OAUTH_DOC.to_string()),
+                    suggested_action: Some(
+                        "Set JPMorgan secondary_base_url to the HTTPS OAuth host.".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let token_url = url::Url::parse(base_url)
+            .change_context(invalid_oauth_config("secondary_base_url"))?
+            .join("/adfs/oauth2/token")
+            .change_context(invalid_oauth_config("secondary_base_url"))?;
+
+        Ok(token_url.to_string())
+    }
+
+    pub(super) fn token_request(
+        &self,
+        secondary_base_url: Option<&str>,
+    ) -> Result<requests::JpmorganTokenRequest, Error> {
+        self.validate_credentials()?;
+        let token_url = Self::token_url(secondary_base_url)?;
+        let thumbprint = &self.thumbprint;
+        let private_key = &self.private_key;
+        let resource_id = &self.resource_id;
+        let kid = thumbprint
+            .peek()
+            .trim()
+            .replace(':', "")
+            .to_ascii_uppercase();
+        if kid.is_empty() || !kid.bytes().all(|c| c.is_ascii_hexdigit()) {
+            return Err(invalid_oauth_config("thumbprint").into());
+        }
+        let pem = super::BASE64_ENGINE
+            .decode(private_key.peek())
+            .change_context(invalid_oauth_config("private_key"))?;
+        let signing_key = jsonwebtoken::EncodingKey::from_rsa_pem(&pem)
+            .change_context(invalid_oauth_config("private_key"))?;
+        let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+        header.typ = Some("JWT".to_string());
+        header.kid = Some(kid);
+        let now = common_utils::date_time::now_unix_timestamp();
+        let claims = JpmorganClientAssertionClaims {
+            jti: common_utils::fp_utils::generate_uuid_v4(),
+            iat: now,
+            exp: now + CLIENT_ASSERTION_TTL_SECONDS,
+            aud: token_url,
+            iss: self.client_id.clone(),
+            sub: self.client_id.clone(),
+        };
+        let assertion = jsonwebtoken::encode(&header, &claims, &signing_key)
+            .change_context(invalid_oauth_config("private_key"))?;
+        Ok(requests::JpmorganTokenRequest {
+            grant_type: "client_credentials".to_string(),
+            client_id: self.client_id.clone(),
+            client_assertion_type: CLIENT_ASSERTION_TYPE.to_string(),
+            client_assertion: Secret::new(assertion),
+            resource: resource_id.clone(),
+        })
     }
 }
 
@@ -153,7 +273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
     type Error = Error;
     fn try_from(
-        _item: JpmorganRouterData<
+        item: JpmorganRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
                 MerchantAuthenticationFlowData,
@@ -163,10 +283,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            grant_type: String::from("client_credentials"),
-            scope: String::from("jpm:payments:sandbox"),
-        })
+        JpmorganAuthType::try_from(&item.router_data.connector_config)?.token_request(
+            item.router_data
+                .resource_common_data
+                .connectors
+                .jpmorgan
+                .secondary_base_url
+                .as_deref(),
+        )
     }
 }
 
@@ -1340,20 +1464,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let scope = if item
-            .router_data
-            .resource_common_data
-            .test_mode
-            .unwrap_or(true)
-        {
-            String::from("jpm:payments:sandbox")
-        } else {
-            String::from("jpm:payments")
-        };
-        Ok(Self {
-            grant_type: String::from("client_credentials"),
-            scope,
-        })
+        JpmorganAuthType::try_from(&item.router_data.connector_config)?.token_request(
+            item.router_data
+                .resource_common_data
+                .connectors
+                .jpmorgan
+                .secondary_base_url
+                .as_deref(),
+        )
     }
 }
 

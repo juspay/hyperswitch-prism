@@ -20,7 +20,9 @@ _default_config = sdk_config_pb2.ConnectorConfig(
     connector_config=payment_pb2.ConnectorSpecificConfig(
         jpmorgan=payment_pb2.JpmorganConfig(
             client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
-            client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
+            thumbprint=payment_methods_pb2.SecretString(value="YOUR_THUMBPRINT"),
+            private_key=payment_methods_pb2.SecretString(value="YOUR_PRIVATE_KEY"),
+            resource_id=payment_methods_pb2.SecretString(value="YOUR_RESOURCE_ID"),
             base_url="YOUR_BASE_URL",
             company_name=payment_methods_pb2.SecretString(value="YOUR_COMPANY_NAME"),
             product_name=payment_methods_pb2.SecretString(value="YOUR_PRODUCT_NAME"),

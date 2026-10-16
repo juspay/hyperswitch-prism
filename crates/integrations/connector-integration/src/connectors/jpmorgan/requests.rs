@@ -3,19 +3,15 @@ use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-/// Client Authentication Token request — obtains an OAuth2 access token
-/// for client-side SDK initialization via JP Morgan's token endpoint.
-/// Uses form-urlencoded format matching the ServerAuthenticationToken flow.
-#[derive(Debug, Clone, Serialize)]
-pub struct JpmorganClientAuthRequest {
-    pub grant_type: String,
-    pub scope: String,
-}
+pub type JpmorganClientAuthRequest = JpmorganTokenRequest;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct JpmorganTokenRequest {
     pub grant_type: String,
-    pub scope: String,
+    pub client_id: Secret<String>,
+    pub client_assertion_type: String,
+    pub client_assertion: Secret<String>,
+    pub resource: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]

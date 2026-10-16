@@ -40,8 +40,14 @@ fn build_client() -> ConnectorClient {
                     client_id: Some(hyperswitch_masking::Secret::new(
                         "YOUR_CLIENT_ID".to_string(),
                     )), // Authentication credential
-                    client_secret: Some(hyperswitch_masking::Secret::new(
-                        "YOUR_CLIENT_SECRET".to_string(),
+                    thumbprint: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_THUMBPRINT".to_string(),
+                    )), // Authentication credential
+                    private_key: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_PRIVATE_KEY".to_string(),
+                    )), // Authentication credential
+                    resource_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_RESOURCE_ID".to_string(),
                     )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     company_name: Some(hyperswitch_masking::Secret::new(
